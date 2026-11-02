@@ -4,7 +4,9 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early development (v0.0.2).** The terminal chat works with automatic free-model discovery and fallback. The Windows app and local models are coming — see the roadmap below.
+> **Status: early development (v0.0.3).** The Windows app and the terminal chat work, with automatic free-model discovery and fallback. The Windows installer, the Ubuntu app and local models are coming — see the roadmap below.
+
+<p align="center"><img src="docs/screen-chat.jpg" width="720" alt="Lanterna chat window"></p>
 
 ## Why
 
@@ -32,13 +34,16 @@ On first launch you pick a language, your name and your first free service:
 | Extras | strong open models (GPT-OSS, Qwen) | understands photos and documents, long memory |
 | Get a key | [console.groq.com/keys](https://console.groq.com/keys) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 
+Window app: `pip install "lanterna[gui]"` then `lanterna-gui`, or build `Lanterna.exe` with `packaging/build_windows.ps1`.
+
 Other commands: `lanterna models` (free models available right now), `lanterna key set <provider>`, `lanterna key list`, `lanterna setup`, `lanterna about`.
 
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
 - [x] All free services (Groq, Gemini, OpenRouter, Cerebras, Mistral, GitHub Models) and automatic discovery of models that are free right now, with fallback when a limit is reached
-- [ ] Windows app with installer
+- [x] Windows app (window with chats, settings, first-run setup)
+- [ ] Windows installer (Setup.exe)
 - [ ] Full-screen terminal app for Ubuntu / GNOME
 - [ ] Memory, reminders, web search, files & photos, weather
 - [ ] Local models via Ollama with hardware-based recommendations

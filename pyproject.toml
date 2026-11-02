@@ -25,6 +25,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+gui = ["pywebview>=5"]
 dev = ["pytest>=8"]
 
 [project.urls]
@@ -33,11 +34,17 @@ Homepage = "https://github.com/mikybuilds/lanterna"
 [project.scripts]
 lanterna = "lanterna.cli:main"
 
+[project.gui-scripts]
+lanterna-gui = "lanterna.gui:main"
+
 [tool.setuptools.dynamic]
 version = { attr = "lanterna.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+lanterna = ["ui/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
