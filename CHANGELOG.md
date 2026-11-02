@@ -5,6 +5,10 @@
 **New**
 - Report a bug from the app (About → Report a bug, Settings, or `lanterna bug`): you write what happened, see the exact text, then send it yourself. Lanterna can add the version, system, mode and last errors, never chats, keys or your name.
 
+**Fixed**
+- With Google Gemini a reply could fail with "'list' object has no attribute 'get'" instead of moving on to the next model (Gemini sends its errors in a different shape).
+- Gemini models for images, audio, live voice and robots are no longer tried for chat, so the first reply comes faster.
+
 ## 0.1.1 — update notice and Ubuntu menu
 
 **New**

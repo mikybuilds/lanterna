@@ -61,8 +61,11 @@ class ProviderError(Exception):
 
 def _error(resp: httpx.Response) -> ProviderError:
     try:
-        msg = resp.json().get("error", {})
-        msg = msg.get("message", "") if isinstance(msg, dict) else str(msg)
+        data = resp.json()
+        if isinstance(data, list) and data:                  # Gemini wraps errors in a list: [{"error": {...}}]
+            data = data[0]
+        msg = data.get("error", {}) if isinstance(data, dict) else data
+        msg = msg.get("message", "") if isinstance(msg, dict) else str(msg or "")
     except ValueError:
         msg = resp.text[:200]
     s = resp.status_code

@@ -9,6 +9,13 @@ from lanterna.providers import PROVIDERS, Client, ProviderError
 from lanterna.router import AllFailed, Router, Switched
 
 
+@pytest.fixture(autouse=True)
+def own_home(tmp_path, monkeypatch):
+    """Never use the real model cache or the real key vault of a Lanterna installed on this computer."""
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    monkeypatch.setattr(discovery.keys, "get_key", lambda pid: None)
+
+
 def sse(text: str) -> bytes:
     return (f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\ndata: [DONE]\n\n").encode()
 
@@ -49,6 +56,19 @@ def test_groq_skips_speech_and_guards():
                                         "openai/gpt-oss-safeguard-20b", "canopylabs/orpheus-v1-english", "qwen/qwen3.8-27b"]]}
     c = mock_client("groq", lambda r: httpx.Response(200, json=raw))
     assert {x.model for x in candidates_for(c)} == {"openai/gpt-oss-120b", "qwen/qwen3.8-27b"}
+
+
+def test_gemini_skips_image_audio_and_robot_models(tmp_path, monkeypatch):
+    ids = ["gemini-3.1-pro-preview-customtools", "gemini-3-pro-image-preview", "gemini-2.5-flash", "gemini-2.5-flash-image",
+           "gemini-2.5-flash-native-audio-latest", "gemini-3.8-live", "gemini-robotics-er-2-preview", "gemini-omni-flash-preview",
+           "gemini-2.5-computer-use-preview-10-2025", "gemini-nano-banana-2.1", "gemini-3.1-pro-preview", "gemma-4-31b-it"]
+    c = mock_client("gemini", lambda r: httpx.Response(200, json={"models": [{"name": "models/" + i} for i in ids]}))
+    got = {x.model for x in candidates_for(c)}
+    assert got == {"gemini-2.5-flash", "gemini-3.1-pro-preview", "gemma-4-31b-it"}
+    # a list saved by an older version is cleaned when read
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    discovery.save_cache([Candidate("gemini", i, 50) for i in ids], ["gemini"])
+    assert {x.model for x in discovery.load_cache(["gemini"])} == got
 
 
 def test_discover_pings_top_models_and_drops_unavailable():

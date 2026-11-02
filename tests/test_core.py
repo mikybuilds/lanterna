@@ -44,6 +44,20 @@ def test_error_kinds(status, kind):
         assert e.value.retry_after == 7
 
 
+def test_gemini_error_in_a_list():
+    # Gemini answers errors as [{"error": {...}}]; this used to crash with "'list' object has no attribute 'get'"
+    body = [{"error": {"code": 429, "message": "Quota exceeded for gemini-3.1-pro", "status": "RESOURCE_EXHAUSTED"}}]
+    c = client_with(lambda r: httpx.Response(429, json=body))
+    with pytest.raises(ProviderError) as e:
+        c.chat("m", [])
+    assert e.value.kind == "rate" and str(e.value) == "Quota exceeded for gemini-3.1-pro"
+    for odd in ([], ["text"], "plain", None):
+        c = client_with(lambda r, odd=odd: httpx.Response(500, json=odd))
+        with pytest.raises(ProviderError) as e:
+            c.chat("m", [])
+        assert e.value.kind == "other"
+
+
 def test_network_error():
     def h(req):
         raise httpx.ConnectError("offline")

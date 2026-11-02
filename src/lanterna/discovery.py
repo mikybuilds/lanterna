@@ -24,7 +24,8 @@ PING_PER_PROVIDER = 3
 
 # Not chat models (speech, images, embeddings, safety filters…)
 _SKIP = re.compile(r"whisper|tts|speech|transcri|audio-preview|guard|safeguard|content-safety|moderation|embed|imagen|"
-                   r"image-generation|veo|lyria|aqa|orpheus|playai|allam|ocr|rerank|live-", re.I)
+                   r"image-generation|veo|lyria|aqa|orpheus|playai|allam|ocr|rerank|live-|-live$|"
+                   r"-image(-|$)|native-audio|robotics|computer-use|customtools|nano-banana|omni", re.I)
 
 # Known families: (pattern, score 0–100). First match wins; unknown models fall back to size.
 _KNOWN = [
@@ -162,7 +163,7 @@ def load_cache(providers: list[str]) -> list[Candidate] | None:
         return None
     if datetime.datetime.now() - at > datetime.timedelta(hours=CACHE_HOURS) or sorted(d.get("providers", [])) != sorted(providers):
         return None
-    return [Candidate(**c) for c in d["candidates"]]
+    return [Candidate(**c) for c in d["candidates"] if not _SKIP.search(c.get("model", ""))]   # lists saved by older versions
 
 
 def save_cache(cands: list[Candidate], providers: list[str]) -> None:
