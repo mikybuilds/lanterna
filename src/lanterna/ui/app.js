@@ -167,6 +167,11 @@ const STR = {
   "None": { uk: "Немає", it: "Nessuno" },
   "Ollama isn't running. Start it, or switch to Cloud in Settings.": { uk: "Ollama не запущена. Запусти її або перемкнися на «Хмару» в Налаштуваннях.", it: "Ollama non è attivo. Avvialo o passa al Cloud nelle Impostazioni." },
   "No local model yet. Download one in Settings → Local models.": { uk: "Локальної моделі ще немає. Завантаж її в Налаштуваннях → Локальні моделі.", it: "Nessun modello locale. Scaricane uno in Impostazioni → Modelli locali." },
+  "Checking for updates…": { uk: "Перевіряю оновлення…", it: "Controllo gli aggiornamenti…" },
+  "Version {v} is available": { uk: "Доступна версія {v}", it: "È disponibile la versione {v}" },
+  "Download": { uk: "Завантажити", it: "Scarica" },
+  "You have the latest version": { uk: "У тебе найновіша версія", it: "Hai l'ultima versione" },
+  "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": { uk: "У системі немає захищеного сховища ключів. Задай ключ як змінну середовища, напр. GROQ_API_KEY.", it: "Il sistema non ha un archivio sicuro per le chiavi. Imposta la chiave come variabile d'ambiente, es. GROQ_API_KEY." },
   "To understand photos, download a photo model in Settings → Local models.": { uk: "Щоб розуміти фото, завантаж модель для фото в Налаштуваннях → Локальні моделі.", it: "Per capire le foto, scarica un modello per le foto in Impostazioni → Modelli locali." },
 };
 let LANG = "en";
@@ -273,6 +278,10 @@ async function boot() {
   S = await api.state();
   LANG = S.settings.lang || "en";
   document.documentElement.lang = LANG;
+  // dev mode only (browser + token): open one screen directly, used to take the README screenshots
+  const view = TOKEN && new URLSearchParams(location.search).get("view");
+  if (view === "local") return renderOnboard("L");
+  if (view === "settings" || view === "about") { renderMain(); return view === "about" ? openAbout() : openSettings(); }
   if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) renderMain();
   else renderOnboard(S.settings.onboarded ? 3 : 0);
 }
@@ -489,7 +498,8 @@ function wireKeyRow(root, id, onOk) {
     } else {
       st.className = "status err";
       st.textContent = r.error === "auth" || r.error === "bad_request" ? t("This key doesn't work. Check that you copied all of it.")
-        : r.error === "network" ? t("No internet connection to {p}.", { p: pname(id) }) : t("Something went wrong: {e}", { e: r.message || r.error });
+        : r.error === "network" ? t("No internet connection to {p}.", { p: pname(id) })
+        : r.error === "vault" ? t("Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.") : t("Something went wrong: {e}", { e: r.message || r.error });
     }
   };
   btn.onclick = go;
@@ -768,15 +778,27 @@ function openSettings() {
 }
 
 function openAbout() {
-  dialog(t("About"), `<div class="about">
+  const v = dialog(t("About"), `<div class="about">
     <div class="hero-logo"><img src="logo.svg" alt=""></div>
     <div class="wordmark">Lanterna</div>
     <div class="byline">${t("Made by")} <b>${esc(S.author)}</b> · ${t("Version {v}", { v: esc(S.version) })}</div>
     <p class="muted" style="max-width:380px;margin:0 auto 22px">${t("Free and open source (MIT). No ads, no tracking — your chats stay on your computer.")}</p>
+    <div class="update" id="update"></div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <button class="btn primary" data-o="1">${icon("star")} ${t("Star on GitHub")}</button>
       <button class="btn ghost" data-o="1">${t("Project page")} ${icon("ext")}</button>
-    </div></div>`).querySelectorAll("[data-o]").forEach(b => b.onclick = () => api.open_url(S.homepage));
+    </div></div>`);
+  v.querySelectorAll("[data-o]").forEach(b => b.onclick = () => api.open_url(S.homepage));
+  const box = $("#update", v);
+  box.innerHTML = `<span class="spinner"></span>${t("Checking for updates…")}`;
+  api.check_update().then(u => {
+    if (!u.latest) { box.innerHTML = ""; return; }                 // offline or no release yet: stay quiet
+    box.innerHTML = u.newer
+      ? `<b>${t("Version {v} is available", { v: esc(u.latest) })}</b> <button class="btn primary small" id="get-update">${t("Download")} ${icon("ext")}</button>`
+      : `${icon("check")} ${t("You have the latest version")}`;
+    const b = $("#get-update", v);
+    if (b) b.onclick = () => api.open_url(u.url);
+  }).catch(() => { box.innerHTML = ""; });
 }
 
 // pywebview injects its API a moment after load; dev mode (token) can start right away

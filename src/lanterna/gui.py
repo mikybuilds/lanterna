@@ -20,7 +20,7 @@ UI = Path(__file__).with_name("ui")
 METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "new_thread",
            "messages", "rename_thread", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
-           "pull_model", "pulls", "cancel_pull"}
+           "pull_model", "pulls", "cancel_pull", "check_update"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 
@@ -84,12 +84,36 @@ def run_browser(port: int, open_browser: bool) -> int:
     return 0
 
 
+def selfcheck(out: str) -> int:
+    """Checks that a packaged build has everything inside; writes a JSON report (a windowed exe has no console)."""
+    report: dict = {}
+    for name in ("pypdf", "PIL", "webview", "keyring", "httpx"):
+        try:
+            __import__(name)
+            report[name] = "ok"
+        except Exception as e:                              # noqa: BLE001 - report anything
+            report[name] = f"missing: {e}"
+    report["ui"] = all((UI / f).is_file() for f in ("index.html", "app.js", "style.css", "logo.svg"))
+    try:
+        from . import __version__, hardware, local
+        report["version"] = __version__
+        report["hardware"] = hardware.detect().to_dict()
+        report["ollama"] = local.version() or ""
+    except Exception as e:                                  # noqa: BLE001
+        report["error"] = str(e)
+    Path(out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx")) and report["ui"] else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="lanterna-gui")
     ap.add_argument("--browser", action="store_true", help="open the UI in a browser instead of a window")
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--no-open", action="store_true")
+    ap.add_argument("--selfcheck", metavar="REPORT.json", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
+    if a.selfcheck:
+        return selfcheck(a.selfcheck)
     return run_browser(a.port, not a.no_open) if a.browser else run_window()
 
 

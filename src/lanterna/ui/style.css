@@ -291,3 +291,6 @@ svg.i { width: 18px; height: 18px; flex: none; }
 @media (max-width: 560px) { .hw, .picks { grid-template-columns: 1fr; } .lrow { flex-wrap: wrap; } }
 
 [hidden] { display: none !important; }
+
+.update { min-height: 34px; margin: -8px auto 18px; display: flex; gap: 10px; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); }
+.update svg { width: 16px; height: 16px; color: var(--green); }

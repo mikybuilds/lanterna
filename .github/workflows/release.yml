@@ -1,0 +1,56 @@
+name: release
+
+# Push a tag like v0.1.0 to build Lanterna-Setup-0.1.0.exe and a portable zip, and attach them to a release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tests and secrets scan
+        run: |
+          pip install -e ".[dev]"
+          python -m pytest -q
+          python tools/scan_secrets.py --history
+      - name: Version must match the tag
+        shell: pwsh
+        run: |
+          $v = python -c "import lanterna; print(lanterna.__version__)"
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} but lanterna.__version__ is $v" }
+          "VERSION=$v" | Out-File -Append $env:GITHUB_ENV
+          $home_ = python -c "import lanterna; print(lanterna.HOMEPAGE)"
+          "HOMEPAGE=$home_" | Out-File -Append $env:GITHUB_ENV
+      - name: Build Lanterna.exe
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1
+      - name: Check the build
+        shell: pwsh
+        run: |
+          $p = Start-Process dist\Lanterna\Lanterna.exe -ArgumentList "--selfcheck","selfcheck.json" -PassThru -Wait
+          Get-Content selfcheck.json
+          if ($p.ExitCode -ne 0) { throw "self-check failed" }
+      - name: Build Setup.exe (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DAppVersion=$env:VERSION" "/DHomepage=$env:HOMEPAGE" packaging\lanterna.iss
+          Compress-Archive -Path dist\Lanterna\* -DestinationPath "dist\Lanterna-$env:VERSION-portable-windows.zip"
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "dist\Lanterna-Setup-$env:VERSION.exe" "dist\Lanterna-$env:VERSION-portable-windows.zip" `
+            --title "Lanterna $env:VERSION" --notes-file CHANGELOG.md

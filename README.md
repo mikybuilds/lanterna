@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early development (v0.0.6).** The Windows app and the full-screen terminal app work, with memory, reminders, web search, weather, files and photos, automatic free-model discovery and fallback, and local models through Ollama. The Windows installer is coming — see the roadmap below.
+> **Status: first public preview (v0.1.0).** Windows window app and a full-screen terminal app for Ubuntu, with memory, reminders, web search, weather, files and photos, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
 <p align="center"><img src="docs/screen-chat.jpg" width="720" alt="Lanterna chat window"></p>
 
@@ -18,12 +18,21 @@ Running a good model locally needs a strong graphics card. Lanterna lets anyone 
 - **Human tone.** Warm, short when you're short, honest when it isn't sure.
 - **English, Українська, Italiano.**
 
-## Try it (developer preview)
+## Install
+
+**Windows 10 / 11.** Download `Lanterna-Setup-x.y.z.exe` from the [latest release](../../releases/latest) and run it. No admin rights needed; it adds Lanterna to the Start menu. A portable zip is there too.
+
+> Windows will say **"Windows protected your PC" / Unknown publisher**: the installer isn't code-signed (signing costs money). Click **More info → Run anyway**. The installer is built from this repository by the [release workflow](.github/workflows/release.yml), so you can check what's inside.
+
+**Ubuntu / GNOME** (or any Linux with Python 3.10+):
 
 ```bash
+sudo apt install pipx
 pipx install git+https://github.com/mikybuilds/lanterna
 lanterna
 ```
+
+Keys are kept in GNOME Keyring. On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
 
 On first launch you pick a language, your name and your first free service:
 
@@ -38,16 +47,15 @@ In a terminal `lanterna` opens a full-screen app (chats on the left, Ctrl+N new 
 
 <p align="center"><img src="docs/screen-terminal.png" width="720" alt="Lanterna in a terminal"></p>
 
-Window app: `pip install "lanterna[gui]"` then `lanterna-gui`, or build `Lanterna.exe` with `packaging/build_windows.ps1`.
-
-Other commands: `lanterna models` (free models available right now), `lanterna key set <provider>`, `lanterna key list`, `lanterna setup`, `lanterna about`.
+Other commands: `lanterna models` (free models available right now), `lanterna local` (local models), `lanterna key set <provider>`, `lanterna key list`, `lanterna setup`, `lanterna about`.
 
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
 - [x] All free services (Groq, Gemini, OpenRouter, Cerebras, Mistral, GitHub Models) and automatic discovery of models that are free right now, with fallback when a limit is reached
 - [x] Windows app (window with chats, settings, first-run setup)
-- [ ] Windows installer (Setup.exe)
+- [x] Windows installer (Setup.exe) and portable zip, built by the release workflow
+- [x] Update check (only when you open About)
 - [x] Full-screen terminal app for Ubuntu / GNOME (mouse + keyboard, same chats as the window app)
 - [x] Memory, reminders, web search, files & photos, weather, exact math and dates
 - [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
@@ -80,9 +88,32 @@ If your PC has a graphics card, Lanterna can run models on it with [Ollama](http
 
 Downloads start only when you press **Download (X GB)**, with progress shown. In the terminal: `lanterna local` (what fits), `lanterna local pull qwen3:8b`, `lanterna local mode auto`.
 
+<p align="center"><img src="docs/screen-local.png" width="640" alt="Local models: hardware check and recommended models"></p>
+<p align="center"><img src="docs/screen-modes.png" width="420" alt="Mode setting: Cloud, Local, Auto"> <img src="docs/screen-terminal-local.png" width="420" alt="Local models in the terminal app"></p>
+
+## Privacy
+
+- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder.
+- **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
+- Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
+- Web pages and files Lanterna reads are treated as information, never as instructions.
+- The only request Lanterna makes on its own is the update check, when you open **About** (a plain request for the latest release, nothing about you).
+
 ## Good to know
 
-Free limits are set by each provider and may change. Your memory list is stored on your computer and is sent to the model together with your messages, so it can use it. Web pages Lanterna reads are treated as information, never as instructions. In cloud mode your messages are processed by the provider you choose; for full privacy use local mode.
+Free limits are set by each provider and may change. macOS is not tested yet.
+
+## Development
+
+```bash
+python -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -e ".[dev,gui]"
+python -m pytest -q                                  # tests (no network, no keys needed)
+python tools/scan_secrets.py --history               # make sure no key, e-mail or personal path is committed
+lanterna-gui --browser                               # window UI in your browser (dev server on 127.0.0.1)
+```
+
+Windows build: `powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1` (also makes Setup.exe when Inno Setup 6 is installed). Releases: bump `__version__`, add a `CHANGELOG.md` entry, push a tag `vX.Y.Z` — the release workflow tests, builds and publishes the installer.
 
 ## Licence
 

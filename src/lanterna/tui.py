@@ -475,9 +475,29 @@ class AboutScreen(ModalScreen[None]):
             yield Label(f"{LOGO} Lanterna  v{__version__}", classes="title")
             yield Label(t("Made by {author}", lang, author=AUTHOR), classes="sub")
             yield Static(t("Lanterna is free and open source.", lang) + f"\n[link='{home}']{home}[/link]", classes="muted")
+            yield Static(t("Checking for updates…", lang), id="update", classes="muted")
             with Horizontal(classes="row"):
                 yield Button(t("Star on GitHub", lang), id="star", variant="primary")
                 yield Button(t("Close", lang), id="close")
+
+    def on_mount(self) -> None:
+        self._check_update()
+
+    @work(thread=True, exclusive=True, group="update")
+    def _check_update(self) -> None:
+        res = self.app.api.check_update()
+        self.app.call_from_thread(self._show_update, res)
+
+    def _show_update(self, res: dict) -> None:
+        lang = L(self.app)
+        box = self.query_one("#update", Static)
+        if not res.get("latest"):                          # offline or no release yet: stay quiet
+            box.update("")
+        elif res.get("newer"):
+            box.update(f"[b]{t('Version {v} is available', lang, v=res['latest'])}[/b]  "
+                       f"[link='{res['url']}']{res['url']}[/link]")
+        else:
+            box.update("✓ " + t("You have the latest version", lang))
 
     @on(Button.Pressed, "#star")
     def _star(self) -> None:

@@ -92,7 +92,10 @@ class Api:
             c.close()
         except ProviderError as e:
             return {"ok": False, "error": e.kind, "message": str(e)[:200]}
-        keys.set_key(provider, key)
+        try:
+            keys.set_key(provider, key)
+        except Exception as e:                               # no system vault (e.g. a server without a keyring)
+            return {"ok": False, "error": "vault", "message": str(e)[:200]}
         self._router = None
         return {"ok": True, "masked": keys.mask(key)}
 
@@ -131,6 +134,11 @@ class Api:
         return {"ok": True, "current": r.current.label if r.current else "",
                 "models": [{"provider": PROVIDERS[c.provider].name, "model": c.model, "score": c.score,
                             "status": c.status, "latency": c.latency, "vision": c.vision} for c in r.candidates]}
+
+    def check_update(self) -> dict:
+        """Only called when the About screen opens."""
+        from . import updates
+        return updates.check()
 
     # ---------------------------------------------------------------- local models (Ollama)
     def hardware(self) -> dict:

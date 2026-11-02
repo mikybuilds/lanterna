@@ -11,3 +11,14 @@ $py = if (Test-Path ".venv\Scripts\python.exe") { ".venv\Scripts\python.exe" } e
     --collect-all webview `
     packaging\lanterna_gui.py
 Write-Host "Built: dist\Lanterna\Lanterna.exe"
+
+# Setup.exe when Inno Setup 6 is installed (the release workflow on GitHub always builds it)
+$iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+if (Test-Path $iscc) {
+    $version = & $py -c "import lanterna; print(lanterna.__version__)"
+    $homepage = & $py -c "import lanterna; print(lanterna.HOMEPAGE)"
+    & $iscc "/DAppVersion=$version" "/DHomepage=$homepage" packaging\lanterna.iss
+    Write-Host "Built: dist\Lanterna-Setup-$version.exe"
+} else {
+    Write-Host "Inno Setup 6 not found: skipped Setup.exe"
+}

@@ -47,6 +47,7 @@ def api(tmp_path, monkeypatch):
         return {"ok": False, "error": "auth", "message": "invalid key"}
 
     monkeypatch.setattr(a, "check_key", fake_check)
+    monkeypatch.setattr(a, "check_update", lambda: {"current": "0.1.0", "latest": "0.2.0", "newer": True, "url": "https://x"})
     return a
 
 
