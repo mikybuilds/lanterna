@@ -51,7 +51,12 @@ def api(tmp_path, monkeypatch):
     return a
 
 
-async def wait_for(pilot, cond, timeout=5.0):
+def chat_ready(app) -> bool:
+    """The chat screen is shown and fully built (slow CI machines need a moment after the switch)."""
+    return type(app.screen).__name__ == "ChatScreen" and bool(app.screen.query("#composer"))
+
+
+async def wait_for(pilot, cond, timeout=10.0):
     for _ in range(int(timeout / 0.05)):
         await pilot.pause(0.05)
         if cond():
@@ -80,7 +85,7 @@ def test_onboarding_then_chat(api):
             app.screen.query_one("#key", Input).value = "good"
             await pilot.pause(0.3)          # a Button ignores a second click while its press effect runs
             await pilot.click("#check")
-            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "ChatScreen")
+            assert await wait_for(pilot, lambda: chat_ready(app))
             assert api.settings.onboarded and api.settings.name == "Anna" and api.settings.provider == "groq"
             assert api._vault["groq"] == "good"
 
@@ -107,7 +112,7 @@ def test_threads_reload_delete_and_language_switch(api):
     async def go():
         app = LanternaApp(api=api)
         async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: chat_ready(app) and len(app.screen.query(Markdown)) == 1)
             scr = app.screen
             assert scr.tid == tid
             assert len(scr.query(Markdown)) == 1 and len(scr.query(".msg-user")) == 1
@@ -116,15 +121,15 @@ def test_threads_reload_delete_and_language_switch(api):
             assert scr.tid is None and scr.query(".welcome")
             scr.open_thread(tid)
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#yes")))
             await pilot.click("#yes")
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: api.threads() == [])
             assert api.threads() == []
             # settings: switch language rebuilds the chat screen in Italian
             await pilot.press("ctrl+s")
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#lang-it")))
             await pilot.click("#lang-it")
-            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "ChatScreen" and app.screen is not scr)
+            assert await wait_for(pilot, lambda: chat_ready(app) and app.screen is not scr)
             assert api.settings.lang == "it"
             assert app.screen.query_one("#composer", Input).placeholder == "Scrivi a Lanterna…"
     asyncio.run(go())
@@ -142,7 +147,7 @@ def test_error_is_shown_not_raised(api, monkeypatch):
     async def go():
         app = LanternaApp(api=api)
         async with app.run_test(size=(100, 30)) as pilot:
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: chat_ready(app))
             app.screen.query_one("#composer", Input).value = "hi"
             await pilot.press("enter")
             assert await wait_for(pilot, lambda: bool(app.screen.query(".msg-err")))
@@ -161,12 +166,11 @@ def test_attach_file_and_reminder_alert(api, tmp_path, monkeypatch):
     async def go():
         app = LanternaApp(api=api)
         async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: chat_ready(app))
             box = app.screen.query_one("#composer", Input)
             box.value = f"/file {note}"
             await pilot.press("enter")
-            await pilot.pause()
-            assert "notes.txt" in str(app.screen.query_one("#attached").render())
+            assert await wait_for(pilot, lambda: "notes.txt" in str(app.screen.query_one("#attached").render()))
             box.value = "what is the budget?"
             await pilot.press("enter")
             assert await wait_for(pilot, lambda: app.screen._stream is None and app.screen._text)
@@ -177,8 +181,7 @@ def test_attach_file_and_reminder_alert(api, tmp_path, monkeypatch):
             api.store.add_reminder("drink water", 1.0)
             api.check_reminders()
             app._alerts()
-            await pilot.pause()
-            assert any("drink water" in str(n.message) for n in app._notifications)
+            assert await wait_for(pilot, lambda: any("drink water" in str(n.message) for n in app._notifications))
     asyncio.run(go())
 
 
@@ -252,7 +255,7 @@ def test_settings_mode_switch_and_auto_cloud_toggle(api, monkeypatch):
     async def go():
         app = LanternaApp(api=api)
         async with app.run_test(size=(120, 50)) as pilot:
-            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "ChatScreen")
+            assert await wait_for(pilot, lambda: chat_ready(app))
             await pilot.press("ctrl+s")
             assert await wait_for(pilot, lambda: bool(app.screen.query("#mode-auto")))
             app.screen.query_one("#mode-auto").press()
