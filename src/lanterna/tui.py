@@ -14,6 +14,8 @@ from textual.theme import Theme
 from textual.widgets import (Button, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
                              Markdown, Static)
 
+from pathlib import Path
+
 from . import AUTHOR, __version__
 from .app import Api
 from .cli import FIRST_CHOICES
@@ -58,6 +60,10 @@ Screen { background: $background; }
 .msg-err { color: $error; margin: 1 0 0 0; }
 .welcome { color: $text-muted; margin: 2 0; content-align: center middle; width: 100%; }
 #composer { margin: 0 2 1 2; border: round $panel-lighten-2; }
+#attached { margin: 0 3; color: $primary; height: auto; }
+.msg-tool { color: $text-muted; margin: 1 0 0 0; }
+.listrow { height: auto; width: 100%; }
+.listrow Label { width: 1fr; padding: 1 0 0 0; }
 #composer:focus { border: round $primary; }
 ModalScreen { align: center middle; background: $background 70%; }
 .dialog { width: 80; max-width: 100%; height: auto; max-height: 90%; border: round $primary; background: $surface; padding: 1 2; }
@@ -71,6 +77,17 @@ Button:focus { text-style: bold; }
 .keyrow Button { min-width: 10; margin-left: 1; }
 #models-table { height: 18; }
 """
+
+
+TOOL_TEXT = {"weather": "Checking the weather", "web_search": "Searching the web", "read_page": "Reading a page",
+             "calculate": "Calculating", "date_calc": "Counting dates", "remember": "Saving to memory",
+             "forget": "Updating memory", "set_reminder": "Setting a reminder", "list_reminders": "Checking reminders",
+             "cancel_reminder": "Cancelling a reminder"}
+
+
+def tool_text(chip: str, lang: str) -> str:
+    emo, _, name = chip.partition(" ")
+    return f"{emo} {t(TOOL_TEXT.get(name, name), lang)}"
 
 
 def L(app) -> str:
@@ -147,6 +164,40 @@ class KeyScreen(ModalScreen[bool]):
 
     def _close_ok(self) -> None:
         self.dismiss(True)
+
+
+class FileScreen(ModalScreen[str]):
+    """Asks for the path of a file or photo to attach."""
+
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with Vertical(classes="dialog"):
+            yield Label(t("Attach a file or photo", lang), classes="h")
+            yield Static(t("Type or paste the path. Photos, PDF, Word, text and code files work.", lang), classes="muted")
+            yield Input(placeholder="~/Pictures/photo.jpg", id="path")
+            yield Label("", id="pathmsg", classes="bad")
+            with Horizontal(classes="row"):
+                yield Button(t("Attach", lang), id="ok", variant="primary")
+                yield Button(t("Cancel", lang), id="cancel")
+
+    def on_mount(self) -> None:
+        self.query_one("#path", Input).focus()
+
+    @on(Button.Pressed, "#ok")
+    @on(Input.Submitted, "#path")
+    def _ok(self) -> None:
+        from pathlib import Path
+        raw = self.query_one("#path", Input).value.strip().strip('"').strip("'")
+        if raw and Path(raw).expanduser().is_file():
+            self.dismiss(str(Path(raw).expanduser()))
+        else:
+            self.query_one("#pathmsg", Label).update(t("File not found.", L(self.app)))
+
+    @on(Button.Pressed, "#cancel")
+    def action_cancel(self) -> None:
+        self.dismiss("")
 
 
 class ConfirmScreen(ModalScreen[bool]):
@@ -266,6 +317,13 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Save", lang), id="savename")
             yield Label(t("Keys", lang), classes="h")
             yield Vertical(id="keys")
+            yield Label(t("Memory", lang), classes="h")
+            yield Vertical(id="facts")
+            with Horizontal(classes="keyrow"):
+                yield Input(placeholder=t("Add a fact", lang), id="newfact")
+                yield Button(t("Add", lang), id="addfact")
+            yield Label(t("Reminders", lang), classes="h")
+            yield Vertical(id="rems")
             yield Label(t("Models", lang), classes="h")
             yield Button(t("Show models", lang), id="models")
             with Horizontal(classes="row"):
@@ -273,6 +331,27 @@ class SettingsScreen(ModalScreen[str]):
 
     def on_mount(self) -> None:
         self._fill_keys()
+        self._fill_memory()
+
+    def _fill_memory(self) -> None:
+        lang, api = L(self.app), self.app.api
+        facts, rems = self.query_one("#facts", Vertical), self.query_one("#rems", Vertical)
+        facts.remove_children()
+        rems.remove_children()
+        for f in api.facts():
+            row = Horizontal(classes="listrow")
+            facts.mount(row)
+            row.mount(Label(f["text"], markup=False))
+            row.mount(Button(t("Remove", lang), id=f"fact-{f['id']}"))
+        if not api.facts():
+            facts.mount(Static(t("Nothing yet. Say “remember that…” in a chat.", lang), classes="muted"))
+        for r in api.reminders():
+            row = Horizontal(classes="listrow")
+            rems.mount(row)
+            row.mount(Label(f"{r['when']}  {r['text']}", markup=False))
+            row.mount(Button(t("Cancel", lang), id=f"rem-{r['id']}"))
+        if not api.reminders():
+            rems.mount(Static(t("No reminders. Say “remind me in 20 minutes…” in a chat.", lang), classes="muted"))
 
     def _fill_keys(self) -> None:
         lang = L(self.app)
@@ -302,6 +381,18 @@ class SettingsScreen(ModalScreen[str]):
         elif bid.startswith("del-"):
             self.app.api.delete_key(bid[4:])
             self._fill_keys()
+        elif bid.startswith("fact-"):
+            self.app.api.delete_fact(int(bid[5:]))
+            self._fill_memory()
+        elif bid == "addfact":
+            box = self.query_one("#newfact", Input)
+            if box.value.strip():
+                self.app.api.add_fact(box.value)
+                box.value = ""
+                self._fill_memory()
+        elif bid.startswith("rem-"):
+            self.app.api.cancel_reminder(int(bid[4:]))
+            self._fill_memory()
         elif bid == "models":
             self.app.push_screen(ModelsScreen())
         elif bid == "close":
@@ -403,6 +494,8 @@ class _ChatScreen(Screen):
         self._bot: Markdown | None = None
         self._timer = None
         self._notes_seen = 0
+        self._tools_seen = 0
+        self._files: list[str] = []          # paths waiting to be sent
 
     def compose(self) -> ComposeResult:
         lang = L(self.app)
@@ -416,6 +509,7 @@ class _ChatScreen(Screen):
                     yield Label(t("New chat", lang), id="chattitle")
                     yield Label("", id="model")
                 yield VerticalScroll(id="log")
+                yield Label("", id="attached")
                 yield Input(placeholder=t("Message Lanterna…", lang), id="composer")
         yield Footer()
 
@@ -506,7 +600,11 @@ class _ChatScreen(Screen):
     @on(Input.Submitted, "#composer")
     def _submit(self, ev: Input.Submitted) -> None:
         text = ev.value.strip()
-        if not text:
+        if text.startswith("/file "):                     # "/file ~/photo.jpg" attaches without the dialog
+            self._attach_file(text[6:].strip().strip('"'))
+            ev.input.value = ""
+            return
+        if not text and not self._files:
             return
         if self._stream:
             self.app.notify(t("Wait for the reply to finish.", L(self.app)))
@@ -517,12 +615,16 @@ class _ChatScreen(Screen):
             self.tid = self.app.api.new_thread()["id"]
             log.remove_children()
         log.query(".welcome").remove()
-        log.mount(Static(text, classes="msg-user", markup=False))
-        res = self.app.api.send(self.tid, text)
+        files, self._files = self._files, []
+        self._paint_files()
+        shown = "\n".join([text] * bool(text) + [f"📎 {Path(f).name}" for f in files])
+        log.mount(Static(shown, classes="msg-user", markup=False))
+        res = self.app.api.send(self.tid, text, [{"path": f} for f in files])
         if not res.get("ok"):
-            log.mount(Static(t("Error: {err}", L(self.app), err=res.get("error")), classes="msg-err", markup=False))
+            err = res.get("message") or res.get("error")
+            log.mount(Static(t("Error: {err}", L(self.app), err=err), classes="msg-err", markup=False))
             return
-        self._stream, self._offset, self._text, self._notes_seen = res["stream"], 0, "", 0
+        self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = res["stream"], 0, "", 0, 0
         self._bot = Markdown("_" + t("Thinking…", L(self.app)) + "_", classes="msg-bot")
         log.mount(self._bot)
         log.scroll_end(animate=False)
@@ -538,6 +640,9 @@ class _ChatScreen(Screen):
         for note in r.get("notes", [])[self._notes_seen:]:
             await log.mount(Static("↪ " + t("switched to {m}", lang, m=note), classes="msg-note", markup=False), before=self._bot)
         self._notes_seen = len(r.get("notes", []))
+        for chip in r.get("tools", [])[self._tools_seen:]:
+            await log.mount(Static(tool_text(chip, lang), classes="msg-tool", markup=False), before=self._bot)
+        self._tools_seen = len(r.get("tools", []))
         changed = False
         if "final" in r:
             self._text, changed = r["final"], True
@@ -572,7 +677,25 @@ class _ChatScreen(Screen):
             return t("No working key. Add one in Settings (Ctrl+S).", lang)
         if kind == "network":
             return t("Network problem: {err}", lang, err=err.get("message", ""))
+        if kind == "vision":
+            return t("To understand photos, add a free Gemini key in Settings.", lang)
         return t("Error: {err}", lang, err=err.get("message", ""))
+
+    # attachments ---------------------------------------------------------------
+    def action_attach(self) -> None:
+        self.app.push_screen(FileScreen(), lambda p: p and self._attach_file(p))
+
+    def _attach_file(self, path: str) -> None:
+        p = Path(path).expanduser()
+        if not p.is_file():
+            self.app.notify(t("File not found.", L(self.app)), severity="error")
+            return
+        self._files.append(str(p))
+        self._paint_files()
+        self.query_one("#composer", Input).focus()
+
+    def _paint_files(self) -> None:
+        self.query_one("#attached", Label).update("  ".join(f"📎 {Path(f).name}" for f in self._files))
 
     # dialogs -----------------------------------------------------------------
     def action_settings(self) -> None:
@@ -597,6 +720,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+n", "new_chat", t("New chat", lang), priority=True),
         Binding("ctrl+d", "delete_chat", t("Delete chat", lang), priority=True),
         Binding("ctrl+s", "settings", t("Settings", lang), priority=True),
+        Binding("ctrl+f", "attach", t("Attach", lang), priority=True),
         Binding("ctrl+o", "models", t("Models", lang), priority=True),
         Binding("f1", "about", t("About", lang), priority=True),
         Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),
@@ -622,6 +746,12 @@ class LanternaApp(App):
             self.push_screen(OnboardScreen())
         else:
             self.push_screen(make_chat_screen(L(self)))
+        self.set_interval(10, self._alerts)
+
+    def _alerts(self) -> None:
+        for a in self.api.alerts():
+            self.bell()
+            self.notify(a["text"], title="⏰ " + t("Reminder", L(self)), timeout=30)
 
 
 def run(force_setup: bool = False) -> int:

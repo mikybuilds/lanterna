@@ -38,6 +38,19 @@ PREFERRED: dict[str, list[str]] = {
 _NOT_CHAT = re.compile(r"whisper|tts|guard|safeguard|embed|moderation|playai|orpheus|allam|vision-only", re.I)
 
 
+@dataclass
+class ToolCall:
+    id: str
+    name: str
+    arguments: str                        # JSON text, as the model wrote it
+
+
+@dataclass
+class ToolCalls:
+    """The model wants these tools run before it answers."""
+    calls: list[ToolCall]
+
+
 class ProviderError(Exception):
     """kind: auth | rate | network | bad_request | other"""
 
@@ -55,7 +68,11 @@ def _error(resp: httpx.Response) -> ProviderError:
     s = resp.status_code
     kind = "auth" if s in (401, 403) else "rate" if s == 429 else "bad_request" if s in (400, 404, 422) else "other"
     ra = resp.headers.get("retry-after")
-    return ProviderError(kind, msg or f"HTTP {s}", s, float(ra) if ra and ra.replace(".", "", 1).isdigit() else None)
+    wait = float(ra) if ra and ra.replace(".", "", 1).isdigit() else None
+    m = re.search(r"try again in (?:(\d+)m)?([\d.]+)s", msg or "")
+    if wait is None and m:                                   # e.g. Groq: "Please try again in 2.4s"
+        wait = int(m.group(1) or 0) * 60 + float(m.group(2))
+    return ProviderError(kind, msg or f"HTTP {s}", s, wait)
 
 
 class Client:
@@ -116,10 +133,17 @@ class Client:
             raise ProviderError("other", f"{self.provider.name}: no chat models available")
         return chat[0]
 
-    def stream_chat(self, model: str, messages: list[dict], temperature: float = 0.7) -> Iterator[str]:
-        """Yields text pieces as they arrive. Hidden reasoning (<think>…</think>) is dropped."""
+    def stream_chat(self, model: str, messages: list[dict], temperature: float = 0.7,
+                    tools: list[dict] | None = None, tool_choice: str = "auto") -> Iterator["str | ToolCalls"]:
+        """Yields text pieces as they arrive. Hidden reasoning (<think>…</think>) is dropped.
+
+        With tools, the model may ask to call some: then the last item yielded is a ToolCalls.
+        """
         body = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
+        if tools:
+            body["tools"], body["tool_choice"] = tools, tool_choice
         think = _ThinkFilter()
+        calls: dict[int, dict] = {}
         try:
             with self._http.stream("POST", "chat/completions", json=body) as r:
                 if r.status_code != 200:
@@ -132,10 +156,16 @@ class Client:
                     if payload == "[DONE]":
                         break
                     try:
-                        delta = json.loads(payload)["choices"][0].get("delta", {}).get("content") or ""
-                    except (ValueError, KeyError, IndexError):
+                        d = json.loads(payload)["choices"][0].get("delta") or {}
+                    except (ValueError, KeyError, IndexError, TypeError):
                         continue
-                    out = think.feed(delta)
+                    for tc in d.get("tool_calls") or []:
+                        slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
+                        slot["id"] = tc.get("id") or slot["id"]
+                        fn = tc.get("function") or {}
+                        slot["name"] += fn.get("name") or ""
+                        slot["arguments"] += fn.get("arguments") or ""
+                    out = think.feed(d.get("content") or "")
                     if out:
                         yield out
         except httpx.HTTPError as e:
@@ -143,9 +173,12 @@ class Client:
         tail = think.flush()
         if tail:
             yield tail
+        if calls:
+            yield ToolCalls([ToolCall(c["id"] or f"call_{i}", c["name"], c["arguments"] or "{}")
+                             for i, c in sorted(calls.items()) if c["name"]])
 
     def chat(self, model: str, messages: list[dict], temperature: float = 0.7) -> str:
-        return "".join(self.stream_chat(model, messages, temperature)).strip()
+        return "".join(p for p in self.stream_chat(model, messages, temperature) if isinstance(p, str)).strip()
 
 
 class _ThinkFilter:

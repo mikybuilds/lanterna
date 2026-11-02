@@ -89,7 +89,9 @@ def _free_openrouter(raw: list[dict]) -> list[Candidate]:
 
 
 def _vision_guess(model: str) -> bool:
-    return bool(re.search(r"gemini|vision|-vl|gemma-[34]|llama-4|pixtral|gpt-4o|gpt-4\.1|gpt-5|omni", model, re.I))
+    # qwen3.5 and newer are natively multimodal (checked live: qwen/qwen3.8-27b on Groq reads photos)
+    return bool(re.search(r"gemini|vision|-vl|gemma-[34]|llama-4|pixtral|gpt-4o|gpt-4\.1|gpt-5|omni|qwen3\.[5-9]",
+                          model, re.I))
 
 
 def candidates_for(client: Client) -> list[Candidate]:

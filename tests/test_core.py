@@ -73,7 +73,10 @@ def test_requests_stay_on_provider_host(pid):
 def test_no_unexpected_domains_in_sources():
     allowed = {"api.groq.com", "console.groq.com", "generativelanguage.googleapis.com", "aistudio.google.com",
                "openrouter.ai", "api.cerebras.ai", "cloud.cerebras.ai", "api.mistral.ai", "console.mistral.ai",
-               "models.github.ai", "git" "hub.com", "localhost", "127.0.0.1", "ollama.com"}
+               "models.github.ai", "git" "hub.com", "localhost", "127.0.0.1", "ollama.com",
+               # keyless tools: weather (Open-Meteo) and web search (DuckDuckGo)
+               "api.open-meteo.com", "geocoding-api.open-meteo.com", "air-quality-api.open-meteo.com",
+               "html.duckduckgo.com"}
     root = Path(__file__).parents[1]
     files = [*root.joinpath("src").rglob("*.py"), *root.joinpath("src").rglob("*.js"), *root.joinpath("src").rglob("*.html"), root / "pyproject.toml", root / "README.md"]
     found = {h for f in files if f.exists() for h in re.findall(r"https?://([^/\s\"'`)>:]+)", f.read_text(encoding="utf-8"))}

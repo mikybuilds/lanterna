@@ -5,19 +5,24 @@ Every method returns plain JSON-friendly data and never raises into the UI.
 """
 from __future__ import annotations
 
+import re
 import threading
+import time
 import uuid
 import webbrowser
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, keys
-from .chat import Conversation
+from .chat import Conversation, ToolUse
+from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
 from .i18n import LANGS
 from .providers import PROVIDERS, Client, ProviderError
 from .router import Router, Switched
+from .notify import notify
 from .store import Store
+from .tools import Toolbox
 
 FIRST_CHOICES = ["groq", "gemini"]
 
@@ -26,6 +31,7 @@ class _Stream:
     def __init__(self):
         self.pieces: list[str] = []
         self.notes: list[str] = []
+        self.tools: list[str] = []         # "🔎 web_search" chips
         self.done = False
         self.final = False                 # pieces now hold the cleaned full reply
         self.error: dict | None = None
@@ -33,12 +39,16 @@ class _Stream:
 
 
 class Api:
-    def __init__(self, store: Store | None = None):
+    def __init__(self, store: Store | None = None, scheduler: bool = True):
         self.settings = Settings.load()
         self.store = store or Store()
+        self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang)
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._lock = threading.Lock()
+        self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
+        if scheduler:
+            threading.Thread(target=self._reminder_loop, daemon=True).start()
 
     # ---------------------------------------------------------------- state & settings
     def state(self) -> dict:
@@ -123,7 +133,13 @@ class Api:
         return {"id": tid, "title": ""}
 
     def messages(self, tid: int) -> list[dict]:
-        return self.store.messages(int(tid))
+        """Messages for display: attached file contents are shown as a short 📎 line."""
+        out = []
+        for m in self.store.messages(int(tid)):
+            if m["role"] == "user":
+                m = {**m, "content": _short_files(m["content"])}
+            out.append(m)
+        return out
 
     def rename_thread(self, tid: int, title: str) -> bool:
         self.store.rename(int(tid), title)
@@ -133,30 +149,38 @@ class Api:
         self.store.delete_thread(int(tid))
         return True
 
-    def send(self, tid: int, text: str) -> dict:
+    def send(self, tid: int, text: str, files: list[dict] | None = None) -> dict:
         text = (text or "").strip()
         tid = int(tid)
-        if not text or not self.store.thread(tid):
+        if (not text and not files) or not self.store.thread(tid):
             return {"ok": False, "error": "empty"}
+        try:
+            prep = prepare(files or [])
+        except FileError as e:
+            return {"ok": False, "error": "file", "message": str(e)}
         sid = uuid.uuid4().hex
         st = _Stream()
         self._streams[sid] = st
         history = [{"role": m["role"], "content": m["content"]} for m in self.store.messages(tid)]
-        self.store.add(tid, "user", text)
+        full = "\n\n".join(x for x in (text, prep.text) if x)
+        self.store.add(tid, "user", full)
         if not self.store.thread(tid)["title"]:
-            self.store.rename(tid, text.splitlines()[0][:60])
-        threading.Thread(target=self._run, args=(sid, tid, text, history), daemon=True).start()
+            self.store.rename(tid, (text or ", ".join(prep.names)).splitlines()[0][:60])
+        threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images), daemon=True).start()
         return {"ok": True, "stream": sid}
 
-    def _run(self, sid: str, tid: int, text: str, history: list[dict]) -> None:
+    def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None) -> None:
         st = self._streams[sid]
         try:
             router = self._get_router()
-            conv = Conversation(router, self.settings.name, history=history)
-            for p in conv.ask(text):
+            conv = Conversation(router, self.settings.name, history=history, toolbox=self.toolbox,
+                                lang=self.settings.lang)
+            for p in conv.ask(text, images or None):
                 with st.lock:
                     if isinstance(p, Switched):
                         st.notes.append(p.to.label)
+                    elif isinstance(p, ToolUse):
+                        st.tools.append(f"{p.label} {p.name}")
                     else:
                         st.pieces.append(p)
             self.store.add(tid, "assistant", conv.last_reply, router.current.label if router.current else "")
@@ -179,11 +203,66 @@ class Api:
             return {"done": True, "error": {"kind": "other", "message": "unknown stream"}}
         with st.lock:
             if st.final:
-                out = {"final": st.pieces[0], "notes": st.notes, "done": st.done, "error": st.error,
+                out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}
             else:
                 text = "".join(st.pieces)
-                out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "done": st.done, "error": st.error}
+                out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
+                       "done": st.done, "error": st.error}
         if out["done"]:
             self._streams.pop(sid, None)
         return out
+
+    # ---------------------------------------------------------------- memory & reminders
+    def facts(self) -> list[dict]:
+        return self.store.facts()
+
+    def add_fact(self, text: str) -> list[dict]:
+        text = " ".join(str(text or "").split())[:300]
+        if text:
+            self.store.add_fact(text)
+        return self.store.facts()
+
+    def delete_fact(self, fid: int) -> list[dict]:
+        self.store.delete_fact(int(fid))
+        return self.store.facts()
+
+    def reminders(self) -> list[dict]:
+        return [{**r, "when": time.strftime("%d.%m %H:%M", time.localtime(r["due"]))} for r in self.store.reminders()]
+
+    def cancel_reminder(self, rid: int) -> list[dict]:
+        self.store.cancel_reminder(int(rid))
+        return self.reminders()
+
+    def alerts(self) -> list[dict]:
+        """Reminders that fired since the last call (the UI shows them inside the app too)."""
+        with self._lock:
+            out, self._alerts = self._alerts, []
+        return out
+
+    def check_reminders(self, now: float | None = None) -> list[dict]:
+        due = self.store.take_due(now)
+        for r in due:
+            late = (time.time() if now is None else now) - r["due"] > 120
+            r["late"] = late
+            notify("Lanterna ⏰", r["text"] + (f" ({time.strftime('%H:%M', time.localtime(r['due']))})" if late else ""))
+        if due:
+            with self._lock:
+                self._alerts += due
+        return due
+
+    def _reminder_loop(self) -> None:
+        while True:
+            try:
+                self.check_reminders()
+            except Exception:                               # noqa: BLE001  keep the scheduler alive
+                pass
+            time.sleep(15)
+
+
+_FILE_BLOCK = re.compile(r"\[File: ([^\]\n]+)\]\n```\n.*?\n```(?:\n\[…file cut, too long\])?", re.S)
+_PHOTO = re.compile(r"\[Photo: ([^\]\n]+)\]")
+
+
+def _short_files(text: str) -> str:
+    return _PHOTO.sub(r"🖼 \1", _FILE_BLOCK.sub(r"📎 \1", text))

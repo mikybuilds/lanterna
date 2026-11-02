@@ -7,9 +7,10 @@ from typing import Callable, Iterator
 
 from . import keys
 from .discovery import Candidate
-from .providers import PROVIDERS, Client, ProviderError
+from .providers import PROVIDERS, Client, ProviderError, ToolCalls
 
 # How long to skip a model (or a whole provider) after each kind of failure, in seconds.
+MAX_WAIT = 12            # seconds worth waiting for a rate limit instead of failing
 COOLDOWN = {"rate": 60, "network": 30, "other": 60, "bad_request": 24 * 3600, "auth": 3600}
 
 
@@ -26,12 +27,15 @@ class AllFailed(ProviderError):
 
 class Router:
     def __init__(self, candidates: list[Candidate], client_for: Callable[[str], Client] | None = None,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):
         self.candidates = list(candidates)
         self._clients: dict[str, Client] = {}
         self._client_for = client_for or self._default_client
         self._until: dict[tuple[str, str], float] = {}     # (provider, model or "*") -> skip until
+        self.no_tools: set[tuple[str, str]] = set()          # models that rejected the tools field
         self._clock = clock
+        self._sleep = sleep
+        self._short_wait: float | None = None
         self.current: Candidate | None = self.candidates[0] if self.candidates else None
 
     @staticmethod
@@ -55,7 +59,29 @@ class Router:
     def available(self) -> list[Candidate]:
         return [c for c in self.candidates if not self._cooling(c)]
 
-    def stream(self, messages: list[dict], need_vision: bool = False) -> Iterator[str | Switched]:
+    def stream(self, messages: list[dict], need_vision: bool = False,
+               tools: list[dict] | None = None, tool_choice: str = "auto") -> Iterator["str | Switched | ToolCalls"]:
+        """Best model first; on a limit, the next one. If every model is briefly rate-limited
+        (the service says "try again in a few seconds"), wait once and try again."""
+        self._short_wait = None
+        try:
+            yield from self._stream_once(messages, need_vision, tools, tool_choice)
+            return
+        except AllFailed as e:
+            wait = self._short_wait
+            if e.kind != "rate" or wait is None or wait > MAX_WAIT:
+                raise
+        self._sleep(wait + 0.5)
+        now = self._clock()
+        for k, until in list(self._until.items()):
+            if until - now <= COOLDOWN["rate"] + 1:          # forget the short rate cooldowns, keep the rest
+                del self._until[k]
+        yield from self._stream_once(messages, need_vision, tools, tool_choice)
+
+    def _stream_once(self, messages: list[dict], need_vision: bool, tools: list[dict] | None,
+                     tool_choice: str) -> Iterator["str | Switched | ToolCalls"]:
+        if need_vision and not any(c.vision for c in self.candidates):
+            raise ProviderError("vision", "No model that understands photos")
         last: ProviderError | None = None
         first = self.current
         for c in self.available():
@@ -65,18 +91,38 @@ class Router:
                 yield Switched(c, last.kind if last else "")
             self.current = c
             started = False
+            use_tools = tools if tools and (c.provider, c.model) not in self.no_tools else None
             try:
                 client = self.client(c.provider)
-                for piece in client.stream_chat(c.model, messages):
-                    started = True
-                    yield piece
+                attempts = [(use_tools, tool_choice)] if use_tools else [(None, "auto")]
+                if use_tools and tool_choice != "auto":
+                    attempts.append((use_tools, "auto"))          # some services refuse "required"
+                if use_tools:
+                    attempts.append((None, "auto"))               # and some models refuse tools at all
+                for i, (tl, choice) in enumerate(attempts):
+                    try:
+                        for piece in client.stream_chat(c.model, messages, tools=tl, tool_choice=choice):
+                            started = True
+                            yield piece
+                        break
+                    except ProviderError as e:
+                        if started or e.kind != "bad_request" or i == len(attempts) - 1:
+                            raise
+                        if attempts[i + 1][0] is None:
+                            self.no_tools.add((c.provider, c.model))
                 return
             except ProviderError as e:
                 if started:                                 # the answer was half-way: don't mix two models
                     raise
                 self._cool(c, e)
+                if e.kind == "rate" and e.retry_after is not None:
+                    self._short_wait = e.retry_after if self._short_wait is None else min(self._short_wait, e.retry_after)
                 last, first = e, None
         raise AllFailed(last.kind if last else "rate", str(last) if last else "No free model is available right now")
+
+    def supports_tools(self) -> bool:
+        c = self.current
+        return bool(c) and (c.provider, c.model) not in self.no_tools
 
     def close(self) -> None:
         for c in self._clients.values():

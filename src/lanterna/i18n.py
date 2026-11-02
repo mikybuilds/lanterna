@@ -96,6 +96,35 @@ _T: dict[str, dict[str, str]] = {
     "Search again": {"uk": "Шукати знову", "it": "Cerca di nuovo"},
     "Now using: {m}": {"uk": "Зараз працює: {m}", "it": "In uso ora: {m}"},
     "Star on GitHub": {"uk": "Зірка на GitHub", "it": "Stella su GitHub"},
+    # stage 4: tools, files, memory, reminders
+    "Checking the weather": {"uk": "Дивлюся погоду", "it": "Controllo il meteo"},
+    "Searching the web": {"uk": "Шукаю в інтернеті", "it": "Cerco sul web"},
+    "Reading a page": {"uk": "Читаю сторінку", "it": "Leggo una pagina"},
+    "Calculating": {"uk": "Рахую", "it": "Calcolo"},
+    "Counting dates": {"uk": "Рахую дати", "it": "Calcolo le date"},
+    "Saving to memory": {"uk": "Запам'ятовую", "it": "Salvo in memoria"},
+    "Updating memory": {"uk": "Оновлюю пам'ять", "it": "Aggiorno la memoria"},
+    "Setting a reminder": {"uk": "Ставлю нагадування", "it": "Imposto un promemoria"},
+    "Checking reminders": {"uk": "Дивлюся нагадування", "it": "Controllo i promemoria"},
+    "Cancelling a reminder": {"uk": "Скасовую нагадування", "it": "Annullo un promemoria"},
+    "Attach": {"uk": "Файл", "it": "Allega"},
+    "Attach a file or photo": {"uk": "Додати файл або фото", "it": "Allega un file o una foto"},
+    "Type or paste the path. Photos, PDF, Word, text and code files work.":
+        {"uk": "Введи або встав шлях. Підходять фото, PDF, Word, текстові файли й код.",
+         "it": "Scrivi o incolla il percorso. Vanno bene foto, PDF, Word, testo e codice."},
+    "File not found.": {"uk": "Файл не знайдено.", "it": "File non trovato."},
+    "To understand photos, add a free Gemini key in Settings.":
+        {"uk": "Щоб розуміти фото, додай безкоштовний ключ Gemini в Налаштуваннях.",
+         "it": "Per capire le foto, aggiungi una chiave Gemini gratuita nelle Impostazioni."},
+    "Memory": {"uk": "Пам'ять", "it": "Memoria"},
+    "Add a fact": {"uk": "Додати факт", "it": "Aggiungi un fatto"},
+    "Nothing yet. Say “remember that…” in a chat.":
+        {"uk": "Поки порожньо. Скажи в чаті «запам'ятай, що…».", "it": "Ancora niente. Scrivi «ricorda che…» in chat."},
+    "Reminders": {"uk": "Нагадування", "it": "Promemoria"},
+    "Reminder": {"uk": "Нагадування", "it": "Promemoria"},
+    "No reminders. Say “remind me in 20 minutes…” in a chat.":
+        {"uk": "Нагадувань немає. Скажи в чаті «нагадай через 20 хвилин…».",
+         "it": "Nessun promemoria. Scrivi «ricordami tra 20 minuti…» in chat."},
 }
 
 

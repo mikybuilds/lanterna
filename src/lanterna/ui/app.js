@@ -80,6 +80,8 @@ const STR = {
   "Add": { uk: "Додати", it: "Aggiungi" },
   "Change": { uk: "Змінити", it: "Cambia" },
   "Remove": { uk: "Прибрати", it: "Rimuovi" },
+  "Cancel": { uk: "Скасувати", it: "Annulla" },
+  "Close": { uk: "Закрити", it: "Chiudi" },
   "Remove the key for {p}?": { uk: "Прибрати ключ для {p}?", it: "Rimuovere la chiave di {p}?" },
   "Free models right now": { uk: "Безкоштовні моделі зараз", it: "Modelli gratuiti adesso" },
   "Search again": { uk: "Шукати знову", it: "Cerca di nuovo" },
@@ -100,6 +102,27 @@ const STR = {
   "Help me plan my week": { uk: "Допоможи спланувати тиждень", it: "Aiutami a pianificare la settimana" },
   "Write a short message for me": { uk: "Напиши за мене коротке повідомлення", it: "Scrivi un breve messaggio per me" },
   "Give me an idea for today": { uk: "Дай ідею на сьогодні", it: "Dammi un'idea per oggi" },
+  "Attach a file or photo": { uk: "Додати файл або фото", it: "Allega un file o una foto" },
+  "is bigger than 20 MB": { uk: "більший за 20 МБ", it: "è più grande di 20 MB" },
+  "Checking the weather": { uk: "Дивлюся погоду", it: "Controllo il meteo" },
+  "Searching the web": { uk: "Шукаю в інтернеті", it: "Cerco sul web" },
+  "Reading a page": { uk: "Читаю сторінку", it: "Leggo una pagina" },
+  "Calculating": { uk: "Рахую", it: "Calcolo" },
+  "Counting dates": { uk: "Рахую дати", it: "Calcolo le date" },
+  "Saving to memory": { uk: "Запам'ятовую", it: "Salvo in memoria" },
+  "Updating memory": { uk: "Оновлюю пам'ять", it: "Aggiorno la memoria" },
+  "Setting a reminder": { uk: "Ставлю нагадування", it: "Imposto un promemoria" },
+  "Checking reminders": { uk: "Дивлюся нагадування", it: "Controllo i promemoria" },
+  "Cancelling a reminder": { uk: "Скасовую нагадування", it: "Annullo un promemoria" },
+  "To understand photos, add a free Gemini key in Settings.": { uk: "Щоб розуміти фото, додай безкоштовний ключ Gemini в Налаштуваннях.", it: "Per capire le foto, aggiungi una chiave Gemini gratuita nelle Impostazioni." },
+  "Memory": { uk: "Пам'ять", it: "Memoria" },
+  "Facts Lanterna remembers about you. They stay on this computer and are sent to the model with each message.": { uk: "Факти, які Lanterna пам'ятає про тебе. Вони лежать на цьому комп'ютері й надсилаються моделі разом із кожним повідомленням.", it: "Fatti che Lanterna ricorda di te. Restano su questo computer e vengono inviati al modello con ogni messaggio." },
+  "Nothing yet. Say “remember that…” in a chat.": { uk: "Поки порожньо. Скажи в чаті «запам'ятай, що…».", it: "Ancora niente. Scrivi «ricorda che…» in chat." },
+  "Add a fact": { uk: "Додати факт", it: "Aggiungi un fatto" },
+  "Reminders": { uk: "Нагадування", it: "Promemoria" },
+  "No reminders. Say “remind me in 20 minutes…” in a chat.": { uk: "Нагадувань немає. Скажи в чаті «нагадай через 20 хвилин…».", it: "Nessun promemoria. Scrivi «ricordami tra 20 minuti…» in chat." },
+  "Reminders pop up while Lanterna is open.": { uk: "Нагадування спливають, поки Lanterna відкрита.", it: "I promemoria appaiono mentre Lanterna è aperta." },
+  "Reminder": { uk: "Нагадування", it: "Promemoria" },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -141,6 +164,58 @@ function md(text) {
     flush(); close();
     return html;
   }).join("");
+}
+
+
+// ---------------------------------------------------------------- tools, files, reminders
+const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the web", read_page: "Reading a page",
+  calculate: "Calculating", date_calc: "Counting dates", remember: "Saving to memory", forget: "Updating memory",
+  set_reminder: "Setting a reminder", list_reminders: "Checking reminders", cancel_reminder: "Cancelling a reminder" };
+const toolChip = s => { const [emo, name] = String(s).split(" "); return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
+
+let pending = [];        // files waiting to be sent: {name, size, data(base64)}
+const MAX_FILE = 20 * 1024 * 1024;
+
+function readFile(f) {
+  return new Promise((ok, fail) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",", 2)[1] || "");
+    r.onerror = () => fail(r.error);
+    r.readAsDataURL(f);
+  });
+}
+
+async function addFiles(list) {
+  for (const f of Array.from(list || [])) {
+    if (f.size > MAX_FILE) { toast(`${f.name} ${t("is bigger than 20 MB")}`); continue; }
+    pending.push({ name: f.name, size: f.size, data: await readFile(f) });
+  }
+  paintFiles();
+}
+
+function paintFiles() {
+  const box = $("#files");
+  if (!box) return;
+  box.hidden = !pending.length;
+  box.innerHTML = pending.map((f, i) => `<span class="file">${icon("clip")}<span>${esc(f.name)}</span><button data-i="${i}" title="${t("Remove")}">${icon("x")}</button></span>`).join("");
+  box.querySelectorAll("button").forEach(b => b.onclick = () => { pending.splice(+b.dataset.i, 1); paintFiles(); });
+  $("#input").oninput();
+}
+
+function toast(text, sticky = false) {
+  // short notices fade out; reminders stay until closed
+  const el = h(`<div class="toast${sticky ? " sticky" : ""}"><span></span><button title="${t("Close")}">${icon("x")}</button></div>`);
+  el.querySelector("span").textContent = text;
+  const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 600); };
+  el.querySelector("button").onclick = close;
+  const stack = $("#toasts") || document.body.appendChild(h(`<div id="toasts"></div>`));
+  stack.append(el);
+  if (!sticky) setTimeout(close, 6000);
+}
+
+async function watchAlerts() {
+  try { (await api.alerts()).forEach(a => toast(`⏰ ${t("Reminder")}: ${a.text}`, true)); } catch (e) { /* app closing */ }
+  setTimeout(watchAlerts, 10000);
 }
 
 // ---------------------------------------------------------------- state
@@ -303,7 +378,10 @@ function renderMain() {
       <div class="top"><button class="menu" id="menu">${icon("menu")}</button><div class="title" id="title">Lanterna</div><div class="chip" id="model" hidden><i></i><span></span></div></div>
       <div class="scroll" id="scroll"><div class="msgs" id="msgs"></div></div>
       <div class="composer">
-        <div class="box"><textarea id="input" rows="1" placeholder="${t("Message Lanterna…")}"></textarea>
+        <div class="files" id="files" hidden></div>
+        <div class="box"><button class="attach" id="attach" title="${t("Attach a file or photo")}">${icon("clip")}</button>
+          <input type="file" id="file" multiple hidden>
+          <textarea id="input" rows="1" placeholder="${t("Message Lanterna…")}"></textarea>
           <button class="send" id="send" disabled title="Send">${icon("send")}</button></div>
         <div class="hint">${t("Lanterna can make mistakes. Check important facts.")}</div>
       </div>
@@ -314,12 +392,25 @@ function renderMain() {
   $("#open-about").onclick = openAbout;
   $("#menu").onclick = () => $(".shell").classList.toggle("open");
   const inp = $("#input");
-  const fit = () => { inp.style.height = "auto"; inp.style.height = Math.min(inp.scrollHeight, 200) + "px"; $("#send").disabled = !inp.value.trim() || busy; };
+  const fit = () => {
+    // empty box: natural one-line height (measuring before layout gives a huge scrollHeight)
+    inp.style.height = "auto";
+    if (inp.value) inp.style.height = Math.min(inp.scrollHeight, 200) + "px";
+    $("#send").disabled = (!inp.value.trim() && !pending.length) || busy; };
   inp.oninput = fit;
   inp.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
   $("#send").onclick = send;
+  $("#attach").onclick = () => $("#file").click();
+  $("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+  const main = $(".main");
+  main.ondragover = e => { e.preventDefault(); main.classList.add("drop"); };
+  main.ondragleave = e => { if (e.target === main) main.classList.remove("drop"); };
+  main.ondrop = e => { e.preventDefault(); main.classList.remove("drop"); addFiles(e.dataTransfer.files); };
+  inp.onpaste = e => { const fs = e.clipboardData && e.clipboardData.files; if (fs && fs.length) { e.preventDefault(); addFiles(fs); } };
+  pending = []; paintFiles();
   refreshThreads().then(list => openThread(list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
+  if (!window.__alerts) { window.__alerts = true; watchAlerts(); }
 }
 
 function setModel(label) {
@@ -389,32 +480,47 @@ function scrollDown(force) {
 
 async function send(retryText) {
   const inp = $("#input");
-  const text = typeof retryText === "string" ? retryText : inp.value.trim();
-  if (!text || busy) return;
+  const retry = typeof retryText === "object" && retryText !== null && retryText.retry === true;
+  const text = retry ? retryText.text : inp.value.trim();
+  const files = retry ? retryText.files : pending;
+  if ((!text && !files.length) || busy) return;
   busy = true; $("#send").disabled = true;
   if (!thread) { thread = (await api.new_thread()).id; }
-  if (typeof retryText !== "string") { inp.value = ""; inp.oninput(); addUser(text); }
+  if (!retry) {
+    pending = []; inp.value = ""; paintFiles();
+    const names = files.map(f => (/[.](png|jpe?g|webp|gif|bmp)$/i.test(f.name) ? "🖼 " : "📎 ") + f.name);
+    addUser([text, ...names].filter(Boolean).join(String.fromCharCode(10, 10)));
+  }
   const bot = addBot(null);
   const box = bot.querySelector(".md");
   scrollDown(true);
-  const r = await api.send(thread, text);
+  const r = await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })));
   refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th) $("#title").textContent = th.title; });
-  if (!r.ok) { busy = false; bot.remove(); return; }
-  let text_ = "", offset = 0, notes = 0;
+  if (!r.ok) {
+    busy = false; inp.oninput();
+    if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`; else bot.remove();
+    return;
+  }
+  let text_ = "", offset = 0, notes = 0, tools = 0;
+  const chips = h(`<div class="tools"></div>`);
+  bot.querySelector(".body").prepend(chips);
   const step = async () => {
     let p;
     try { p = await api.poll(r.stream, offset); } catch (e) { p = { done: true, error: { kind: "network", message: String(e) } }; }
     (p.notes || []).slice(notes).forEach(m => { bot.before(h(`<div class="switch">↪ ${esc(t("switched to {m}", { m }))}</div>`)); setModel(m); });
     notes = (p.notes || []).length;
+    (p.tools || []).slice(tools).forEach(s => chips.insertAdjacentHTML("beforeend", toolChip(s)));
+    tools = (p.tools || []).length;
     if (p.final !== undefined) { text_ = p.final; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown();
     if (p.error) {
       const k = p.error.kind;
       const msg = k === "rate" ? t("All free models are busy or out of limits. Try again in a minute.")
-        : k === "network" ? t("No connection. Check your internet.") : k === "auth" ? t("Add a key in Settings to start.") : t("Something went wrong: {e}", { e: p.error.message });
+        : k === "network" ? t("No connection. Check your internet.") : k === "auth" ? t("Add a key in Settings to start.")
+        : k === "vision" ? t("To understand photos, add a free Gemini key in Settings.") : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
-      box.querySelector("button").onclick = () => { bot.remove(); send(text); };
+      box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files }); };
     }
     if (p.done) { busy = false; inp.oninput(); return; }
     setTimeout(step, 60);
@@ -451,6 +557,13 @@ function openSettings() {
         ${p.has_key ? `<button class="btn ghost small" data-act="rm">${t("Remove")}</button>` : ""}
         <button class="btn ${p.has_key ? "ghost" : "primary"} small" data-act="add">${p.has_key ? t("Change") : t("Add")}</button>
       </div>`).join("")}</div>
+      <h4 style="margin-top:22px">${t("Memory")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Facts Lanterna remembers about you. They stay on this computer and are sent to the model with each message.")}</p>
+      <div id="facts"></div>
+      <div class="keyrow"><div class="wrap"><input class="field" id="fact-new" maxlength="300" placeholder="${t("Add a fact")}"></div><button class="btn ghost" id="fact-add" style="height:48px">${icon("plus")}</button></div>
+      <h4 style="margin-top:22px">${t("Reminders")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>
+      <div id="rems"></div>
       <h4 style="margin-top:22px;display:flex;align-items:center">${t("Free models right now")}<button class="btn ghost small" id="refresh" style="margin-left:auto">${icon("refresh")} ${t("Search again")}</button></h4>
       <div class="models" id="models"></div>`;
     body.querySelectorAll("[data-l]").forEach(b => b.onclick = async () => { LANG = b.dataset.l; S = await api.save_settings({ lang: LANG }); v.querySelector("header h2").textContent = t("Settings"); paint(); });
@@ -466,6 +579,21 @@ function openSettings() {
     });
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
+    paintFacts(); paintRems();
+    $("#fact-add", body).onclick = async () => { const i = $("#fact-new", body); if (i.value.trim()) { await api.add_fact(i.value.trim()); i.value = ""; paintFacts(); } };
+    $("#fact-new", body).onkeydown = e => { if (e.key === "Enter") $("#fact-add", body).click(); };
+  };
+  const paintFacts = async () => {
+    const list = await api.facts(), box = $("#facts", body);
+    box.innerHTML = list.length ? list.map(f => `<div class="row"><div class="grow">${esc(f.text)}</div><button class="btn ghost small" data-f="${f.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
+      : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("Nothing yet. Say “remember that…” in a chat.")}</p>`;
+    box.querySelectorAll("[data-f]").forEach(b => b.onclick = async () => { await api.delete_fact(+b.dataset.f); paintFacts(); });
+  };
+  const paintRems = async () => {
+    const list = await api.reminders(), box = $("#rems", body);
+    box.innerHTML = list.length ? list.map(r => `<div class="row"><div class="grow"><b>${esc(r.text)}</b><small>${esc(r.when)}</small></div><button class="btn ghost small" data-r="${r.id}">${t("Cancel")}</button></div>`).join("")
+      : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No reminders. Say “remind me in 20 minutes…” in a chat.")}</p>`;
+    box.querySelectorAll("[data-r]").forEach(b => b.onclick = async () => { await api.cancel_reminder(+b.dataset.r); paintRems(); });
   };
   const loadModels = async refresh => {
     const box = $("#models", body);

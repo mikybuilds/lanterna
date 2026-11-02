@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early development (v0.0.4).** The Windows app and the full-screen terminal app work, with automatic free-model discovery and fallback. The Windows installer, memory/tools and local models are coming — see the roadmap below.
+> **Status: early development (v0.0.5).** The Windows app and the full-screen terminal app work, with memory, reminders, web search, weather, files and photos, with automatic free-model discovery and fallback. The Windows installer and local models are coming — see the roadmap below.
 
 <p align="center"><img src="docs/screen-chat.jpg" width="720" alt="Lanterna chat window"></p>
 
@@ -49,13 +49,22 @@ Other commands: `lanterna models` (free models available right now), `lanterna k
 - [x] Windows app (window with chats, settings, first-run setup)
 - [ ] Windows installer (Setup.exe)
 - [x] Full-screen terminal app for Ubuntu / GNOME (mouse + keyboard, same chats as the window app)
-- [ ] Memory, reminders, web search, files & photos, weather
+- [x] Memory, reminders, web search, files & photos, weather, exact math and dates
 - [ ] Local models via Ollama with hardware-based recommendations
 - [ ] Voice
 
+## What it can do
+
+- **Remember** things you tell it ("remember that I'm allergic to peanuts"). You can see and edit the list in Settings.
+- **Reminders** ("remind me in 20 minutes to stretch"): a system notification while Lanterna is open. Missed ones show up the next time you open it.
+- **Search the web** (DuckDuckGo, no key) and read pages, with the site name as the source.
+- **Weather and air quality** for any city (Open-Meteo, no key).
+- **Files and photos**: PDF, Word, text and code files, and photos (📎 button, drag and drop, or Ctrl+F / `/file path` in the terminal).
+- **Exact math and dates**: numbers are computed by code, not guessed by the model.
+
 ## Good to know
 
-Free limits are set by each provider and may change. In cloud mode your messages are processed by the provider you choose; for full privacy use local mode.
+Free limits are set by each provider and may change. Your memory list is stored on your computer and is sent to the model together with your messages, so it can use it. Web pages Lanterna reads are treated as information, never as instructions. In cloud mode your messages are processed by the provider you choose; for full privacy use local mode.
 
 ## Licence
 

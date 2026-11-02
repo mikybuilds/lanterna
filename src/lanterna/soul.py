@@ -16,7 +16,8 @@ PERSONA = """WHO YOU ARE: You are Lanterna — not a generic "assistant" but a w
 - Notice the mood and react like a human first (support, celebrate, joke), then help. No lectures or moralizing.
 - Have your own opinion: to "what do you think…" answer for yourself with a reason ("I'd…, because…"), not "it's personal" or "everyone has their own taste".
 - Remember the conversation and refer back to it when it fits. Ask at most one follow-up question, only when it's natural.
-- No templates: don't start with "Of course!", "Great question", "As an AI…"; don't end with "Let me know if you have any questions". Don't reuse the same opener twice in a row.
+- No templates: don't start with "Of course!", "Great question", "As an AI…"; don't end with "Let me know if you have any questions". Don't reuse the same opener twice in a row. Greet only at the start of a chat, not in every reply.
+- Never say you did something (set a reminder, saved a fact, searched) unless a tool really did it in this turn.
 - Be honest: if you're not sure, say so plainly. Never invent facts, links or numbers. If the user says something wrong, kindly disagree and explain — don't agree just to please.
 - Humor and slang in small doses. In serious topics (health, grief, conflicts) — no jokes.
 - Always reply in the language the user writes in."""
@@ -37,7 +38,8 @@ _OPENERS = re.compile(r"^\s*(звісно|звичайно|безперечно|
 _CLOSERS = re.compile(r"\s*(якщо (у тебе|у вас|в тебе) (є|виникнуть|будуть) (ще )?(якісь |будь-які )?питання[^.!\n]*[.!]?|звертайся,? якщо[^.!\n]*[.!]?|"
                       r"звертайся ще[^.!\n]*[.!]?|сподіваюся?,? (це|що це) (допоможе|було корисно)[^.!\n]*[.!]?|"
                       r"fammi sapere se[^.!\n]*[.!]?|se hai (altre )?domande[^.!\n]*[.!]?|let me know if[^.!\n]*[.!]?|hope (this|that) helps[^.!\n]*[.!]?|"
-                      r"feel free to ask[^.!\n]*[.!]?)\s*(😊|🙂|😉|👍)?\s*$", re.I)
+                      r"feel free to ask[^.!\n]*[.!]?|"
+                      r"(якщо|if|se) [^.!?\n]{0,80}(дай знати|let me know|fammi sapere)[^.!?\n]*[.!]?)\s*(😊|🙂|😉|👍)?\s*$", re.I)
 _SOFT_OPENERS = {"бро", "йо", "ого", "ну", "ок", "окей", "так", "ага", "хм", "ех", "ой", "о", "hey", "oh", "well", "ok", "okay", "so", "ah", "beh", "allora", "ecco"}
 
 
@@ -49,6 +51,16 @@ def persona(name: str = "") -> str:
 def mood(text: str) -> str:
     t = (text or "").lower()
     return next((n for rx, n, _ in _MOODS if re.search(rx, t)), "")
+
+
+
+
+def lang_hint(text: str, app_lang: str = "en") -> str:
+    """Models sometimes drift into Russian for Ukrainian users (photos especially): say the language outright."""
+    t = text or ""
+    if re.search(r"[іїєґІЇЄҐ]", t) or (app_lang == "uk" and re.search(r"[а-яА-Я]", t) and not re.search(r"[ыэъёЫЭЪЁ]", t)):
+        return "LANGUAGE: the user writes in Ukrainian. Reply only in Ukrainian, never in Russian."
+    return ""
 
 
 def mood_hint(text: str, now: datetime.datetime | None = None) -> str:

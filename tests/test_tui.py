@@ -64,14 +64,13 @@ def test_onboarding_then_chat(api):
         async with app.run_test(size=(120, 40)) as pilot:
             assert type(app.screen).__name__ == "OnboardScreen"
             await pilot.click("#lang-uk")
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#name")))
             assert api.settings.lang == "uk"
             app.screen.query_one("#name", Input).value = "Anna"
             await pilot.click("#next")
-            await pilot.pause()
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#pick-groq")))
             await pilot.click("#pick-groq")
-            await pilot.pause()
-            assert type(app.screen).__name__ == "KeyScreen"
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "KeyScreen")
             app.screen.query_one("#key", Input).value = "bad"
             await pilot.click("#check")
             assert await wait_for(pilot, lambda: "invalid" in str(app.screen.query_one("#keystatus").render()))
@@ -147,4 +146,34 @@ def test_error_is_shown_not_raised(api, monkeypatch):
             err = app.screen.query_one(".msg-err", Static)
             assert "busy" in str(err.render())
             assert app.screen._stream is None
+    asyncio.run(go())
+
+
+def test_attach_file_and_reminder_alert(api, tmp_path, monkeypatch):
+    monkeypatch.setattr("lanterna.app.notify", lambda title, msg: True)
+    api.save_settings({"onboarded": True, "lang": "en"})
+    note = tmp_path / "notes.txt"
+    note.write_text("Budget: 4200 EUR", encoding="utf-8")
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            box = app.screen.query_one("#composer", Input)
+            box.value = f"/file {note}"
+            await pilot.press("enter")
+            await pilot.pause()
+            assert "notes.txt" in str(app.screen.query_one("#attached").render())
+            box.value = "what is the budget?"
+            await pilot.press("enter")
+            assert await wait_for(pilot, lambda: app.screen._stream is None and app.screen._text)
+            stored = api.store.messages(app.screen.tid)[0]["content"]
+            assert "Budget: 4200 EUR" in stored                       # the model got the file text
+            assert api.messages(app.screen.tid)[0]["content"].endswith("📎 notes.txt")   # the chat shows a short line
+            assert str(app.screen.query_one("#attached").render()) == ""
+            api.store.add_reminder("drink water", 1.0)
+            api.check_reminders()
+            app._alerts()
+            await pilot.pause()
+            assert any("drink water" in str(n.message) for n in app._notifications)
     asyncio.run(go())

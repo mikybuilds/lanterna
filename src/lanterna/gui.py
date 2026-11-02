@@ -18,7 +18,9 @@ from .app import Api
 
 UI = Path(__file__).with_name("ui")
 METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "new_thread",
-           "messages", "rename_thread", "delete_thread", "send", "poll"}
+           "messages", "rename_thread", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
+           "reminders", "cancel_reminder", "alerts"}
+MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 
 def run_window() -> int:
@@ -58,6 +60,8 @@ def make_server(api: Api, port: int = 0) -> tuple[ThreadingHTTPServer, str]:
             if len(parts) != 2 or parts[0] != "api" or parts[1] not in METHODS or self.headers.get("X-Token") != token:
                 return self._send(403, b"{}")
             n = int(self.headers.get("Content-Length") or 0)
+            if n > MAX_BODY:
+                return self._send(413, b"{}")
             args = json.loads(self.rfile.read(n) or b"[]")
             result = getattr(api, parts[1])(*args)
             self._send(200, json.dumps(result, ensure_ascii=False).encode())
