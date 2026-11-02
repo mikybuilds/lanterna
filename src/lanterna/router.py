@@ -11,7 +11,7 @@ from .providers import PROVIDERS, Client, ProviderError, ToolCalls
 
 # How long to skip a model (or a whole provider) after each kind of failure, in seconds.
 MAX_WAIT = 12            # seconds worth waiting for a rate limit instead of failing
-COOLDOWN = {"rate": 60, "network": 30, "other": 60, "bad_request": 24 * 3600, "auth": 3600}
+COOLDOWN = {"rate": 60, "network": 30, "timeout": 15 * 60, "other": 60, "bad_request": 24 * 3600, "auth": 3600}
 
 
 @dataclass

@@ -139,8 +139,7 @@ class Conversation:
             if not calls or not calls.calls:
                 break
             msgs.append({"role": "assistant", "content": "".join(round_text) or None,
-                         "tool_calls": [{"id": c.id, "type": "function",
-                                         "function": {"name": c.name, "arguments": c.arguments}} for c in calls.calls]})
+                         "tool_calls": [c.message() for c in calls.calls]})
             for c in calls.calls:
                 tool = self.toolbox.tools.get(c.name)
                 yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)

@@ -128,6 +128,55 @@ def test_think_filter(chunks):
     assert out == "Answer"
 
 
+@pytest.mark.parametrize("chunks", [
+    ["<thought>The user said hi</thought>Answer"],                 # Gemma 4 on Gemini
+    ["<thou", "ght>plan</tho", "ught>\nAns", "wer"],
+])
+def test_thought_filter(chunks):
+    f = _ThinkFilter()
+    assert "".join(f.feed(c) for c in chunks) + f.flush() == "Answer"
+
+
+def test_gemini_thought_signature_goes_back_with_the_tool_call():
+    # Gemini 3 refuses the next turn ("missing a thought_signature") unless the call comes back with it
+    bodies = []
+
+    def h(req):
+        bodies.append(json.loads(req.content))
+        if len(bodies) == 1:
+            tc = {"index": 0, "id": "c1", "type": "function", "function": {"name": "calculate", "arguments": '{"expression":"2+2"}'},
+                  "extra_content": {"google": {"thought_signature": "SIG"}}}
+            return httpx.Response(200, content=f"data: {json.dumps({'choices': [{'delta': {'tool_calls': [tc]}}]})}\n\ndata: [DONE]\n\n".encode())
+        return httpx.Response(200, content=sse("4"))
+
+    from lanterna.discovery import Candidate
+    from lanterna.router import Router
+    from lanterna.tools import Toolbox
+
+    class NoStore:
+        def facts(self):
+            return []
+    conv = Conversation(Router([Candidate("groq", "m", 50)], client_for=lambda pid: client_with(h)), "Anna",
+                        toolbox=Toolbox(NoStore()))
+    "".join(p for p in conv.ask("what is 2+2? use the calculator") if isinstance(p, str))
+    sent = bodies[-1]["messages"][-2]["tool_calls"][0]
+    assert sent["extra_content"] == {"google": {"thought_signature": "SIG"}} and conv.last_reply == "4"
+
+
+def test_a_stuck_model_does_not_block_the_whole_service():
+    from lanterna.discovery import Candidate
+    from lanterna.router import Router, Switched
+
+    def h(req):
+        if json.loads(req.content)["model"] == "slow":
+            raise httpx.ReadTimeout("The read operation timed out")
+        return httpx.Response(200, content=sse("ok"))
+    r = Router([Candidate("groq", "slow", 90), Candidate("groq", "fast", 80)], client_for=lambda pid: client_with(h))
+    out = list(r.stream([{"role": "user", "content": "hi"}]))
+    assert [p for p in out if isinstance(p, str)] == ["ok"] and isinstance(out[0], Switched)
+    assert [c.model for c in r.available()] == ["fast"]            # only the stuck model rests
+
+
 def test_think_filter_keeps_plain_angle_brackets():
     f = _ThinkFilter()
     assert "".join(f.feed(c) for c in ["a < b and ", "x<y"]) + f.flush() == "a < b and x<y"

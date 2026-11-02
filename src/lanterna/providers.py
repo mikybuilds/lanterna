@@ -43,6 +43,14 @@ class ToolCall:
     id: str
     name: str
     arguments: str                        # JSON text, as the model wrote it
+    extra: dict | None = None             # provider data that must go back with the call (Gemini 3: thought_signature)
+
+    def message(self) -> dict:
+        """The call as it goes back in the assistant message of the history."""
+        out = {"id": self.id, "type": "function", "function": {"name": self.name, "arguments": self.arguments}}
+        if self.extra:
+            out["extra_content"] = self.extra
+        return out
 
 
 @dataclass
@@ -52,7 +60,7 @@ class ToolCalls:
 
 
 class ProviderError(Exception):
-    """kind: auth | rate | network | bad_request | other"""
+    """kind: auth | rate | network | timeout | bad_request | other"""
 
     def __init__(self, kind: str, message: str, status: int = 0, retry_after: float | None = None):
         super().__init__(message)
@@ -163,21 +171,25 @@ class Client:
                     except (ValueError, KeyError, IndexError, TypeError):
                         continue
                     for tc in d.get("tool_calls") or []:
-                        slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": ""})
+                        slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": "", "extra": None})
                         slot["id"] = tc.get("id") or slot["id"]
+                        if isinstance(tc.get("extra_content"), dict):     # Gemini 3 wants this back as is
+                            slot["extra"] = tc["extra_content"]
                         fn = tc.get("function") or {}
                         slot["name"] += fn.get("name") or ""
                         slot["arguments"] += fn.get("arguments") or ""
                     out = think.feed(d.get("content") or "")
                     if out:
                         yield out
+        except httpx.TimeoutException as e:                  # this model is stuck; others may be fine
+            raise ProviderError("timeout", str(e) or "The model did not answer in time") from e
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
         tail = think.flush()
         if tail:
             yield tail
         if calls:
-            yield ToolCalls([ToolCall(c["id"] or f"call_{i}", c["name"], c["arguments"] or "{}")
+            yield ToolCalls([ToolCall(c["id"] or f"call_{i}", c["name"], c["arguments"] or "{}", c["extra"])
                              for i, c in sorted(calls.items()) if c["name"]])
 
     def chat(self, model: str, messages: list[dict], temperature: float = 0.7) -> str:
@@ -185,32 +197,35 @@ class Client:
 
 
 class _ThinkFilter:
-    """Removes <think>…</think> blocks from a token stream (some models show their reasoning)."""
+    """Removes <think>…</think> and <thought>…</thought> blocks from a token stream (some models show their reasoning)."""
+
+    OPEN = ("<think>", "<thought>")
 
     def __init__(self):
-        self.buf, self.inside = "", False
+        self.buf, self.close = "", ""          # close: the tag that ends the block we are inside, "" = outside
 
     def feed(self, text: str) -> str:
         self.buf += text
         out = []
         while True:
-            if self.inside:
-                end = self.buf.find("</think>")
+            if self.close:
+                end = self.buf.find(self.close)
                 if end < 0:
-                    self.buf = self.buf[-8:]
+                    self.buf = self.buf[-len(self.close):]
                     return "".join(out)
-                self.buf, self.inside = self.buf[end + 8:].lstrip("\n"), False
+                self.buf, self.close = self.buf[end + len(self.close):].lstrip("\n"), ""
             else:
-                start = self.buf.find("<think>")
-                if start < 0:
-                    lt = self.buf.rfind("<", max(0, len(self.buf) - 6))   # a tag may be split between chunks
-                    cut = lt if lt >= 0 else len(self.buf)
+                found = [(i, tag) for tag in self.OPEN if (i := self.buf.find(tag)) >= 0]
+                if not found:
+                    lt = self.buf.rfind("<", max(0, len(self.buf) - 8))   # a tag may be split between chunks
+                    cut = lt if lt >= 0 and any(t.startswith(self.buf[lt:]) for t in self.OPEN) else len(self.buf)
                     out.append(self.buf[:cut])
                     self.buf = self.buf[cut:]
                     return "".join(out)
-                out.append(self.buf[:start])
-                self.buf, self.inside = self.buf[start + 7:], True
+                i, tag = min(found)
+                out.append(self.buf[:i])
+                self.buf, self.close = self.buf[i + len(tag):], "</" + tag[1:]
 
     def flush(self) -> str:
-        rest, self.buf = ("" if self.inside else self.buf), ""
+        rest, self.buf = ("" if self.close else self.buf), ""
         return rest

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — Gemini tools fix
+
+**Fixed**
+- With Gemini 3, questions that use a tool (weather, search, reminders…) jumped through many models ("switched to …" again and again) and could stop working for the rest of the day. Lanterna now sends back the extra data Gemini needs, so the first model answers.
+- A model that hangs is set aside for 15 minutes on its own instead of blocking the whole service.
+- Gemma models on Gemini no longer show their hidden reasoning (`<thought>…`) in the reply.
+
 ## 0.2.0 — your chats on all your devices
 
 **New**
