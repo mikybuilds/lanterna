@@ -14,7 +14,7 @@ from textual.reactive import reactive
 from textual.screen import ModalScreen, Screen
 from textual.theme import Theme
 from textual.widgets import (Button, Checkbox, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
-                             Markdown, ProgressBar, Select, Static)
+                             Markdown, ProgressBar, Select, Static, TextArea)
 
 from pathlib import Path
 
@@ -71,6 +71,9 @@ ModalScreen { align: center middle; background: $background 70%; }
 #updcmd { width: 1fr; height: auto; padding: 1 1; background: $boost; color: $warning; }
 #updrest { margin-top: 1; }
 #updbox .row { margin-top: 1; }
+#bugtext { height: 6; }
+#bugpreview { height: auto; max-height: 10; padding: 0 1; background: $boost; color: $text-muted; }
+#bugbox .row { margin-top: 1; }
 .dialog { width: 80; max-width: 100%; height: auto; max-height: 90%; border: round $primary; background: $surface; padding: 1 2; }
 .dialog .h { text-style: bold; color: $primary; margin: 1 0 0 0; }
 .keyrow { height: auto; width: 100%; }
@@ -285,6 +288,85 @@ class UpdateScreen(ModalScreen[None]):
         self.app.api.open_url(self.info["url"])
 
     @on(Button.Pressed, "#updlater")
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class BugScreen(ModalScreen[None]):
+    """Report a bug: the user writes, sees the exact text, and sends it from their mail app or GitHub."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with VerticalScroll(classes="dialog", id="bugbox"):
+            yield Label(f"{LOGO} " + t("Report a bug", lang), classes="title")
+            yield Static(t("Tell what went wrong. You see the whole text first, and you send it yourself.", lang), classes="muted")
+            yield TextArea(id="bugtext")
+            yield Checkbox(t("Add app and system info", lang), value=True, id="buginfo")
+            yield Static(t("Version, system, mode and the last errors. Never chats, keys or your name.", lang), classes="muted")
+            yield Label(t("This is exactly what will be sent:", lang), classes="h")
+            yield Static("", markup=False, id="bugpreview")
+            yield Static("", id="bugnote", classes="muted")
+            with Horizontal(classes="row"):
+                yield Button(t("Write e-mail", lang), id="bugmail", variant="primary")
+                yield Button(t("Open on GitHub", lang), id="buggh")
+                yield Button(t("Copy text", lang), id="bugcopy")
+                yield Button(t("Close", lang), id="bugclose")
+
+    def on_mount(self) -> None:
+        self.query_one("#bugtext", TextArea).focus()
+        self._refresh()
+
+    def _refresh(self) -> dict:
+        lang = L(self.app)
+        r = self.app.api.bug_report(self.query_one("#bugtext", TextArea).text, self.query_one("#buginfo", Checkbox).value)
+        self.report = r
+        self.query_one("#bugpreview", Static).update(r["body"] or "…")
+        self.query_one("#bugmail", Button).display = bool(r["email"])
+        self._say(t("No mail app? Copy the text and send it to {email} from any mail.", lang, email=r["email"]) if r["email"]
+                  else t("Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.", lang))
+        return r
+
+    def _say(self, msg: str) -> None:
+        self.query_one("#bugnote", Static).update(msg)
+
+    def _ready(self) -> bool:
+        if self._refresh()["ok"]:
+            return True
+        self._say("[b]" + t("Write a few words first.", L(self.app)) + "[/b]")
+        self.query_one("#bugtext", TextArea).focus()
+        return False
+
+    @on(TextArea.Changed, "#bugtext")
+    @on(Checkbox.Changed, "#buginfo")
+    def _changed(self) -> None:
+        self._refresh()
+
+    @on(Button.Pressed, "#bugcopy")
+    def _copy(self, ev: Button.Pressed) -> None:
+        if self._ready():
+            self.app.copy_to_clipboard(self.report["body"])
+            ev.button.label = t("Copied", L(self.app))
+
+    @on(Button.Pressed, "#buggh")
+    def _github(self) -> None:
+        if self._ready():
+            self.app.api.open_url(self.report["issue"])
+
+    @on(Button.Pressed, "#bugmail")
+    def _mail(self) -> None:
+        if not self._ready():
+            return
+        lang, r = L(self.app), self.report
+        if r["cut"]:
+            self.app.copy_to_clipboard(r["body"])
+            self._say(t("The text is long, so the letter is shortened. The full text is copied: paste it into the letter.", lang))
+        else:
+            self._say(t("Your mail app opens with the letter ready. Check it and press Send.", lang))
+        self.app.api.open_mail(r["mailto"])
+
+    @on(Button.Pressed, "#bugclose")
     def action_close(self) -> None:
         self.dismiss(None)
 
@@ -538,6 +620,7 @@ class AboutScreen(ModalScreen[None]):
             with Horizontal(classes="row"):
                 yield Button(t("How to update", lang), id="howupdate", variant="warning")
                 yield Button(t("Star on GitHub", lang), id="star", variant="primary")
+                yield Button(t("Report a bug", lang), id="aboutbug")
                 yield Button(t("Close", lang), id="close")
 
     def on_mount(self) -> None:
@@ -566,6 +649,11 @@ class AboutScreen(ModalScreen[None]):
             self.query_one("#howupdate", Button).display = True
         else:
             box.update("✓ " + t("You have the latest version", lang))
+
+    @on(Button.Pressed, "#aboutbug")
+    def _bug(self) -> None:
+        self.dismiss(None)
+        self.app.push_screen(BugScreen())
 
     @on(Button.Pressed, "#star")
     def _star(self) -> None:

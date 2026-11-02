@@ -225,3 +225,23 @@ _T.update({
     "Start Lanterna again. Your chats, settings and keys stay as they are.": {"uk": "Запусти Lanterna знову. Чати, налаштування й ключі залишаться як є.", "it": "Riapri Lanterna. Chat, impostazioni e chiavi restano come sono."},
     "Couldn't check for updates. Are you online?": {"uk": "Не вдалося перевірити оновлення. Є інтернет?", "it": "Impossibile controllare gli aggiornamenti. Sei online?"},
 })
+
+
+# Bug reports (0.1.2)
+_T.update({
+    "Report a bug": {"uk": "Повідомити про помилку", "it": "Segnala un bug"},
+    "Found a bug?": {"uk": "Знайшов помилку?", "it": "Hai trovato un bug?"},
+    "Tell what went wrong. You see the whole text first, and you send it yourself.": {"uk": "Розкажи, що пішло не так. Спершу ти бачиш увесь текст і надсилаєш його сам.", "it": "Racconta cosa non va. Prima vedi tutto il testo, e lo invii tu."},
+    "What did you do, what happened, and what did you expect?": {"uk": "Що ти робив, що сталося і чого ти очікував?", "it": "Cosa hai fatto, cosa è successo e cosa ti aspettavi?"},
+    "Add app and system info": {"uk": "Додати дані про програму й систему", "it": "Aggiungi info su app e sistema"},
+    "Version, system, mode and the last errors. Never chats, keys or your name.": {"uk": "Версія, система, режим і останні помилки. Ніколи — чати, ключі чи твоє ім'я.", "it": "Versione, sistema, modalità e ultimi errori. Mai chat, chiavi o il tuo nome."},
+    "This is exactly what will be sent:": {"uk": "Ось що саме буде надіслано:", "it": "Ecco esattamente cosa verrà inviato:"},
+    "Write e-mail": {"uk": "Написати листа", "it": "Scrivi e-mail"},
+    "Open on GitHub": {"uk": "Відкрити на GitHub", "it": "Apri su GitHub"},
+    "Copy text": {"uk": "Скопіювати текст", "it": "Copia il testo"},
+    "Write a few words first.": {"uk": "Спершу напиши кілька слів.", "it": "Scrivi prima qualche parola."},
+    "Your mail app opens with the letter ready. Check it and press Send.": {"uk": "Відкриється твоя поштова програма з готовим листом. Перевір і натисни «Надіслати».", "it": "Si apre la tua app di posta con la lettera pronta. Controlla e premi Invia."},
+    "No mail app? Copy the text and send it to {email} from any mail.": {"uk": "Немає поштової програми? Скопіюй текст і надішли на {email} з будь-якої пошти.", "it": "Niente app di posta? Copia il testo e invialo a {email} da qualsiasi posta."},
+    "The text is long, so the letter is shortened. The full text is copied: paste it into the letter.": {"uk": "Текст довгий, тому лист скорочено. Повний текст скопійовано — встав його в лист.", "it": "Il testo è lungo, quindi la lettera è accorciata. Il testo completo è copiato: incollalo nella lettera."},
+    "Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.": {"uk": "Звіти поштою скоро будуть. Поки що відкрий звіт на GitHub (безкоштовний акаунт) або скопіюй текст.", "it": "Le segnalazioni via e-mail arrivano presto. Per ora aprila su GitHub (account gratuito) o copia il testo."},
+})

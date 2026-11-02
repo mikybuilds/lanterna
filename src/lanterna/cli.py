@@ -232,6 +232,45 @@ def update_cmd(s: Settings) -> int:
     return 0
 
 
+def bug_cmd(s: Settings) -> int:
+    """Asks what went wrong, shows the exact text, then opens a ready letter (or prints where to send it)."""
+    from .app import Api
+    lang = s.lang
+    console.print(f"[bold {AMBER}]{t('Report a bug', lang)}[/]")
+    console.print(t("Tell what went wrong. You see the whole text first, and you send it yourself.", lang), highlight=False)
+    console.print(f"[dim]{t('What did you do, what happened, and what did you expect?', lang)} (Enter ×2)[/]")
+    lines: list[str] = []
+    while True:
+        try:
+            ln = input("> " if not lines else "  ")
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not ln.strip() and lines:
+            break
+        if ln.strip():
+            lines.append(ln)
+    api = Api(scheduler=False)
+    r = api.bug_report("\n".join(lines), True)
+    if not r["ok"]:
+        console.print(t("Write a few words first.", lang))
+        return 1
+    console.print()
+    console.print(f"[bold]{t('This is exactly what will be sent:', lang)}[/]")
+    console.print(Panel(r["body"], expand=False), markup=False, highlight=False)
+    if r["email"]:
+        console.print(t("No mail app? Copy the text and send it to {email} from any mail.", lang, email=r["email"]), highlight=False)
+        if Prompt.ask(t("Write e-mail", lang) + "?", choices=["y", "n"], default="y") == "y":
+            api.open_mail(r["mailto"])
+            console.print(t("Your mail app opens with the letter ready. Check it and press Send.", lang), highlight=False)
+    else:
+        console.print(t("Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.", lang), highlight=False)
+    console.print(f"\n{t('Open on GitHub', lang)}:")
+    console.print(r["issue"], markup=False, highlight=False, soft_wrap=True)
+    if not r["email"] and Prompt.ask(t("Open on GitHub", lang) + "?", choices=["y", "n"], default="y") == "y":
+        api.open_url(r["issue"])
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="lanterna", description="Lanterna — a friendly AI assistant by mikybuilds")
     ap.add_argument("--version", action="version", version=f"Lanterna {__version__}")
@@ -241,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("chat", help="simple line-by-line chat")
     sub.add_parser("about")
     sub.add_parser("update", help="is there a new version, and how to install it")
+    sub.add_parser("bug", help="report a bug: see the text, then send it from your mail app or GitHub")
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
     lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
@@ -259,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if a.cmd == "update":
         return update_cmd(s)
+    if a.cmd == "bug":
+        return bug_cmd(s)
     if a.cmd == "models":
         return show_models(s, a.refresh)
     if a.cmd == "local":

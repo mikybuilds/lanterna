@@ -136,6 +136,11 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions.
 - The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**.
+- Bug reports are never sent automatically: you see the whole text and send it yourself (see below).
+
+## Found a bug?
+
+Open **About → Report a bug** (or **Settings → Found a bug?**, or `lanterna bug` in a terminal). Write what happened; Lanterna adds the version, the system, the mode and the last errors — never chats, memory, keys or your name, and you can untick that. You see the exact text, then open it as a [GitHub issue](../../issues) or copy it. Sending it by e-mail from your own mail app is coming soon.
 
 ## Good to know
 

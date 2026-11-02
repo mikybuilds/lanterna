@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- Report a bug from the app (About → Report a bug, Settings, or `lanterna bug`): you write what happened, see the exact text, then send it yourself. Lanterna can add the version, system, mode and last errors, never chats, keys or your name.
+
 ## 0.1.1 — update notice and Ubuntu menu
 
 **New**

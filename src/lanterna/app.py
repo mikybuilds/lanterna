@@ -12,7 +12,7 @@ import uuid
 import webbrowser
 from dataclasses import asdict
 
-from . import AUTHOR, HOMEPAGE, __version__, hardware, keys, local
+from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local
 from .chat import Conversation, ToolUse
 from .files import FileError, prepare
 from .config import Settings
@@ -108,10 +108,24 @@ class Api:
     def open_url(self, url: str) -> bool:
         """Opens a link the user clicked in the system browser (https only)."""
         url = str(url or "")
-        if url.startswith("https://") and len(url) < 2000 and not any(c in url for c in "\n\r\"'<> "):
+        limit = bugreport.ISSUE_LIMIT if url.startswith(HOMEPAGE + "/" + "issues/new?") else 2000
+        if url.startswith("https://") and len(url) <= limit and not any(c in url for c in "\n\r\"'<> "):
             webbrowser.open(url)
             return True
         return False
+
+    # ---------------------------------------------------------------- bug reports
+    def bug_report(self, text: str, include_info: bool = True) -> dict:
+        """The exact report text the user will send, with ready links (nothing is sent from here)."""
+        model = self._router.current.label if self._router and self._router.current else ""
+        return bugreport.compose(text, bool(include_info), self.settings, model)
+
+    def open_mail(self, url: str) -> bool:
+        """Opens the user's mail app with the ready letter; they press Send themselves."""
+        if not bugreport.valid_mailto(url):
+            return False
+        webbrowser.open(url)
+        return True
 
     # ---------------------------------------------------------------- models
     def _get_router(self, refresh: bool = False) -> Router:
@@ -268,9 +282,11 @@ class Api:
                 st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
                 st.final = True
         except ProviderError as e:
+            bugreport.remember_error(e.kind, str(e))
             with st.lock:
                 st.error = {"kind": e.kind, "message": str(e)[:300]}
         except Exception as e:                              # never leave the UI waiting
+            bugreport.remember_error(type(e).__name__, str(e))
             with st.lock:
                 st.error = {"kind": "other", "message": str(e)[:300]}
         finally:

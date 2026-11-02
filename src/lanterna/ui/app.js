@@ -184,6 +184,21 @@ const STR = {
   "You have the latest version": { uk: "У тебе найновіша версія", it: "Hai l'ultima versione" },
   "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": { uk: "У системі немає захищеного сховища ключів. Задай ключ як змінну середовища, напр. GROQ_API_KEY.", it: "Il sistema non ha un archivio sicuro per le chiavi. Imposta la chiave come variabile d'ambiente, es. GROQ_API_KEY." },
   "To understand photos, download a photo model in Settings → Local models.": { uk: "Щоб розуміти фото, завантаж модель для фото в Налаштуваннях → Локальні моделі.", it: "Per capire le foto, scarica un modello per le foto in Impostazioni → Modelli locali." },
+  "Report a bug": { uk: "Повідомити про помилку", it: "Segnala un bug" },
+  "Found a bug?": { uk: "Знайшов помилку?", it: "Hai trovato un bug?" },
+  "Tell what went wrong. You see the whole text first, and you send it yourself.": { uk: "Розкажи, що пішло не так. Спершу ти бачиш увесь текст і надсилаєш його сам.", it: "Racconta cosa non va. Prima vedi tutto il testo, e lo invii tu." },
+  "What did you do, what happened, and what did you expect?": { uk: "Що ти робив, що сталося і чого ти очікував?", it: "Cosa hai fatto, cosa è successo e cosa ti aspettavi?" },
+  "Add app and system info": { uk: "Додати дані про програму й систему", it: "Aggiungi info su app e sistema" },
+  "Version, system, mode and the last errors. Never chats, keys or your name.": { uk: "Версія, система, режим і останні помилки. Ніколи — чати, ключі чи твоє ім'я.", it: "Versione, sistema, modalità e ultimi errori. Mai chat, chiavi o il tuo nome." },
+  "This is exactly what will be sent:": { uk: "Ось що саме буде надіслано:", it: "Ecco esattamente cosa verrà inviato:" },
+  "Write e-mail": { uk: "Написати листа", it: "Scrivi e-mail" },
+  "Open on GitHub": { uk: "Відкрити на GitHub", it: "Apri su GitHub" },
+  "Copy text": { uk: "Скопіювати текст", it: "Copia il testo" },
+  "Write a few words first.": { uk: "Спершу напиши кілька слів.", it: "Scrivi prima qualche parola." },
+  "Your mail app opens with the letter ready. Check it and press Send.": { uk: "Відкриється твоя поштова програма з готовим листом. Перевір і натисни «Надіслати».", it: "Si apre la tua app di posta con la lettera pronta. Controlla e premi Invia." },
+  "No mail app? Copy the text and send it to {email} from any mail.": { uk: "Немає поштової програми? Скопіюй текст і надішли на {email} з будь-якої пошти.", it: "Niente app di posta? Copia il testo e invialo a {email} da qualsiasi posta." },
+  "The text is long, so the letter is shortened. The full text is copied: paste it into the letter.": { uk: "Текст довгий, тому лист скорочено. Повний текст скопійовано — встав його в лист.", it: "Il testo è lungo, quindi la lettera è accorciata. Il testo completo è copiato: incollalo nella lettera." },
+  "Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.": { uk: "Звіти поштою скоро будуть. Поки що відкрий звіт на GitHub (безкоштовний акаунт) або скопіюй текст.", it: "Le segnalazioni via e-mail arrivano presto. Per ora aprila su GitHub (account gratuito) o copia il testo." },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -293,6 +308,7 @@ async function boot() {
   const view = TOKEN && new URLSearchParams(location.search).get("view");
   if (view === "local") return renderOnboard("L");
   if (view === "settings" || view === "about") { renderMain(); return view === "about" ? openAbout() : openSettings(); }
+  if (view === "bug") { renderMain(); return openBugReport(); }
   if (view === "update") { renderMain(); return api.check_update().then(u => u.newer && showUpdate(u)); }
   if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) { renderMain(); checkUpdateOnStart(); }
   else renderOnboard(S.settings.onboarded ? 3 : 0);
@@ -734,6 +750,9 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Updates")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
         <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
+      <h4 style="margin-top:22px">${t("Found a bug?")}</h4>
+      <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
+      <button class="btn ghost small" id="set-bug">${t("Report a bug")}</button>
       <h4 style="margin-top:22px;display:flex;align-items:center">${t("Free models right now")}<button class="btn ghost small" id="refresh" style="margin-left:auto">${icon("refresh")} ${t("Search again")}</button></h4>
       <div class="models" id="models"></div>`;
     body.querySelectorAll("[data-l]").forEach(b => b.onclick = async () => { LANG = b.dataset.l; S = await api.save_settings({ lang: LANG }); v.querySelector("header h2").textContent = t("Settings"); paint(); });
@@ -752,6 +771,7 @@ function openSettings() {
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
+    $("#set-bug", body).onclick = () => openBugReport();
     if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
@@ -804,7 +824,9 @@ function openAbout() {
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <button class="btn primary" data-o="1">${icon("star")} ${t("Star on GitHub")}</button>
       <button class="btn ghost" data-o="1">${t("Project page")} ${icon("ext")}</button>
-    </div></div>`);
+    </div>
+    <button class="btn ghost small" id="about-bug" style="margin-top:14px">${t("Report a bug")}</button></div>`);
+  $("#about-bug", v).onclick = () => { v.remove(); openBugReport(); };
   v.querySelectorAll("[data-o]").forEach(b => b.onclick = () => api.open_url(S.homepage));
   const box = $("#update", v);
   box.innerHTML = `<span class="spinner"></span>${t("Checking for updates…")}`;
@@ -853,6 +875,61 @@ function showUpdate(u) {
     }
     cp.textContent = t("Copied");
   };
+  return v;
+}
+
+// ---------------------------------------------------------------- bug report
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {                                            // older webviews: copy through a hidden field
+    const ta = h(`<textarea style="position:fixed;opacity:0"></textarea>`);
+    ta.value = text; document.body.append(ta); ta.select();
+    const ok = document.execCommand("copy"); ta.remove(); return ok;
+  }
+}
+
+function openBugReport() {
+  const v = dialog(t("Report a bug"), `<section class="bug">
+    <p class="muted" style="margin:0 0 12px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
+    <textarea class="field bug-text" id="bug-text" maxlength="4000" placeholder="${t("What did you do, what happened, and what did you expect?")}"></textarea>
+    <label class="check"><input type="checkbox" id="bug-info" checked>
+      <span><b>${t("Add app and system info")}</b><small>${t("Version, system, mode and the last errors. Never chats, keys or your name.")}</small></span></label>
+    <h4 style="margin-top:16px">${t("This is exactly what will be sent:")}</h4>
+    <pre class="bug-preview" id="bug-preview"></pre>
+    <p class="bug-note" id="bug-note"></p>
+    <div class="upd-actions">
+      <button class="btn ghost" id="bug-copy">${t("Copy text")}</button>
+      <button class="btn ghost" id="bug-gh">${t("Open on GitHub")} ${icon("ext")}</button>
+      <span style="flex:1"></span>
+      <button class="btn primary" id="bug-mail" hidden>${t("Write e-mail")}</button>
+    </div></section>`);
+  const text = $("#bug-text", v), info = $("#bug-info", v), note = $("#bug-note", v);
+  let r = null, seq = 0;
+  const say = (msg, warn) => { note.textContent = msg; note.classList.toggle("warn", !!warn); };
+  const hint = () => r && r.email ? t("No mail app? Copy the text and send it to {email} from any mail.", { email: r.email })
+    : t("Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.");
+  const refresh = async () => {
+    const n = ++seq, res = await api.bug_report(text.value, info.checked);
+    if (n !== seq) return;                               // an older answer arrived late
+    r = res;
+    $("#bug-preview", v).textContent = r.body || "…";
+    $("#bug-mail", v).hidden = !r.email;
+    say(hint());
+  };
+  let timer = 0;
+  text.oninput = () => { clearTimeout(timer); timer = setTimeout(refresh, 250); };
+  info.onchange = refresh;
+  const need = async () => { await refresh(); if (r && r.ok) return true; say(t("Write a few words first."), true); text.focus(); return false; };
+  $("#bug-copy", v).onclick = async e => { if (await need() && await copyText(r.body)) e.target.textContent = t("Copied"); };
+  $("#bug-gh", v).onclick = async () => { if (await need()) api.open_url(r.issue); };
+  $("#bug-mail", v).onclick = async () => {
+    if (!(await need())) return;
+    if (r.cut) { await copyText(r.body); say(t("The text is long, so the letter is shortened. The full text is copied: paste it into the letter."), true); }
+    else say(t("Your mail app opens with the letter ready. Check it and press Send.") + " " + hint());
+    api.open_mail(r.mailto);
+  };
+  refresh();
+  setTimeout(() => text.focus(), 50);
   return v;
 }
 
