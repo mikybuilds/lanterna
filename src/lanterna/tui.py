@@ -4,6 +4,8 @@ Uses the same backend as the window app (app.Api), so chats are shared between b
 """
 from __future__ import annotations
 
+import asyncio
+
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -796,13 +798,21 @@ class _ChatScreen(Screen):
 
     # threads -----------------------------------------------------------------
     def _fill_threads(self, threads: list[dict] | None = None) -> None:
-        lv = self.query_one("#threads", ListView)
-        lv.clear()
         threads = self.app.api.threads() if threads is None else threads
-        for i, th in enumerate(threads):
-            lv.append(ListItem(Label(th["title"] or t("New chat", L(self.app)), markup=False), name=str(th["id"])))
-            if th["id"] == self.tid:
-                lv.index = i
+        self.run_worker(self._refill_threads(threads), group="threads")
+
+    async def _refill_threads(self, threads: list[dict]) -> None:
+        # One refill at a time: overlapping refills used to show a chat twice in the list.
+        if getattr(self, "_threads_lock", None) is None:
+            self._threads_lock = asyncio.Lock()
+        async with self._threads_lock:
+            lv = self.query_one("#threads", ListView)
+            await lv.clear()
+            await lv.extend([ListItem(Label(th["title"] or t("New chat", L(self.app)), markup=False), name=str(th["id"]))
+                             for th in threads])
+            for i, th in enumerate(threads):
+                if th["id"] == self.tid:
+                    lv.index = i
 
     @on(ListView.Selected, "#threads")
     def _picked(self, ev: ListView.Selected) -> None:

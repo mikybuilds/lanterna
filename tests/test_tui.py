@@ -97,6 +97,8 @@ def test_onboarding_then_chat(api):
             assert app.screen._text == "Ciao **Anna**!"
             tid = app.screen.tid
             assert [m["role"] for m in api.messages(tid)] == ["user", "assistant"]
+            await app.workers.wait_for_complete()
+            await pilot.pause(0.1)
             assert len(app.screen.query_one("#threads", ListView).children) == 1
             assert "fake-model" in str(app.screen.query_one("#model").render())
     asyncio.run(go())
