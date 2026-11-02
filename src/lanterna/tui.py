@@ -52,7 +52,7 @@ Screen { background: $background; }
 #main { width: 1fr; }
 #topbar { height: 1; padding: 0 2; background: $surface; }
 #chattitle { width: 1fr; text-style: bold; }
-#model { color: $text-muted; width: auto; }
+#model { color: $text-muted; width: auto; padding-left: 2; }
 #log { padding: 1 2; height: 1fr; }
 .msg-user { background: $panel; border-left: thick $primary; padding: 0 1; margin: 1 0 0 0; width: 1fr; }
 .msg-bot { margin: 1 8 0 0; padding: 0; }
@@ -82,6 +82,7 @@ Button:focus { text-style: bold; }
 .lrow Button { min-width: 22; }
 #ollama-btns { height: auto; }
 #picks { height: auto; }
+#lmodels { height: auto; }
 .modes { height: auto; width: 100%; }
 .modes Button { margin: 0 1 0 0; }
 """

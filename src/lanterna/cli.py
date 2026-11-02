@@ -214,6 +214,8 @@ def main(argv: list[str] | None = None) -> int:
     lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
     lp.add_argument("action", nargs="?", choices=["info", "pull", "mode"], default="info")
     lp.add_argument("value", nargs="?", help="model name (pull) or cloud|local|auto (mode)")
+    dp = sub.add_parser("desktop", help="add Lanterna to the app menu (Linux: GNOME, KDE…)")
+    dp.add_argument("--remove", action="store_true")
     k = sub.add_parser("key")
     k.add_argument("action", choices=["set", "list", "delete"])
     k.add_argument("provider", nargs="?", choices=list(PROVIDERS))
@@ -227,6 +229,18 @@ def main(argv: list[str] | None = None) -> int:
         return show_models(s, a.refresh)
     if a.cmd == "local":
         return local_cmd(s, a.action, a.value)
+    if a.cmd == "desktop":
+        from . import desktop
+        if not sys.platform.startswith("linux"):
+            console.print(t("This command is for Linux. On Windows use the installer.", s.lang))
+            return 1
+        if a.remove:
+            desktop.remove()
+            console.print(t("Removed from the app menu.", s.lang))
+            return 0
+        desk, _ = desktop.install()
+        console.print(f"[green]✓[/] {t('Lanterna is in your app menu now. Press Super and type Lanterna.', s.lang)}\n[dim]{desk}[/]")
+        return 0
     if a.cmd == "key":
         if a.action == "list":
             for pid, p in PROVIDERS.items():

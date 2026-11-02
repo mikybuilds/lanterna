@@ -95,3 +95,15 @@ def test_selfcheck_report(tmp_path):
     rep = json.loads(out.read_text(encoding="utf-8"))
     assert rep["ui"] is True and rep["version"] == __version__ and rep["pypdf"] == "ok"
     assert re.match(r"\d+\.\d+\.\d+", rep["version"])
+
+
+def test_desktop_launcher_for_gnome(tmp_path, monkeypatch):
+    from lanterna import desktop
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    desk, icon = desktop.install()
+    text = desk.read_text(encoding="utf-8")
+    assert desk == tmp_path / "applications" / "lanterna.desktop" and icon.is_file()
+    assert "Name=Lanterna" in text and "Terminal=true" in text and "Icon=lanterna" in text
+    exec_line = next(l for l in text.splitlines() if l.startswith("Exec="))
+    assert "lanterna" in exec_line
+    assert desktop.remove() and not desk.exists() and not icon.exists()

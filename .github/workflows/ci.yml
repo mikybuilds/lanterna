@@ -28,3 +28,38 @@ jobs:
       - run: python -m pytest -q
       - name: Secrets scan (files and history)
         run: python tools/scan_secrets.py --history
+
+  # The exact Ubuntu steps from the README, on clean Ubuntu images with the system Python.
+  ubuntu-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pipx and git with apt (README step 1)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pipx git desktop-file-utils
+          pipx ensurepath
+      - name: Install Lanterna with pipx (README step 2, from this commit)
+        run: pipx install .
+      - name: The command works
+        run: |
+          lanterna --version
+          lanterna about
+          lanterna local
+      - name: App menu launcher (README step 3)
+        run: |
+          lanterna desktop
+          desktop-file-validate ~/.local/share/applications/lanterna.desktop
+          test -f ~/.local/share/icons/hicolor/scalable/apps/lanterna.svg
+          cat ~/.local/share/applications/lanterna.desktop
+          lanterna desktop --remove
+          test ! -f ~/.local/share/applications/lanterna.desktop
+      - name: Full-screen app starts in a terminal
+        run: |
+          # run the TUI for a few seconds inside a pseudo-terminal; it must not crash on start
+          timeout 6 script -qec "lanterna" /dev/null > tui.log 2>&1 || code=$?
+          test "${code:-0}" = "124"           # 124 = still running when the timeout stopped it

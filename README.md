@@ -6,7 +6,9 @@
 
 > **Status: first public preview (v0.1.0).** Windows window app and a full-screen terminal app for Ubuntu, with memory, reminders, web search, weather, files and photos, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
-<p align="center"><img src="docs/screen-chat.jpg" width="720" alt="Lanterna chat window"></p>
+<p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#ubuntu--gnome">🐧 Install on Ubuntu / GNOME</a></b></p>
+
+<p align="center"><img src="docs/screen-chat.png" width="760" alt="Lanterna chat window"></p>
 
 ## Why
 
@@ -20,19 +22,43 @@ Running a good model locally needs a strong graphics card. Lanterna lets anyone 
 
 ## Install
 
-**Windows 10 / 11.** Download `Lanterna-Setup-x.y.z.exe` from the [latest release](../../releases/latest) and run it. No admin rights needed; it adds Lanterna to the Start menu. A portable zip is there too.
+### Windows 10 / 11
 
-> Windows will say **"Windows protected your PC" / Unknown publisher**: the installer isn't code-signed (signing costs money). Click **More info → Run anyway**. The installer is built from this repository by the [release workflow](.github/workflows/release.yml), so you can check what's inside.
+1. Open the [latest release](../../releases/latest) and download **`Lanterna-Setup-x.y.z.exe`**.
+2. Run it. No admin rights needed; Lanterna appears in the Start menu.
 
-**Ubuntu / GNOME** (or any Linux with Python 3.10+):
+> Windows will say **"Windows protected your PC" / Unknown publisher**: the installer isn't code-signed (signing costs money). Click **More info → Run anyway**. The installer is built from this repository by the [release workflow](.github/workflows/release.yml), so you can check what's inside. Prefer no installer? Take the portable zip from the same release.
+
+### Ubuntu / GNOME
+
+Works on Ubuntu 22.04 or newer (and other Linux with Python 3.10+). It's a full-screen app that runs in the terminal, with mouse support.
+
+**1.** Open a terminal (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>) and install pipx and git (once). Then close the terminal and open a new one:
 
 ```bash
-sudo apt install pipx
-pipx install git+https://github.com/mikybuilds/lanterna
-lanterna
+sudo apt update && sudo apt install -y pipx git
+pipx ensurepath
 ```
 
+**2.** Install Lanterna:
+
+```bash
+pipx install git+https://github.com/mikybuilds/lanterna
+```
+
+**3.** Add it to the GNOME app menu (optional), then open it with <kbd>Super</kbd> → type *Lanterna*:
+
+```bash
+lanterna desktop
+```
+
+Or just type `lanterna` in any terminal.
+
+Update: `pipx upgrade lanterna` · Remove: `lanterna desktop --remove && pipx uninstall lanterna`
+
 Keys are kept in GNOME Keyring. On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
+
+### First launch
 
 On first launch you pick a language, your name and your first free service:
 

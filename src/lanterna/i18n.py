@@ -189,4 +189,11 @@ _T.update({
     "Model name?": {"uk": "Яка назва моделі?", "it": "Nome del modello?"},
     "Ollama is not running. Install it from {url}": {"uk": "Ollama не запущена. Встанови її звідси: {url}",
                                                      "it": "Ollama non è attivo. Installalo da {url}"},
+    "This command is for Linux. On Windows use the installer.": {
+        "uk": "Ця команда для Linux. На Windows скористайся інсталятором.",
+        "it": "Questo comando è per Linux. Su Windows usa il programma di installazione."},
+    "Removed from the app menu.": {"uk": "Прибрано з меню програм.", "it": "Rimosso dal menu delle app."},
+    "Lanterna is in your app menu now. Press Super and type Lanterna.": {
+        "uk": "Lanterna тепер у меню програм. Натисни Super і введи Lanterna.",
+        "it": "Lanterna ora è nel menu delle app. Premi Super e scrivi Lanterna."},
 })
