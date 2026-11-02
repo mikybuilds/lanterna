@@ -4,9 +4,9 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: first public preview (v0.1.0).** Windows window app and a full-screen terminal app for Ubuntu, with memory, reminders, web search, weather, files and photos, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
+> **Status: early preview (v0.1.1).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
-<p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#ubuntu--gnome">🐧 Install on Ubuntu / GNOME</a></b></p>
+<p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#linux">🐧 Install on Linux</a></b></p>
 
 <p align="center"><img src="docs/screen-chat.png" width="760" alt="Lanterna chat window"></p>
 
@@ -15,7 +15,7 @@
 Running a good model locally needs a strong graphics card. Lanterna lets anyone chat with a capable assistant using free tiers from cloud providers, and switches to local models (Ollama) on machines that can handle them.
 
 - **Free.** Uses free API tiers. Lanterna never calls a paid model.
-- **Private keys.** Your API keys are stored in your system's secure vault (Windows Credential Manager / GNOME Keyring), never in plain files or logs.
+- **Private keys.** Your API keys are stored in your system's secure vault (Windows Credential Manager, or GNOME Keyring / KWallet on Linux), never in plain files or logs.
 - **No telemetry.** Lanterna sends nothing to its author.
 - **Human tone.** Warm, short when you're short, honest when it isn't sure.
 - **English, Українська, Italiano.**
@@ -29,14 +29,24 @@ Running a good model locally needs a strong graphics card. Lanterna lets anyone 
 
 > Windows will say **"Windows protected your PC" / Unknown publisher**: the installer isn't code-signed (signing costs money). Click **More info → Run anyway**. The installer is built from this repository by the [release workflow](.github/workflows/release.yml), so you can check what's inside. Prefer no installer? Take the portable zip from the same release.
 
-### Ubuntu / GNOME
+### Linux
 
-Works on Ubuntu 22.04 or newer (and other Linux with Python 3.10+). It's a full-screen app that runs in the terminal, with mouse support.
+A full-screen app that runs in the terminal, with mouse support. Made for any desktop (GNOME, KDE Plasma, Xfce…) and distribution.
 
-**1.** Open a terminal (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>) and install pipx and git (once). Then close the terminal and open a new one:
+**You need:** Python **3.10 or newer**, plus `pipx` and `git`. Check your Python with `python3 --version` — Ubuntu 22.04+, Fedora 36+, Debian 12+, Linux Mint 21+, openSUSE Tumbleweed and Arch all have a new enough one.
+
+**1.** Open a terminal and install pipx and git (once) with your system's package manager:
+
+| Distribution | Command |
+|---|---|
+| Ubuntu, Debian, Linux Mint, Pop!_OS | `sudo apt update && sudo apt install -y pipx git` |
+| Fedora | `sudo dnf install -y pipx git` |
+| Arch, Manjaro | `sudo pacman -S --needed python-pipx git` |
+| openSUSE | `sudo zypper install python3-pipx git` |
+
+Then run this, close the terminal and open a new one:
 
 ```bash
-sudo apt update && sudo apt install -y pipx git
 pipx ensurepath
 ```
 
@@ -46,7 +56,7 @@ pipx ensurepath
 pipx install git+https://github.com/mikybuilds/lanterna
 ```
 
-**3.** Add it to the GNOME app menu (optional), then open it with <kbd>Super</kbd> → type *Lanterna*:
+**3.** Add it to your app menu (optional), then find it there by typing *Lanterna*:
 
 ```bash
 lanterna desktop
@@ -56,7 +66,9 @@ Or just type `lanterna` in any terminal.
 
 Update: Lanterna tells you when a new version is out; then run `pipx upgrade lanterna` · Remove: `lanterna desktop --remove && pipx uninstall lanterna`
 
-Keys are kept in GNOME Keyring. On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
+Keys are kept in your system keyring (GNOME Keyring, KWallet). On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
+
+> Tested automatically on Ubuntu 22.04 and 24.04 on every change. Other distributions use the same steps; if something doesn't work, please [open an issue](../../issues).
 
 ### First launch
 
@@ -82,7 +94,7 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 - [x] Windows app (window with chats, settings, first-run setup)
 - [x] Windows installer (Setup.exe) and portable zip, built by the release workflow
 - [x] Update notice at start with steps for your kind of install (can be turned off)
-- [x] Full-screen terminal app for Ubuntu / GNOME (mouse + keyboard, same chats as the window app)
+- [x] Full-screen terminal app for Linux (mouse + keyboard, same chats as the window app)
 - [x] Memory, reminders, web search, files & photos, weather, exact math and dates
 - [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
 - [ ] Voice
