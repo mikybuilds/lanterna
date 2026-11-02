@@ -46,6 +46,8 @@ class Candidate:
     vision: bool = False
     status: str = "untested"        # untested | ok | limited | unavailable
     latency: float | None = None
+    tools: bool = True              # False: the model can't call tools (Ollama tells us per model)
+    photo: bool = False             # preferred for photos (the local photo model)
 
     @property
     def label(self) -> str:
@@ -173,10 +175,50 @@ def configured_providers() -> list[str]:
     return [p for p, P in PROVIDERS.items() if not P.local and keys.get_key(p)]
 
 
-def get_models(preferred: str = "", refresh: bool = False) -> list[Candidate]:
+def cloud_models(preferred: str = "", refresh: bool = False) -> list[Candidate]:
     provs = configured_providers()
+    if not provs:
+        return []
     if not refresh and (cached := load_cache(provs)) is not None:
         return rank(cached, preferred)
     cands = discover(preferred, providers=provs)
     save_cache(cands, provs)
     return cands
+
+
+def local_models(picks: dict | None = None) -> list[Candidate]:
+    """Chat models installed in Ollama, the user's picks first (picks: {"chat": name, "vision": name})."""
+    from . import local                                       # only touches localhost
+    from .hardware import CATALOG
+    picks = picks or {}
+    known = {m.name: m for m in CATALOG}
+    out = []
+    for m in local.installed():
+        if not m.chat:
+            continue
+        s = score(m.name)
+        if m.name in known:                                   # models we recommend beat random ones
+            s = 70 + int(known[m.name].min_vram)
+        if m.vision and m.name not in known and "gemma" not in m.name:
+            s -= 10                                           # photo-only models are weaker at plain chat
+        if m.name == picks.get("chat"):
+            s = 1000
+        elif m.name == picks.get("vision"):
+            s = 900 if not picks.get("chat") else 500
+        out.append(Candidate("ollama", m.name, s, m.vision, "ok", None, m.tools))
+    # photos go to the chosen photo model, else to the best recommended one (qwen3-vl beats gemma at reading images)
+    photo = picks.get("vision") or next((m.name for m in sorted(CATALOG, key=lambda m: -m.min_vram)
+                                         if m.role == "vision" and any(c.model == m.name for c in out)), "")
+    for c in out:
+        c.photo = c.model == photo
+    return sorted(out, key=lambda c: -c.score)
+
+
+def get_models(preferred: str = "", refresh: bool = False, mode: str = "cloud",
+               picks: dict | None = None) -> list[Candidate]:
+    """cloud: free online models. local: only Ollama on this computer. auto: local first, cloud as backup."""
+    if mode == "local":
+        return local_models(picks)
+    if mode == "auto":
+        return local_models(picks) + cloud_models(preferred, refresh)
+    return cloud_models(preferred, refresh)

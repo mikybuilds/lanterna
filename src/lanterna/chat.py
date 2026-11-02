@@ -67,6 +67,22 @@ def must_use_tool(text: str) -> bool:
     return bool(_ACTION.search(text or ""))
 
 
+# Questions a small local model often gets wrong; in auto mode they go to a bigger online model.
+_HARD = re.compile(r"\b(prove|proof|derive|analy[sz]e|step by step|in detail|compare|essay|algorithm|debug|refactor|"
+                   r"optimi[sz]e|integral|derivative|equation|theorem|translate this)\b|"
+                   r"доведи|доведення|виведи|проаналізуй|аналіз|покроково|детально|порівняй|твір|есе|алгоритм|"
+                   r"налагод|рефактор|оптиміз|інтеграл|похідн|рівнянн|теорем|переклади цей|"
+                   r"dimostra|analizza|passo passo|nel dettaglio|confronta|saggio|tema su|algoritmo|ottimizz|"
+                   r"integrale|derivata|equazion|teorema|traduci questo|"
+                   r"```|\bdef |\bclass |function\s*\(|#include|SELECT .+ FROM", re.I)
+HARD_LENGTH = 700          # long, detailed requests count as hard too
+
+
+def is_hard(text: str) -> bool:
+    text = text or ""
+    return len(text) > HARD_LENGTH or bool(_HARD.search(text))
+
+
 def user_content(text: str, images: list[str] | None = None) -> str | list[dict]:
     """Plain text, or text + images (data URLs) in the OpenAI multi-part format."""
     if not images:
@@ -82,6 +98,7 @@ class Conversation:
     last_reply: str = ""
     toolbox: object | None = None          # tools.Toolbox; None = plain chat
     lang: str = "en"                       # app language, a hint for which language to reply in
+    auto_cloud: bool = False               # auto mode: hard questions go to online models first
 
     def _system(self, text: str) -> dict:
         cur = self.router.current
@@ -103,12 +120,14 @@ class Conversation:
         # photos are token-heavy on free tiers: answer them without the tool list
         schemas = self.toolbox.schemas() if self.toolbox and not images else None
         pieces: list[str] = []
+        cloud_first = self.auto_cloud and is_hard(text)
         for rnd in range(MAX_TOOL_ROUNDS + 1):
             calls: ToolCalls | None = None
             round_text: list[str] = []
             tools = schemas if rnd < MAX_TOOL_ROUNDS else None
             choice = "required" if tools and rnd == 0 and must_use_tool(text) else "auto"
-            for p in self.router.stream(msgs, need_vision=bool(images), tools=tools, tool_choice=choice):
+            for p in self.router.stream(msgs, need_vision=bool(images), tools=tools, tool_choice=choice,
+                                          prefer_cloud=cloud_first):
                 if isinstance(p, ToolCalls):
                     calls = p
                 elif isinstance(p, str):

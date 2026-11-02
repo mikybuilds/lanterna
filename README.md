@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early development (v0.0.5).** The Windows app and the full-screen terminal app work, with memory, reminders, web search, weather, files and photos, with automatic free-model discovery and fallback. The Windows installer and local models are coming — see the roadmap below.
+> **Status: early development (v0.0.6).** The Windows app and the full-screen terminal app work, with memory, reminders, web search, weather, files and photos, automatic free-model discovery and fallback, and local models through Ollama. The Windows installer is coming — see the roadmap below.
 
 <p align="center"><img src="docs/screen-chat.jpg" width="720" alt="Lanterna chat window"></p>
 
@@ -50,7 +50,7 @@ Other commands: `lanterna models` (free models available right now), `lanterna k
 - [ ] Windows installer (Setup.exe)
 - [x] Full-screen terminal app for Ubuntu / GNOME (mouse + keyboard, same chats as the window app)
 - [x] Memory, reminders, web search, files & photos, weather, exact math and dates
-- [ ] Local models via Ollama with hardware-based recommendations
+- [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
 - [ ] Voice
 
 ## What it can do
@@ -61,6 +61,24 @@ Other commands: `lanterna models` (free models available right now), `lanterna k
 - **Weather and air quality** for any city (Open-Meteo, no key).
 - **Files and photos**: PDF, Word, text and code files, and photos (📎 button, drag and drop, or Ctrl+F / `/file path` in the terminal).
 - **Exact math and dates**: numbers are computed by code, not guessed by the model.
+
+## Local models (optional)
+
+If your PC has a graphics card, Lanterna can run models on it with [Ollama](https://ollama.com/download) (free). It checks your graphics card memory, RAM and free disk and suggests what fits:
+
+| Graphics card memory | Suggested mode | Models |
+|---|---|---|
+| none / under 3 GB | Cloud | — (a tiny model only with 16 GB RAM, slow) |
+| 3–5 GB | Auto | gemma4:e2b-it-qat, qwen3:4b, qwen3-vl:4b-instruct |
+| 6–10 GB | Auto | gemma4:e4b-it-qat, qwen3:8b, qwen3-vl:8b-instruct |
+| 11–19 GB | Local | gemma4:12b, qwen3:14b, qwen3-vl:8b-instruct |
+| 20 GB and more | Local | gemma4:26b, qwen3:30b-a3b, qwen3-vl:30b-a3b-instruct |
+
+- **Cloud**: free online models, works on any laptop.
+- **Local**: everything stays on your computer.
+- **Auto**: the local model answers everyday questions; long questions, proofs, code and analysis go to a bigger online model (you can turn this off in Settings). Photos go to the local photo model.
+
+Downloads start only when you press **Download (X GB)**, with progress shown. In the terminal: `lanterna local` (what fits), `lanterna local pull qwen3:8b`, `lanterna local mode auto`.
 
 ## Good to know
 

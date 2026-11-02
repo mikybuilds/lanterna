@@ -131,3 +131,59 @@ _T: dict[str, dict[str, str]] = {
 def t(text: str, lang: str = "en", **kw) -> str:
     s = text if lang == "en" else _T.get(text, {}).get(lang, text)
     return s.format(**kw) if kw else s
+
+
+# Local models (stage 5) — same wording as the window app
+_T.update({
+    "Auto": {"uk": "Авто", "it": "Auto"},
+    "Automatic": {"uk": "Автоматично", "it": "Automatico"},
+    "Chat model": {"uk": "Модель для розмов", "it": "Modello per la chat"},
+    "Check again": {"uk": "Перевірити знову", "it": "Controlla di nuovo"},
+    "Cloud": {"uk": "Хмара", "it": "Cloud"},
+    "Continue": {"uk": "Далі", "it": "Avanti"},
+    "Download ({s})": {"uk": "Завантажити ({s})", "it": "Scarica ({s})"},
+    "Download Ollama": {"uk": "Завантажити Ollama", "it": "Scarica Ollama"},
+    "Download at least one model to continue.": {"uk": "Щоб продовжити, завантаж хоча б одну модель.", "it": "Scarica almeno un modello per continuare."},
+    "Download failed: {e}": {"uk": "Не вдалося завантажити: {e}", "it": "Download non riuscito: {e}"},
+    "Downloads start only when you press the button. Models are stored by Ollama on this computer.": {"uk": "Завантаження почнеться лише після натискання кнопки. Моделі зберігає Ollama на цьому комп'ютері.", "it": "Il download parte solo quando premi il pulsante. I modelli restano su questo computer, gestiti da Ollama."},
+    "For chatting": {"uk": "Для розмов", "it": "Per chiacchierare"},
+    "For harder questions": {"uk": "Для складніших питань", "it": "Per domande difficili"},
+    "For photos": {"uk": "Для фото", "it": "Per le foto"},
+    "Free models online. Works on any laptop.": {"uk": "Безкоштовні моделі онлайн. Працює на будь-якому ноутбуці.", "it": "Modelli gratuiti online. Funziona su qualsiasi portatile."},
+    "Good for local models of about 8B. Auto mode fits best.": {"uk": "Добре тягне локальні моделі розміру ~8B. Найкраще підходить режим «Авто».", "it": "Va bene per modelli locali da circa 8B. La modalità Auto è la più adatta."},
+    "How should Lanterna think?": {"uk": "Як Lanterna думатиме?", "it": "Come deve pensare Lanterna?"},
+    "Installed": {"uk": "Встановлено", "it": "Installato"},
+    "Local": {"uk": "Локально", "it": "Locale"},
+    "Local first, cloud when needed.": {"uk": "Спершу локально, хмара — коли треба.", "it": "Prima locale, cloud quando serve."},
+    "Local models": {"uk": "Локальні моделі", "it": "Modelli locali"},
+    "Local models need Ollama, a free app. Install it, start it, then press Check again.": {"uk": "Для локальних моделей потрібна Ollama — безкоштовна програма. Встанови її, запусти й натисни «Перевірити знову».", "it": "I modelli locali richiedono Ollama, un'app gratuita. Installala, avviala e premi Controlla di nuovo."},
+    "Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.": {"uk": "Довгі питання, доведення, код і аналіз отримає більша онлайн-модель. Для приватних розмов — вимкни.", "it": "Domande lunghe, dimostrazioni, codice e analisi vanno a un modello online più grande. Per chat private: disattivalo."},
+    "Mode": {"uk": "Режим", "it": "Modalità"},
+    "Models run on your graphics card. Fully private.": {"uk": "Моделі працюють на твоїй відеокарті. Повна приватність.", "it": "I modelli girano sulla tua scheda video. Totalmente privato."},
+    "No graphics card found": {"uk": "Відеокарту не знайдено", "it": "Nessuna scheda video trovata"},
+    "No local model yet. Download one in Settings → Local models.": {"uk": "Локальної моделі ще немає. Завантаж її в Налаштуваннях → Локальні моделі.", "it": "Nessun modello locale. Scaricane uno in Impostazioni → Modelli locali."},
+    "Not enough disk space": {"uk": "Мало місця на диску", "it": "Spazio su disco insufficiente"},
+    "Ollama isn't running. Start it, or switch to Cloud in Settings.": {"uk": "Ollama не запущена. Запусти її або перемкнися на «Хмару» в Налаштуваннях.", "it": "Ollama non è attivo. Avvialo o passa al Cloud nelle Impostazioni."},
+    "Photo model": {"uk": "Модель для фото", "it": "Modello per le foto"},
+    "Recommended for this computer": {"uk": "Рекомендовано для цього комп'ютера", "it": "Consigliati per questo computer"},
+    "Send hard questions to the cloud": {"uk": "Складні питання віддавати хмарі", "it": "Manda le domande difficili al cloud"},
+    "Small local models will work. Hard questions are better in the cloud.": {"uk": "Малі локальні моделі працюватимуть. Складні питання краще віддавати хмарі.", "it": "I modelli locali piccoli funzionano. Le domande difficili vanno meglio nel cloud."},
+    "Strong card: bigger local models fit.": {"uk": "Потужна карта: влізуть більші локальні моделі.", "it": "Scheda potente: ci stanno modelli locali più grandi."},
+    "This computer is better with cloud models. Small local models will be slow.": {"uk": "Цьому комп'ютеру краще підходять хмарні моделі. Малі локальні працюватимуть повільно.", "it": "Questo computer va meglio con i modelli cloud. Quelli locali piccoli saranno lenti."},
+    "To understand photos, download a photo model in Settings → Local models.": {"uk": "Щоб розуміти фото, завантаж модель для фото в Налаштуваннях → Локальні моделі.", "it": "Per capire le foto, scarica un modello per le foto in Impostazioni → Modelli locali."},
+    "Use the cloud instead": {"uk": "Краще хмара", "it": "Usa il cloud"},
+    "Very strong card: the biggest open models fit.": {"uk": "Дуже потужна карта: влізуть найбільші відкриті моделі.", "it": "Scheda molto potente: ci stanno i modelli aperti più grandi."},
+})
+
+
+# Local models (stage 5) — same wording as the window app
+_T.update({
+    "Free disk": {"uk": "Вільно на диску", "it": "Disco libero"},
+    "GB": {"uk": "ГБ", "it": "GB"},
+    "Graphics card": {"uk": "Відеокарта", "it": "Scheda video"},
+    "Ollama {v} is running": {"uk": "Ollama {v} працює", "it": "Ollama {v} è attivo"},
+    "RAM": {"uk": "Оперативна пам'ять", "it": "RAM"},
+    "Model name?": {"uk": "Яка назва моделі?", "it": "Nome del modello?"},
+    "Ollama is not running. Install it from {url}": {"uk": "Ollama не запущена. Встанови її звідси: {url}",
+                                                     "it": "Ollama non è attivo. Installalo da {url}"},
+})

@@ -12,7 +12,7 @@ import uuid
 import webbrowser
 from dataclasses import asdict
 
-from . import AUTHOR, HOMEPAGE, __version__, keys
+from . import AUTHOR, HOMEPAGE, __version__, hardware, keys, local
 from .chat import Conversation, ToolUse
 from .files import FileError, prepare
 from .config import Settings
@@ -25,6 +25,7 @@ from .store import Store
 from .tools import Toolbox
 
 FIRST_CHOICES = ["groq", "gemini"]
+_MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)?(:[a-z0-9._-]+)?$", re.I)
 
 
 class _Stream:
@@ -47,6 +48,8 @@ class Api:
         self._streams: dict[str, _Stream] = {}
         self._lock = threading.Lock()
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
+        self._hw: hardware.Hardware | None = None
+        self._downloads = local.Downloads()
         if scheduler:
             threading.Thread(target=self._reminder_loop, daemon=True).start()
 
@@ -63,15 +66,17 @@ class Api:
         }
 
     def save_settings(self, patch: dict) -> dict:
-        allowed = {"lang", "name", "mode", "provider", "onboarded"}
+        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud"}
         for k, v in (patch or {}).items():
             if k in allowed:
-                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k == "onboarded" else v)
+                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud") else v)
         if self.settings.lang not in LANGS:
             self.settings.lang = "en"
+        if self.settings.mode not in ("cloud", "local", "auto"):
+            self.settings.mode = "cloud"
         self.settings.save()
-        if "provider" in (patch or {}):
-            self._router = None                            # chosen service leads the list
+        if {"provider", "mode"} & set(patch or {}):
+            self._router = None                            # chosen service / mode changes the model list
         return self.state()
 
     # ---------------------------------------------------------------- keys
@@ -109,8 +114,11 @@ class Api:
     def _get_router(self, refresh: bool = False) -> Router:
         with self._lock:
             if self._router is None or refresh:
-                cands = get_models(self.settings.provider, refresh=refresh)
+                s = self.settings
+                cands = get_models(s.provider, refresh=refresh, mode=s.mode, picks=s.local_models)
                 if not cands:
+                    if s.mode == "local":
+                        raise ProviderError("local", "no local models" if local.version() else "ollama not running")
                     raise ProviderError("auth", "no keys")
                 self._router = Router(cands)
             return self._router
@@ -123,6 +131,56 @@ class Api:
         return {"ok": True, "current": r.current.label if r.current else "",
                 "models": [{"provider": PROVIDERS[c.provider].name, "model": c.model, "score": c.score,
                             "status": c.status, "latency": c.latency, "vision": c.vision} for c in r.candidates]}
+
+    # ---------------------------------------------------------------- local models (Ollama)
+    def hardware(self) -> dict:
+        """What this computer has and which local models fit (read locally, nothing is sent)."""
+        if self._hw is None:
+            self._hw = hardware.detect()
+        adv = hardware.advise(self._hw)
+        have = {m.name for m in local.installed()}
+        out = adv.to_dict()
+        for m in out["models"]:
+            m["installed"] = m["name"] in have
+        return {"hw": self._hw.to_dict(), "advice": out, "download_page": local.DOWNLOAD_PAGE}
+
+    def local_status(self) -> dict:
+        ver = local.version()
+        models = [vars(m) for m in local.installed()] if ver else []
+        return {"running": bool(ver), "version": ver or "", "models": [m for m in models if m["chat"]],
+                "picks": self.settings.local_models, "download_page": local.DOWNLOAD_PAGE,
+                "pulls": self._downloads.state()}
+
+    def set_local_model(self, role: str, name: str) -> dict:
+        if role in ("chat", "vision"):
+            if name:
+                self.settings.local_models[role] = str(name)[:80]
+            else:
+                self.settings.local_models.pop(role, None)
+            self.settings.save()
+            self._router = None
+        return self.local_status()
+
+    def pull_model(self, name: str) -> dict:
+        """Starts a download. Only called when the user presses Download."""
+        name = str(name or "").strip()
+        if not _MODEL_NAME.match(name):
+            return {"ok": False, "error": "name"}
+        if not local.version():
+            return {"ok": False, "error": "ollama"}
+        self._downloads.start(name)
+        self._router = None
+        return {"ok": True}
+
+    def pulls(self) -> list[dict]:
+        done = [j for j in self._downloads.state() if j["status"] == "done"]
+        if done:
+            self._router = None                            # new model: rebuild the list on the next message
+        return self._downloads.state()
+
+    def cancel_pull(self, name: str) -> list[dict]:
+        self._downloads.cancel(str(name))
+        return self._downloads.state()
 
     # ---------------------------------------------------------------- chats
     def threads(self) -> list[dict]:
@@ -174,7 +232,8 @@ class Api:
         try:
             router = self._get_router()
             conv = Conversation(router, self.settings.name, history=history, toolbox=self.toolbox,
-                                lang=self.settings.lang)
+                                lang=self.settings.lang,
+                                auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
             for p in conv.ask(text, images or None):
                 with st.lock:
                     if isinstance(p, Switched):

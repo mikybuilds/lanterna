@@ -32,7 +32,7 @@ class Router:
         self._clients: dict[str, Client] = {}
         self._client_for = client_for or self._default_client
         self._until: dict[tuple[str, str], float] = {}     # (provider, model or "*") -> skip until
-        self.no_tools: set[tuple[str, str]] = set()          # models that rejected the tools field
+        self.no_tools = {(c.provider, c.model) for c in candidates if not c.tools}   # models that can't use tools
         self._clock = clock
         self._sleep = sleep
         self._short_wait: float | None = None
@@ -40,7 +40,10 @@ class Router:
 
     @staticmethod
     def _default_client(pid: str) -> Client:
-        return Client(PROVIDERS[pid], keys.get_key(pid))
+        p = PROVIDERS[pid]
+        if p.local:                                          # loading a model into memory can take a while
+            return Client(p, None, timeout=300)
+        return Client(p, keys.get_key(pid))
 
     def client(self, pid: str) -> Client:
         if pid not in self._clients:
@@ -59,11 +62,17 @@ class Router:
     def available(self) -> list[Candidate]:
         return [c for c in self.candidates if not self._cooling(c)]
 
+    def has_cloud(self) -> bool:
+        return any(not PROVIDERS[c.provider].local for c in self.candidates)
+
     def stream(self, messages: list[dict], need_vision: bool = False,
-               tools: list[dict] | None = None, tool_choice: str = "auto") -> Iterator["str | Switched | ToolCalls"]:
+               tools: list[dict] | None = None, tool_choice: str = "auto",
+               prefer_cloud: bool = False) -> Iterator["str | Switched | ToolCalls"]:
         """Best model first; on a limit, the next one. If every model is briefly rate-limited
-        (the service says "try again in a few seconds"), wait once and try again."""
+        (the service says "try again in a few seconds"), wait once and try again.
+        prefer_cloud: try online models before local ones (auto mode, hard question)."""
         self._short_wait = None
+        self._prefer_cloud = prefer_cloud
         try:
             yield from self._stream_once(messages, need_vision, tools, tool_choice)
             return
@@ -84,7 +93,12 @@ class Router:
             raise ProviderError("vision", "No model that understands photos")
         last: ProviderError | None = None
         first = self.current
-        for c in self.available():
+        order = self.available()
+        if getattr(self, "_prefer_cloud", False):
+            order.sort(key=lambda c: PROVIDERS[c.provider].local)      # stable: cloud models keep their ranking
+        if need_vision:
+            order.sort(key=lambda c: not c.photo)                       # the local photo model first
+        for c in order:
             if need_vision and not c.vision:
                 continue
             if c is not first:

@@ -11,8 +11,8 @@ from textual.containers import Center, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen, Screen
 from textual.theme import Theme
-from textual.widgets import (Button, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
-                             Markdown, Static)
+from textual.widgets import (Button, Checkbox, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
+                             Markdown, ProgressBar, Select, Static)
 
 from pathlib import Path
 
@@ -76,6 +76,14 @@ Button:focus { text-style: bold; }
 .dialog > .h:first-child { margin-top: 0; }
 .keyrow Button { min-width: 10; margin-left: 1; }
 #models-table { height: 18; }
+.lrow { height: auto; width: 100%; margin: 1 0 0 0; }
+.lrow .lname { width: 1fr; }
+.lrow ProgressBar { width: 30; padding: 1 1 0 0; }
+.lrow Button { min-width: 22; }
+#ollama-btns { height: auto; }
+#picks { height: auto; }
+.modes { height: auto; width: 100%; }
+.modes Button { margin: 0 1 0 0; }
 """
 
 
@@ -276,6 +284,187 @@ class ModelsScreen(ModalScreen[None]):
         msg.update(t("Now using: {m}", lang, m=res.get("current") or "—"))
 
 
+ROLE_TEXT = {"chat": "For chatting", "think": "For harder questions", "vision": "For photos"}
+TIER_TEXT = {
+    "none": "This computer is better with cloud models. Small local models will be slow.",
+    "small": "Small local models will work. Hard questions are better in the cloud.",
+    "medium": "Good for local models of about 8B. Auto mode fits best.",
+    "large": "Strong card: bigger local models fit.",
+    "huge": "Very strong card: the biggest open models fit.",
+}
+_ACTIVE = ("starting", "downloading", "verifying")
+
+
+def _gb(x: float, lang: str) -> str:
+    return f"{x:.1f} {t('GB', lang)}"
+
+
+class LocalScreen(ModalScreen[str]):
+    """Hardware, Ollama status, recommended models with Download buttons and progress, model picks.
+
+    Returns "cloud" when the user picks the cloud instead (onboarding), otherwise "".
+    Downloads start only when the user presses a Download button.
+    """
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def __init__(self, onboarding: bool = False):
+        super().__init__()
+        self._onboarding = onboarding
+        self._names: list[str] = []
+        self._installed: set[str] = set()
+        self._disk = 0.0
+        self._running = False
+        self._ticker = None
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with VerticalScroll(classes="dialog", id="localdlg"):
+            yield Label(t("Local models", lang), classes="h")
+            yield LoadingIndicator(id="loading")
+            yield Static("", id="hwinfo", markup=False)
+            yield Static("", id="ollama")
+            with Horizontal(classes="row", id="ollama-btns"):
+                yield Button(t("Download Ollama", lang), id="get-ollama", variant="primary")
+                yield Button(t("Check again", lang), id="recheck")
+            yield Label(t("Recommended for this computer", lang), classes="h")
+            yield Vertical(id="lmodels")
+            yield Static(t("Downloads start only when you press the button. Models are stored by Ollama on this computer.", lang),
+                         classes="muted")
+            yield Vertical(id="picks")
+            with Horizontal(classes="row"):
+                if self._onboarding:
+                    yield Button(t("Use the cloud instead", lang), id="to-cloud")
+                yield Button(t("Continue", lang) if self._onboarding else t("Close", lang), id="close", variant="primary")
+
+    def on_mount(self) -> None:
+        self.query_one("#ollama-btns").display = False
+        self._load()
+
+    @work(thread=True, exclusive=True, group="local")
+    def _load(self) -> None:
+        hw, st = self.app.api.hardware(), self.app.api.local_status()
+        self.app.call_from_thread(self._show, hw, st)
+
+    async def _show(self, hw: dict, st: dict) -> None:
+        lang = L(self.app)
+        H, A = hw["hw"], hw["advice"]
+        self.query_one("#loading").display = False
+        gpu = H["gpu"] or t("No graphics card found", lang)
+        if H["vram_gb"]:
+            gpu += f" · {_gb(H['vram_gb'], lang)}" + ("" if H["vram_exact"] else "?")
+        self.query_one("#hwinfo", Static).update(
+            f"{t('Graphics card', lang)}: {gpu}\n{t('RAM', lang)}: {_gb(H['ram_gb'], lang)}   "
+            f"{t('Free disk', lang)}: {_gb(H['disk_free_gb'], lang)}\n\n{t(TIER_TEXT[A['tier']], lang)}")
+        self._running, self._disk = st["running"], H["disk_free_gb"]
+        self._download_page = st["download_page"]
+        self.query_one("#ollama", Static).update(
+            f"[green]✓ {t('Ollama {v} is running', lang, v=st['version'])}[/]" if st["running"]
+            else t("Local models need Ollama, a free app. Install it, start it, then press Check again.", lang))
+        self.query_one("#ollama-btns").display = not st["running"]
+        self._installed = {m["name"] for m in st["models"]}
+        box = self.query_one("#lmodels", Vertical)
+        await box.remove_children()
+        self._names = [m["name"] for m in A["models"]]
+        for i, m in enumerate(A["models"]):
+            row = Horizontal(classes="lrow", id=f"lrow-{i}")
+            await box.mount(row)
+            await row.mount(Label(f"{m['name']}\n[dim]{t(ROLE_TEXT[m['role']], lang)} · {_gb(m['size_gb'], lang)}[/]",
+                                  classes="lname"))
+            await row.mount(ProgressBar(total=100, show_eta=False, id=f"bar-{i}"))
+            await row.mount(Button("", id=f"pull-{i}"))
+            row.query_one(ProgressBar).display = False
+            row.styles.height = "auto"
+            setattr(row, "size_gb", m["size_gb"])
+        await self._paint_picks(st)
+        self._paint(st["pulls"])
+
+    async def _paint_picks(self, st: dict) -> None:
+        lang = L(self.app)
+        box = self.query_one("#picks", Vertical)
+        await box.remove_children()
+        if self._onboarding or not st["running"] or not st["models"]:
+            return
+        picks = st["picks"]
+        for role, title, models in (("chat", "Chat model", st["models"]),
+                                    ("vision", "Photo model", [m for m in st["models"] if m["vision"]])):
+            names = [m["name"] for m in models]
+            await box.mount(Label(t(title, lang), classes="h"))
+            await box.mount(Select([(n, n) for n in names], prompt=t("Automatic", lang), id=f"pick-{role}",
+                                   value=picks.get(role) if picks.get(role) in names else Select.NULL))
+
+    @on(Select.Changed)
+    def _picked(self, ev: Select.Changed) -> None:
+        role = (ev.select.id or "").removeprefix("pick-")
+        value = "" if ev.value in (Select.NULL, Select.BLANK) else str(ev.value)
+        if role in ("chat", "vision") and value != self.app.api.settings.local_models.get(role, ""):
+            self.app.api.set_local_model(role, value)
+
+    def _paint(self, pulls: list[dict]) -> None:
+        lang = L(self.app)
+        by = {p["name"]: p for p in pulls}
+        active = False
+        for i, name in enumerate(self._names):
+            p = by.get(name)
+            bar, btn = self.query_one(f"#bar-{i}", ProgressBar), self.query_one(f"#pull-{i}", Button)
+            row = self.query_one(f"#lrow-{i}")
+            if p and p["status"] == "done":
+                self._installed.add(name)
+            if name in self._installed:
+                bar.display = False
+                btn.label, btn.disabled, btn.variant = "✓ " + t("Installed", lang), True, "success"
+            elif p and p["status"] in _ACTIVE:
+                active = True
+                bar.display = True
+                bar.update(progress=p["percent"])
+                btn.label, btn.disabled, btn.variant = t("Cancel", lang), False, "default"
+            else:
+                bar.display = False
+                size = getattr(row, "size_gb", 0)
+                no_disk = bool(self._disk) and self._disk < size + 1
+                btn.label = t("Not enough disk space", lang) if no_disk else t("Download ({s})", lang, s=_gb(size, lang))
+                btn.disabled, btn.variant = (not self._running or no_disk), "primary"
+                if p and p["status"] == "error":
+                    self.app.notify(t("Download failed: {e}", lang, e=p["error"]), severity="error")
+        if active and self._ticker is None:
+            self._ticker = self.set_interval(0.7, self._tick)
+        elif not active and self._ticker is not None:
+            self._ticker.stop()
+            self._ticker = None
+
+    def _tick(self) -> None:
+        self._paint(self.app.api.pulls())
+
+    @on(Button.Pressed)
+    def _pressed(self, ev: Button.Pressed) -> None:
+        bid = ev.button.id or ""
+        if bid.startswith("pull-"):
+            name = self._names[int(bid[5:])]
+            active = any(p["name"] == name and p["status"] in _ACTIVE for p in self.app.api.pulls())
+            if active:
+                self._paint(self.app.api.cancel_pull(name))
+            else:
+                res = self.app.api.pull_model(name)
+                if not res.get("ok"):
+                    self.app.notify(t("Ollama isn't running. Start it, or switch to Cloud in Settings.", L(self.app)),
+                                    severity="error")
+                self._paint(self.app.api.pulls())
+        elif bid == "get-ollama":
+            self.app.api.open_url(self._download_page)
+        elif bid == "recheck":
+            self.query_one("#loading").display = True
+            self._load()
+        elif bid == "to-cloud":
+            self.dismiss("cloud")
+        elif bid == "close":
+            self.action_close()
+
+    def action_close(self) -> None:
+        if self._ticker is not None:
+            self._ticker.stop()
+        self.dismiss("")
+
+
 class AboutScreen(ModalScreen[None]):
     BINDINGS = [Binding("escape", "close", show=False)]
 
@@ -315,6 +504,17 @@ class SettingsScreen(ModalScreen[str]):
             with Horizontal(classes="keyrow"):
                 yield Input(self.app.api.settings.name, id="name")
                 yield Button(t("Save", lang), id="savename")
+            mode = self.app.api.settings.mode
+            yield Label(t("Mode", lang), classes="h")
+            with Horizontal(classes="modes"):
+                for m, name in (("cloud", "Cloud"), ("local", "Local"), ("auto", "Auto")):
+                    yield Button(t(name, lang), id=f"mode-{m}", variant="primary" if m == mode else "default")
+            if mode == "auto":
+                yield Checkbox(t("Send hard questions to the cloud", lang), self.app.api.settings.auto_cloud, id="autocloud")
+                yield Static(t("Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.", lang),
+                             classes="muted")
+            if mode != "cloud":
+                yield Button(t("Local models", lang), id="localmodels")
             yield Label(t("Keys", lang), classes="h")
             yield Vertical(id="keys")
             yield Label(t("Memory", lang), classes="h")
@@ -395,8 +595,17 @@ class SettingsScreen(ModalScreen[str]):
             self._fill_memory()
         elif bid == "models":
             self.app.push_screen(ModelsScreen())
+        elif bid.startswith("mode-"):
+            self.app.api.save_settings({"mode": bid[5:]})
+            self.dismiss("reopen")
+        elif bid == "localmodels":
+            self.app.push_screen(LocalScreen())
         elif bid == "close":
             self.action_close()
+
+    @on(Checkbox.Changed, "#autocloud")
+    def _auto_cloud(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"auto_cloud": ev.value})
 
     def action_close(self) -> None:
         self.dismiss("")
@@ -426,6 +635,19 @@ class OnboardScreen(Screen):
                     with Horizontal(classes="row"):
                         yield Button(t("Back", lang), id="back")
                         yield Button(t("Next", lang), id="next", variant="primary")
+                elif self.step == 2:
+                    yield Label(t("How should Lanterna think?", lang), classes="sub")
+                    with Horizontal(classes="row"):
+                        for i, (m, name, desc) in enumerate((
+                                ("cloud", "Cloud", "Free models online. Works on any laptop."),
+                                ("local", "Local", "Models run on your graphics card. Fully private."),
+                                ("auto", "Auto", "Local first, cloud when needed."))):
+                            with Vertical(classes="card first" if i == 0 else "card"):
+                                yield Static(t(name, lang), classes="cardname", markup=False)
+                                yield Static(t(desc, lang), classes="muted")
+                                yield Button(t("Choose", lang), id=f"mode-{m}", variant="primary" if i == 0 else "default")
+                    with Horizontal(classes="row"):
+                        yield Button(t("Back", lang), id="back")
                 else:
                     yield Label(t("Pick your first free service:", lang), classes="sub")
                     with Horizontal(classes="row"):
@@ -465,13 +687,32 @@ class OnboardScreen(Screen):
             self._next()
         elif bid == "back":
             self.step = max(0, self.step - 1)
+        elif bid.startswith("mode-"):
+            mode = bid[5:]
+            self.app.api.save_settings({"mode": mode})
+            if mode == "cloud":
+                self.step = 3
+            else:
+                self.app.push_screen(LocalScreen(onboarding=True), self._local_done)
         elif bid.startswith("pick-"):
             pid = bid[5:]
-            self.app.api.save_settings({"provider": pid, "mode": "cloud"})
+            self.app.api.save_settings({"provider": pid})
             if self.app.api.state()["providers"] and any(p["id"] == pid and p["has_key"] for p in self.app.api.state()["providers"]):
                 self._finish(True)
             else:
                 self.app.push_screen(KeyScreen(pid), self._finish)
+
+    def _local_done(self, res: str) -> None:
+        api = self.app.api
+        if res == "cloud":
+            api.save_settings({"mode": "cloud"})
+            self.step = 3
+        elif api.settings.mode == "auto":
+            self.step = 3                                   # auto also needs a cloud key
+        elif api.local_status()["models"]:
+            self._finish(True)
+        else:
+            self.app.notify(t("Download at least one model to continue.", L(self.app)), severity="warning")
 
     def _next(self) -> None:
         self.app.api.save_settings({"name": self.query_one("#name", Input).value})
@@ -675,8 +916,15 @@ class _ChatScreen(Screen):
             return t("All free models are busy or out of limits. Try again in a minute.", lang)
         if kind == "auth":
             return t("No working key. Add one in Settings (Ctrl+S).", lang)
+        local_mode = self.app.api.settings.mode == "local"
+        if kind == "local" and err.get("message") == "no local models":
+            return t("No local model yet. Download one in Settings → Local models.", lang)
+        if kind == "local" or (kind == "network" and local_mode):
+            return t("Ollama isn't running. Start it, or switch to Cloud in Settings.", lang)
         if kind == "network":
             return t("Network problem: {err}", lang, err=err.get("message", ""))
+        if kind == "vision" and local_mode:
+            return t("To understand photos, download a photo model in Settings → Local models.", lang)
         if kind == "vision":
             return t("To understand photos, add a free Gemini key in Settings.", lang)
         return t("Error: {err}", lang, err=err.get("message", ""))
@@ -702,6 +950,9 @@ class _ChatScreen(Screen):
         def done(res: str) -> None:
             if res == "lang":
                 self.app.switch_screen(make_chat_screen(L(self.app)))
+            elif res == "reopen":                         # mode changed: show the matching options
+                self._load_model_label()
+                self.app.push_screen(SettingsScreen(), done)
             else:
                 self._load_model_label()
 

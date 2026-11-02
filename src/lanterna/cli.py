@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import sys
+import time
 
 from rich.console import Console
 from rich.panel import Panel
@@ -85,7 +86,7 @@ def setup(s: Settings) -> Settings:
 
 def find_models(s: Settings, refresh: bool = False) -> list[Candidate]:
     with console.status(t("Looking for free models…", s.lang), spinner="dots"):
-        return get_models(s.provider, refresh=refresh)
+        return get_models(s.provider, refresh=refresh, mode=s.mode, picks=s.local_models)
 
 
 def show_models(s: Settings, refresh: bool) -> int:
@@ -112,7 +113,7 @@ def run_chat(s: Settings) -> int:
         console.print(f"[red]{t('No key for {p}. Run: lanterna key set {id}', lang, p=p.name, id=p.id)}[/]")
         return 1
     router = Router(cands)
-    conv = Conversation(router, s.name)
+    conv = Conversation(router, s.name, lang=s.lang, auto_cloud=s.mode == "auto" and s.auto_cloud)
     banner(lang)
     console.print(f"[dim]{cands[0].label}\n{t('Type a message. /exit to quit, /new for a new chat.', lang)}[/]\n")
     while True:
@@ -146,6 +147,60 @@ def run_chat(s: Settings) -> int:
     return 0
 
 
+def local_cmd(s: Settings, action: str, value: str | None) -> int:
+    from . import hardware, local
+    lang = s.lang
+    if action == "mode":
+        if value not in ("cloud", "local", "auto"):
+            console.print("cloud | local | auto")
+            return 1
+        s.mode = value
+        s.save()
+        console.print(t("Saved.", lang))
+        return 0
+    if action == "pull":
+        if not value:
+            console.print(t("Model name?", lang))
+            return 1
+        if not local.version():
+            console.print(f"[red]{t('Ollama is not running. Install it from {url}', lang, url=local.DOWNLOAD_PAGE)}[/]")
+            return 1
+        from rich.progress import BarColumn, DownloadColumn, Progress, TextColumn
+        dl = local.Downloads()
+        job = dl.start(value)
+        with Progress(TextColumn(value), BarColumn(), DownloadColumn(), console=console) as bar:
+            task = bar.add_task("pull", total=None)
+            while job.status in ("starting", "downloading", "verifying"):
+                bar.update(task, completed=job.done_bytes, total=job.total_bytes or None)
+                time.sleep(0.4)
+            bar.update(task, completed=job.total_bytes, total=job.total_bytes or 1)
+        if job.status != "done":
+            console.print(f"[red]{t('Download failed: {e}', lang, e=job.error)}[/]")
+            return 1
+        console.print(f"[green]✓ {value}[/]")
+        return 0
+    hw = hardware.detect()
+    adv = hardware.advise(hw)
+    gpu = hw.gpu or t("No graphics card found", lang)
+    if hw.vram_gb:
+        gpu += f" · {hw.vram_gb:.1f} {t('GB', lang)}"
+    console.print(f"{t('Graphics card', lang)}: {gpu}\n{t('RAM', lang)}: {hw.ram_gb:.1f} {t('GB', lang)}   "
+                  f"{t('Free disk', lang)}: {hw.disk_free_gb:.1f} {t('GB', lang)}")
+    ver = local.version()
+    console.print(f"[green]✓ {t('Ollama {v} is running', lang, v=ver)}[/]" if ver
+                  else f"[yellow]{t('Ollama is not running. Install it from {url}', lang, url=local.DOWNLOAD_PAGE)}[/]")
+    have = {m.name for m in local.installed()} if ver else set()
+    tb = Table(box=None, header_style=f"bold {AMBER}", title=t("Recommended for this computer", lang))
+    for col in (t("Model", lang), "", t("GB", lang), ""):
+        tb.add_column(col)
+    for m in adv.models:
+        tb.add_row(m.name, t({"chat": "For chatting", "think": "For harder questions", "vision": "For photos"}[m.role], lang),
+                   f"{m.size_gb:.1f}", "[green]✓[/]" if m.name in have else f"[dim]lanterna local pull {m.name}[/]")
+    console.print(tb)
+    console.print(f"[dim]{t('Mode', lang)}: {s.mode}  ·  lanterna local mode cloud|local|auto[/]")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="lanterna", description="Lanterna — a friendly AI assistant by mikybuilds")
     ap.add_argument("--version", action="version", version=f"Lanterna {__version__}")
@@ -156,6 +211,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("about")
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
+    lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
+    lp.add_argument("action", nargs="?", choices=["info", "pull", "mode"], default="info")
+    lp.add_argument("value", nargs="?", help="model name (pull) or cloud|local|auto (mode)")
     k = sub.add_parser("key")
     k.add_argument("action", choices=["set", "list", "delete"])
     k.add_argument("provider", nargs="?", choices=list(PROVIDERS))
@@ -167,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if a.cmd == "models":
         return show_models(s, a.refresh)
+    if a.cmd == "local":
+        return local_cmd(s, a.action, a.value)
     if a.cmd == "key":
         if a.action == "list":
             for pid, p in PROVIDERS.items():

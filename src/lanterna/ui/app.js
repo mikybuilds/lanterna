@@ -123,6 +123,51 @@ const STR = {
   "No reminders. Say “remind me in 20 minutes…” in a chat.": { uk: "Нагадувань немає. Скажи в чаті «нагадай через 20 хвилин…».", it: "Nessun promemoria. Scrivi «ricordami tra 20 minuti…» in chat." },
   "Reminders pop up while Lanterna is open.": { uk: "Нагадування спливають, поки Lanterna відкрита.", it: "I promemoria appaiono mentre Lanterna è aperta." },
   "Reminder": { uk: "Нагадування", it: "Promemoria" },
+  // local models
+  "GB": { uk: "ГБ", it: "GB" },
+  "Checking this computer…": { uk: "Перевіряю цей комп'ютер…", it: "Controllo questo computer…" },
+  "Graphics card": { uk: "Відеокарта", it: "Scheda video" },
+  "RAM": { uk: "Оперативна пам'ять", it: "RAM" },
+  "Free disk": { uk: "Вільно на диску", it: "Disco libero" },
+  "No graphics card found": { uk: "Відеокарту не знайдено", it: "Nessuna scheda video trovata" },
+  "This computer is better with cloud models. Small local models will be slow.": { uk: "Цьому комп'ютеру краще підходять хмарні моделі. Малі локальні працюватимуть повільно.", it: "Questo computer va meglio con i modelli cloud. Quelli locali piccoli saranno lenti." },
+  "Small local models will work. Hard questions are better in the cloud.": { uk: "Малі локальні моделі працюватимуть. Складні питання краще віддавати хмарі.", it: "I modelli locali piccoli funzionano. Le domande difficili vanno meglio nel cloud." },
+  "Good for local models of about 8B. Auto mode fits best.": { uk: "Добре тягне локальні моделі розміру ~8B. Найкраще підходить режим «Авто».", it: "Va bene per modelli locali da circa 8B. La modalità Auto è la più adatta." },
+  "Strong card: bigger local models fit.": { uk: "Потужна карта: влізуть більші локальні моделі.", it: "Scheda potente: ci stanno modelli locali più grandi." },
+  "Very strong card: the biggest open models fit.": { uk: "Дуже потужна карта: влізуть найбільші відкриті моделі.", it: "Scheda molto potente: ci stanno i modelli aperti più grandi." },
+  "Ollama {v} is running": { uk: "Ollama {v} працює", it: "Ollama {v} è attivo" },
+  "Local models need Ollama, a free app. Install it, start it, then press Check again.": { uk: "Для локальних моделей потрібна Ollama — безкоштовна програма. Встанови її, запусти й натисни «Перевірити знову».", it: "I modelli locali richiedono Ollama, un'app gratuita. Installala, avviala e premi Controlla di nuovo." },
+  "Download Ollama": { uk: "Завантажити Ollama", it: "Scarica Ollama" },
+  "Check again": { uk: "Перевірити знову", it: "Controlla di nuovo" },
+  "Recommended for this computer": { uk: "Рекомендовано для цього комп'ютера", it: "Consigliati per questo computer" },
+  "For chatting": { uk: "Для розмов", it: "Per chiacchierare" },
+  "For harder questions": { uk: "Для складніших питань", it: "Per domande difficili" },
+  "For photos": { uk: "Для фото", it: "Per le foto" },
+  "Installed": { uk: "Встановлено", it: "Installato" },
+  "Download ({s})": { uk: "Завантажити ({s})", it: "Scarica ({s})" },
+  "Not enough disk space": { uk: "Мало місця на диску", it: "Spazio su disco insufficiente" },
+  "Download failed: {e}": { uk: "Не вдалося завантажити: {e}", it: "Download non riuscito: {e}" },
+  "Checking files…": { uk: "Перевіряю файли…", it: "Controllo i file…" },
+  "Starting…": { uk: "Починаю…", it: "Avvio…" },
+  "Downloads start only when you press the button. Models are stored by Ollama on this computer.": { uk: "Завантаження почнеться лише після натискання кнопки. Моделі зберігає Ollama на цьому комп'ютері.", it: "Il download parte solo quando premi il pulsante. I modelli restano su questo computer, gestiti da Ollama." },
+  "Set up local models": { uk: "Налаштуй локальні моделі", it: "Configura i modelli locali" },
+  "Lanterna checked what this computer can run.": { uk: "Lanterna перевірила, що потягне цей комп'ютер.", it: "Lanterna ha controllato cosa può far girare questo computer." },
+  "Use the cloud instead": { uk: "Краще хмара", it: "Usa il cloud" },
+  "Download at least one model to continue.": { uk: "Щоб продовжити, завантаж хоча б одну модель.", it: "Scarica almeno un modello per continuare." },
+  "Mode": { uk: "Режим", it: "Modalità" },
+  "Cloud": { uk: "Хмара", it: "Cloud" },
+  "Local": { uk: "Локально", it: "Locale" },
+  "Auto": { uk: "Авто", it: "Auto" },
+  "Send hard questions to the cloud": { uk: "Складні питання віддавати хмарі", it: "Manda le domande difficili al cloud" },
+  "Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.": { uk: "Довгі питання, доведення, код і аналіз отримає більша онлайн-модель. Для приватних розмов — вимкни.", it: "Domande lunghe, dimostrazioni, codice e analisi vanno a un modello online più grande. Per chat private: disattivalo." },
+  "Local models": { uk: "Локальні моделі", it: "Modelli locali" },
+  "Chat model": { uk: "Модель для розмов", it: "Modello per la chat" },
+  "Photo model": { uk: "Модель для фото", it: "Modello per le foto" },
+  "Automatic": { uk: "Автоматично", it: "Automatico" },
+  "None": { uk: "Немає", it: "Nessuno" },
+  "Ollama isn't running. Start it, or switch to Cloud in Settings.": { uk: "Ollama не запущена. Запусти її або перемкнися на «Хмару» в Налаштуваннях.", it: "Ollama non è attivo. Avvialo o passa al Cloud nelle Impostazioni." },
+  "No local model yet. Download one in Settings → Local models.": { uk: "Локальної моделі ще немає. Завантаж її в Налаштуваннях → Локальні моделі.", it: "Nessun modello locale. Scaricane uno in Impostazioni → Modelli locali." },
+  "To understand photos, download a photo model in Settings → Local models.": { uk: "Щоб розуміти фото, завантаж модель для фото в Налаштуваннях → Локальні моделі.", it: "Per capire le foto, scarica un modello per le foto in Impostazioni → Modelli locali." },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -228,7 +273,7 @@ async function boot() {
   S = await api.state();
   LANG = S.settings.lang || "en";
   document.documentElement.lang = LANG;
-  if (S.settings.onboarded && S.providers.some(p => p.has_key)) renderMain();
+  if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) renderMain();
   else renderOnboard(S.settings.onboarded ? 3 : 0);
 }
 
@@ -247,7 +292,8 @@ const pname = id => (S.providers.find(p => p.id === id) || {}).name || id;
 function renderOnboard(step) {
   const app = $("#app");
   app.className = "";
-  const dots = `<div class="dots">${[0, 1, 2, 3, 4].map(i => `<span class="${i <= step ? "on" : ""}"></span>`).join("")}</div>`;
+  const at = step === "L" ? 3 : step;
+  const dots = `<div class="dots">${[0, 1, 2, 3, 4].map(i => `<span class="${i <= at ? "on" : ""}"></span>`).join("")}</div>`;
   let body = "";
   if (step === 0) {
     body = `<div class="step">
@@ -275,10 +321,19 @@ function renderOnboard(step) {
       <h1>${t("How should Lanterna think?")}</h1><p class="lead">${t("Pick what fits your computer.")}</p>
       <div class="cards">
         ${mode("cloud", "cloud", "Cloud", "Free models online. Works on any laptop.", `<span class="badge amber">${t("Recommended")}</span>`, false)}
-        ${mode("local", "chip", "Local", "Models run on your graphics card. Fully private.", `<span class="badge">${t("Soon")}</span>`, true)}
-        ${mode("auto", "auto", "Auto", "Local first, cloud when needed.", `<span class="badge">${t("Soon")}</span>`, true)}
+        ${mode("local", "chip", "Local", "Models run on your graphics card. Fully private.", "", false)}
+        ${mode("auto", "auto", "Auto", "Local first, cloud when needed.", "", false)}
       </div>
       <button class="back" data-back="1">← ${t("Back")}</button>
+    </div>`;
+  } else if (step === "L") {
+    body = `<div class="step" style="max-width:640px">
+      <h1>${t("Set up local models")}</h1><p class="lead">${t("Lanterna checked what this computer can run.")}</p>
+      <div class="card local-card" id="local"></div>
+      <div class="status err" id="need" hidden>${t("Download at least one model to continue.")}</div>
+      <button class="btn primary" id="go-local" style="margin-top:16px;min-width:220px">${t("Continue")}</button>
+      <button class="back" id="to-cloud" style="margin-top:10px">${t("Use the cloud instead")}</button>
+      <button class="back" data-back="2">← ${t("Back")}</button>
     </div>`;
   } else if (step === 3) {
     body = `<div class="step" style="max-width:760px">
@@ -317,7 +372,19 @@ function renderOnboard(step) {
     LANG = b.dataset.lang; S = await api.save_settings({ lang: LANG }); renderOnboard(1);
   });
   app.querySelectorAll("[data-back]").forEach(b => b.onclick = () => renderOnboard(+b.dataset.back));
-  app.querySelectorAll("[data-mode]").forEach(b => b.onclick = async () => { S = await api.save_settings({ mode: b.dataset.mode }); renderOnboard(3); });
+  app.querySelectorAll("[data-mode]").forEach(b => b.onclick = async () => {
+    S = await api.save_settings({ mode: b.dataset.mode }); renderOnboard(b.dataset.mode === "cloud" ? 3 : "L");
+  });
+  if (step === "L") {
+    localPanel($("#local"));
+    $("#to-cloud").onclick = async () => { S = await api.save_settings({ mode: "cloud" }); renderOnboard(3); };
+    $("#go-local").onclick = async () => {
+      if (S.settings.mode === "auto") return renderOnboard(3);
+      const st = await api.local_status();
+      if (!st.running || !st.models.length) { $("#need").hidden = false; return; }
+      S = await api.save_settings({ onboarded: true }); renderMain();
+    };
+  }
   app.querySelectorAll("[data-first]").forEach(b => b.onclick = async () => { S = await api.save_settings({ provider: b.dataset.first }); renderOnboard(4); });
   app.querySelectorAll("[data-open]").forEach(b => b.onclick = () => api.open_url(b.dataset.open));
   const f = $("#f-name");
@@ -326,6 +393,76 @@ function renderOnboard(step) {
     wireKeyRow(app, S.settings.provider || "groq", () => { $("#go").disabled = false; $("#go").focus(); });
     $("#go").onclick = async () => { S = await api.save_settings({ onboarded: true }); renderMain(); };
   }
+}
+
+// ---------------------------------------------------------------- local models (Ollama)
+const ROLE_TEXT = { chat: "For chatting", think: "For harder questions", vision: "For photos" };
+const TIER_TEXT = {
+  none: "This computer is better with cloud models. Small local models will be slow.",
+  small: "Small local models will work. Hard questions are better in the cloud.",
+  medium: "Good for local models of about 8B. Auto mode fits best.",
+  large: "Strong card: bigger local models fit.",
+  huge: "Very strong card: the biggest open models fit.",
+};
+const gb = x => `${(Math.round((x || 0) * 10) / 10).toLocaleString(LANG)} ${t("GB")}`;
+let pullTimer = null;
+
+// Hardware, Ollama status and recommended models with Download buttons. onChange runs when a download finishes.
+async function localPanel(box, onChange) {
+  box.innerHTML = `<div class="status"><span class="spinner"></span>${t("Checking this computer…")}</div>`;
+  const [hw, st] = await Promise.all([api.hardware(), api.local_status()]);
+  const H = hw.hw, A = hw.advice;
+  const gpu = H.gpu ? `${esc(H.gpu)}${H.vram_gb ? ` · ${gb(H.vram_gb)}${H.vram_exact ? "" : "?"}` : ""}` : t("No graphics card found");
+  const installed = new Set(st.models.map(m => m.name));
+  box.innerHTML = `
+    <div class="hw">
+      <div><small>${t("Graphics card")}</small><b>${gpu}</b></div>
+      <div><small>${t("RAM")}</small><b>${gb(H.ram_gb)}</b></div>
+      <div><small>${t("Free disk")}</small><b>${gb(H.disk_free_gb)}</b></div>
+    </div>
+    <p class="tier">${t(TIER_TEXT[A.tier])}</p>
+    ${st.running ? `<div class="status ok">${icon("check")} ${t("Ollama {v} is running", { v: esc(st.version) })}</div>`
+      : `<div class="note">${icon("info")}<span>${t("Local models need Ollama, a free app. Install it, start it, then press Check again.")}</span></div>
+         <div class="row-btns"><button class="btn primary small" data-open="${esc(st.download_page)}">${t("Download Ollama")} ${icon("ext")}</button>
+         <button class="btn ghost small" data-recheck>${icon("refresh")} ${t("Check again")}</button></div>`}
+    <h4>${t("Recommended for this computer")}</h4>
+    <div class="lmodels">${A.models.map(m => `<div class="lrow" data-m="${esc(m.name)}" data-size="${m.size_gb}">
+      <div class="nm"><b>${esc(m.name)}</b><small>${t(ROLE_TEXT[m.role])} · ${gb(m.size_gb)}</small></div><div class="act"></div></div>`).join("")}</div>
+    <p class="faint small-note">${t("Downloads start only when you press the button. Models are stored by Ollama on this computer.")}</p>`;
+  box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => api.open_url(b.dataset.open));
+  const re = box.querySelector("[data-recheck]");
+  if (re) re.onclick = () => localPanel(box, onChange);
+
+  const paint = pulls => {
+    const by = Object.fromEntries(pulls.map(p => [p.name, p]));
+    let active = false;
+    box.querySelectorAll(".lrow").forEach(row => {
+      const name = row.dataset.m, p = by[name], act = row.querySelector(".act");
+      if (p && p.status === "done") installed.add(name);
+      if (installed.has(name)) act.innerHTML = `<span class="badge green">${icon("check")} ${t("Installed")}</span>`;
+      else if (p && ["starting", "downloading", "verifying"].includes(p.status)) {
+        active = true;
+        const label = p.status === "verifying" ? t("Checking files…") : p.status === "starting" ? t("Starting…")
+          : `${p.percent}% · ${gb(p.done_bytes / 1e9)} / ${gb(p.total_bytes / 1e9)}`;
+        act.innerHTML = `<div class="bar"><i style="width:${p.percent}%"></i></div><span class="faint">${label}</span>
+          <button class="btn ghost small" data-cancel>${t("Cancel")}</button>`;
+        act.querySelector("[data-cancel]").onclick = async () => paint(await api.cancel_pull(name));
+      } else {
+        const size = +row.dataset.size, noDisk = H.disk_free_gb && H.disk_free_gb < size + 1;
+        const err = p && p.status === "error" ? `<span class="status err">${esc(t("Download failed: {e}", { e: p.error }))}</span>` : "";
+        act.innerHTML = `${err}<button class="btn ${err ? "ghost" : "primary"} small" data-pull ${!st.running || noDisk ? "disabled" : ""}>
+          ${noDisk ? t("Not enough disk space") : t("Download ({s})", { s: gb(size) })}</button>`;
+        act.querySelector("[data-pull]").onclick = async () => { await api.pull_model(name); paint(await api.pulls()); };
+      }
+    });
+    clearTimeout(pullTimer);
+    if (active && document.body.contains(box)) pullTimer = setTimeout(async () => {
+      const next = await api.pulls();
+      if (next.some(p => p.status === "done" && !installed.has(p.name)) && onChange) onChange();
+      paint(next);
+    }, 700);
+  };
+  paint(st.pulls || []);
 }
 
 function keyRow(id) {
@@ -517,8 +654,10 @@ async function send(retryText) {
     if (p.error) {
       const k = p.error.kind;
       const msg = k === "rate" ? t("All free models are busy or out of limits. Try again in a minute.")
-        : k === "network" ? t("No connection. Check your internet.") : k === "auth" ? t("Add a key in Settings to start.")
-        : k === "vision" ? t("To understand photos, add a free Gemini key in Settings.") : t("Something went wrong: {e}", { e: p.error.message });
+        : k === "network" ? (S.settings.mode === "local" ? t("Ollama isn't running. Start it, or switch to Cloud in Settings.") : t("No connection. Check your internet.")) : k === "auth" ? t("Add a key in Settings to start.")
+        : k === "vision" ? (S.settings.mode === "local" ? t("To understand photos, download a photo model in Settings → Local models.") : t("To understand photos, add a free Gemini key in Settings."))
+        : k === "local" ? (p.error.message === "no local models" ? t("No local model yet. Download one in Settings → Local models.") : t("Ollama isn't running. Start it, or switch to Cloud in Settings."))
+        : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
       box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files }); };
     }
@@ -549,6 +688,12 @@ function openSettings() {
       <div class="seg" id="seg">${Object.entries(S.langs).map(([k, n]) => `<button data-l="${k}" class="${k === LANG ? "on" : ""}">${n}</button>`).join("")}</div>
       <h4 style="margin-top:22px">${t("Name")}</h4>
       <div class="keyrow"><div class="wrap"><input class="field" id="set-name" maxlength="40" value="${esc(S.settings.name || "")}"></div><button class="btn ghost" id="save-name" style="height:48px">${t("Save")}</button></div>
+      <h4 style="margin-top:22px">${t("Mode")}</h4>
+      <div class="seg" id="seg-mode">${["cloud", "local", "auto"].map(m => `<button data-mode="${m}" class="${m === S.settings.mode ? "on" : ""}">${t({ cloud: "Cloud", local: "Local", auto: "Auto" }[m])}</button>`).join("")}</div>
+      ${S.settings.mode === "auto" ? `<label class="check"><input type="checkbox" id="auto-cloud" ${S.settings.auto_cloud ? "checked" : ""}>
+        <span><b>${t("Send hard questions to the cloud")}</b><small>${t("Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.")}</small></span></label>` : ""}
+      ${S.settings.mode !== "cloud" ? `<h4 style="margin-top:22px">${t("Local models")}</h4>
+        <div id="picks"></div><div class="card local-card" id="local"></div>` : ""}
       <h4 style="margin-top:22px">${t("Services")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Add keys for more services: when one runs out of free limit, Lanterna switches to the next.")}</p>
       <div>${S.providers.filter(p => !p.local).map(p => `<div class="row" data-p="${p.id}">
@@ -577,11 +722,25 @@ function openSettings() {
         wireKeyRow(body, id, () => setTimeout(paint, 900));
       });
     });
+    body.querySelectorAll("#seg-mode [data-mode]").forEach(b => b.onclick = async () => { S = await api.save_settings({ mode: b.dataset.mode }); paint(); });
+    const ac = $("#auto-cloud", body);
+    if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
+    if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
     paintFacts(); paintRems();
     $("#fact-add", body).onclick = async () => { const i = $("#fact-new", body); if (i.value.trim()) { await api.add_fact(i.value.trim()); i.value = ""; paintFacts(); } };
     $("#fact-new", body).onkeydown = e => { if (e.key === "Enter") $("#fact-add", body).click(); };
+  };
+  const paintPicks = async () => {
+    const st = await api.local_status(), box = $("#picks", body);
+    if (!box || !st.running || !st.models.length) { if (box) box.innerHTML = ""; return; }
+    const sel = (role, list, none) => `<select class="field" data-role="${role}">
+        <option value="">${t(none)}</option>${list.map(m => `<option ${st.picks[role] === m.name ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>`;
+    box.innerHTML = `<div class="picks">
+      <label><small>${t("Chat model")}</small>${sel("chat", st.models, "Automatic")}</label>
+      <label><small>${t("Photo model")}</small>${sel("vision", st.models.filter(m => m.vision), "Automatic")}</label></div>`;
+    box.querySelectorAll("select").forEach(s => s.onchange = async () => { await api.set_local_model(s.dataset.role, s.value); loadModels(false); });
   };
   const paintFacts = async () => {
     const list = await api.facts(), box = $("#facts", body);

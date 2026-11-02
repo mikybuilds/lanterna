@@ -260,3 +260,34 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .toast button:hover { background: var(--line); color: var(--text); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 .toast.out { opacity: 0; transform: translateY(8px); }
+
+/* ---------------------------------------------------------------- local models */
+.local-card { text-align: left; cursor: default; display: block; }
+.local-card:hover { transform: none; }
+.hw { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 10px; }
+.hw > div { padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); min-width: 0; }
+.hw small { display: block; font-size: 11.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+.hw b { display: block; font-size: 14px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+.tier { margin: 12px 0 4px; color: var(--muted); font-size: 14px; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.local-card h4 { margin: 18px 0 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+.lmodels { display: flex; flex-direction: column; gap: 6px; }
+.lrow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.lrow .nm { flex: 1; min-width: 0; }
+.lrow .nm b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.lrow .nm small { color: var(--faint); font-size: 12.5px; }
+.lrow .act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-size: 12.5px; }
+.lrow .act .status { margin: 0; font-size: 12.5px; }
+.lrow .badge svg { width: 12px; height: 12px; margin-right: 4px; }
+.bar { width: 120px; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--amber); transition: width .5s; }
+.small-note { font-size: 12.5px; margin: 10px 0 0; }
+.check { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; cursor: pointer; }
+.check input { margin-top: 3px; accent-color: var(--amber); width: 16px; height: 16px; }
+.check small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.picks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.picks small { display: block; color: var(--faint); font-size: 12px; margin-bottom: 4px; }
+.picks select.field { height: 42px; padding: 0 10px; width: 100%; }
+@media (max-width: 560px) { .hw, .picks { grid-template-columns: 1fr; } .lrow { flex-wrap: wrap; } }
+
+[hidden] { display: none !important; }

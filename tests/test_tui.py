@@ -68,6 +68,8 @@ def test_onboarding_then_chat(api):
             assert api.settings.lang == "uk"
             app.screen.query_one("#name", Input).value = "Anna"
             await pilot.click("#next")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#mode-cloud")))
+            await pilot.click("#mode-cloud")
             assert await wait_for(pilot, lambda: bool(app.screen.query("#pick-groq")))
             await pilot.click("#pick-groq")
             assert await wait_for(pilot, lambda: type(app.screen).__name__ == "KeyScreen")
@@ -176,4 +178,90 @@ def test_attach_file_and_reminder_alert(api, tmp_path, monkeypatch):
             app._alerts()
             await pilot.pause()
             assert any("drink water" in str(n.message) for n in app._notifications)
+    asyncio.run(go())
+
+
+def fake_local(api, monkeypatch):
+    """Ollama running with one of three recommended models installed; downloads advance 50% per poll."""
+    state = {"pulls": []}
+    hw = {"hw": {"gpu": "NVIDIA GeForce RTX 5060", "vram_gb": 8.0, "vram_exact": True, "ram_gb": 16.0,
+                 "disk_free_gb": 60.0, "os": "win32"},
+          "advice": {"tier": "medium", "mode": "auto", "models": [
+              {"name": "gemma4:e4b-it-qat", "role": "chat", "size_gb": 6.15, "min_vram": 6},
+              {"name": "qwen3:8b", "role": "think", "size_gb": 5.23, "min_vram": 6},
+              {"name": "qwen3-vl:8b-instruct", "role": "vision", "size_gb": 6.19, "min_vram": 6}]},
+          "download_page": "https://ollama.com/download"}
+    models = [{"name": "gemma4:e4b-it-qat", "size_gb": 6.15, "vision": True, "tools": True, "chat": True}]
+
+    def pulls():
+        for p in state["pulls"]:
+            if p["status"] == "downloading":
+                p["percent"] = min(100, p["percent"] + 50)
+                if p["percent"] == 100:
+                    p["status"] = "done"
+                    models.append({"name": p["name"], "size_gb": 5, "vision": False, "tools": True, "chat": True})
+        return [dict(p) for p in state["pulls"]]
+
+    def pull_model(name):
+        state["pulls"].append({"name": name, "status": "downloading", "percent": 0, "done_bytes": 0,
+                               "total_bytes": 5e9, "error": ""})
+        return {"ok": True}
+
+    monkeypatch.setattr(api, "hardware", lambda: hw)
+    monkeypatch.setattr(api, "local_status", lambda: {"running": True, "version": "0.40.13", "models": list(models),
+                                                      "picks": api.settings.local_models,
+                                                      "download_page": hw["download_page"], "pulls": pulls()})
+    monkeypatch.setattr(api, "pulls", pulls)
+    monkeypatch.setattr(api, "pull_model", pull_model)
+    return state
+
+
+def test_onboarding_auto_mode_with_local_download(api, monkeypatch, tmp_path):
+    state = fake_local(api, monkeypatch)
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 44)) as pilot:
+            await pilot.click("#lang-uk")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#name")))
+            await pilot.click("#next")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#mode-auto")))
+            await pilot.click("#mode-auto")
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "LocalScreen")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#pull-1")))
+            assert "RTX 5060" in str(app.screen.query_one("#hwinfo").render())
+            from textual.widgets import Button
+            assert "Встановлено" in str(app.screen.query_one("#pull-0", Button).label)
+            assert "5.2" in str(app.screen.query_one("#pull-1", Button).label)
+            app.save_screenshot("local_screen.svg", path=str(tmp_path))
+            app.screen.query_one("#pull-1", Button).press()
+            assert await wait_for(pilot, lambda: state["pulls"] and state["pulls"][0]["status"] == "done", 6)
+            assert await wait_for(pilot, lambda: "Встановлено" in str(app.screen.query_one("#pull-1", Button).label), 4)
+            app.screen.query_one("#close", Button).press()
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#pick-groq")))   # auto still needs a cloud key
+            assert api.settings.mode == "auto"
+
+    asyncio.run(go())
+
+
+def test_settings_mode_switch_and_auto_cloud_toggle(api, monkeypatch):
+    fake_local(api, monkeypatch)
+    api.save_settings({"onboarded": True, "lang": "en"})
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 50)) as pilot:
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "ChatScreen")
+            await pilot.press("ctrl+s")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#mode-auto")))
+            app.screen.query_one("#mode-auto").press()
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#autocloud")))
+            assert api.settings.mode == "auto"
+            from textual.widgets import Checkbox
+            app.screen.query_one("#autocloud", Checkbox).value = False
+            assert await wait_for(pilot, lambda: api.settings.auto_cloud is False)
+            app.screen.query_one("#localmodels").press()
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "LocalScreen")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#pick-chat")))
+
     asyncio.run(go())

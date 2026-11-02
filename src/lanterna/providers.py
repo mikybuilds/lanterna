@@ -27,7 +27,7 @@ PROVIDERS: dict[str, Provider] = {p.id: p for p in [
     Provider("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "https://cloud.cerebras.ai"),
     Provider("mistral", "Mistral", "https://api.mistral.ai/v1", "https://console.mistral.ai/api-keys"),
     Provider("github", "GitHub Models", "https://models.github.ai/inference", "https://github.com/settings/personal-access-tokens"),
-    Provider("ollama", "Ollama (local)", "http://localhost:11434/v1", "https://ollama.com/download", needs_key=False, local=True),
+    Provider("ollama", "Ollama (local)", "http://127.0.0.1:11434/v1", "https://ollama.com/download", needs_key=False, local=True),
 ]}
 
 # Good default chat models per provider, best first. Stage 1 replaces this with live discovery.
