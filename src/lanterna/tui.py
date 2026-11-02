@@ -5,6 +5,8 @@ Uses the same backend as the window app (app.Api), so chats are shared between b
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 
 from textual import on, work
 from textual.app import App, ComposeResult
@@ -703,6 +705,18 @@ class SettingsScreen(ModalScreen[str]):
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
+            yield Label(t("Account and sync", lang), classes="h")
+            yield Static("", id="syncinfo", classes="muted")
+            yield Static("", id="syncerr")
+            with Horizontal(classes="keyrow", id="syncpwrow"):
+                yield Input(placeholder=t("Sync password", lang), password=True, id="syncpw")
+                yield Button(t("Continue", lang), id="syncok", variant="primary")
+            with Horizontal(classes="row", id="syncbtns"):
+                yield Button(t("Sign in with Google", lang), id="syncin", variant="primary")
+                yield Button(t("Cancel", lang), id="synccancel")
+                yield Button(t("Sync now", lang), id="syncnow")
+                yield Button(t("Sign out", lang), id="syncout")
+                yield Button(t("Sign out and delete the copy in Google Drive", lang), id="syncdel", variant="error")
             yield Label(t("Models", lang), classes="h")
             yield Button(t("Show models", lang), id="models")
             with Horizontal(classes="row"):
@@ -711,6 +725,87 @@ class SettingsScreen(ModalScreen[str]):
     def on_mount(self) -> None:
         self._fill_keys()
         self._fill_memory()
+        self._sync_working = False
+        self._paint_sync()
+        self.set_interval(1.0, self._paint_sync)
+
+    # -- Google sign-in & sync
+    def _paint_sync(self) -> None:
+        lang, st = L(self.app), self.app.api.sync_status()
+        ph = "syncing" if self._sync_working else st["phase"]
+        errs = {"password": "Wrong password.", "short": "At least 8 characters.",
+                "changed": "The sync password was changed on another device. Enter the new one.",
+                "signed_out": "You were signed out. Sign in again to keep syncing."}
+        who = t("Signed in as {account}", lang, account=st["account"]) if st["account"] else t("Signed in with Google", lang)
+        if ph == "off":
+            info = t("Sign in with Google to see your chats on all your devices.", lang) + " " + t(
+                "Lanterna uses only a hidden folder of its own in your Google Drive, and your chats there are encrypted with a password only you know. API keys are not synced.", lang)
+        elif ph == "waiting":
+            info = t("Finish signing in in your browser…", lang)
+        elif ph == "password":
+            info = who + "\n" + (t("Enter the sync password you chose on your other device.", lang) if st["cloud"] else
+                                  t("Choose a sync password (at least 8 characters). You will need it on your other devices.", lang)
+                                  + " " + t("If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.", lang))
+        elif ph == "syncing":
+            info = who + "\n" + t("Syncing…", lang)
+        else:
+            when = time.strftime("%H:%M", time.localtime(st["last"])) if st["last"] else ""
+            info = who + ("\n" + t("Last synced at {time}", lang, time=when) if when else "")
+        self.query_one("#syncinfo", Static).update(info)
+        e = st["error"]
+        self.query_one("#syncerr", Static).update(
+            "" if not e else t(errs[e], lang) if e in errs else t("Couldn't sync: {error}", lang, error=e))
+        self.query_one("#syncpwrow").display = ph == "password"
+        show = {"syncin": ph == "off", "synccancel": ph == "waiting", "syncnow": ph in ("ready", "error"),
+                "syncout": ph in ("password", "ready", "error"), "syncdel": ph in ("ready", "error")}
+        for bid, on in show.items():
+            self.query_one(f"#{bid}", Button).display = on
+
+    @on(Button.Pressed, "#syncin")
+    def _sync_in(self) -> None:
+        self.app.api.sync_sign_in()
+        self._paint_sync()
+
+    @on(Button.Pressed, "#synccancel")
+    def _sync_cancel(self) -> None:
+        self.app.api.sync_cancel()
+
+    @on(Button.Pressed, "#syncok")
+    @on(Input.Submitted, "#syncpw")
+    def _sync_pw(self) -> None:
+        pw = self.query_one("#syncpw", Input).value
+        self.query_one("#syncpw", Input).value = ""
+        self._sync_job(lambda: self.app.api.sync_password(pw))
+
+    @on(Button.Pressed, "#syncnow")
+    def _sync_now(self) -> None:
+        self._sync_job(self.app.api.sync_now)
+
+    @on(Button.Pressed, "#syncout")
+    def _sync_out(self) -> None:
+        self.app.api.sync_sign_out(False)
+        self._paint_sync()
+
+    @on(Button.Pressed, "#syncdel")
+    def _sync_del(self, ev: Button.Pressed) -> None:
+        if not getattr(self, "_del_armed", False):          # second press confirms
+            self._del_armed = True
+            ev.button.label = t("Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.", L(self.app))
+            return
+        self._del_armed = False
+        self._sync_job(lambda: self.app.api.sync_sign_out(True))
+
+    def _sync_job(self, fn) -> None:
+        self._sync_working = True
+        self._paint_sync()
+
+        def run():
+            try:
+                fn()
+            finally:
+                self._sync_working = False
+                self.app.call_from_thread(self._paint_sync)
+        threading.Thread(target=run, daemon=True).start()
 
     def _fill_memory(self) -> None:
         lang, api = L(self.app), self.app.api

@@ -199,6 +199,30 @@ const STR = {
   "No mail app? Copy the text and send it to {email} from any mail.": { uk: "Немає поштової програми? Скопіюй текст і надішли на {email} з будь-якої пошти.", it: "Niente app di posta? Copia il testo e invialo a {email} da qualsiasi posta." },
   "The text is long, so the letter is shortened. The full text is copied: paste it into the letter.": { uk: "Текст довгий, тому лист скорочено. Повний текст скопійовано — встав його в лист.", it: "Il testo è lungo, quindi la lettera è accorciata. Il testo completo è copiato: incollalo nella lettera." },
   "Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.": { uk: "Звіти поштою скоро будуть. Поки що відкрий звіт на GitHub (безкоштовний акаунт) або скопіюй текст.", it: "Le segnalazioni via e-mail arrivano presto. Per ora aprila su GitHub (account gratuito) o copia il testo." },
+  "Account and sync": { uk: "Акаунт і синхронізація", it: "Account e sincronizzazione" },
+  "Sign in with Google to see your chats on all your devices.": { uk: "Увійди через Google, щоб бачити свої чати на всіх пристроях.", it: "Accedi con Google per vedere le tue chat su tutti i dispositivi." },
+  "Lanterna uses only a hidden folder of its own in your Google Drive, and your chats there are encrypted with a password only you know. API keys are not synced.": { uk: "Lanterna використовує тільки свою приховану папку у твоєму Google Drive, а чати там зашифровані паролем, який знаєш лише ти. API-ключі не синхронізуються.", it: "Lanterna usa solo una sua cartella nascosta nel tuo Google Drive, e lì le chat sono cifrate con una password che conosci solo tu. Le chiavi API non vengono sincronizzate." },
+  "Sign in with Google": { uk: "Увійти через Google", it: "Accedi con Google" },
+  "Finish signing in in your browser…": { uk: "Заверши вхід у браузері…", it: "Completa l'accesso nel browser…" },
+  "Opened in the wrong browser? Copy the link and open it in the browser you use for Google.": { uk: "Відкрилось не в тому браузері? Скопіюй посилання й відкрий його в браузері, де ти заходиш у Google.", it: "Si è aperto nel browser sbagliato? Copia il link e aprilo nel browser che usi per Google." },
+  "Copy link": { uk: "Скопіювати посилання", it: "Copia il link" },
+  "Choose a sync password (at least 8 characters). You will need it on your other devices.": { uk: "Придумай пароль синхронізації (щонайменше 8 символів). Він знадобиться на інших пристроях.", it: "Scegli una password di sincronizzazione (almeno 8 caratteri). Ti servirà sugli altri dispositivi." },
+  "If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.": { uk: "Якщо забудеш його, чати на пристроях залишаться, але копію в Google Drive відкрити не вийде.", it: "Se la dimentichi, le chat sui dispositivi restano, ma la copia su Google Drive non si potrà aprire." },
+  "Enter the sync password you chose on your other device.": { uk: "Введи пароль синхронізації, який ти придумав на іншому пристрої.", it: "Inserisci la password di sincronizzazione scelta sull'altro dispositivo." },
+  "Sync password": { uk: "Пароль синхронізації", it: "Password di sincronizzazione" },
+  "Wrong password.": { uk: "Неправильний пароль.", it: "Password sbagliata." },
+  "At least 8 characters.": { uk: "Щонайменше 8 символів.", it: "Almeno 8 caratteri." },
+  "The sync password was changed on another device. Enter the new one.": { uk: "Пароль синхронізації змінили на іншому пристрої. Введи новий.", it: "La password di sincronizzazione è stata cambiata su un altro dispositivo. Inserisci quella nuova." },
+  "You were signed out. Sign in again to keep syncing.": { uk: "Тебе вивело з акаунта. Увійди знову, щоб синхронізація працювала далі.", it: "Sei uscito dall'account. Accedi di nuovo per continuare a sincronizzare." },
+  "Signed in as {account}": { uk: "Ти увійшов як {account}", it: "Accesso come {account}" },
+  "Signed in with Google": { uk: "Вхід через Google виконано", it: "Accesso con Google effettuato" },
+  "Last synced at {time}": { uk: "Остання синхронізація о {time}", it: "Ultima sincronizzazione alle {time}" },
+  "Syncing…": { uk: "Синхронізую…", it: "Sincronizzo…" },
+  "Sync now": { uk: "Синхронізувати", it: "Sincronizza ora" },
+  "Sign out": { uk: "Вийти", it: "Esci" },
+  "Sign out and delete the copy in Google Drive": { uk: "Вийти й видалити копію з Google Drive", it: "Esci ed elimina la copia su Google Drive" },
+  "Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.": { uk: "Видалити зашифровану копію чатів з Google Drive? Чати на цьому пристрої залишаться.", it: "Eliminare la copia cifrata delle chat da Google Drive? Le chat su questo dispositivo restano." },
+  "Couldn't sync: {error}": { uk: "Не вдалося синхронізувати: {error}", it: "Sincronizzazione non riuscita: {error}" },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -309,6 +333,7 @@ async function boot() {
   if (view === "local") return renderOnboard("L");
   if (view === "settings" || view === "about") { renderMain(); return view === "about" ? openAbout() : openSettings(); }
   if (view === "bug") { renderMain(); return openBugReport(); }
+  if (view === "sync") { renderMain(); openSettings(); return setTimeout(() => { const s = $("#sync"); if (s) s.scrollIntoView(); }, 400); }
   if (view === "update") { renderMain(); return api.check_update().then(u => u.newer && showUpdate(u)); }
   if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) { renderMain(); checkUpdateOnStart(); }
   else renderOnboard(S.settings.onboarded ? 3 : 0);
@@ -585,7 +610,7 @@ function renderMain() {
   pending = []; paintFiles();
   refreshThreads().then(list => openThread(list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
-  if (!window.__alerts) { window.__alerts = true; watchAlerts(); }
+  if (!window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
 }
 
 function setModel(label) {
@@ -750,6 +775,8 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Updates")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
         <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
+      <h4 style="margin-top:22px">${t("Account and sync")}</h4>
+      <div id="sync"></div>
       <h4 style="margin-top:22px">${t("Found a bug?")}</h4>
       <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
       <button class="btn ghost small" id="set-bug">${t("Report a bug")}</button>
@@ -772,6 +799,7 @@ function openSettings() {
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();
+    syncPanel($("#sync", body));
     if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
@@ -876,6 +904,74 @@ function showUpdate(u) {
     cp.textContent = t("Copied");
   };
   return v;
+}
+
+// ---------------------------------------------------------------- Google sign-in & sync
+async function syncPanel(box) {
+  if (!box.isConnected) return;
+  const st = await api.sync_status();
+  const errText = { password: t("Wrong password."), short: t("At least 8 characters."),
+    changed: t("The sync password was changed on another device. Enter the new one."),
+    signed_out: t("You were signed out. Sign in again to keep syncing.") };
+  const err = st.error ? `<p class="sync-err">${esc(errText[st.error] || t("Couldn't sync: {error}", { error: st.error }))}</p>` : "";
+  const again = ms => setTimeout(() => syncPanel(box), ms);
+  if (st.phase === "off") {
+    box.innerHTML = `<p class="muted sync-p">${t("Sign in with Google to see your chats on all your devices.")}
+      ${t("Lanterna uses only a hidden folder of its own in your Google Drive, and your chats there are encrypted with a password only you know. API keys are not synced.")}</p>
+      ${err}<button class="btn primary small" id="sync-in">${t("Sign in with Google")}</button>`;
+    $("#sync-in", box).onclick = async () => { await api.sync_sign_in(); syncPanel(box); };
+  } else if (st.phase === "waiting") {
+    box.innerHTML = `<div class="status"><span class="spinner"></span>${t("Finish signing in in your browser…")}
+      <button class="btn ghost small" id="sync-x" style="margin-left:auto">${t("Cancel")}</button></div>`;
+    if (st.url) {
+      box.insertAdjacentHTML("beforeend", `<p class="muted sync-p">${t("Opened in the wrong browser? Copy the link and open it in the browser you use for Google.")}
+        <button class="btn ghost small" id="sync-link">${t("Copy link")}</button></p>`);
+      $("#sync-link", box).onclick = async e => { if (await copyText(st.url)) e.target.textContent = t("Copied"); };
+    }
+    $("#sync-x", box).onclick = async () => { await api.sync_cancel(); again(700); };
+    if (!box.dataset.waiting) { box.dataset.waiting = "1"; (function wait() { api.sync_status().then(s2 => { if (s2.phase === "waiting") setTimeout(wait, 1000); else { delete box.dataset.waiting; syncPanel(box); } }); })(); }
+  } else if (st.phase === "password") {
+    const intro = st.cloud ? t("Enter the sync password you chose on your other device.")
+      : `${t("Choose a sync password (at least 8 characters). You will need it on your other devices.")} ${t("If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.")}`;
+    box.innerHTML = `${st.account ? `<p class="sync-who">${t("Signed in as {account}", { account: esc(st.account) })}</p>` : ""}
+      <p class="muted sync-p">${intro}</p>${err}
+      <div class="keyrow"><div class="wrap"><input class="field" type="password" id="sync-pw" autocomplete="new-password" placeholder="${t("Sync password")}"></div>
+      <button class="btn primary" id="sync-ok" style="height:48px">${t("Continue")}</button></div>
+      <button class="btn ghost small" id="sync-out">${t("Sign out")}</button>`;
+    const go = async () => {
+      const b = $("#sync-ok", box); b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
+      await api.sync_password($("#sync-pw", box).value);
+      syncPanel(box); refreshThreads();
+    };
+    $("#sync-ok", box).onclick = go;
+    $("#sync-pw", box).onkeydown = e => { if (e.key === "Enter") go(); };
+    $("#sync-out", box).onclick = async () => { await api.sync_sign_out(false); syncPanel(box); };
+    $("#sync-pw", box).focus();
+  } else {
+    const when = st.last ? new Date(st.last * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+    box.innerHTML = `<p class="sync-who">${st.account ? t("Signed in as {account}", { account: esc(st.account) }) : t("Signed in with Google")}</p>
+      <p class="muted sync-p">${st.phase === "syncing" ? `<span class="spinner"></span>${t("Syncing…")}` : when ? t("Last synced at {time}", { time: when }) : ""}</p>${err}
+      <div class="sync-actions"><button class="btn ghost small" id="sync-now">${icon("refresh")} ${t("Sync now")}</button>
+      <button class="btn ghost small" id="sync-out">${t("Sign out")}</button>
+      <button class="btn ghost small danger" id="sync-del">${t("Sign out and delete the copy in Google Drive")}</button></div>`;
+    $("#sync-now", box).onclick = async () => { box.querySelector(".sync-p").innerHTML = `<span class="spinner"></span>${t("Syncing…")}`; await api.sync_now(); syncPanel(box); refreshThreads(); };
+    $("#sync-out", box).onclick = async () => { await api.sync_sign_out(false); syncPanel(box); };
+    $("#sync-del", box).onclick = async () => { if (confirm(t("Delete the encrypted copy of your chats from Google Drive? Chats on this device stay."))) { await api.sync_sign_out(true); syncPanel(box); } };
+    if (st.phase === "syncing") again(1000);
+  }
+}
+
+let syncSeen = null;
+async function watchSync() {                      // a sync brought chats from another device: show them
+  try {
+    const st = await api.sync_status();
+    if (syncSeen !== null && st.last && st.last !== syncSeen && !busy) {
+      await refreshThreads();
+      if (thread && !$("#input").value) openThread(thread);
+    }
+    syncSeen = st.last || 0;
+  } catch (e) { /* app closing */ }
+  setTimeout(watchSync, 10000);
 }
 
 // ---------------------------------------------------------------- bug report

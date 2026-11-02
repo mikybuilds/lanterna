@@ -17,6 +17,7 @@ Running a good model locally needs a strong graphics card. Lanterna lets anyone 
 - **Free.** Uses free API tiers. Lanterna never calls a paid model.
 - **Private keys.** Your API keys are stored in your system's secure vault (Windows Credential Manager, or GNOME Keyring / KWallet on Linux), never in plain files or logs.
 - **No telemetry.** Lanterna sends nothing to its author.
+- **Same chats on every device** (optional): sign in with Google and your chats are kept, encrypted, in a hidden folder of your own Google Drive.
 - **Human tone.** Warm, short when you're short, honest when it isn't sure.
 - **English, Українська, Italiano.**
 
@@ -87,6 +88,16 @@ In a terminal `lanterna` opens a full-screen app (chats on the left, Ctrl+N new 
 
 Other commands: `lanterna models` (free models available right now), `lanterna local` (local models), `lanterna key set <provider>`, `lanterna key list`, `lanterna setup`, `lanterna about`.
 
+## Your chats on all your devices
+
+**Settings → Account and sync → Sign in with Google** (in a terminal: `lanterna sync in`). Then choose a sync password; on your other devices sign in with the same Google account and enter the same password.
+
+- Lanterna asks Google for one permission only: its own hidden folder in your Google Drive (`drive.appdata`). It can't see your other files.
+- Chats, memory, reminders, your name and language are kept there as one file encrypted with AES-256 and your sync password, so Google can't read them. API keys are not synced: add them on each device.
+- Syncs when something changes and every two minutes while Lanterna is open. Deleting a chat deletes it everywhere.
+- **Sign out and delete the copy in Google Drive** removes everything from Drive; chats on your devices stay.
+- Forgot the sync password? Chats on your devices are safe; sign out with *delete the copy* and start again with a new password.
+
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
@@ -131,7 +142,7 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 
 ## Privacy
 
-- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder.
+- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions.

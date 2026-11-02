@@ -245,3 +245,32 @@ _T.update({
     "The text is long, so the letter is shortened. The full text is copied: paste it into the letter.": {"uk": "Текст довгий, тому лист скорочено. Повний текст скопійовано — встав його в лист.", "it": "Il testo è lungo, quindi la lettera è accorciata. Il testo completo è copiato: incollalo nella lettera."},
     "Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.": {"uk": "Звіти поштою скоро будуть. Поки що відкрий звіт на GitHub (безкоштовний акаунт) або скопіюй текст.", "it": "Le segnalazioni via e-mail arrivano presto. Per ora aprila su GitHub (account gratuito) o copia il testo."},
 })
+
+
+# Google sign-in and sync (0.2.0)
+_T.update({
+    "Account and sync": {"uk": "Акаунт і синхронізація", "it": "Account e sincronizzazione"},
+    "Sign in with Google to see your chats on all your devices.": {"uk": "Увійди через Google, щоб бачити свої чати на всіх пристроях.", "it": "Accedi con Google per vedere le tue chat su tutti i dispositivi."},
+    "Lanterna uses only a hidden folder of its own in your Google Drive, and your chats there are encrypted with a password only you know. API keys are not synced.": {"uk": "Lanterna використовує тільки свою приховану папку у твоєму Google Drive, а чати там зашифровані паролем, який знаєш лише ти. API-ключі не синхронізуються.", "it": "Lanterna usa solo una sua cartella nascosta nel tuo Google Drive, e lì le chat sono cifrate con una password che conosci solo tu. Le chiavi API non vengono sincronizzate."},
+    "Sign in with Google": {"uk": "Увійти через Google", "it": "Accedi con Google"},
+    "Opened in the wrong browser? Copy the link and open it in the browser you use for Google.": {"uk": "Відкрилось не в тому браузері? Скопіюй посилання й відкрий його в браузері, де ти заходиш у Google.", "it": "Si è aperto nel browser sbagliato? Copia il link e aprilo nel browser che usi per Google."},
+    "Copy link": {"uk": "Скопіювати посилання", "it": "Copia il link"},
+    "Finish signing in in your browser…": {"uk": "Заверши вхід у браузері…", "it": "Completa l'accesso nel browser…"},
+    "Choose a sync password (at least 8 characters). You will need it on your other devices.": {"uk": "Придумай пароль синхронізації (щонайменше 8 символів). Він знадобиться на інших пристроях.", "it": "Scegli una password di sincronizzazione (almeno 8 caratteri). Ti servirà sugli altri dispositivi."},
+    "If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.": {"uk": "Якщо забудеш його, чати на пристроях залишаться, але копію в Google Drive відкрити не вийде.", "it": "Se la dimentichi, le chat sui dispositivi restano, ma la copia su Google Drive non si potrà aprire."},
+    "Enter the sync password you chose on your other device.": {"uk": "Введи пароль синхронізації, який ти придумав на іншому пристрої.", "it": "Inserisci la password di sincronizzazione scelta sull'altro dispositivo."},
+    "Sync password": {"uk": "Пароль синхронізації", "it": "Password di sincronizzazione"},
+    "Wrong password.": {"uk": "Неправильний пароль.", "it": "Password sbagliata."},
+    "At least 8 characters.": {"uk": "Щонайменше 8 символів.", "it": "Almeno 8 caratteri."},
+    "The sync password was changed on another device. Enter the new one.": {"uk": "Пароль синхронізації змінили на іншому пристрої. Введи новий.", "it": "La password di sincronizzazione è stata cambiata su un altro dispositivo. Inserisci quella nuova."},
+    "You were signed out. Sign in again to keep syncing.": {"uk": "Тебе вивело з акаунта. Увійди знову, щоб синхронізація працювала далі.", "it": "Sei uscito dall'account. Accedi di nuovo per continuare a sincronizzare."},
+    "Signed in as {account}": {"uk": "Ти увійшов як {account}", "it": "Accesso come {account}"},
+    "Signed in with Google": {"uk": "Вхід через Google виконано", "it": "Accesso con Google effettuato"},
+    "Last synced at {time}": {"uk": "Остання синхронізація о {time}", "it": "Ultima sincronizzazione alle {time}"},
+    "Syncing…": {"uk": "Синхронізую…", "it": "Sincronizzo…"},
+    "Sync now": {"uk": "Синхронізувати", "it": "Sincronizza ora"},
+    "Sign out": {"uk": "Вийти", "it": "Esci"},
+    "Sign out and delete the copy in Google Drive": {"uk": "Вийти й видалити копію з Google Drive", "it": "Esci ed elimina la copia su Google Drive"},
+    "Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.": {"uk": "Видалити зашифровану копію чатів з Google Drive? Чати на цьому пристрої залишаться.", "it": "Eliminare la copia cifrata delle chat da Google Drive? Le chat su questo dispositivo restano."},
+    "Couldn't sync: {error}": {"uk": "Не вдалося синхронізувати: {error}", "it": "Sincronizzazione non riuscita: {error}"},
+})

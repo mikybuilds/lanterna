@@ -232,6 +232,49 @@ def update_cmd(s: Settings) -> int:
     return 0
 
 
+def sync_cmd(s: Settings, action: str) -> int:
+    """lanterna sync: status · in (sign in with Google) · now · out (sign out) · out --delete."""
+    import time as _time
+    from .app import Api
+    lang, api = s.lang, Api(scheduler=False)
+    st = api.sync_status()
+    if action == "in":
+        if st["phase"] == "off":
+            console.print(t("Finish signing in in your browser…", lang))
+            api.sync_sign_in()
+            while api.sync_status()["phase"] == "waiting":
+                _time.sleep(0.5)
+            st = api.sync_status()
+            if st["phase"] == "off":
+                console.print(f"[yellow]{st['error'] or 'cancelled'}[/]", markup=True, highlight=False)
+                return 1
+        while st["phase"] == "password":
+            console.print(t("Enter the sync password you chose on your other device.", lang) if st["cloud"] else
+                          t("Choose a sync password (at least 8 characters). You will need it on your other devices.", lang),
+                          highlight=False)
+            st = api.sync_password(getpass.getpass(t("Sync password", lang) + ": "))
+            if st["error"] in ("password", "short"):
+                console.print(f"[yellow]{t('Wrong password.' if st['error'] == 'password' else 'At least 8 characters.', lang)}[/]")
+            elif st["phase"] == "password":
+                break
+    elif action == "now":
+        st = api.sync_now()
+    elif action in ("out", "out-delete"):
+        st = api.sync_sign_out(action == "out-delete")
+    if st["phase"] == "off":
+        console.print(t("Sign in with Google to see your chats on all your devices.", lang) + "  lanterna sync in", highlight=False)
+    else:
+        console.print(t("Signed in as {account}", lang, account=st["account"]) if st["account"] else t("Signed in with Google", lang),
+                      highlight=False)
+        if st["last"]:
+            console.print(t("Last synced at {time}", lang, time=_time.strftime("%H:%M", _time.localtime(st["last"]))))
+    if st["error"] and st["error"] not in ("password", "short"):
+        msg = t("Couldn't sync: {error}", lang, error=st["error"])
+        console.print(msg, style="yellow", markup=False, highlight=False)
+        return 1
+    return 0
+
+
 def bug_cmd(s: Settings) -> int:
     """Asks what went wrong, shows the exact text, then opens a ready letter (or prints where to send it)."""
     from .app import Api
@@ -281,6 +324,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("about")
     sub.add_parser("update", help="is there a new version, and how to install it")
     sub.add_parser("bug", help="report a bug: see the text, then send it from your mail app or GitHub")
+    sy = sub.add_parser("sync", help="sign in with Google and keep the same chats on all your devices")
+    sy.add_argument("action", nargs="?", default="status", choices=["status", "in", "now", "out", "out-delete"])
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
     lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
@@ -301,6 +346,8 @@ def main(argv: list[str] | None = None) -> int:
         return update_cmd(s)
     if a.cmd == "bug":
         return bug_cmd(s)
+    if a.cmd == "sync":
+        return sync_cmd(s, a.action)
     if a.cmd == "models":
         return show_models(s, a.refresh)
     if a.cmd == "local":

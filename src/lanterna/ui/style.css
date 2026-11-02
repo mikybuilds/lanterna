@@ -309,3 +309,10 @@ svg.i { width: 18px; height: 18px; flex: none; }
   border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); font: 12.5px/1.5 ui-monospace, Consolas, monospace; color: var(--muted); }
 .bug-note { min-height: 18px; margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 .bug-note.warn { color: var(--amber); }
+
+/* Google sign-in & sync */
+.sync-p { margin: 0 0 10px; font-size: 13.5px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sync-who { margin: 0 0 4px; font-weight: 600; font-size: 14px; }
+.sync-err { margin: 0 0 10px; font-size: 13.5px; color: var(--amber); }
+.sync-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn.danger { color: var(--red, #e5484d); }

@@ -18,6 +18,7 @@ dependencies = [
     "textual>=3",
     "pillow>=10",
     "pypdf>=4",
+    "cryptography>=42",
 ]
 classifiers = [
     "License :: OSI Approved :: MIT License",

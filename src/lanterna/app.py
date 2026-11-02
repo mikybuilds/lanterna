@@ -50,8 +50,11 @@ class Api:
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
         self._hw: hardware.Hardware | None = None
         self._downloads = local.Downloads()
+        from .sync import Syncer
+        self.syncer = Syncer(self.store, self.settings)
         if scheduler:
             threading.Thread(target=self._reminder_loop, daemon=True).start()
+            threading.Thread(target=self.syncer.loop, daemon=True).start()
 
     # ---------------------------------------------------------------- state & settings
     def state(self) -> dict:
@@ -70,6 +73,8 @@ class Api:
         for k, v in (patch or {}).items():
             if k in allowed:
                 setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check") else v)
+        if {"lang", "name"} & set(patch or {}):
+            self.settings.profile_at = time.time()
         if self.settings.lang not in LANGS:
             self.settings.lang = "en"
         if self.settings.mode not in ("cloud", "local", "auto"):
@@ -113,6 +118,26 @@ class Api:
             webbrowser.open(url)
             return True
         return False
+
+    # ---------------------------------------------------------------- Google sign-in & sync
+    def sync_status(self) -> dict:
+        return self.syncer.status()
+
+    def sync_sign_in(self) -> dict:
+        """Opens Google's sign-in page in the browser; poll sync_status for the result."""
+        return self.syncer.start_sign_in()
+
+    def sync_cancel(self) -> dict:
+        return self.syncer.cancel_sign_in()
+
+    def sync_password(self, password: str) -> dict:
+        return self.syncer.set_password(password)
+
+    def sync_now(self) -> dict:
+        return self.syncer.sync()
+
+    def sync_sign_out(self, delete_cloud: bool = False) -> dict:
+        return self.syncer.sign_out(bool(delete_cloud))
 
     # ---------------------------------------------------------------- bug reports
     def bug_report(self, text: str, include_info: bool = True) -> dict:

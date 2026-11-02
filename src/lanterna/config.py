@@ -33,6 +33,7 @@ class Settings:
     local_models: dict = field(default_factory=dict)   # Ollama picks: {"chat": name, "vision": name}
     auto_cloud: bool = True                # auto mode: send hard questions to online models
     update_check: bool = True              # look for a new version when the app starts
+    profile_at: float = 0                  # when name or language last changed (newest wins when syncing)
     onboarded: bool = False
 
     @classmethod
