@@ -131,7 +131,7 @@ def test_selfcheck_report(tmp_path):
     out = tmp_path / "r.json"
     selfcheck(str(out))
     rep = json.loads(out.read_text(encoding="utf-8"))
-    assert rep["ui"] is True and rep["version"] == __version__ and rep["pypdf"] == "ok"
+    assert rep["ui"] is True and rep["version"] == __version__ and rep["pypdf"] == "ok" and rep["crypto"] == "ok"
     assert re.match(r"\d+\.\d+\.\d+", rep["version"])
 
 

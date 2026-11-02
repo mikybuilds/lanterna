@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — your chats on all your devices
 
 **New**
 - Sign in with Google to see the same chats on all your devices (Settings → Account and sync, or `lanterna sync in`). Chats, memory, reminders, name and language are kept in a hidden folder of your own Google Drive, encrypted with a sync password only you know. API keys are not synced.
+- If the sign-in page opens in the wrong browser, copy its link and open it where you use Google.
 
 ## 0.1.2 — Gemini fix and bug reports
 

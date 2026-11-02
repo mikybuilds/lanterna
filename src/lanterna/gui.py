@@ -95,6 +95,12 @@ def selfcheck(out: str) -> int:
         except Exception as e:                              # noqa: BLE001 - report anything
             report[name] = f"missing: {e}"
     report["ui"] = all((UI / f).is_file() for f in ("index.html", "app.js", "style.css", "logo.svg"))
+    try:                                                    # sync encryption must work inside the build
+        from . import sync
+        salt, key = b"s" * 16, b"k" * 32
+        report["crypto"] = "ok" if sync.decrypt(sync.encrypt({"x": 1}, key, salt), key) == {"x": 1} else "wrong"
+    except Exception as e:                                  # noqa: BLE001
+        report["crypto"] = f"missing: {e}"
     try:
         from . import __version__, hardware, local
         report["version"] = __version__
@@ -103,7 +109,7 @@ def selfcheck(out: str) -> int:
     except Exception as e:                                  # noqa: BLE001
         report["error"] = str(e)
     Path(out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
-    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx")) and report["ui"] else 1
+    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx", "crypto")) and report["ui"] else 1
 
 
 def main(argv: list[str] | None = None) -> int:
