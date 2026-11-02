@@ -168,7 +168,8 @@ def test_env_key_wins(monkeypatch):
 
 # --- i18n ------------------------------------------------------------------
 def test_every_cli_string_is_translated():
-    src = Path(__file__).parents[1].joinpath("src/lanterna/cli.py").read_text(encoding="utf-8")
+    root = Path(__file__).parents[1].joinpath("src/lanterna")
+    src = "".join((root / f).read_text(encoding="utf-8") for f in ("cli.py", "tui.py"))
     used = set(re.findall(r'\bt\("([^"]+)"', src)) | set(re.findall(r"\bt\('([^']+)'", src))
     used |= {tag for _, tag, _ in __import__("lanterna.cli", fromlist=["x"]).FIRST_CHOICES}
     used |= {det for _, _, det in __import__("lanterna.cli", fromlist=["x"]).FIRST_CHOICES}

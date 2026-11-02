@@ -1,6 +1,7 @@
 """Terminal interface: first-run setup and a streaming chat.
 
-  lanterna                 chat (runs setup the first time)
+  lanterna                 full-screen app (runs setup the first time)
+  lanterna chat            simple line-by-line chat (also: --plain)
   lanterna models          free models available right now, best first (--refresh to search again)
   lanterna setup           run setup again
   lanterna key set groq    store a key in the system vault
@@ -148,8 +149,10 @@ def run_chat(s: Settings) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="lanterna", description="Lanterna — a friendly AI assistant by mikybuilds")
     ap.add_argument("--version", action="version", version=f"Lanterna {__version__}")
+    ap.add_argument("--plain", action="store_true", help="simple line-by-line chat instead of the full-screen app")
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("setup")
+    sub.add_parser("chat", help="simple line-by-line chat")
     sub.add_parser("about")
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
@@ -177,9 +180,23 @@ def main(argv: list[str] | None = None) -> int:
             console.print(t("Saved.", s.lang))
             return 0
         return 0 if ask_key(a.provider, s.lang) else 1
+    if a.cmd != "chat" and not a.plain and _can_tui():
+        from .tui import run
+        return run(force_setup=a.cmd == "setup")
     if a.cmd == "setup" or not s.onboarded:
         s = setup(s)
     return run_chat(s)
+
+
+def _can_tui() -> bool:
+    """Full-screen app needs a real terminal; pipes and dumb terminals get the plain chat."""
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return False
+    try:
+        import textual  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 if __name__ == "__main__":

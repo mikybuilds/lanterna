@@ -1,0 +1,150 @@
+"""Drives the full-screen terminal app headless (Textual pilot) with a fake model and a fake key vault."""
+import asyncio
+import json
+
+import httpx
+import pytest
+
+from lanterna import keys
+from lanterna.app import Api
+from lanterna.discovery import Candidate
+from lanterna.providers import PROVIDERS, Client
+from lanterna.router import Router
+from lanterna.store import Store
+
+pytest.importorskip("textual")
+from textual.widgets import Input, ListView, Markdown, Static  # noqa: E402
+
+from lanterna.tui import LanternaApp  # noqa: E402
+
+
+def sse(*chunks):
+    return ("".join(f"data: {json.dumps({'choices': [{'delta': {'content': c}}]})}\n\n" for c in chunks)
+            + "data: [DONE]\n\n").encode()
+
+
+@pytest.fixture
+def api(tmp_path, monkeypatch):
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    vault = {}
+    monkeypatch.setattr(keys, "get_key", lambda p: vault.get(p))
+    monkeypatch.setattr(keys, "set_key", lambda p, k: vault.__setitem__(p, k))
+    monkeypatch.setattr(keys, "delete_key", lambda p: vault.pop(p, None))
+    a = Api(store=Store(tmp_path / "t.db"))
+    a._vault = vault
+
+    def h(req):
+        return httpx.Response(200, content=sse("Ciao ", "**Anna**", "!"))
+
+    router = Router([Candidate("groq", "fake-model", 50)], client_for=lambda pid: Client(PROVIDERS["groq"], "k", transport=httpx.MockTransport(h)))
+    router.current = router.candidates[0]
+    monkeypatch.setattr(a, "_get_router", lambda refresh=False: router)
+
+    def fake_check(provider, key):
+        if key == "good":
+            vault[provider] = key
+            return {"ok": True, "masked": "go…od"}
+        return {"ok": False, "error": "auth", "message": "invalid key"}
+
+    monkeypatch.setattr(a, "check_key", fake_check)
+    return a
+
+
+async def wait_for(pilot, cond, timeout=5.0):
+    for _ in range(int(timeout / 0.05)):
+        await pilot.pause(0.05)
+        if cond():
+            return True
+    return False
+
+
+def test_onboarding_then_chat(api):
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 40)) as pilot:
+            assert type(app.screen).__name__ == "OnboardScreen"
+            await pilot.click("#lang-uk")
+            await pilot.pause()
+            assert api.settings.lang == "uk"
+            app.screen.query_one("#name", Input).value = "Anna"
+            await pilot.click("#next")
+            await pilot.pause()
+            await pilot.click("#pick-groq")
+            await pilot.pause()
+            assert type(app.screen).__name__ == "KeyScreen"
+            app.screen.query_one("#key", Input).value = "bad"
+            await pilot.click("#check")
+            assert await wait_for(pilot, lambda: "invalid" in str(app.screen.query_one("#keystatus").render()))
+            app.screen.query_one("#key", Input).value = "good"
+            await pilot.pause(0.3)          # a Button ignores a second click while its press effect runs
+            await pilot.click("#check")
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "ChatScreen")
+            assert api.settings.onboarded and api.settings.name == "Anna" and api.settings.provider == "groq"
+            assert api._vault["groq"] == "good"
+
+            # send a message, the reply streams into a Markdown block and is saved
+            box = app.screen.query_one("#composer", Input)
+            box.value = "привіт"
+            await pilot.press("enter")
+            assert await wait_for(pilot, lambda: app.screen._stream is None and app.screen._text)
+            assert app.screen._text == "Ciao **Anna**!"
+            tid = app.screen.tid
+            assert [m["role"] for m in api.messages(tid)] == ["user", "assistant"]
+            assert len(app.screen.query_one("#threads", ListView).children) == 1
+            assert "fake-model" in str(app.screen.query_one("#model").render())
+    asyncio.run(go())
+
+
+def test_threads_reload_delete_and_language_switch(api):
+    api.save_settings({"onboarded": True, "name": "Bo", "lang": "en", "provider": "groq"})
+    tid = api.new_thread()["id"]
+    api.store.add(tid, "user", "hello")
+    api.store.add(tid, "assistant", "Hi **Bo**")
+    api.store.rename(tid, "hello")
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            scr = app.screen
+            assert scr.tid == tid
+            assert len(scr.query(Markdown)) == 1 and len(scr.query(".msg-user")) == 1
+            # new chat clears the log, then delete the old one through the confirm dialog
+            await pilot.press("ctrl+n")
+            assert scr.tid is None and scr.query(".welcome")
+            scr.open_thread(tid)
+            await pilot.press("ctrl+d")
+            await pilot.pause()
+            await pilot.click("#yes")
+            await pilot.pause()
+            assert api.threads() == []
+            # settings: switch language rebuilds the chat screen in Italian
+            await pilot.press("ctrl+s")
+            await pilot.pause()
+            await pilot.click("#lang-it")
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "ChatScreen" and app.screen is not scr)
+            assert api.settings.lang == "it"
+            assert app.screen.query_one("#composer", Input).placeholder == "Scrivi a Lanterna…"
+    asyncio.run(go())
+
+
+def test_error_is_shown_not_raised(api, monkeypatch):
+    from lanterna.providers import ProviderError
+
+    def boom(refresh=False):
+        raise ProviderError("rate", "429")
+
+    monkeypatch.setattr(api, "_get_router", boom)
+    api.save_settings({"onboarded": True})
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#composer", Input).value = "hi"
+            await pilot.press("enter")
+            assert await wait_for(pilot, lambda: bool(app.screen.query(".msg-err")))
+            err = app.screen.query_one(".msg-err", Static)
+            assert "busy" in str(err.render())
+            assert app.screen._stream is None
+    asyncio.run(go())

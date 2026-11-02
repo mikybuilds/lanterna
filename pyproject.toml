@@ -15,6 +15,7 @@ dependencies = [
     "keyring>=24",
     "platformdirs>=4",
     "rich>=13",
+    "textual>=3",
 ]
 classifiers = [
     "License :: OSI Approved :: MIT License",
