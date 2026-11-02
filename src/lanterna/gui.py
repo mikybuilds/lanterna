@@ -20,7 +20,7 @@ UI = Path(__file__).with_name("ui")
 METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "new_thread",
            "messages", "rename_thread", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
-           "pull_model", "pulls", "cancel_pull", "check_update"}
+           "pull_model", "pulls", "cancel_pull", "check_update", "update_notice"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 

@@ -197,3 +197,31 @@ _T.update({
         "uk": "Lanterna тепер у меню програм. Натисни Super і введи Lanterna.",
         "it": "Lanterna ora è nel menu delle app. Premi Super e scrivi Lanterna."},
 })
+
+
+# Update notice (0.1.1)
+_T.update({
+    "Download": {"uk": "Завантажити", "it": "Scarica"},
+    "Lanterna {v} is out": {"uk": "Вийшла Lanterna {v}", "it": "È uscita Lanterna {v}"},
+    "You have {v}.": {"uk": "У тебе {v}.", "it": "Hai la {v}."},
+    "What's new": {"uk": "Що нового", "it": "Novità"},
+    "How to update": {"uk": "Як оновити", "it": "Come aggiornare"},
+    "Later": {"uk": "Пізніше", "it": "Più tardi"},
+    "Copy": {"uk": "Копіювати", "it": "Copia"},
+    "Copied": {"uk": "Скопійовано", "it": "Copiato"},
+    "Release page": {"uk": "Сторінка релізу", "it": "Pagina della release"},
+    "Updates": {"uk": "Оновлення", "it": "Aggiornamenti"},
+    "Check for a new version when Lanterna starts": {"uk": "Перевіряти нову версію під час запуску", "it": "Controlla se c'è una nuova versione all'avvio"},
+    "A plain request to the project's release page, nothing about you.": {"uk": "Простий запит до сторінки релізів проєкту, нічого про тебе.", "it": "Una semplice richiesta alla pagina delle release del progetto, niente su di te."},
+    "Press Download and save {file}.": {"uk": "Натисни «Завантажити» і збережи {file}.", "it": "Premi «Scarica» e salva {file}."},
+    "Close Lanterna, then run the file you downloaded.": {"uk": "Закрий Lanterna і запусти завантажений файл.", "it": "Chiudi Lanterna e avvia il file scaricato."},
+    "If Windows says “Windows protected your PC”, choose More info → Run anyway.": {"uk": "Якщо Windows напише «Windows захистила ваш ПК», вибери «Докладніше» → «Однаково запустити».", "it": "Se Windows dice «Windows ha protetto il PC», scegli «Ulteriori informazioni» → «Esegui comunque»."},
+    "Your chats, settings and keys stay as they are.": {"uk": "Чати, налаштування й ключі залишаться як є.", "it": "Chat, impostazioni e chiavi restano come sono."},
+    "Close Lanterna, unzip the new folder and use it instead of the old one.": {"uk": "Закрий Lanterna, розпакуй нову папку й користуйся нею замість старої.", "it": "Chiudi Lanterna, estrai la nuova cartella e usala al posto della vecchia."},
+    "Close Lanterna.": {"uk": "Закрий Lanterna.", "it": "Chiudi Lanterna."},
+    "In the project folder run:": {"uk": "У папці проєкту виконай:", "it": "Nella cartella del progetto esegui:"},
+    "Start Lanterna again.": {"uk": "Запусти Lanterna знову.", "it": "Riapri Lanterna."},
+    "Open a terminal and run:": {"uk": "Відкрий термінал і виконай:", "it": "Apri un terminale ed esegui:"},
+    "Start Lanterna again. Your chats, settings and keys stay as they are.": {"uk": "Запусти Lanterna знову. Чати, налаштування й ключі залишаться як є.", "it": "Riapri Lanterna. Chat, impostazioni e chiavi restano come sono."},
+    "Couldn't check for updates. Are you online?": {"uk": "Не вдалося перевірити оновлення. Є інтернет?", "it": "Impossibile controllare gli aggiornamenti. Sei online?"},
+})

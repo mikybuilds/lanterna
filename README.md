@@ -54,7 +54,7 @@ lanterna desktop
 
 Or just type `lanterna` in any terminal.
 
-Update: `pipx upgrade lanterna` · Remove: `lanterna desktop --remove && pipx uninstall lanterna`
+Update: Lanterna tells you when a new version is out; then run `pipx upgrade lanterna` · Remove: `lanterna desktop --remove && pipx uninstall lanterna`
 
 Keys are kept in GNOME Keyring. On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
 
@@ -81,7 +81,7 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 - [x] All free services (Groq, Gemini, OpenRouter, Cerebras, Mistral, GitHub Models) and automatic discovery of models that are free right now, with fallback when a limit is reached
 - [x] Windows app (window with chats, settings, first-run setup)
 - [x] Windows installer (Setup.exe) and portable zip, built by the release workflow
-- [x] Update check (only when you open About)
+- [x] Update notice at start with steps for your kind of install (can be turned off)
 - [x] Full-screen terminal app for Ubuntu / GNOME (mouse + keyboard, same chats as the window app)
 - [x] Memory, reminders, web search, files & photos, weather, exact math and dates
 - [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
@@ -123,7 +123,7 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions.
-- The only request Lanterna makes on its own is the update check, when you open **About** (a plain request for the latest release, nothing about you).
+- The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**.
 
 ## Good to know
 

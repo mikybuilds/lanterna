@@ -52,5 +52,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python tools/release_notes.py $env:VERSION > notes.md      # only this version's part of CHANGELOG.md
+          if ((Get-Item notes.md).Length -lt 20) { throw "no CHANGELOG.md entry for $env:VERSION" }
           gh release create "${{ github.ref_name }}" "dist\Lanterna-Setup-$env:VERSION.exe" "dist\Lanterna-$env:VERSION-portable-windows.zip" `
-            --title "Lanterna $env:VERSION" --notes-file CHANGELOG.md
+            --title "Lanterna $env:VERSION" --notes-file notes.md

@@ -63,3 +63,17 @@ jobs:
           # run the TUI for a few seconds inside a pseudo-terminal; it must not crash on start
           timeout 6 script -qec "lanterna" /dev/null > tui.log 2>&1 || code=$?
           test "${code:-0}" = "124"           # 124 = still running when the timeout stopped it
+      - name: The update command from the update notice works (pipx upgrade of a git install)
+        run: |
+          # a copy of this repo as an "older" release, installed from git like the README does
+          git clone --quiet . "$RUNNER_TEMP/repo"
+          cd "$RUNNER_TEMP/repo"
+          sed -i 's/^__version__ = .*/__version__ = "0.0.1"/' src/lanterna/__init__.py
+          git -c user.name=ci -c user.email=ci@example.com commit -qam "old"
+          pipx install --force "git+file://$RUNNER_TEMP/repo"
+          lanterna --version | grep -F "0.0.1"
+          # a newer version is pushed; the notice's command must pick it up
+          sed -i 's/^__version__ = .*/__version__ = "0.0.2"/' src/lanterna/__init__.py
+          git -c user.name=ci -c user.email=ci@example.com commit -qam "new"
+          pipx upgrade lanterna
+          lanterna --version | grep -F "0.0.2"

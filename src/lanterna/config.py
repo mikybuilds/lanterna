@@ -32,6 +32,7 @@ class Settings:
     models: dict = field(default_factory=dict)   # preferred model per provider
     local_models: dict = field(default_factory=dict)   # Ollama picks: {"chat": name, "vision": name}
     auto_cloud: bool = True                # auto mode: send hard questions to online models
+    update_check: bool = True              # look for a new version when the app starts
     onboarded: bool = False
 
     @classmethod

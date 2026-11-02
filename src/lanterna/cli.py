@@ -7,6 +7,7 @@
   lanterna key set groq    store a key in the system vault
   lanterna key list        show which keys are stored (masked)
   lanterna about
+  lanterna update          is there a new version, and how to install it
 """
 from __future__ import annotations
 
@@ -201,6 +202,36 @@ def local_cmd(s: Settings, action: str, value: str | None) -> int:
     return 0
 
 
+def update_cmd(s: Settings) -> int:
+    from .app import Api
+    lang = s.lang
+    with console.status(t("Checking for updates…", lang), spinner="dots"):
+        u = Api(scheduler=False).check_update()
+    if not u.get("latest"):
+        msg = t("Couldn't check for updates. Are you online?", lang)
+        console.print(f"[yellow]{msg}[/]")
+        return 1
+    if not u.get("newer"):
+        console.print(f"[green]✓[/] {t('You have the latest version', lang)} ({u['current']})")
+        return 0
+    console.print(f"[bold {AMBER}]{t('Lanterna {v} is out', lang, v=u['latest'])}[/]  [dim]{t('You have {v}.', lang, v=u['current'])}[/]")
+    if u.get("notes"):
+        head = t("What's new", lang)
+        console.print()
+        console.print(f"[bold]{head}[/]")
+        for n in u["notes"]:
+            console.print(f"  • {n}", markup=False, highlight=False)
+    console.print()
+    console.print(f"[bold]{t('How to update', lang)}[/]")
+    for i, step in enumerate(u.get("steps") or [], 1):
+        console.print(f"  {i}. {step}", markup=False, highlight=False)
+        if step.endswith(":") and u.get("command"):           # the command goes right under "run:"
+            console.print(f"\n       {u['command']}\n", style=f"bold {AMBER}", markup=False, highlight=False)
+    if u.get("download"):
+        console.print(f"\n[dim]{u['download']}[/]")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="lanterna", description="Lanterna — a friendly AI assistant by mikybuilds")
     ap.add_argument("--version", action="version", version=f"Lanterna {__version__}")
@@ -209,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("setup")
     sub.add_parser("chat", help="simple line-by-line chat")
     sub.add_parser("about")
+    sub.add_parser("update", help="is there a new version, and how to install it")
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
     lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
@@ -225,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "about":
         banner(s.lang)
         return 0
+    if a.cmd == "update":
+        return update_cmd(s)
     if a.cmd == "models":
         return show_models(s, a.refresh)
     if a.cmd == "local":

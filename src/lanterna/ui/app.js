@@ -170,6 +170,17 @@ const STR = {
   "Checking for updates…": { uk: "Перевіряю оновлення…", it: "Controllo gli aggiornamenti…" },
   "Version {v} is available": { uk: "Доступна версія {v}", it: "È disponibile la versione {v}" },
   "Download": { uk: "Завантажити", it: "Scarica" },
+  "Lanterna {v} is out": { uk: "Вийшла Lanterna {v}", it: "È uscita Lanterna {v}" },
+  "You have {v}.": { uk: "У тебе {v}.", it: "Hai la {v}." },
+  "What's new": { uk: "Що нового", it: "Novità" },
+  "How to update": { uk: "Як оновити", it: "Come aggiornare" },
+  "Later": { uk: "Пізніше", it: "Più tardi" },
+  "Copy": { uk: "Копіювати", it: "Copia" },
+  "Copied": { uk: "Скопійовано", it: "Copiato" },
+  "Release page": { uk: "Сторінка релізу", it: "Pagina della release" },
+  "Updates": { uk: "Оновлення", it: "Aggiornamenti" },
+  "Check for a new version when Lanterna starts": { uk: "Перевіряти нову версію під час запуску", it: "Controlla se c'è una nuova versione all'avvio" },
+  "A plain request to the project's release page, nothing about you.": { uk: "Простий запит до сторінки релізів проєкту, нічого про тебе.", it: "Una semplice richiesta alla pagina delle release del progetto, niente su di te." },
   "You have the latest version": { uk: "У тебе найновіша версія", it: "Hai l'ultima versione" },
   "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": { uk: "У системі немає захищеного сховища ключів. Задай ключ як змінну середовища, напр. GROQ_API_KEY.", it: "Il sistema non ha un archivio sicuro per le chiavi. Imposta la chiave come variabile d'ambiente, es. GROQ_API_KEY." },
   "To understand photos, download a photo model in Settings → Local models.": { uk: "Щоб розуміти фото, завантаж модель для фото в Налаштуваннях → Локальні моделі.", it: "Per capire le foto, scarica un modello per le foto in Impostazioni → Modelli locali." },
@@ -282,7 +293,8 @@ async function boot() {
   const view = TOKEN && new URLSearchParams(location.search).get("view");
   if (view === "local") return renderOnboard("L");
   if (view === "settings" || view === "about") { renderMain(); return view === "about" ? openAbout() : openSettings(); }
-  if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) renderMain();
+  if (view === "update") { renderMain(); return api.check_update().then(u => u.newer && showUpdate(u)); }
+  if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) { renderMain(); checkUpdateOnStart(); }
   else renderOnboard(S.settings.onboarded ? 3 : 0);
 }
 
@@ -719,6 +731,9 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Reminders")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>
       <div id="rems"></div>
+      <h4 style="margin-top:22px">${t("Updates")}</h4>
+      <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
+        <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
       <h4 style="margin-top:22px;display:flex;align-items:center">${t("Free models right now")}<button class="btn ghost small" id="refresh" style="margin-left:auto">${icon("refresh")} ${t("Search again")}</button></h4>
       <div class="models" id="models"></div>`;
     body.querySelectorAll("[data-l]").forEach(b => b.onclick = async () => { LANG = b.dataset.l; S = await api.save_settings({ lang: LANG }); v.querySelector("header h2").textContent = t("Settings"); paint(); });
@@ -735,6 +750,8 @@ function openSettings() {
     body.querySelectorAll("#seg-mode [data-mode]").forEach(b => b.onclick = async () => { S = await api.save_settings({ mode: b.dataset.mode }); paint(); });
     const ac = $("#auto-cloud", body);
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
+    const uc = $("#upd-check", body);
+    uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
@@ -794,11 +811,58 @@ function openAbout() {
   api.check_update().then(u => {
     if (!u.latest) { box.innerHTML = ""; return; }                 // offline or no release yet: stay quiet
     box.innerHTML = u.newer
-      ? `<b>${t("Version {v} is available", { v: esc(u.latest) })}</b> <button class="btn primary small" id="get-update">${t("Download")} ${icon("ext")}</button>`
+      ? `<b>${t("Version {v} is available", { v: esc(u.latest) })}</b> <button class="btn primary small" id="get-update">${t("How to update")}</button>`
       : `${icon("check")} ${t("You have the latest version")}`;
     const b = $("#get-update", v);
-    if (b) b.onclick = () => api.open_url(u.url);
+    if (b) b.onclick = () => { v.remove(); showUpdate(u); };
   }).catch(() => { box.innerHTML = ""; });
+}
+
+// ---------------------------------------------------------------- update notice
+function showUpdate(u) {
+  const notes = (u.notes || []).map(n => `<li>${esc(n)}</li>`).join("");
+  const cmd = u.command ? `<div class="upd-cmd"><code id="upd-cmd">${esc(u.command)}</code><button class="btn ghost small" id="upd-copy">${t("Copy")}</button></div>` : "";
+  let cmdShown = false;                                     // the command goes right under the "run:" step
+  const steps = (u.steps || []).map(s => {
+    const here = cmd && !cmdShown && s.endsWith(":");
+    if (here) cmdShown = true;
+    return `<li>${esc(s)}${here ? cmd : ""}</li>`;
+  }).join("");
+  const v = dialog(t("Lanterna {v} is out", { v: u.latest }), `<section class="upd">
+    <p class="muted" style="margin:0 0 14px">${t("You have {v}.", { v: esc(u.current) })}</p>
+    ${notes ? `<h4>${t("What's new")}</h4><ul class="upd-notes">${notes}</ul>` : ""}
+    <h4>${t("How to update")}</h4>
+    <ol class="upd-steps">${steps}</ol>
+    ${cmdShown ? "" : cmd}
+    <div class="upd-actions">
+      <button class="btn ghost" id="upd-page">${t("Release page")} ${icon("ext")}</button>
+      <span style="flex:1"></span>
+      <button class="btn ghost" id="upd-later">${t("Later")}</button>
+      ${u.download ? `<button class="btn primary" id="upd-dl">${t("Download")}</button>` : ""}
+    </div></section>`);
+  $("#upd-page", v).onclick = () => api.open_url(u.url);
+  $("#upd-later", v).onclick = () => v.remove();
+  const dl = $("#upd-dl", v);
+  if (dl) dl.onclick = () => api.open_url(u.download);
+  const cp = $("#upd-copy", v);
+  if (cp) cp.onclick = async () => {
+    try { await navigator.clipboard.writeText(u.command); }
+    catch (e) {                                          // older webviews: copy through a selection
+      const r = document.createRange(); r.selectNodeContents($("#upd-cmd", v));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); document.execCommand("copy");
+    }
+    cp.textContent = t("Copied");
+  };
+  return v;
+}
+
+let updateAsked = false;
+function checkUpdateOnStart() {
+  if (updateAsked) return;
+  updateAsked = true;
+  setTimeout(() => api.update_notice().then(u => {
+    if (u && u.newer && !document.querySelector(".veil")) showUpdate(u);
+  }).catch(() => {}), 1500);
 }
 
 // pywebview injects its API a moment after load; dev mode (token) can start right away

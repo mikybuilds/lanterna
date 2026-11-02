@@ -68,6 +68,9 @@ Screen { background: $background; }
 .listrow Label { width: 1fr; padding: 1 0 0 0; }
 #composer:focus { border: round $primary; }
 ModalScreen { align: center middle; background: $background 70%; }
+#updcmd { width: 1fr; height: auto; padding: 1 1; background: $boost; color: $warning; }
+#updrest { margin-top: 1; }
+#updbox .row { margin-top: 1; }
 .dialog { width: 80; max-width: 100%; height: auto; max-height: 90%; border: round $primary; background: $surface; padding: 1 2; }
 .dialog .h { text-style: bold; color: $primary; margin: 1 0 0 0; }
 .keyrow { height: auto; width: 100%; }
@@ -232,6 +235,58 @@ class ConfirmScreen(ModalScreen[bool]):
     @on(Button.Pressed, "#no")
     def action_no(self) -> None:
         self.dismiss(False)
+
+
+class UpdateScreen(ModalScreen[None]):
+    """A new version is out: what's new and the steps for this kind of install."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def __init__(self, info: dict):
+        super().__init__()
+        self.info = info
+
+    def compose(self) -> ComposeResult:
+        lang, u = L(self.app), self.info
+        with VerticalScroll(classes="dialog", id="updbox"):
+            yield Label(f"{LOGO} " + t("Lanterna {v} is out", lang, v=u["latest"]), classes="title")
+            yield Label(t("You have {v}.", lang, v=u["current"]), classes="sub")
+            if u.get("notes"):
+                yield Label(t("What's new", lang), classes="h")
+                yield Static("\n".join("• " + n for n in u["notes"]), markup=False, classes="muted")
+            yield Label(t("How to update", lang), classes="h")
+            steps = [f"{i}. {s}" for i, s in enumerate(u.get("steps") or [], 1)]
+            # the command goes right under the "run:" step
+            cut = next((i + 1 for i, s in enumerate(steps) if s.endswith(":")), len(steps)) if u.get("command") else len(steps)
+            yield Static("\n".join(steps[:cut]), markup=False, id="updsteps")
+            if u.get("command"):
+                with Horizontal(classes="keyrow"):
+                    yield Static(u["command"], markup=False, id="updcmd")
+                    yield Button(t("Copy", lang), id="updcopy")
+            if steps[cut:]:
+                yield Static("\n".join(steps[cut:]), markup=False, id="updrest")
+            with Horizontal(classes="row"):
+                if u.get("download"):
+                    yield Button(t("Download", lang), id="upddl", variant="primary")
+                yield Button(t("Release page", lang), id="updpage")
+                yield Button(t("Later", lang), id="updlater")
+
+    @on(Button.Pressed, "#updcopy")
+    def _copy(self, ev: Button.Pressed) -> None:
+        self.app.copy_to_clipboard(self.info["command"])
+        ev.button.label = t("Copied", L(self.app))
+
+    @on(Button.Pressed, "#upddl")
+    def _download(self) -> None:
+        self.app.api.open_url(self.info["download"])
+
+    @on(Button.Pressed, "#updpage")
+    def _page(self) -> None:
+        self.app.api.open_url(self.info["url"])
+
+    @on(Button.Pressed, "#updlater")
+    def action_close(self) -> None:
+        self.dismiss(None)
 
 
 class ModelsScreen(ModalScreen[None]):
@@ -481,11 +536,19 @@ class AboutScreen(ModalScreen[None]):
             yield Static(t("Lanterna is free and open source.", lang) + f"\n[link='{home}']{home}[/link]", classes="muted")
             yield Static(t("Checking for updates…", lang), id="update", classes="muted")
             with Horizontal(classes="row"):
+                yield Button(t("How to update", lang), id="howupdate", variant="warning")
                 yield Button(t("Star on GitHub", lang), id="star", variant="primary")
                 yield Button(t("Close", lang), id="close")
 
     def on_mount(self) -> None:
+        self.query_one("#howupdate", Button).display = False
         self._check_update()
+
+    @on(Button.Pressed, "#howupdate")
+    def _how(self) -> None:
+        info = self._update
+        self.dismiss(None)
+        self.app.push_screen(UpdateScreen(info))
 
     @work(thread=True, exclusive=True, group="update")
     def _check_update(self) -> None:
@@ -498,8 +561,9 @@ class AboutScreen(ModalScreen[None]):
         if not res.get("latest"):                          # offline or no release yet: stay quiet
             box.update("")
         elif res.get("newer"):
-            box.update(f"[b]{t('Version {v} is available', lang, v=res['latest'])}[/b]  "
-                       f"[link='{res['url']}']{res['url']}[/link]")
+            box.update(f"[b]{t('Version {v} is available', lang, v=res['latest'])}[/b]")
+            self._update = res
+            self.query_one("#howupdate", Button).display = True
         else:
             box.update("✓ " + t("You have the latest version", lang))
 
@@ -548,6 +612,9 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Add", lang), id="addfact")
             yield Label(t("Reminders", lang), classes="h")
             yield Vertical(id="rems")
+            yield Label(t("Updates", lang), classes="h")
+            yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
+            yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
             yield Label(t("Models", lang), classes="h")
             yield Button(t("Show models", lang), id="models")
             with Horizontal(classes="row"):
@@ -626,6 +693,10 @@ class SettingsScreen(ModalScreen[str]):
             self.app.push_screen(LocalScreen())
         elif bid == "close":
             self.action_close()
+
+    @on(Checkbox.Changed, "#updcheck")
+    def _update_check(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"update_check": ev.value})
 
     @on(Checkbox.Changed, "#autocloud")
     def _auto_cloud(self, ev: Checkbox.Changed) -> None:
@@ -787,6 +858,19 @@ class _ChatScreen(Screen):
             self._welcome()
         self.query_one("#composer", Input).focus()
         self._load_model_label()
+        if not getattr(self.app, "_update_asked", False):
+            self.app._update_asked = True
+            self._update_notice()
+
+    @work(thread=True, exclusive=True, group="update")
+    def _update_notice(self) -> None:
+        res = self.app.api.update_notice()
+        if res.get("newer"):
+            self.app.call_from_thread(self._show_update_notice, res)
+
+    def _show_update_notice(self, res: dict) -> None:
+        if self.app.screen is self:                        # don't cover a dialog the user already opened
+            self.app.push_screen(UpdateScreen(res))
 
     @work(thread=True, exclusive=True, group="model")
     def _load_model_label(self) -> None:

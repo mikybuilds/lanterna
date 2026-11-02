@@ -17,7 +17,7 @@ from .chat import Conversation, ToolUse
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
-from .i18n import LANGS
+from .i18n import LANGS, t
 from .providers import PROVIDERS, Client, ProviderError
 from .router import Router, Switched
 from .notify import notify
@@ -66,10 +66,10 @@ class Api:
         }
 
     def save_settings(self, patch: dict) -> dict:
-        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud"}
+        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check"}
         for k, v in (patch or {}).items():
             if k in allowed:
-                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud") else v)
+                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check") else v)
         if self.settings.lang not in LANGS:
             self.settings.lang = "en"
         if self.settings.mode not in ("cloud", "local", "auto"):
@@ -136,9 +136,22 @@ class Api:
                             "status": c.status, "latency": c.latency, "vision": c.vision} for c in r.candidates]}
 
     def check_update(self) -> dict:
-        """Only called when the About screen opens."""
+        """Latest release, plus what to do to update this copy (steps in the interface language)."""
         from . import updates
-        return updates.check()
+        res = updates.check()
+        if res.get("newer"):
+            lang = self.settings.lang
+            how = updates.how_to(updates.install_kind(), res["latest"], res.get("assets"))
+            res["steps"] = [t(s, lang, file=how["file"]) if "{file}" in s else t(s, lang) for s in how["steps"]]
+            res["command"], res["download"] = how["command"], how["download"]
+        res.pop("assets", None)
+        return res
+
+    def update_notice(self) -> dict:
+        """Called once when the app starts: the same as check_update, or nothing when the user turned it off."""
+        if not self.settings.update_check:
+            return {"newer": False, "latest": "", "off": True}
+        return self.check_update()
 
     # ---------------------------------------------------------------- local models (Ollama)
     def hardware(self) -> dict:

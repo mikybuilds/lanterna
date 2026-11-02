@@ -47,7 +47,10 @@ def api(tmp_path, monkeypatch):
         return {"ok": False, "error": "auth", "message": "invalid key"}
 
     monkeypatch.setattr(a, "check_key", fake_check)
-    monkeypatch.setattr(a, "check_update", lambda: {"current": "0.1.0", "latest": "0.2.0", "newer": True, "url": "https://x"})
+    monkeypatch.setattr(a, "check_update", lambda: {"current": "0.1.0", "latest": "0.2.0", "newer": True, "url": "https://x",
+                                                    "notes": ["Update notice"], "steps": ["Close Lanterna.", "Open a terminal and run:"],
+                                                    "command": "pipx upgrade lanterna", "download": ""})
+    a.settings.update_check = False                    # the notice at start has its own test
     return a
 
 
@@ -272,5 +275,26 @@ def test_settings_mode_switch_and_auto_cloud_toggle(api, monkeypatch):
             await pilot.pause(0.3)                         # let the selects finish composing before the app closes
             app.screen.query_one("#close").press()
             assert await wait_for(pilot, lambda: type(app.screen).__name__ != "LocalScreen")
+
+    asyncio.run(go())
+
+
+def test_update_notice_at_start_and_settings_switch(api):
+    api.save_settings({"onboarded": True, "lang": "en", "update_check": True})
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 50)) as pilot:
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ == "UpdateScreen")
+            text = str(app.screen.query_one("#updsteps", Static).render())
+            assert "1. Close Lanterna." in text and "2. Open a terminal and run:" in text
+            assert "pipx upgrade lanterna" in str(app.screen.query_one("#updcmd", Static).render())
+            app.screen.query_one("#updlater").press()
+            assert await wait_for(pilot, lambda: chat_ready(app))
+            await pilot.press("ctrl+s")
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#updcheck")))
+            from textual.widgets import Checkbox
+            app.screen.query_one("#updcheck", Checkbox).value = False
+            assert await wait_for(pilot, lambda: api.settings.update_check is False)
 
     asyncio.run(go())

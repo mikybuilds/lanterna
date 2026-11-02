@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.1 — update notice and Ubuntu menu
+
+**New**
+- When a new version is out, Lanterna tells you at start, with what's new and the exact steps for your kind of install (installer, portable zip, pipx…). You can turn this off in Settings.
+- `lanterna update` in the terminal shows the same.
+- `lanterna desktop` adds Lanterna to the GNOME app menu (Super → type Lanterna).
+- Clear Ubuntu / GNOME install steps in the README, checked automatically on Ubuntu 22.04 and 24.04.
+
+**Fixed**
+- In the terminal app a chat could show twice in the chat list.
+- Local models screen in the terminal app: all recommended models are visible in small windows too.
+
 ## 0.1.0 — first public preview
 
 **Two apps, one assistant**

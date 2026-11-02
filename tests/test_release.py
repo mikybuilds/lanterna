@@ -42,6 +42,44 @@ def test_update_check_is_quiet_when_offline_or_unpublished():
         assert r["latest"] == "" and r["newer"] is False
 
 
+CHANGELOG_BODY = "# Changelog\n\n## 0.2.0 — better\n\n**New**\n- Update notice\n- Faster start\n\n## 0.1.0 — first\n- Old thing\n"
+
+
+def test_update_check_reads_notes_and_downloads():
+    def h(req):
+        return httpx.Response(200, json={"tag_name": "v0.2.0", "body": CHANGELOG_BODY, "assets": [
+            {"name": "Lanterna-Setup-0.2.0.exe", "browser_download_url": HOMEPAGE + "/releases/download/v0.2.0/Lanterna-Setup-0.2.0.exe"}]})
+
+    r = updates.check(transport=httpx.MockTransport(h))
+    assert r["notes"] == ["Update notice", "Faster start"]
+    assert updates.release_notes(CHANGELOG_BODY, "0.1.0") == ["Old thing"]
+    assert updates.release_notes(CHANGELOG_BODY, "0.1") == []          # whole version only, no prefix match
+    how = updates.how_to("installer", "0.2.0", r["assets"])
+    assert how["download"].endswith("/Lanterna-Setup-0.2.0.exe") and how["file"] == "Lanterna-Setup-0.2.0.exe"
+    assert updates.how_to("portable", "0.2.0", {})["download"].endswith("/releases/latest")   # no asset list: release page
+    assert updates.how_to("pipx", "0.2.0")["command"] == "pipx upgrade lanterna"
+    assert updates.how_to("pip", "0.2.0")["command"] == "pip install --upgrade git+" + HOMEPAGE
+    assert updates.install_kind() in ("source", "pip", "pipx")             # tests never run frozen
+
+
+def test_api_update_steps_are_translated_and_can_be_turned_off(tmp_path, monkeypatch):
+    from lanterna.app import Api
+    from lanterna.store import Store
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    calls = []
+    monkeypatch.setattr(updates, "check", lambda: calls.append(1) or {
+        "current": "0.1.0", "latest": "0.2.0", "newer": True, "url": "u", "notes": [], "assets": {}})
+    monkeypatch.setattr(updates, "install_kind", lambda: "installer")
+    a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    a.save_settings({"lang": "uk"})
+    r = a.update_notice()
+    assert r["newer"] and "assets" not in r and r["download"].endswith("/releases/latest")
+    assert r["steps"][0] == "Натисни «Завантажити» і збережи Lanterna-Setup-0.2.0.exe."
+    a.save_settings({"update_check": False})
+    assert a.settings.update_check is False
+    assert a.update_notice()["newer"] is False and len(calls) == 1      # off: no request at all
+
+
 def test_version_compare():
     assert updates.newer("0.1.1", "0.1.0") and updates.newer("1.0", "0.9.9")
     assert not updates.newer("0.1.0", "0.1.0") and not updates.newer("0.0.9", "0.1.0")
