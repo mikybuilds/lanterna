@@ -138,7 +138,9 @@ def test_conversation_keeps_history_and_system_prompt():
         bodies.append(json.loads(req.content))
         return httpx.Response(200, content=sse("Of course! Rome is the capital of Italy, for sure."))
 
-    conv = Conversation(client_with(h), "m", "Anna")
+    from lanterna.discovery import Candidate
+    from lanterna.router import Router
+    conv = Conversation(Router([Candidate("groq", "m", 50)], client_for=lambda pid: client_with(h)), "Anna")
     "".join(conv.ask("capital of Italy?"))
     assert conv.last_reply == "Rome is the capital of Italy, for sure."
     "".join(conv.ask("and France?"))

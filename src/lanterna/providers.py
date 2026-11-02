@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass
 from typing import Iterator
 
@@ -70,17 +71,40 @@ class Client:
     def close(self) -> None:
         self._http.close()
 
-    def list_models(self) -> list[str]:
+    def raw_models(self) -> list[dict]:
+        """The provider's model list as returned (OpenRouter includes prices; others just ids)."""
+        # GitHub Models keeps its catalog next to the inference endpoint, on the same host.
+        path = "../catalog/models" if self.provider.id == "github" else "models"
         try:
-            r = self._http.get("/models")
+            r = self._http.get(path)
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
         if r.status_code != 200:
             raise _error(r)
         data = r.json()
-        items = data.get("data", data) if isinstance(data, dict) else data
-        ids = [(m.get("id") or m.get("name") or "") for m in items if isinstance(m, dict)]
-        return [i.removeprefix("models/") for i in ids if i]
+        items = data.get("data", data.get("models", [])) if isinstance(data, dict) else data
+        out = []
+        for m in items if isinstance(items, list) else []:
+            if isinstance(m, dict) and (m.get("id") or m.get("name")):
+                m = dict(m)
+                m["id"] = str(m.get("id") or m.get("name")).removeprefix("models/")
+                out.append(m)
+        return out
+
+    def list_models(self) -> list[str]:
+        return [m["id"] for m in self.raw_models()]
+
+    def ping(self, model: str) -> float:
+        """Tiny request to check that a model answers right now. Returns seconds; raises ProviderError."""
+        body = {"model": model, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 8, "stream": False}
+        t0 = time.monotonic()
+        try:
+            r = self._http.post("chat/completions", json=body, timeout=25)
+        except httpx.HTTPError as e:
+            raise ProviderError("network", str(e)) from e
+        if r.status_code != 200:
+            raise _error(r)
+        return time.monotonic() - t0
 
     def pick_model(self, available: list[str] | None = None) -> str:
         available = available if available is not None else self.list_models()
@@ -97,7 +121,7 @@ class Client:
         body = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
         think = _ThinkFilter()
         try:
-            with self._http.stream("POST", "/chat/completions", json=body) as r:
+            with self._http.stream("POST", "chat/completions", json=body) as r:
                 if r.status_code != 200:
                     r.read()
                     raise _error(r)

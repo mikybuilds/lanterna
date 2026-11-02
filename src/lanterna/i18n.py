@@ -29,13 +29,25 @@ _T: dict[str, dict[str, str]] = {
     "Type a message. /exit to quit, /new for a new chat.":
         {"uk": "Пиши повідомлення. /exit — вийти, /new — нова розмова.", "it": "Scrivi un messaggio. /exit per uscire, /new per una nuova chat."},
     "New chat.": {"uk": "Нова розмова.", "it": "Nuova chat."},
-    "Limit reached on {p}. Try again in a bit (automatic switching comes in the next version).":
-        {"uk": "Ліміт на {p} вичерпано. Спробуй трохи пізніше (автоперемикання — у наступній версії).",
-         "it": "Limite raggiunto su {p}. Riprova tra poco (il cambio automatico arriva nella prossima versione)."},
     "Network problem: {err}": {"uk": "Проблема з мережею: {err}", "it": "Problema di rete: {err}"},
     "Error: {err}": {"uk": "Помилка: {err}", "it": "Errore: {err}"},
     "Bye!": {"uk": "До зустрічі!", "it": "Ciao!"},
     "Saved.": {"uk": "Збережено.", "it": "Salvato."},
+    "Looking for free models…": {"uk": "Шукаю безкоштовні моделі…", "it": "Cerco modelli gratuiti…"},
+    "No free models found. Add a key: lanterna key set groq":
+        {"uk": "Безкоштовних моделей не знайдено. Додай ключ: lanterna key set groq",
+         "it": "Nessun modello gratuito trovato. Aggiungi una chiave: lanterna key set groq"},
+    "Service": {"uk": "Сервіс", "it": "Servizio"},
+    "Model": {"uk": "Модель", "it": "Modello"},
+    "Score": {"uk": "Оцінка", "it": "Punteggio"},
+    "Status": {"uk": "Стан", "it": "Stato"},
+    "ok": {"uk": "працює", "it": "funziona"},
+    "limited": {"uk": "ліміт", "it": "limite"},
+    "untested": {"uk": "не перевірено", "it": "non testato"},
+    "switched to {m}": {"uk": "перейшов на {m}", "it": "passato a {m}"},
+    "All free models are busy or out of limits. Try again in a minute.":
+        {"uk": "Усі безкоштовні моделі зайняті або вичерпали ліміт. Спробуй за хвилину.",
+         "it": "Tutti i modelli gratuiti sono occupati o al limite. Riprova tra un minuto."},
 }
 
 

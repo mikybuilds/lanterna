@@ -1,6 +1,7 @@
-"""Terminal interface (stage 0): first-run setup and a streaming chat.
+"""Terminal interface: first-run setup and a streaming chat.
 
   lanterna                 chat (runs setup the first time)
+  lanterna models          free models available right now, best first (--refresh to search again)
   lanterna setup           run setup again
   lanterna key set groq    store a key in the system vault
   lanterna key list        show which keys are stored (masked)
@@ -15,12 +16,15 @@ import sys
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.table import Table
 
 from . import AUTHOR, HOMEPAGE, __version__, keys
 from .chat import Conversation
 from .config import Settings
+from .discovery import Candidate, get_models
 from .i18n import LANGS, t
 from .providers import PROVIDERS, Client, ProviderError
+from .router import Router, Switched
 
 console = Console()
 AMBER = "#F5B544"
@@ -78,22 +82,38 @@ def setup(s: Settings) -> Settings:
     return s
 
 
+def find_models(s: Settings, refresh: bool = False) -> list[Candidate]:
+    with console.status(t("Looking for free models…", s.lang), spinner="dots"):
+        return get_models(s.provider, refresh=refresh)
+
+
+def show_models(s: Settings, refresh: bool) -> int:
+    cands = find_models(s, refresh)
+    if not cands:
+        console.print(f"[red]{t('No free models found. Add a key: lanterna key set groq', s.lang)}[/]")
+        return 1
+    tb = Table(box=None, header_style=f"bold {AMBER}")
+    for col in ("#", t("Service", s.lang), t("Model", s.lang), t("Score", s.lang), t("Status", s.lang)):
+        tb.add_column(col)
+    style = {"ok": "green", "limited": "yellow", "untested": "dim"}
+    for i, c in enumerate(cands, 1):
+        st = t(c.status, s.lang) + (f" · {c.latency:.1f}s" if c.latency else "")
+        tb.add_row(str(i), PROVIDERS[c.provider].name, c.model + (" 👁" if c.vision else ""), str(c.score), f"[{style.get(c.status, '')}]{st}[/]")
+    console.print(tb)
+    return 0
+
+
 def run_chat(s: Settings) -> int:
     lang = s.lang
-    p = PROVIDERS[s.provider or "groq"]
-    key = keys.get_key(p.id)
-    if p.needs_key and not key:
+    cands = find_models(s)
+    if not cands:
+        p = PROVIDERS[s.provider or "groq"]
         console.print(f"[red]{t('No key for {p}. Run: lanterna key set {id}', lang, p=p.name, id=p.id)}[/]")
         return 1
-    client = Client(p, key)
-    try:
-        model = s.models.get(p.id) or client.pick_model()
-    except ProviderError as e:
-        console.print(f"[red]{t('Error: {err}', lang, err=e)}[/]")
-        return 1
-    conv = Conversation(client, model, s.name)
+    router = Router(cands)
+    conv = Conversation(router, s.name)
     banner(lang)
-    console.print(f"[dim]{p.name} · {model}\n{t('Type a message. /exit to quit, /new for a new chat.', lang)}[/]\n")
+    console.print(f"[dim]{cands[0].label}\n{t('Type a message. /exit to quit, /new for a new chat.', lang)}[/]\n")
     while True:
         try:
             text = console.input(f"[bold {AMBER}]› [/]").strip()
@@ -109,16 +129,19 @@ def run_chat(s: Settings) -> int:
             continue
         try:
             for piece in conv.ask(text):
-                console.print(piece, end="", markup=False, highlight=False)
+                if isinstance(piece, Switched):
+                    console.print(f"[dim]↪ {t('switched to {m}', lang, m=piece.to.label)}[/]")
+                else:
+                    console.print(piece, end="", markup=False, highlight=False)
             console.print("\n")
         except ProviderError as e:
-            msg = (t("Limit reached on {p}. Try again in a bit (automatic switching comes in the next version).", lang, p=p.name)
+            msg = (t("All free models are busy or out of limits. Try again in a minute.", lang)
                    if e.kind == "rate" else t("Network problem: {err}", lang, err=e) if e.kind == "network" else t("Error: {err}", lang, err=e))
             console.print(f"\n[red]{msg}[/]\n")
         except KeyboardInterrupt:
             console.print()
     console.print(f"[dim]{t('Bye!', lang)}[/]")
-    client.close()
+    router.close()
     return 0
 
 
@@ -128,6 +151,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("setup")
     sub.add_parser("about")
+    mp = sub.add_parser("models")
+    mp.add_argument("--refresh", action="store_true")
     k = sub.add_parser("key")
     k.add_argument("action", choices=["set", "list", "delete"])
     k.add_argument("provider", nargs="?", choices=list(PROVIDERS))
@@ -137,6 +162,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "about":
         banner(s.lang)
         return 0
+    if a.cmd == "models":
+        return show_models(s, a.refresh)
     if a.cmd == "key":
         if a.action == "list":
             for pid, p in PROVIDERS.items():
