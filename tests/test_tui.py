@@ -263,6 +263,9 @@ def test_settings_mode_switch_and_auto_cloud_toggle(api, monkeypatch):
             assert await wait_for(pilot, lambda: api.settings.auto_cloud is False)
             app.screen.query_one("#localmodels").press()
             assert await wait_for(pilot, lambda: type(app.screen).__name__ == "LocalScreen")
-            assert await wait_for(pilot, lambda: bool(app.screen.query("#pick-chat")))
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#pick-chat")) and bool(app.screen.query("#pick-vision")))
+            await pilot.pause(0.3)                         # let the selects finish composing before the app closes
+            app.screen.query_one("#close").press()
+            assert await wait_for(pilot, lambda: type(app.screen).__name__ != "LocalScreen")
 
     asyncio.run(go())

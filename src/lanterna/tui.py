@@ -385,13 +385,14 @@ class LocalScreen(ModalScreen[str]):
         await box.remove_children()
         if self._onboarding or not st["running"] or not st["models"]:
             return
-        picks = st["picks"]
+        picks, widgets = st["picks"], []
         for role, title, models in (("chat", "Chat model", st["models"]),
                                     ("vision", "Photo model", [m for m in st["models"] if m["vision"]])):
             names = [m["name"] for m in models]
-            await box.mount(Label(t(title, lang), classes="h"))
-            await box.mount(Select([(n, n) for n in names], prompt=t("Automatic", lang), id=f"pick-{role}",
-                                   value=picks.get(role) if picks.get(role) in names else Select.NULL))
+            widgets += [Label(t(title, lang), classes="h"),
+                        Select([(n, n) for n in names], prompt=t("Automatic", lang), id=f"pick-{role}",
+                               value=picks.get(role) if picks.get(role) in names else Select.NULL)]
+        await box.mount_all(widgets)                       # one step: no half-built screen if it closes early
 
     @on(Select.Changed)
     def _picked(self, ev: Select.Changed) -> None:
