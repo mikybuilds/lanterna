@@ -100,6 +100,10 @@ class Actions:
             sink.append(a.card())
         return a
 
+    def tid(self) -> int:
+        """The chat whose reply (or confirmation) is running in this thread; 0 = none."""
+        return getattr(self._local, "tid", 0)
+
     def get(self, aid: str) -> Action | None:
         a = self.items.get(str(aid))
         if a and a.state == "pending" and time.time() - a.created > EXPIRE:
@@ -112,12 +116,16 @@ class Actions:
             if not a or a.state != "pending":
                 return a
             a.state = "running"
+        before = self.tid()
+        self._local.tid = a.tid                      # the change runs in the folder of the chat that proposed it
         try:
             a.result, a.state = a.run(), "done"
         except (WorkError, FileError, OSError) as e:
             a.result, a.state = str(e), "failed"
         except Exception as e:                       # noqa: BLE001  (Drive errors etc.)
             a.result, a.state = f"{e.__class__.__name__}: {e}", "failed"
+        finally:
+            self._local.tid = before
         return a
 
     def cancel(self, aid: str) -> Action | None:
@@ -264,7 +272,7 @@ class Workspace:
                 f.write(("\n" if mode == "append" and q.exists() and q.stat().st_size else "") + text)
             return rel + (f" (the old version is saved in {backup})" if backup else "")
 
-        self.actions.propose(kind, {"path": rel, "preview": text[:1500], "chars": len(text),
+        self.actions.propose(kind, {"path": rel, "folder": str(self._root()), "preview": text[:1500], "chars": len(text),
                                     "lines": text.count("\n") + 1 if text else 0}, run)
         return WAITING
 
@@ -277,7 +285,7 @@ class Workspace:
         def run() -> str:
             self.path(rel).mkdir(parents=True, exist_ok=True)
             return rel
-        self.actions.propose("mkdir", {"path": rel}, run)
+        self.actions.propose("mkdir", {"path": rel, "folder": str(self._root())}, run)
         return WAITING
 
     def propose_move(self, path: str, new_path: str) -> str:
@@ -299,7 +307,7 @@ class Workspace:
             d.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(s), str(d))
             return f"{a} → {b}"
-        self.actions.propose("move", {"path": a, "to": b}, run)
+        self.actions.propose("move", {"path": a, "to": b, "folder": str(self._root())}, run)
         return WAITING
 
 

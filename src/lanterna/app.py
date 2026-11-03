@@ -49,7 +49,7 @@ class Api:
         self.store = store or Store()
         from . import gdrive
         self.actions = Actions()
-        self.workspace = Workspace(lambda: self.settings.work_dir, self.actions)
+        self.workspace = Workspace(lambda: self._folder_for(self.actions.tid()), self.actions)
         self.drive = gdrive.Connector()
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions))
@@ -298,6 +298,8 @@ class Api:
 
     def delete_thread(self, tid: int) -> bool:
         self.store.delete_thread(int(tid))
+        if self.settings.chat_dirs.pop(str(int(tid)), None) is not None:
+            self.settings.save()
         return True
 
     def send(self, tid: int, text: str, files: list[dict] | None = None) -> dict:
@@ -383,6 +385,13 @@ class Api:
                 if a.tid == tid and (self.actions.get(a.id) or a).state == "pending"]
 
     def action_confirm(self, aid: str) -> dict:
+        a = self.actions.get(str(aid))
+        if a and a.state == "pending" and a.details.get("folder"):
+            from pathlib import Path
+            now = self._folder_for(a.tid)
+            if not now or Path(now).expanduser().resolve() != Path(a.details["folder"]):
+                a.state, a.result = "failed", "the folder of this chat was changed after this card; ask again"
+                return {**a.card(), "text": ""}
         return self._action_done(self.actions.confirm(str(aid)))
 
     def action_cancel(self, aid: str) -> dict:
@@ -407,6 +416,11 @@ class Api:
                 "missing": bool(self.settings.work_dir and not root)}
 
     def pick_folder(self) -> dict:
+        """Settings → Working folder (the default for new chats): system picker, then saved."""
+        r = self.choose_folder(self.settings.work_dir)
+        return self.set_workdir(r["path"]) if r["ok"] else r
+
+    def choose_folder(self, start: str = "") -> dict:
         """Opens the system folder picker (window app). Returns {"ok", "path"} or {"ok": False, "error": "no_dialog"}."""
         try:
             import webview
@@ -416,12 +430,13 @@ class Api:
         if win is None:
             return {"ok": False, "error": "no_dialog"}
         kind = webview.FileDialog.FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG
-        res = win.create_file_dialog(kind, directory=self.settings.work_dir or "")
+        res = win.create_file_dialog(kind, directory=start or self.settings.work_dir or "")
         if not res:
             return {"ok": False, "error": "cancelled"}
-        return self.set_workdir(res[0] if isinstance(res, (list, tuple)) else str(res))
+        return self._check_folder(res[0] if isinstance(res, (list, tuple)) else str(res))
 
-    def set_workdir(self, path: str) -> dict:
+    @staticmethod
+    def _check_folder(path: str) -> dict:
         from pathlib import Path
         path = str(path or "").strip().strip(chr(34))
         if path:
@@ -432,9 +447,65 @@ class Api:
             if why:
                 return {"ok": False, "error": "too_broad", "why": why}
             path = str(p.resolve())
-        self.settings.work_dir = path
+        return {"ok": True, "path": path}
+
+    def check_folder(self, path: str) -> dict:
+        return self._check_folder(path)
+
+    def set_workdir(self, path: str) -> dict:
+        r = self._check_folder(path)
+        if not r["ok"]:
+            return r
+        self.settings.work_dir = r["path"]
         self.settings.save()
         return {"ok": True, **self.workdir()}
+
+    # ---------------------------------------------------------------- the folder of one chat (under the message box)
+    def _folder_for(self, tid) -> str:
+        key = str(int(tid or 0))
+        return self.settings.chat_dirs[key] if key != "0" and key in self.settings.chat_dirs else self.settings.work_dir
+
+    def chat_folder(self, tid) -> dict:
+        from pathlib import Path
+        f = self._folder_for(tid)
+        p = Path(f).expanduser() if f else None
+        ok = bool(p and p.is_dir())
+        return {"path": str(p.resolve()) if ok else f, "name": (p.resolve().name or str(p)) if ok else "",
+                "missing": bool(f and not ok), "own": str(int(tid or 0)) in self.settings.chat_dirs,
+                "default": self.settings.work_dir}
+
+    def set_chat_folder(self, tid, path: str = "", follow_default: bool = False) -> dict:
+        """This chat's folder: a path, "" = no folder for this chat, follow_default = the one from Settings."""
+        key = str(int(tid or 0))
+        if key == "0":
+            return {"ok": False, "error": "no_chat"}
+        if follow_default:
+            self.settings.chat_dirs.pop(key, None)
+        else:
+            r = self._check_folder(path)
+            if not r["ok"]:
+                return r
+            self.settings.chat_dirs[key] = r["path"]
+        self.settings.save()
+        return {"ok": True, **self.chat_folder(tid)}
+
+    # ---------------------------------------------------------------- the limit bar (under the message box)
+    def limit_now(self) -> dict:
+        """How much of the limit of the model in use is left (or of the model used last)."""
+        from .limits import TRACKER
+        cur = self._router.current if self._router else None
+        if cur is not None:
+            if PROVIDERS[cur.provider].local:
+                return {"local": True, "label": cur.label}
+            prov, model, label = cur.provider, cur.model, cur.label
+        else:
+            last = TRACKER.last_used()
+            if not last:
+                return {}
+            prov, model = last
+            label = f"{PROVIDERS[prov].name} · {model}" if prov in PROVIDERS else model
+        rest = (self._router.resting() if self._router else {}).get(f"{prov}/{model}")
+        return {"label": label, **TRACKER.current(prov, model, rest)}
 
     # ---------------------------------------------------------------- Google Drive connector
     def drive_status(self) -> dict:

@@ -3,6 +3,8 @@
 ## 0.3.1 — see what Lanterna is doing (not released yet)
 
 **New**
+- **Limit bar** under the message box: how much of the free limit of the model in use is left, and when it resets (Gemini: midnight in California). Click it for all limits.
+- **Folder of each chat**: the button under the message box shows which folder this chat works in; change it right there, or use no folder for this chat. New chats start with the folder from Settings.
 - Instead of three jumping dots you see what Lanterna is doing right now: "Searching the web: …", "Preparing the file hello.txt", or the model's own short thought headings (Gemini). After the answer they fold into "Thinking · steps: N"; click to see them.
 
 **Fixed**

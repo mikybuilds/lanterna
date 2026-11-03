@@ -9,6 +9,7 @@ Nothing is sent anywhere: the numbers are only shown in Settings → Limits. Kep
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 import threading
@@ -21,6 +22,37 @@ _HDR = re.compile(r"^x-ratelimit-(limit|remaining|reset)-(requests|tokens)(?:-(m
 _DEFAULT_PERIOD = {"groq": {"requests": "day", "tokens": "minute"}, "github": {"requests": "day", "tokens": "minute"}}
 _LIMIT_IN_MSG = re.compile(r"\blimit:\s*(\d+)", re.I)
 LONG_REST = 10 * 60          # longer waits are kept in limits.json, so a restart doesn't try that model again
+GEMINI_DAY = 20              # free requests per day of a Gemini model when it hasn't told us yet (shown as "about")
+
+
+def _nth_sunday(year: int, month: int, n: int) -> int:
+    first = dt.date(year, month, 1)
+    return 1 + (6 - first.weekday()) % 7 + 7 * (n - 1)
+
+
+def _pacific(now: float) -> dt.datetime:
+    """Wall-clock time in California (Google resets daily limits at midnight there). No tz database needed."""
+    utc = dt.datetime.fromtimestamp(now, dt.timezone.utc)
+    y = utc.year
+    start = dt.datetime(y, 3, _nth_sunday(y, 3, 2), 10, tzinfo=dt.timezone.utc)    # 2:00 PST
+    end = dt.datetime(y, 11, _nth_sunday(y, 11, 1), 9, tzinfo=dt.timezone.utc)     # 2:00 PDT
+    return utc + dt.timedelta(hours=-7 if start <= utc < end else -8)
+
+
+def _day(provider: str, now: float) -> str:
+    """The day a service counts its daily limit in: Gemini by California time, the others by local time."""
+    if provider == "gemini":
+        return _pacific(now).strftime("%Y-%m-%d")
+    return time.strftime("%Y-%m-%d", time.localtime(now))
+
+
+def _next_day_in(provider: str, now: float) -> float:
+    """Seconds until that day ends."""
+    if provider == "gemini":
+        p = _pacific(now)
+        return (dt.datetime.combine(p.date() + dt.timedelta(days=1), dt.time()) - p.replace(tzinfo=None)).total_seconds()
+    t = dt.datetime.fromtimestamp(now)
+    return (dt.datetime.combine(t.date() + dt.timedelta(days=1), dt.time()) - t).total_seconds()
 
 
 def _seconds(v: str) -> float | None:
@@ -57,11 +89,13 @@ class Limits:
             except (OSError, ValueError):
                 self._data = {}
             self._data.setdefault("models", {})
-        day = time.strftime("%Y-%m-%d", time.localtime(self._clock()))
-        if self._data.get("day") != day:                 # a new day: the counts start again
-            self._data["day"] = day
-            for m in self._data["models"].values():
-                m["requests"], m["refused"] = 0, 0
+        now = self._clock()
+        for m in self._data["models"].values():
+            day = _day(m.get("provider", ""), now)
+            m.setdefault("day", self._data.get("day", day))      # files from 0.3.0 had one day for all
+            if m["day"] != day:                                   # a new day for that service: counts start again
+                m["day"], m["requests"], m["refused"] = day, 0, 0
+        self._data.pop("day", None)
         return self._data
 
     def _save(self) -> None:
@@ -81,7 +115,8 @@ class Limits:
         with self._lock:
             d = self._load()
             m = d["models"].setdefault(f"{provider}/{model}", {"provider": provider, "model": model,
-                                                                 "requests": 0, "refused": 0, "headers": {}})
+                                                                 "requests": 0, "refused": 0, "headers": {},
+                                                                 "day": _day(provider, now)})
             m["at"] = now
             if status == 200:
                 m["requests"] += 1
@@ -121,6 +156,45 @@ class Limits:
         with self._lock:
             m = self._load()["models"].get(f"{provider}/{model}")
             return float(m.get("rest_until", 0)) if m else 0.0
+
+    def last_used(self) -> tuple[str, str] | None:
+        """(provider, model) that answered last, for the bar before the first message of a session."""
+        with self._lock:
+            ms = [m for m in self._load()["models"].values() if m.get("at")]
+        if not ms:
+            return None
+        m = max(ms, key=lambda x: x["at"])
+        return m["provider"], m["model"]
+
+    def current(self, provider: str, model: str, resting: float | None = None) -> dict:
+        """One model, for the bar under the message box:
+        {"used", "limit", "left", "reset_in", "approx", "period"} (limit/left None = unknown)."""
+        now = self._clock()
+        with self._lock:
+            d = self._load()
+            m = d["models"].get(f"{provider}/{model}", {})
+            learned = [x.get("limit") for x in d["models"].values()
+                       if x.get("provider") == provider and x.get("limit") and str(x.get("model", "")).startswith("gemini-")]
+        used = m.get("requests", 0)
+        out = {"used": used, "limit": None, "left": None, "reset_in": None, "approx": False, "period": "day"}
+        heads = [h for h in m.get("headers", {}).values() if "remaining" in h and h.get("limit")
+                 and not (h.get("reset_at") and h["reset_at"] < now)]
+        pick = next((h for h in heads if h["kind"] == "requests" and h["period"] == "day"), None) \
+            or next((h for h in heads if h["kind"] == "requests"), None) \
+            or min(heads, key=lambda h: h["remaining"] / max(1, h["limit"]), default=None)
+        if pick:                                         # what the service itself said
+            out.update(limit=pick["limit"], left=pick["remaining"], period=pick["period"] or "day",
+                       reset_in=round(pick["reset_at"] - now) if pick.get("reset_at") else None)
+        elif m.get("limit") or (provider == "gemini" and model.startswith("gemini-")):
+            limit = m.get("limit") or (learned[0] if learned else GEMINI_DAY)
+            out.update(limit=limit, left=max(0, limit - used), approx=not m.get("limit"),
+                       reset_in=round(_next_day_in(provider, now)))
+        rest = _rest(resting, m.get("rest_until", 0) - now)
+        if rest:                                         # out of its limit right now
+            out.update(left=0, reset_in=rest, resting=True)
+            if out["limit"] is None:
+                out["limit"] = max(used, 1)
+        return out
 
     def view(self, resting: dict | None = None) -> list[dict]:
         """Per model: used today, what the service says is left, and whether it is resting after a limit."""

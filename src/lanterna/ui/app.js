@@ -281,6 +281,26 @@ const STR = {
   "Done": { uk: "Готово", it: "Fatto" },
   "Working…": { uk: "Виконую…", it: "Eseguo…" },
   "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
+  "No folder": { uk: "Без папки", it: "Nessuna cartella" },
+  "New chats start with this folder; each chat can change it under the message box.": { uk: "З цією папкою починають нові чати; кожен чат може змінити її під полем вводу.", it: "Le nuove chat iniziano con questa cartella; ogni chat può cambiarla sotto il campo del messaggio." },
+  "Folder of this chat": { uk: "Папка цього чату", it: "Cartella di questa chat" },
+  "Lanterna can read and (after you confirm) change files only in this folder.": { uk: "Lanterna читає і (після твого підтвердження) змінює файли тільки в цій папці.", it: "Lanterna legge e (dopo la tua conferma) modifica i file solo in questa cartella." },
+  "Choose another folder…": { uk: "Вибрати іншу папку…", it: "Scegli un'altra cartella…" },
+  "No folder for this chat": { uk: "Без папки для цього чату", it: "Nessuna cartella per questa chat" },
+  "Same as in Settings: {name}": { uk: "Як у налаштуваннях: {name}", it: "Come nelle impostazioni: {name}" },
+  "Same as in Settings (none)": { uk: "Як у налаштуваннях (без папки)", it: "Come nelle impostazioni (nessuna)" },
+  "Folder path": { uk: "Шлях до папки", it: "Percorso della cartella" },
+  "{left} of {limit}": { uk: "{left} з {limit}", it: "{left} di {limit}" },
+  "reset in {t}": { uk: "ресет через {t}", it: "reset tra {t}" },
+  "{n} requests today": { uk: "запитів сьогодні: {n}", it: "richieste oggi: {n}" },
+  "Local model · no limits": { uk: "Локальна модель · без лімітів", it: "Modello locale · nessun limite" },
+  "{m}: {left} of {limit} requests left ({period}). Resets in {t}.": { uk: "{m}: залишилось {left} з {limit} запитів ({period}). Скидається через {t}.", it: "{m}: restano {left} di {limit} richieste ({period}). Si azzera tra {t}." },
+  "{m}: {n} requests today; the service doesn't say its limit.": { uk: "{m}: запитів сьогодні — {n}; сервіс не каже свій ліміт.", it: "{m}: {n} richieste oggi; il servizio non dice il suo limite." },
+  "about — Google tells the exact number only when it is reached": { uk: "приблизно — точне число Google каже, тільки коли ліміт вичерпано", it: "circa — Google dice il numero esatto solo quando si raggiunge" },
+  "per day": { uk: "на день", it: "al giorno" },
+  "per minute": { uk: "на хвилину", it: "al minuto" },
+  "per hour": { uk: "на годину", it: "all'ora" },
+  "Click for all limits": { uk: "Натисни, щоб побачити всі ліміти", it: "Clicca per tutti i limiti" },
   "Thinking · steps: {n}": { uk: "Хід думок · кроків: {n}", it: "Ragionamento · passi: {n}" },
   "This card has expired. Ask again.": { uk: "Ця картка застаріла. Попроси ще раз.", it: "Questa scheda è scaduta. Chiedi di nuovo." },
   "{n} characters": { uk: "{n} символів", it: "{n} caratteri" },
@@ -656,7 +676,11 @@ function renderMain() {
           <input type="file" id="file" multiple hidden>
           <textarea id="input" rows="1" placeholder="${t("Message Lanterna…")}"></textarea>
           <button class="send" id="send" disabled title="Send">${icon("send")}</button></div>
-        <div class="hint">${t("Lanterna can make mistakes. Check important facts.")}</div>
+        <div class="under">
+          <button class="lim" id="lim" hidden><span class="lim-track"><i></i></span><span class="lim-tx"></span></button>
+          <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button></div>
+          <span class="hint">${t("Lanterna can make mistakes. Check important facts.")}</span>
+        </div>
       </div>
     </main>
   </div>`;
@@ -681,6 +705,9 @@ function renderMain() {
   main.ondrop = e => { e.preventDefault(); main.classList.remove("drop"); addFiles(e.dataTransfer.files); };
   inp.onpaste = e => { const fs = e.clipboardData && e.clipboardData.files; if (fs && fs.length) { e.preventDefault(); addFiles(fs); } };
   pending = []; paintFiles();
+  $("#lim").onclick = () => { openSettings(); setTimeout(() => { const l = $("#limits"); if (l) l.scrollIntoView({ block: "center" }); }, 300); };
+  $("#fold").onclick = e => { e.stopPropagation(); folderMenu(); };
+  paintLimit();
   refreshThreads().then(list => openThread(list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
   if (!window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
@@ -710,6 +737,8 @@ async function refreshThreads() {
 
 async function openThread(id) {
   thread = id;
+  newChatFolder = undefined;
+  paintFolder();
   const msgs = $("#msgs");
   msgs.innerHTML = "";
   if (!id) { $("#title").textContent = "Lanterna"; showEmpty(); refreshThreads(); $("#input").focus(); return; }
@@ -766,7 +795,10 @@ async function send(retryText) {
   const files = retry ? retryText.files : pending;
   if ((!text && !files.length) || busy) return;
   busy = true; $("#send").disabled = true;
-  if (!thread) { thread = (await api.new_thread()).id; }
+  if (!thread) {
+    thread = (await api.new_thread()).id;
+    if (newChatFolder !== undefined) { await api.set_chat_folder(thread, newChatFolder, false); newChatFolder = undefined; }
+  }
   if (!retry) {
     pending = []; inp.value = ""; paintFiles();
     const names = files.map(f => (/[.](png|jpe?g|webp|gif|bmp)$/i.test(f.name) ? "🖼 " : "📎 ") + f.name);
@@ -826,7 +858,7 @@ async function send(retryText) {
       box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files }); };
     }
     if (p.done) {
-      thinkDone(p.error ? [] : p.steps); busy = false; inp.oninput();
+      thinkDone(p.error ? [] : p.steps); busy = false; inp.oninput(); paintLimit();
       if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
       return;
     }
@@ -1046,6 +1078,101 @@ function showUpdate(u) {
   return v;
 }
 
+// ---------------------------------------------------------------- under the message box: limit bar, folder of the chat
+const PERIOD = { day: "per day", minute: "per minute", hour: "per hour" };
+let limitTimer = null;
+async function paintLimit() {
+  const b = $("#lim");
+  if (!b) return;
+  clearTimeout(limitTimer);
+  limitTimer = setTimeout(paintLimit, 60000);              // the reset countdown moves
+  let r;
+  try { r = await api.limit_now(); } catch (e) { return; }
+  if (!r || !r.label) { b.hidden = true; return; }
+  b.hidden = false;
+  const fill = b.querySelector("i"), tx = b.querySelector(".lim-tx");
+  b.classList.remove("low", "out", "unknown", "local");
+  if (r.local) {
+    b.classList.add("local"); fill.style.width = "100%";
+    tx.textContent = t("Local model · no limits"); b.title = r.label; return;
+  }
+  if (r.limit == null) {
+    b.classList.add("unknown"); fill.style.width = "0";
+    tx.textContent = t("{n} requests today", { n: r.used });
+    b.title = t("{m}: {n} requests today; the service doesn't say its limit.", { m: r.label, n: r.used }) + "\n" + t("Click for all limits");
+    return;
+  }
+  const frac = Math.max(0, Math.min(1, r.left / Math.max(1, r.limit)));
+  fill.style.width = (frac * 100).toFixed(1) + "%";
+  if (r.left <= 0) b.classList.add("out"); else if (frac < 0.25) b.classList.add("low");
+  const left = (r.approx ? "≈" : "") + r.left;
+  tx.textContent = t("{left} of {limit}", { left, limit: r.limit }) + (r.reset_in != null ? " · " + t("reset in {t}", { t: fmtSecs(r.reset_in) }) : "");
+  b.title = t("{m}: {left} of {limit} requests left ({period}). Resets in {t}.", { m: r.label, left, limit: r.limit,
+    period: t(PERIOD[r.period] || "per day"), t: r.reset_in != null ? fmtSecs(r.reset_in) : "?" })
+    + (r.approx ? "\n≈ " + t("about — Google tells the exact number only when it is reached") : "") + "\n" + t("Click for all limits");
+}
+
+let newChatFolder;      // a folder picked for a chat that has no messages yet (applied when it is created)
+async function paintFolder() {
+  const b = $("#fold");
+  if (!b) return;
+  const f = await api.chat_folder(thread || 0);
+  const path = newChatFolder !== undefined ? newChatFolder : f.path;
+  const name = newChatFolder !== undefined ? (newChatFolder.split(/[\\/]/).filter(Boolean).pop() || newChatFolder) : f.name;
+  b.querySelector("span").textContent = path ? (name || path) : t("No folder");
+  b.classList.toggle("none", !path);
+  b.classList.toggle("missing", newChatFolder === undefined && f.missing);
+  b.title = path ? t("Folder of this chat") + ": " + path : t("Folder of this chat") + ": " + t("No folder");
+  b.dataset.path = path || "";
+  b.dataset.def = f.default || "";
+  b.dataset.own = newChatFolder !== undefined || f.own ? "1" : "";
+}
+
+function folderMenu() {
+  const old = $(".fold-menu");
+  if (old) { old.remove(); return; }
+  const b = $("#fold"), path = b.dataset.path, def = b.dataset.def;
+  const defName = def ? def.split(/[\\/]/).filter(Boolean).pop() : "";
+  const m = h(`<div class="fold-menu" role="menu">
+    <div class="fm-head"><b>${esc(t("Folder of this chat"))}</b><small>${esc(path || t("No folder"))}</small>
+      <p>${esc(t("Lanterna can read and (after you confirm) change files only in this folder."))}</p></div>
+    <button data-a="pick">${icon("folder")} ${esc(t("Choose another folder…"))}</button>
+    ${path ? `<button data-a="none">${icon("x")} ${esc(t("No folder for this chat"))}</button>` : ""}
+    ${b.dataset.own && def !== path ? `<button data-a="def">${icon("refresh")} ${esc(def ? t("Same as in Settings: {name}", { name: defName }) : t("Same as in Settings (none)"))}</button>` : ""}
+    <div class="fm-row" hidden><input class="field" placeholder="${esc(t("Folder path"))}"><button class="btn primary small">${t("Save")}</button></div>
+    <p class="sync-err fm-err"></p></div>`);
+  b.parentElement.append(m);
+  const close = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("mousedown", close); } };
+  setTimeout(() => document.addEventListener("mousedown", close), 0);
+  const errs = { not_found: t("There is no such folder."), too_broad: t("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.") };
+  const apply = async (p, followDefault) => {
+    if (!thread) {                                       // no chat yet: remember it for the first message
+      const chk = followDefault ? { ok: true } : (p ? await api.check_folder(p) : { ok: true, path: "" });
+      if (!chk.ok) { m.querySelector(".fm-err").textContent = errs[chk.error] || chk.error; return; }
+      newChatFolder = followDefault ? undefined : chk.path;
+    } else {
+      const r = await api.set_chat_folder(thread, p, !!followDefault);
+      if (!r.ok) { m.querySelector(".fm-err").textContent = errs[r.error] || r.error; return; }
+    }
+    m.remove(); document.removeEventListener("mousedown", close); paintFolder();
+  };
+  m.querySelectorAll("[data-a]").forEach(x => x.onclick = async () => {
+    const a = x.dataset.a;
+    if (a === "none") return apply("", false);
+    if (a === "def") return apply("", true);
+    const r = await api.choose_folder(path || def || "");
+    if (r.error === "no_dialog") {                          // browser mode: type the path
+      const row = m.querySelector(".fm-row"); row.hidden = false;
+      const inp = row.querySelector("input"); inp.value = path || ""; inp.focus();
+      row.querySelector("button").onclick = () => apply(inp.value.trim(), false);
+      inp.onkeydown = e => { if (e.key === "Enter") apply(inp.value.trim(), false); };
+      return;
+    }
+    if (r.ok) return apply(r.path, false);
+    if (r.error !== "cancelled") m.querySelector(".fm-err").textContent = errs[r.error] || r.error;
+  });
+}
+
 // ---------------------------------------------------------------- confirmation cards
 const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", write_append: "Add to {path}",
   mkdir: "Create the folder {path}", move: "Move {path} → {to}", drive_folder: "Create the folder {name} in Google Drive",
@@ -1059,7 +1186,10 @@ function actCard(c) {
     if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
     if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));
     if (d.size != null) meta.push((d.size / 1048576).toFixed(1) + " MB");
-  } else if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
+  } else {
+    if (d.folder) meta.push("📁 " + d.folder.split(/[\\/]/).filter(Boolean).pop());
+    if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
+  }
   const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
   const el = h(`<div class="cc"><div class="cc-h">${c.kind.startsWith("drive_") ? "☁️" : "📁"} <b>${esc(title)}</b></div>
     ${meta.length ? `<div class="cc-meta">${esc(meta.join(" · "))}</div>` : ""}${prev}
@@ -1091,7 +1221,8 @@ async function workdirPanel(box) {
   const w = await api.workdir();
   const errs = { not_found: t("There is no such folder."), too_broad: t("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.") };
   box.innerHTML = `<p class="muted sync-p">${t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.")}
-      ${t("The files it opens are sent to the model in use (to the online service in Cloud mode).")}</p>
+      ${t("The files it opens are sent to the model in use (to the online service in Cloud mode).")}
+      ${t("New chats start with this folder; each chat can change it under the message box.")}</p>
     ${w.path ? `<div class="row"><div class="grow"><b>📁 ${esc(w.name || w.path)}</b><small>${esc(w.path)}${w.missing ? " · " + t("not found") : ""}</small></div>
       <button class="btn ghost small" id="wd-off">${t("Stop using it")}</button><button class="btn ghost small" id="wd-pick">${t("Change")}</button></div>`
       : `<button class="btn primary small" id="wd-pick">${t("Choose a folder")}</button>`}
