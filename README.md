@@ -90,10 +90,10 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 
 ## Your chats on all your devices
 
-**Settings → Account and sync → Sign in with Google** (in a terminal: `lanterna sync in`). Then choose a sync password; on your other devices sign in with the same Google account and enter the same password.
+Lanterna offers **Sign in with Google** right after you pick the language (you can skip it); later it is in **Settings → Account and sync** (in a terminal: `lanterna sync in`). Then choose a sync password; on your other devices sign in with the same Google account and enter the same password — the chats, settings and API keys come over by themselves, and setup is done.
 
-- Lanterna asks Google for one permission only: its own hidden folder in your Google Drive (`drive.appdata`). It can't see your other files.
-- Chats, memory, reminders, your name and language are kept there as one file encrypted with AES-256 and your sync password, so Google can't read them. API keys are not synced: add them on each device.
+- Lanterna asks Google for its own hidden folder in your Google Drive (`drive.appdata`) and, in the same sign-in, for the Google Drive connector (`drive.file`: only files Lanterna creates). It can't see your other files. You may untick the Drive part on Google's page; sync still works.
+- Chats, memory, reminders, your name and language, the main settings (mode, service, models) and the API keys of the model services are kept there as one file encrypted with AES-256 and your sync password, so Google can't read them. Working folders, local models and sign-ins to Google or GitHub stay on each device.
 - Syncs when something changes and every two minutes while Lanterna is open. Deleting a chat deletes it everywhere.
 - **Sign out and delete the copy in Google Drive** removes everything from Drive; chats on your devices stay.
 - Forgot the sync password? Chats on your devices are safe; sign out with *delete the copy* and start again with a new password.

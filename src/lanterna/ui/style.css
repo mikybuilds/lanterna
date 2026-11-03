@@ -103,6 +103,9 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .mode-row { display: flex; flex-direction: row; align-items: center; gap: 14px; }
 .mode-row p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
 .back { margin-top: 22px; color: var(--muted); font-size: 14px; }
+.sync-card { width: 100%; max-width: 470px; padding: 20px 22px; text-align: left; cursor: default; }
+.sync-card .sync-p { margin-top: 0; }
+.sync-card #sync-in { width: 100%; margin-top: 6px; }
 .back:hover { color: var(--text); }
 
 .keybox { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 20px; padding: 22px; }

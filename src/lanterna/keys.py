@@ -27,6 +27,14 @@ def get_key(provider: str) -> str | None:
         return None
 
 
+def stored_key(provider: str) -> str:
+    """Only the key in the vault (an environment variable is not synced to other devices)."""
+    try:
+        return keyring.get_password(SERVICE, provider) or ""
+    except KeyringError:
+        return ""
+
+
 def set_key(provider: str, key: str) -> None:
     keyring.set_password(SERVICE, provider, key.strip())
 

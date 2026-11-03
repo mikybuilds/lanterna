@@ -4,9 +4,11 @@ How it works
 - Sign-in opens the browser on Google's own page (OAuth for desktop apps: a one-time local address on 127.0.0.1
   and PKCE). Lanterna asks for one permission only, `drive.appdata`: a hidden folder that belongs to Lanterna
   in the user's own Google Drive. It cannot see any other file.
-- Chats, memory, reminders and the name/language are kept there as ONE file, encrypted with AES-256-GCM.
-  The key comes from a sync password the user chooses (scrypt), so Google cannot read the chats.
-  API keys are never synced.
+- Chats, memory, reminders, the name/language, the main settings and the API keys of the model services are
+  kept there as ONE file, encrypted with AES-256-GCM. The key comes from a sync password the user chooses
+  (scrypt), so Google cannot read any of it. Sign-in tokens (Google, GitHub) are never synced.
+- The same sign-in can also give the Google Drive connector its permission (drive.file: only files Lanterna
+  created), so a new device needs one sign-in for both.
 - The sign-in token and the derived key stay in the system's secure vault on each device.
 - Syncing = download the file, merge it with this device (nothing is lost; deletions are remembered),
   save the result here and upload it if it changed.
@@ -43,6 +45,8 @@ UPLOAD = "https://www.googleapis.com/upload/drive/v3"
 FILE_NAME = "lanterna-sync.bin"
 VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT = "google-sync-token", "google-sync-key", "google-sync-account"
 MAGIC = b"LNT1"
+# Settings that follow the user to every device (folders and local models belong to one computer).
+PREFS = ("mode", "provider", "models", "auto_cloud", "update_check")
 SIGN_IN_TIMEOUT = 300
 
 
@@ -85,7 +89,8 @@ def decrypt(blob: bytes, key: bytes) -> dict:
 
 # ---------------------------------------------------------------- merging
 def empty() -> dict:
-    return {"threads": {}, "messages": {}, "facts": {}, "reminders": {}, "deleted": {}, "profile": {}}
+    return {"threads": {}, "messages": {}, "facts": {}, "reminders": {}, "deleted": {}, "profile": {}, "prefs": {},
+            "keys": {}}
 
 
 def merge(a: dict, b: dict) -> dict:
@@ -102,8 +107,14 @@ def merge(a: dict, b: dict) -> dict:
                 rows[uid] = row
         out[table] = {u: r for u, r in rows.items() if u not in gone}
     out["messages"] = {u: m for u, m in out["messages"].items() if m.get("thread") in out["threads"]}
-    pa, pb = a.get("profile", {}), b.get("profile", {})
-    out["profile"] = pb if (pb.get("at") or 0) > (pa.get("at") or 0) else pa
+    for part in ("profile", "prefs"):
+        pa, pb = a.get(part, {}), b.get(part, {})
+        out[part] = pb if (pb.get("at") or 0) > (pa.get("at") or 0) else pa
+    ka = dict(a.get("keys", {}))                     # per service: the newest key (or removal, key "") wins
+    for pid, kb in b.get("keys", {}).items():
+        if pid not in ka or (kb.get("at") or 0) > (ka[pid].get("at") or 0):
+            ka[pid] = kb
+    out["keys"] = ka
     return out
 
 
@@ -287,6 +298,10 @@ class Syncer:
         self.url = ""                                  # the sign-in page, for "open in another browser"
         self._cancel = threading.Event()
         self._fid, self._synced_changes, self._remote_fp = "", -1, ""
+        self.extra_scope = ""                          # e.g. the Drive connector's scope, asked in the same sign-in
+        self.on_token = None                           # (refresh_token, account, granted scopes) after a sign-in
+        self.on_sign_out = None                        # (refresh_token) after sign-out
+        self.on_change = None                          # () after synced settings or keys changed here
         if self.phase == "ready" and not _vault_get(VAULT_KEY):
             self.phase = "password"
 
@@ -323,9 +338,14 @@ class Syncer:
             def open_page(url: str) -> None:
                 self.url = url
                 self.browser(url)
-            tok = sign_in(open_page, cancel=self._cancel, client=self.http)
+            scope = " ".join(x for x in (SCOPE, self.extra_scope) if x)
+            tok = sign_in(open_page, cancel=self._cancel, client=self.http, scope=scope)
             if not tok.get("refresh_token"):
                 raise SyncError("auth", "Google gave no refresh token")
+            granted = str(tok.get("scope") or scope)
+            if SCOPE not in granted.split():
+                revoke(tok["refresh_token"], self.http)
+                raise SyncError("auth", "scope")
             _vault_set(VAULT_TOKEN, tok["refresh_token"])
             d = self._drive()
             self.account = d.account()
@@ -334,6 +354,11 @@ class Syncer:
             self._fid = d.find()
             self.cloud_exists = bool(self._fid)
             self.phase = "password"
+            if self.on_token:
+                try:
+                    self.on_token(tok["refresh_token"], self.account, granted)
+                except Exception:                        # noqa: BLE001  the Drive part is optional
+                    pass
         except SyncError as e:
             self.phase, self.error = ("off", "" if e.kind == "cancelled" else str(e)) if not self.signed_in() else ("password", "")
         except Exception as e:                       # never leave the UI waiting
@@ -378,12 +403,59 @@ class Syncer:
             revoke(tok, self.http)
         for name in (VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT):
             _vault_del(name)
+        if tok and self.on_sign_out:
+            self.on_sign_out(tok)
         self.phase, self.error, self.account, self.last, self.cloud_exists, self._fid = "off", "", "", 0.0, None, ""
         return self.status()
 
     # -- sync
     def _profile(self) -> dict:
         return {"name": self.settings.name, "lang": self.settings.lang, "at": getattr(self.settings, "profile_at", 0) or 0}
+
+    def _prefs(self) -> dict:
+        s = self.settings
+        # a device that was set up before settings were synced still beats a fresh install
+        at = getattr(s, "prefs_at", 0) or (1 if getattr(s, "onboarded", False) else 0)
+        return {**{k: getattr(s, k) for k in PREFS}, "at": at}
+
+    def _keys(self) -> dict:
+        """API keys of the model services stored on this device (not environment variables), with when they
+        last changed; a removed key is kept as "" so the removal reaches the other devices too."""
+        from .providers import PROVIDERS
+        stamps = getattr(self.settings, "keys_at", {}) or {}
+        out = {}
+        for pid, p in PROVIDERS.items():
+            if not p.needs_key:
+                continue
+            k, at = keys.stored_key(pid), stamps.get(pid, 0)
+            if k:
+                out[pid] = {"key": k, "at": at or 1}
+            elif at:
+                out[pid] = {"key": "", "at": at}
+        return out
+
+    def _apply_extras(self, merged: dict, local: dict) -> None:
+        s, changed = self.settings, False
+        p = merged.get("prefs", {})
+        if (p.get("at") or 0) > (local["prefs"].get("at") or 0):
+            for k in PREFS:
+                if k in p:
+                    setattr(s, k, p[k])
+            s.prefs_at, changed = p["at"], True
+        for pid, kv in merged.get("keys", {}).items():
+            mine = local["keys"].get(pid, {})
+            if kv.get("key", "") == mine.get("key", "") or (kv.get("at") or 0) <= (mine.get("at") or 0):
+                continue
+            if kv.get("key"):
+                keys.set_key(pid, kv["key"])
+            else:
+                keys.delete_key(pid)
+            s.keys_at = {**(s.keys_at or {}), pid: kv["at"]}
+            changed = True
+        if changed:
+            s.save()
+            if self.on_change:
+                self.on_change()
 
     def sync(self, force: bool = True) -> dict:
         """Download, merge, save here, upload if changed. Quietly does nothing when not ready."""
@@ -407,10 +479,11 @@ class Syncer:
                     self.phase, self.error = "password", "changed"
                     return self.status()
                 remote = decrypt(blob, key)
-            local = {**self.store.export_sync(), "profile": self._profile()}
+            local = {**self.store.export_sync(), "profile": self._profile(), "prefs": self._prefs(), "keys": self._keys()}
             merged = merge(local, remote)
             if fingerprint(merged) != fingerprint(local):
                 self.store.import_sync(merged)
+                self._apply_extras(merged, local)
                 p = merged.get("profile", {})
                 if (p.get("at") or 0) > (self._profile()["at"] or 0):
                     self.settings.name, self.settings.lang = p.get("name", self.settings.name), p.get("lang", self.settings.lang)

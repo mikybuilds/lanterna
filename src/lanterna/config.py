@@ -36,6 +36,9 @@ class Settings:
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     profile_at: float = 0                  # when name or language last changed (newest wins when syncing)
+    prefs_at: float = 0                    # when the synced settings (sync.PREFS) last changed
+    keys_at: dict = field(default_factory=dict)   # {"service": when its API key was saved or removed}
+    sync_asked: bool = False               # the "sign in with Google" step was shown once
     onboarded: bool = False
 
     @classmethod

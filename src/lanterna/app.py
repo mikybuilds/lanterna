@@ -22,6 +22,7 @@ from .providers import PROVIDERS, Client, ProviderError, Thought
 from .router import Router, Switched
 from .notify import notify
 from .store import Store
+from .sync import PREFS as SYNC_PREFS
 from .thinking import Steps
 from .tools import Toolbox
 from .workspace import Actions, Workspace, folder_tools, too_broad
@@ -66,6 +67,11 @@ class Api:
         self._update_asset: dict | None = None
         from .sync import Syncer
         self.syncer = Syncer(self.store, self.settings)
+        self.syncer.extra_scope = gdrive.SCOPE_FILE
+        self.syncer.on_token = lambda tok, account, granted: (
+            self.drive.adopt(tok, account) if gdrive.SCOPE_FILE in granted.split() else None)
+        self.syncer.on_sign_out = self.drive.forget
+        self.syncer.on_change = self._synced_settings
         if scheduler:
             threading.Thread(target=self._reminder_loop, daemon=True).start()
             threading.Thread(target=self.syncer.loop, daemon=True).start()
@@ -84,12 +90,14 @@ class Api:
         }
 
     def save_settings(self, patch: dict) -> dict:
-        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check"}
+        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked"}
         for k, v in (patch or {}).items():
             if k in allowed:
-                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check") else v)
+                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
+        if set(SYNC_PREFS) & set(patch or {}):
+            self.settings.prefs_at = time.time()
         if self.settings.lang not in LANGS:
             self.settings.lang = "en"
         if self.settings.mode not in ("cloud", "local", "auto"):
@@ -114,6 +122,7 @@ class Api:
             return {"ok": False, "error": e.kind, "message": str(e)[:200]}
         try:
             keys.set_key(provider, key)
+            self._key_changed(provider)
         except Exception as e:                               # no system vault (e.g. a server without a keyring)
             return {"ok": False, "error": "vault", "message": str(e)[:200]}
         self._router = None
@@ -122,8 +131,16 @@ class Api:
     def delete_key(self, provider: str) -> dict:
         if provider in PROVIDERS:
             keys.delete_key(provider)
+            self._key_changed(provider)
             self._router = None
         return self.state()
+
+    def _key_changed(self, provider: str) -> None:
+        self.settings.keys_at = {**(self.settings.keys_at or {}), provider: time.time()}
+        self.settings.save()
+
+    def _synced_settings(self) -> None:
+        self._router = None                                # keys or the chosen service came from another device
 
     def open_url(self, url: str) -> bool:
         """Opens a link the user clicked in the system browser (https only)."""

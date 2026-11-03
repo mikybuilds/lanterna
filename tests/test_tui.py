@@ -30,7 +30,9 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setattr(keys, "get_key", lambda p: vault.get(p))
     monkeypatch.setattr(keys, "set_key", lambda p, k: vault.__setitem__(p, k))
     monkeypatch.setattr(keys, "delete_key", lambda p: vault.pop(p, None))
+    monkeypatch.setattr(keys, "stored_key", lambda p: vault.get(p) or "")
     a = Api(store=Store(tmp_path / "t.db"))
+    a.settings.sync_asked = True          # the Google step has its own test (test_sync.py)
     a._vault = vault
 
     def h(req):

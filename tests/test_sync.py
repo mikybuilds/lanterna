@@ -18,6 +18,7 @@ def vault(monkeypatch):
     monkeypatch.setattr(keys, "get_key", lambda n: v.get(n))
     monkeypatch.setattr(keys, "set_key", lambda n, k: v.__setitem__(n, k))
     monkeypatch.setattr(keys, "delete_key", lambda n: v.pop(n, None))
+    monkeypatch.setattr(keys, "stored_key", lambda n: v.get(n) or "")
     monkeypatch.setattr(sync, "derive_key", lambda pw, salt: (pw.encode() * 32)[:32])   # scrypt is slow; tested once below
     return v
 
@@ -223,6 +224,7 @@ def test_settings_in_terminal_app_show_sign_in(tmp_path, vault, monkeypatch):
     monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
     a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
     a.settings.onboarded, a.settings.update_check, a.settings.mode = True, False, "local"
+    a.settings.sync_asked = True
     started = []
     monkeypatch.setattr(a.syncer, "start_sign_in", lambda: started.append(1) or a.syncer.status())
 
@@ -244,3 +246,113 @@ def test_settings_in_terminal_app_show_sign_in(tmp_path, vault, monkeypatch):
             await pilot.pause(1.3)
             assert scr.query_one("#syncpwrow").display and scr.query_one("#syncout", Button).display
     asyncio.run(go())
+
+
+def test_settings_and_keys_follow_to_a_new_device(tmp_path, vault, monkeypatch):
+    """The laptop signs in and gets the PC's service, mode and API key; a key removed later goes back too."""
+    from lanterna.providers import PROVIDERS
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    google = FakeGoogle()
+    monkeypatch.setattr(sync, "sign_in", lambda *a_, **k: {"refresh_token": "rt-1", "scope": sync.SCOPE})
+    pc_keys, lap_keys = {"gemini": "AIza-pc-key"}, {}
+    cur = {"k": pc_keys}                                   # which device's vault the API keys are in
+    box = lambda n: cur["k"] if n in PROVIDERS else vault   # noqa: E731
+    monkeypatch.setattr(keys, "stored_key", lambda n: box(n).get(n) or "")
+    monkeypatch.setattr(keys, "set_key", lambda n, k: box(n).__setitem__(n, k))
+    monkeypatch.setattr(keys, "delete_key", lambda n: box(n).pop(n, None))
+
+    a_store, a_set, a = device(tmp_path, "pc", google, vault, monkeypatch)
+    a_set.mode, a_set.provider, a_set.onboarded = "auto", "gemini", True     # set up before 0.3.3: no prefs_at / keys_at
+    a_set.work_dir = "C:/Users/anna/proj"
+    a._sign_in()
+    assert a.set_password("pc-password-1")["phase"] == "ready"
+    assert b"AIza-pc-key" not in next(iter(google.files.values()))          # keys travel encrypted
+
+    vault.pop(sync.VAULT_KEY)
+    cur["k"] = lap_keys
+    b_store, b_set, b = device(tmp_path, "laptop", google, vault, monkeypatch)
+    changed = []
+    b.on_change = lambda: changed.append(1)
+    b._sign_in()
+    assert b.set_password("pc-password-1")["phase"] == "ready"
+    assert lap_keys == {"gemini": "AIza-pc-key"} and (b_set.mode, b_set.provider) == ("auto", "gemini") and changed
+    assert b_set.work_dir == ""                                            # folders stay per computer
+
+    lap_keys.pop("gemini")                                                  # removed on the laptop later
+    b_set.keys_at = {"gemini": 20}
+    b.sync()
+    cur["k"] = pc_keys
+    a.sync()
+    assert "gemini" not in pc_keys and a_set.keys_at["gemini"] == 20
+
+
+def test_one_google_sign_in_also_connects_drive(tmp_path, vault, monkeypatch):
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    from lanterna import gdrive
+    from lanterna.app import Api
+    google = FakeGoogle()
+    a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    http = httpx.Client(transport=httpx.MockTransport(google))
+    a.syncer.http = a.drive.http = http
+    asked = []
+    monkeypatch.setattr(sync, "sign_in", lambda *a_, **k: asked.append(k["scope"]) or
+                        {"refresh_token": "rt-1", "scope": f"{sync.SCOPE} {gdrive.SCOPE_FILE}"})
+    a.syncer._sign_in()
+    assert asked == [f"{sync.SCOPE} {gdrive.SCOPE_FILE}"]
+    assert a.drive_status()["phase"] == "ready" and a.drive_status()["account"] == "anna@example.com"
+    a.drive_disconnect()                                   # Drive off: the shared sign-in stays for sync
+    assert google.revoked == [] and vault.get(sync.VAULT_TOKEN) == "rt-1" and a.drive_status()["phase"] == "off"
+    a.drive.adopt("rt-1", "anna@example.com")
+    a.sync_sign_out(False)                                 # sync off: Drive used the same sign-in, so it goes too
+    assert google.revoked == ["rt-1"] and a.drive_status()["phase"] == "off" and gdrive.VAULT_TOKEN not in vault
+
+
+def test_sign_in_without_the_sync_permission_is_refused(tmp_path, vault, monkeypatch):
+    google = FakeGoogle()
+    st, se, s = device(tmp_path, "pc", google, vault, monkeypatch)
+    monkeypatch.setattr(sync, "sign_in", lambda *a_, **k: {"refresh_token": "rt-1", "scope": "https://www.googleapis.com/auth/drive.file"})
+    s._sign_in()
+    assert s.phase == "off" and s.error == "scope" and sync.VAULT_TOKEN not in vault and google.revoked == ["rt-1"]
+
+
+def test_terminal_app_asks_for_google_first(tmp_path, vault, monkeypatch):
+    """New install: language, then the Google step; skipping goes on with the setup. An existing install sees
+    the Google step once and then the chat."""
+    pytest.importorskip("textual")
+    import asyncio
+    from textual.widgets import Button
+    from lanterna.app import Api
+    from lanterna.tui import GoogleScreen, LanternaApp, OnboardScreen, _ChatScreen
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    a.settings.update_check = False
+
+    async def wait_for(app, pilot, kind):
+        for _ in range(100):
+            await pilot.pause(0.05)
+            if isinstance(app.screen, kind):
+                return app.screen
+        raise AssertionError(f"no {kind.__name__}, got {type(app.screen).__name__}")
+
+    async def new_install():
+        app = LanternaApp(api=a)
+        async with app.run_test(size=(110, 50)) as pilot:
+            scr = await wait_for(app, pilot, OnboardScreen)
+            scr.query_one("#lang-uk", Button).press()
+            g = await wait_for(app, pilot, GoogleScreen)
+            assert g.query_one("#syncin", Button).display
+            g.query_one("#noacct", Button).press()
+            scr = await wait_for(app, pilot, OnboardScreen)
+            assert scr.step == 1 and a.settings.sync_asked
+
+    async def existing_install():
+        app = LanternaApp(api=a)
+        async with app.run_test(size=(110, 50)) as pilot:
+            g = await wait_for(app, pilot, GoogleScreen)
+            g.query_one("#noacct", Button).press()
+            await wait_for(app, pilot, _ChatScreen)
+
+    asyncio.run(new_install())
+    a.settings.onboarded, a.settings.mode, a.settings.sync_asked = True, "local", False
+    asyncio.run(existing_install())
+    assert a.settings.sync_asked

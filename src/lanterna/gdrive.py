@@ -122,9 +122,25 @@ class Connector:
         except Exception as e:                       # noqa: BLE001  never leave the UI waiting
             self.phase, self.error = "off", str(e)[:200]
 
+    def adopt(self, refresh_token: str, account: str) -> None:
+        """The sync sign-in also granted drive.file: use it, so there is nothing else to sign in to."""
+        if self.phase == "ready":
+            return
+        sync._vault_set(VAULT_TOKEN, refresh_token)
+        if account:
+            sync._vault_set(VAULT_ACCOUNT, account)
+        self.phase, self.account, self.error = "ready", account, ""
+
+    def forget(self, refresh_token: str) -> None:
+        """The sync sign-in was revoked: if Drive used the same one, it is gone too."""
+        if sync._vault_get(VAULT_TOKEN) == refresh_token:
+            for k in (VAULT_TOKEN, VAULT_ACCOUNT):
+                sync._vault_del(k)
+            self.phase, self.account, self.error = "off", "", ""
+
     def disconnect(self) -> dict:
         tok = sync._vault_get(VAULT_TOKEN)
-        if tok:
+        if tok and tok != sync._vault_get(sync.VAULT_TOKEN):      # shared with sync: keep sync signed in
             sync.revoke(tok, self.http)
         for k in (VAULT_TOKEN, VAULT_ACCOUNT):
             sync._vault_del(k)

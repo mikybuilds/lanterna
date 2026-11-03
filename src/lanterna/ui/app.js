@@ -201,8 +201,13 @@ const STR = {
   "Reports by e-mail are coming soon. For now open it on GitHub (free account) or copy the text.": { uk: "Звіти поштою скоро будуть. Поки що відкрий звіт на GitHub (безкоштовний акаунт) або скопіюй текст.", it: "Le segnalazioni via e-mail arrivano presto. Per ora aprila su GitHub (account gratuito) o copia il testo." },
   "Account and sync": { uk: "Акаунт і синхронізація", it: "Account e sincronizzazione" },
   "Sign in with Google to see your chats on all your devices.": { uk: "Увійди через Google, щоб бачити свої чати на всіх пристроях.", it: "Accedi con Google per vedere le tue chat su tutti i dispositivi." },
-  "Lanterna uses only a hidden folder of its own in your Google Drive, and your chats there are encrypted with a password only you know. API keys are not synced.": { uk: "Lanterna використовує тільки свою приховану папку у твоєму Google Drive, а чати там зашифровані паролем, який знаєш лише ти. API-ключі не синхронізуються.", it: "Lanterna usa solo una sua cartella nascosta nel tuo Google Drive, e lì le chat sono cifrate con una password che conosci solo tu. Le chiavi API non vengono sincronizzate." },
   "Sign in with Google": { uk: "Увійти через Google", it: "Accedi con Google" },
+  "Lanterna uses only a hidden folder of its own in your Google Drive. Your chats, settings and API keys there are encrypted with a password only you know.": { uk: "Lanterna використовує тільки свою приховану папку у твоєму Google Drive. Чати, налаштування й API-ключі там зашифровані паролем, який знаєш лише ти.", it: "Lanterna usa solo una sua cartella nascosta nel tuo Google Drive. Lì chat, impostazioni e chiavi API sono cifrate con una password che conosci solo tu." },
+  "Your chats, settings and API keys on all your devices. The same sign-in also connects Google Drive.": { uk: "Твої чати, налаштування й API-ключі на всіх пристроях. Цей самий вхід підключає і Google Drive.", it: "Chat, impostazioni e chiavi API su tutti i tuoi dispositivi. Lo stesso accesso collega anche Google Drive." },
+  "Already use Lanterna on another device? Sign in and everything comes over by itself.": { uk: "Вже користуєшся Lanterna на іншому пристрої? Увійди, і все підтягнеться саме.", it: "Usi già Lanterna su un altro dispositivo? Accedi e tutto arriva da solo." },
+  "Continue without an account": { uk: "Продовжити без акаунта", it: "Continua senza account" },
+  "You can sign in later in Settings → Account and sync.": { uk: "Увійти можна й пізніше: Налаштування → Акаунт і синхронізація.", it: "Puoi accedere più tardi in Impostazioni → Account e sincronizzazione." },
+  "Google didn't give Lanterna the permission it needs. Sign in again and leave the box for Lanterna's own folder ticked.": { uk: "Google не дав Lanterna потрібного дозволу. Увійди знову й залиш позначку біля власної папки Lanterna.", it: "Google non ha dato a Lanterna il permesso necessario. Accedi di nuovo e lascia spuntata la casella per la cartella di Lanterna." },
   "Finish signing in in your browser…": { uk: "Заверши вхід у браузері…", it: "Completa l'accesso nel browser…" },
   "Opened in the wrong browser? Copy the link and open it in the browser you use for Google.": { uk: "Відкрилось не в тому браузері? Скопіюй посилання й відкрий його в браузері, де ти заходиш у Google.", it: "Si è aperto nel browser sbagliato? Copia il link e aprilo nel browser che usi per Google." },
   "Copy link": { uk: "Скопіювати посилання", it: "Copia il link" },
@@ -453,7 +458,10 @@ async function boot() {
   if (view === "bug") { renderMain(); return openBugReport(); }
   if (view === "sync") { renderMain(); openSettings(); return setTimeout(() => { const s = $("#sync"); if (s) s.scrollIntoView(); }, 400); }
   if (view === "update") { renderMain(); return api.check_update().then(u => u.newer && showUpdate(u)); }
-  if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) { renderMain(); checkUpdateOnStart(); }
+  if (S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local")) {
+    if (!S.settings.sync_asked && (await api.sync_status()).phase === "off") return renderOnboard("G");
+    renderMain(); checkUpdateOnStart();
+  }
   else renderOnboard(S.settings.onboarded ? 3 : 0);
 }
 
@@ -472,10 +480,20 @@ const pname = id => (S.providers.find(p => p.id === id) || {}).name || id;
 function renderOnboard(step) {
   const app = $("#app");
   app.className = "";
-  const at = step === "L" ? 3 : step;
-  const dots = `<div class="dots">${[0, 1, 2, 3, 4].map(i => `<span class="${i <= at ? "on" : ""}"></span>`).join("")}</div>`;
+  const order = [0, "G", 1, 2, 3, 4], at = order.indexOf(step === "L" ? 3 : step);
+  const dots = `<div class="dots">${order.map((_, i) => `<span class="${i <= at ? "on" : ""}"></span>`).join("")}</div>`;
   let body = "";
-  if (step === 0) {
+  if (step === "G") {
+    body = `<div class="step">
+      <div class="hero-logo"><img src="logo.svg" alt=""></div>
+      <h1>${t("Sign in with Google")}</h1>
+      <p class="lead">${t("Your chats, settings and API keys on all your devices. The same sign-in also connects Google Drive.")}
+        ${t("Already use Lanterna on another device? Sign in and everything comes over by itself.")}</p>
+      <div class="card sync-card" id="sync-first"></div>
+      <button class="back" id="no-acct">${t("Continue without an account")}</button>
+      <small class="faint" style="margin-top:6px">${t("You can sign in later in Settings → Account and sync.")}</small>
+    </div>`;
+  } else if (step === 0) {
     body = `<div class="step">
       <div class="hero-logo"><img src="logo.svg" alt=""></div>
       <h1>${t("Choose your language")}</h1><p class="lead">${t("You can change it later in Settings.")}</p>
@@ -492,7 +510,7 @@ function renderOnboard(step) {
         <input class="field" id="name" maxlength="40" autocomplete="given-name" placeholder="${t("Your name")}" value="${esc(S.settings.name || "")}">
         <button class="btn primary" type="submit">${t("Continue")}</button>
       </form>
-      <button class="back" data-back="0">← ${t("Back")}</button>
+      <button class="back" data-back="G">← ${t("Back")}</button>
     </div>`;
   } else if (step === 2) {
     const mode = (id, ic, title, desc, extra, dis) => `<button class="card mode-row" data-mode="${id}" ${dis ? "disabled" : ""}>
@@ -549,9 +567,21 @@ function renderOnboard(step) {
   app.innerHTML = `<div class="onboard">${dots}${body}</div>`;
 
   app.querySelectorAll("[data-lang]").forEach(b => b.onclick = async () => {
-    LANG = b.dataset.lang; S = await api.save_settings({ lang: LANG }); renderOnboard(1);
+    LANG = b.dataset.lang; S = await api.save_settings({ lang: LANG });
+    renderOnboard(!S.settings.sync_asked && (await api.sync_status()).phase === "off" ? "G" : 1);
   });
-  app.querySelectorAll("[data-back]").forEach(b => b.onclick = () => renderOnboard(+b.dataset.back));
+  app.querySelectorAll("[data-back]").forEach(b => b.onclick = () => renderOnboard(isNaN(+b.dataset.back) ? b.dataset.back : +b.dataset.back));
+  if (step === "G") {
+    const ready = () => !!(S.providers.some(p => p.has_key) || S.settings.mode === "local");
+    const next = async () => {                              // signed in (and synced) or skipped
+      S = await api.save_settings({ sync_asked: true });
+      LANG = S.settings.lang || LANG;
+      if (ready()) { S = await api.save_settings({ onboarded: true }); renderMain(); checkUpdateOnStart(); }
+      else renderOnboard(S.settings.onboarded ? 3 : 1);
+    };
+    syncPanel($("#sync-first"), next);
+    $("#no-acct").onclick = next;
+  }
   app.querySelectorAll("[data-mode]").forEach(b => b.onclick = async () => {
     S = await api.save_settings({ mode: b.dataset.mode }); renderOnboard(b.dataset.mode === "cloud" ? 3 : "L");
   });
@@ -1372,19 +1402,21 @@ async function limitsPanel(box) {
 }
 
 // ---------------------------------------------------------------- Google sign-in & sync
-async function syncPanel(box) {
+async function syncPanel(box, onReady) {
   if (!box.isConnected) return;
   const st = await api.sync_status();
+  if (onReady && st.phase === "ready" && st.last) return onReady();
   const errText = { password: t("Wrong password."), short: t("At least 8 characters."),
     changed: t("The sync password was changed on another device. Enter the new one."),
-    signed_out: t("You were signed out. Sign in again to keep syncing.") };
+    signed_out: t("You were signed out. Sign in again to keep syncing."),
+    scope: t("Google didn't give Lanterna the permission it needs. Sign in again and leave the box for Lanterna's own folder ticked.") };
   const err = st.error ? `<p class="sync-err">${esc(errText[st.error] || t("Couldn't sync: {error}", { error: st.error }))}</p>` : "";
-  const again = ms => setTimeout(() => syncPanel(box), ms);
+  const again = ms => setTimeout(() => syncPanel(box, onReady), ms);
   if (st.phase === "off") {
-    box.innerHTML = `<p class="muted sync-p">${t("Sign in with Google to see your chats on all your devices.")}
-      ${t("Lanterna uses only a hidden folder of its own in your Google Drive, and your chats there are encrypted with a password only you know. API keys are not synced.")}</p>
-      ${err}<button class="btn primary small" id="sync-in">${t("Sign in with Google")}</button>`;
-    $("#sync-in", box).onclick = async () => { await api.sync_sign_in(); syncPanel(box); };
+    box.innerHTML = `<p class="muted sync-p">${onReady ? "" : t("Sign in with Google to see your chats on all your devices.")}
+      ${t("Lanterna uses only a hidden folder of its own in your Google Drive. Your chats, settings and API keys there are encrypted with a password only you know.")}</p>
+      ${err}<button class="btn primary${onReady ? "" : " small"}" id="sync-in">${t("Sign in with Google")}</button>`;
+    $("#sync-in", box).onclick = async () => { await api.sync_sign_in(); syncPanel(box, onReady); };
   } else if (st.phase === "waiting") {
     box.innerHTML = `<div class="status"><span class="spinner"></span>${t("Finish signing in in your browser…")}
       <button class="btn ghost small" id="sync-x" style="margin-left:auto">${t("Cancel")}</button></div>`;
@@ -1394,7 +1426,7 @@ async function syncPanel(box) {
       $("#sync-link", box).onclick = async e => { if (await copyText(st.url)) e.target.textContent = t("Copied"); };
     }
     $("#sync-x", box).onclick = async () => { await api.sync_cancel(); again(700); };
-    if (!box.dataset.waiting) { box.dataset.waiting = "1"; (function wait() { api.sync_status().then(s2 => { if (s2.phase === "waiting") setTimeout(wait, 1000); else { delete box.dataset.waiting; syncPanel(box); } }); })(); }
+    if (!box.dataset.waiting) { box.dataset.waiting = "1"; (function wait() { api.sync_status().then(s2 => { if (s2.phase === "waiting") setTimeout(wait, 1000); else { delete box.dataset.waiting; syncPanel(box, onReady); } }); })(); }
   } else if (st.phase === "password") {
     const intro = st.cloud ? t("Enter the sync password you chose on your other device.")
       : `${t("Choose a sync password (at least 8 characters). You will need it on your other devices.")} ${t("If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.")}`;
@@ -1406,11 +1438,11 @@ async function syncPanel(box) {
     const go = async () => {
       const b = $("#sync-ok", box); b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
       await api.sync_password($("#sync-pw", box).value);
-      syncPanel(box); refreshThreads();
+      syncPanel(box, onReady); if (!onReady) refreshThreads();
     };
     $("#sync-ok", box).onclick = go;
     $("#sync-pw", box).onkeydown = e => { if (e.key === "Enter") go(); };
-    $("#sync-out", box).onclick = async () => { await api.sync_sign_out(false); syncPanel(box); };
+    $("#sync-out", box).onclick = async () => { await api.sync_sign_out(false); syncPanel(box, onReady); };
     $("#sync-pw", box).focus();
   } else {
     const when = st.last ? new Date(st.last * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";

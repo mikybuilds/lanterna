@@ -42,6 +42,13 @@ def banner(lang: str) -> None:
                             border_style=AMBER))
 
 
+def _stamp_key(pid: str) -> None:
+    """Remember when this key changed, so sync knows which device has the newest one."""
+    s = Settings.load()
+    s.keys_at = {**(s.keys_at or {}), pid: time.time()}
+    s.save()
+
+
 def ask_key(pid: str, lang: str) -> bool:
     p = PROVIDERS[pid]
     console.print(t("Get a free key here: {url}", lang, url=f"[link={p.key_url}]{p.key_url}[/link]"))
@@ -61,6 +68,7 @@ def ask_key(pid: str, lang: str) -> bool:
             console.print(f"[red]{msg}[/]")
             continue
         keys.set_key(pid, key)
+        _stamp_key(pid)
         console.print(f"[green]{t('Key works ✓', lang)}[/]")
         return True
     return False
@@ -374,6 +382,7 @@ def main(argv: list[str] | None = None) -> int:
             ap.error("choose a provider")
         if a.action == "delete":
             keys.delete_key(a.provider)
+            _stamp_key(a.provider)
             console.print(t("Saved.", s.lang))
             return 0
         return 0 if ask_key(a.provider, s.lang) else 1
