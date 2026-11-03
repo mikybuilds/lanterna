@@ -32,7 +32,10 @@ CLIENT_ID = os.getenv("LANTERNA_GITHUB_CLIENT_ID", "Iv23lisqUKAubK0btDJn")
 APP_SLUG = os.getenv("LANTERNA_GITHUB_APP", "lanterna-assistant")
 API, WEB = "https://api.github.com", "https://github.com"
 VAULT_TOKEN, VAULT_ACCOUNT = "github-token", "github-account"
-COAUTHOR = "Co-Authored-By: Lanterna <mikybuilds@users.noreply.github.com>"
+# The app's own GitHub identity (lanterna-assistant[bot]): GitHub shows it, with the app's logo, as a co-author of
+# every commit Lanterna makes, like other assistants. It is only a name on the commit: it gets no access to anything.
+BOT_ID = 352111327
+COAUTHOR = f"Co-Authored-By: Lanterna Assistant <{BOT_ID}+lanterna-assistant[bot]@users.noreply.github.com>"
 
 MAX_FILES, MAX_FILE, MAX_TOTAL = 300, 10 * 1024 * 1024, 50 * 1024 * 1024
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".idea", ".vs", "build", "dist", ".mypy_cache"}
