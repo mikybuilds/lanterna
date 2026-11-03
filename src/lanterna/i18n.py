@@ -385,4 +385,24 @@ _T.update({
     "Preparing the folder {x} in Google Drive": {"uk": "Готую папку {x} у Google Drive", "it": "Preparo la cartella {x} su Google Drive"},
     "Preparing {x} for Google Drive": {"uk": "Готую {x} для Google Drive", "it": "Preparo {x} per Google Drive"},
     "Using {x}": {"uk": "Використовую {x}", "it": "Uso {x}"},
+    "Looking at your GitHub repositories": {"uk": "Дивлюсь твої репозиторії на GitHub", "it": "Guardo i tuoi repository su GitHub"},
+    "Looking in {x} on GitHub": {"uk": "Дивлюсь у {x} на GitHub", "it": "Guardo in {x} su GitHub"},
+    "Reading {x} on GitHub": {"uk": "Читаю {x} на GitHub", "it": "Leggo {x} su GitHub"},
+    "Preparing a push to {x}": {"uk": "Готую пуш у {x}", "it": "Preparo un push su {x}"},
+    "Preparing a new repository {x}": {"uk": "Готую новий репозиторій {x}", "it": "Preparo un nuovo repository {x}"},
+    "Push {count} files to {repo}": {"uk": "Запушити файлів: {count} у {repo}", "it": "Fare push di {count} file su {repo}"},
+    "Pushed {count} files to {repo}": {"uk": "Запушено файлів: {count} у {repo}", "it": "Push di {count} file su {repo} fatto"},
+    "Create the repository {name} on GitHub": {"uk": "Створити репозиторій {name} на GitHub", "it": "Creare il repository {name} su GitHub"},
+    "Opened GitHub to create {name}": {"uk": "Відкрито GitHub, щоб створити {name}", "it": "Aperto GitHub per creare {name}"},
+})
+
+# GitHub connector (0.3.1)
+_T.update({
+    "Connected as @{account}": {"uk": "Підключено як @{account}", "it": "Connesso come @{account}"},
+    "Choose repositories": {"uk": "Вибрати репозиторії", "it": "Scegli i repository"},
+    "Type this code on GitHub:": {"uk": "Введи цей код на GitHub:", "it": "Inserisci questo codice su GitHub:"},
+    "The GitHub connector isn't set up in this version yet.": {"uk": "Конектор GitHub у цій версії ще не налаштований.", "it": "Il connettore GitHub non è ancora configurato in questa versione."},
+    "Lets the assistant push files from the chat's folder to the repositories you choose, after you confirm each push. It can't delete repositories or change their settings.": {"uk": "Асистент зможе пушити файли з папки чату в репозиторії, які ти вибереш, — кожен пуш після твого підтвердження. Видаляти репозиторії чи змінювати їхні налаштування він не може.", "it": "L'assistente può fare push dei file dalla cartella della chat ai repository che scegli, dopo la tua conferma per ogni push. Non può eliminare repository né cambiarne le impostazioni."},
+    "GitHub was disconnected. Connect it again.": {"uk": "GitHub відключився. Підключи його знову.", "it": "GitHub si è disconnesso. Collegalo di nuovo."},
+    "The code expired. Press Connect again.": {"uk": "Код застарів. Натисни «Підключити» ще раз.", "it": "Il codice è scaduto. Premi di nuovo Connetti."},
 })

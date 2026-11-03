@@ -38,6 +38,11 @@ TOOL_TEXT = {
     "drive_make_folder": ("Preparing the folder {x} in Google Drive", "name"),
     "drive_save_text": ("Preparing {x} for Google Drive", "name"),
     "drive_upload": ("Preparing {x} for Google Drive", "path"),
+    "github_repos": ("Looking at your GitHub repositories", ""),
+    "github_list": ("Looking in {x} on GitHub", "repo"),
+    "github_read": ("Reading {x} on GitHub", "path"),
+    "github_push": ("Preparing a push to {x}", "repo"),
+    "github_new_repo": ("Preparing a new repository {x}", "name"),
 }
 
 

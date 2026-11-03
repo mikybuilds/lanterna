@@ -47,12 +47,14 @@ class Api:
     def __init__(self, store: Store | None = None, scheduler: bool = True):
         self.settings = Settings.load()
         self.store = store or Store()
-        from . import gdrive
+        from . import gdrive, github
         self.actions = Actions()
         self.workspace = Workspace(lambda: self._folder_for(self.actions.tid()), self.actions)
         self.drive = gdrive.Connector()
+        self.github = github.Connector()
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
-                               extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions))
+                               extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
+                               + github.github_tools(self.github, self.workspace, self.actions, lambda: self.settings.github_coauthor))
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._lock = threading.Lock()
@@ -520,6 +522,24 @@ class Api:
     def drive_disconnect(self) -> dict:
         return self.drive.disconnect()
 
+    # ---------------------------------------------------------------- GitHub connector
+    def github_status(self) -> dict:
+        return {**self.github.status(), "coauthor": self.settings.github_coauthor}
+
+    def github_connect(self) -> dict:
+        return self.github.start()
+
+    def github_cancel(self) -> dict:
+        return self.github.cancel()
+
+    def github_disconnect(self) -> dict:
+        return self.github.disconnect()
+
+    def github_set_coauthor(self, on: bool) -> dict:
+        self.settings.github_coauthor = bool(on)
+        self.settings.save()
+        return self.github_status()
+
     # ---------------------------------------------------------------- memory & reminders
     def facts(self) -> list[dict]:
         return self.store.facts()
@@ -575,8 +595,11 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "mkdir": ("Create the folder {path}", "Created the folder {path}"), "move": ("Move {path} → {to}", "Moved {path} → {to}"),
             "drive_folder": ("Create the folder {name} in Google Drive", "Created the folder {name} in Google Drive"),
             "drive_upload": ("Upload {path} to Google Drive", "Uploaded {path} to Google Drive"),
-            "drive_text": ("Save {name} to Google Drive", "Saved {name} to Google Drive")}
-    out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang, **{k: str(d.get(k, "")) for k in ("path", "to", "name")})
+            "drive_text": ("Save {name} to Google Drive", "Saved {name} to Google Drive"),
+            "github_push": ("Push {count} files to {repo}", "Pushed {count} files to {repo}"),
+            "github_new_repo": ("Create the repository {name} on GitHub", "Opened GitHub to create {name}")}
+    out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang,
+            **{k: str(d.get(k, "")) for k in ("path", "to", "name", "repo", "count")})
     if kind == "write_replace" and "(" in (result or ""):
         out += " " + result[result.index("("):]
     return out + (f" — {link}" if link.startswith("https://") else "")

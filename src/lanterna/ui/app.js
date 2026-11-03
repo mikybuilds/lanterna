@@ -282,6 +282,32 @@ const STR = {
   "Working…": { uk: "Виконую…", it: "Eseguo…" },
   "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
   "No folder": { uk: "Без папки", it: "Nessuna cartella" },
+  "Push {count} files to {repo}": { uk: "Запушити файлів: {count} у {repo}", it: "Fare push di {count} file su {repo}" },
+  "Create the repository {name} on GitHub": { uk: "Створити репозиторій {name} на GitHub", it: "Creare il repository {name} su GitHub" },
+  "branch {b}": { uk: "гілка {b}", it: "branch {b}" },
+  "main branch": { uk: "основна гілка", it: "branch principale" },
+  "Commit message": { uk: "Опис коміту", it: "Messaggio del commit" },
+  "Files": { uk: "Файли", it: "File" },
+  "Left out (look like passwords or keys, or too big):": { uk: "Не увійдуть (схожі на паролі чи ключі, або завеликі):", it: "Esclusi (sembrano password o chiavi, o troppo grandi):" },
+  "with the line “Co-Authored-By: Lanterna”": { uk: "з рядком «Co-Authored-By: Lanterna»", it: "con la riga “Co-Authored-By: Lanterna”" },
+  "private": { uk: "приватний", it: "privato" },
+  "public": { uk: "публічний", it: "pubblico" },
+  "Confirm opens GitHub with the form filled in: press “Create repository” there, then add it to Lanterna.": { uk: "«Підтвердити» відкриє GitHub із заповненою формою: натисни там «Create repository», а потім додай його в Lanterna.", it: "Conferma apre GitHub con il modulo compilato: premi “Create repository”, poi aggiungilo a Lanterna." },
+  "Open on GitHub": { uk: "Відкрити на GitHub", it: "Apri su GitHub" },
+  "Add it to Lanterna": { uk: "Додати в Lanterna", it: "Aggiungilo a Lanterna" },
+  "Lets the assistant push files from the chat's folder to the repositories you choose, after you confirm each push. It can't delete repositories or change their settings.": { uk: "Асистент зможе пушити файли з папки чату в репозиторії, які ти вибереш, — кожен пуш після твого підтвердження. Видаляти репозиторії чи змінювати їхні налаштування він не може.", it: "L'assistente può fare push dei file dalla cartella della chat ai repository che scegli, dopo la tua conferma per ogni push. Non può eliminare repository né cambiarne le impostazioni." },
+  "Type this code on GitHub:": { uk: "Введи цей код на GitHub:", it: "Inserisci questo codice su GitHub:" },
+  "Open GitHub": { uk: "Відкрити GitHub", it: "Apri GitHub" },
+  "Copy code": { uk: "Копіювати код", it: "Copia il codice" },
+  "Waiting for GitHub…": { uk: "Чекаю на GitHub…", it: "In attesa di GitHub…" },
+  "Choose repositories": { uk: "Вибрати репозиторії", it: "Scegli i repository" },
+  "Connected as @{account}": { uk: "Підключено як @{account}", it: "Connesso come @{account}" },
+  "Add “Co-Authored-By: Lanterna” to commits": { uk: "Додавати «Co-Authored-By: Lanterna» до комітів", it: "Aggiungi “Co-Authored-By: Lanterna” ai commit" },
+  "GitHub shows Lanterna next to you as a co-author of the commit. You can turn it off.": { uk: "GitHub покаже Lanterna поруч із тобою як співавтора коміту. Можна вимкнути.", it: "GitHub mostra Lanterna accanto a te come coautore del commit. Puoi disattivarlo." },
+  "The GitHub connector isn't set up in this version yet.": { uk: "Конектор GitHub у цій версії ще не налаштований.", it: "Il connettore GitHub non è ancora configurato in questa versione." },
+  "The code expired. Press Connect again.": { uk: "Код застарів. Натисни «Підключити» ще раз.", it: "Il codice è scaduto. Premi di nuovo Connetti." },
+  "GitHub was disconnected. Connect it again.": { uk: "GitHub відключився. Підключи його знову.", it: "GitHub si è disconnesso. Collegalo di nuovo." },
+  "Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.": { uk: "«Відключити» забуває вхід на цьому комп'ютері. Щоб забрати доступ і на GitHub: GitHub → Settings → Applications.", it: "Disconnetti dimentica l'accesso su questo computer. Per rimuoverlo anche su GitHub: GitHub → Settings → Applications." },
   "New chats start with this folder; each chat can change it under the message box.": { uk: "З цією папкою починають нові чати; кожен чат може змінити її під полем вводу.", it: "Le nuove chat iniziano con questa cartella; ogni chat può cambiarla sotto il campo del messaggio." },
   "Folder of this chat": { uk: "Папка цього чату", it: "Cartella di questa chat" },
   "Lanterna can read and (after you confirm) change files only in this folder.": { uk: "Lanterna читає і (після твого підтвердження) змінює файли тільки в цій папці.", it: "Lanterna legge e (dopo la tua conferma) modifica i file solo in questa cartella." },
@@ -1176,13 +1202,27 @@ function folderMenu() {
 // ---------------------------------------------------------------- confirmation cards
 const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", write_append: "Add to {path}",
   mkdir: "Create the folder {path}", move: "Move {path} → {to}", drive_folder: "Create the folder {name} in Google Drive",
-  drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive" };
+  drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive",
+  github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub" };
 
 function actCard(c) {
   const d = c.details || {};
-  const title = t(ACT_KEYS[c.kind] || "Change", { path: d.path || "", to: d.to || "", name: d.name || "" });
+  const title = t(ACT_KEYS[c.kind] || "Change", { path: d.path || "", to: d.to || "", name: d.name || "", repo: d.repo || "", count: d.count || 0 });
   const meta = [];
-  if (c.kind.startsWith("drive_")) {
+  const gh = c.kind.startsWith("github_");
+  let extra = "";
+  if (c.kind === "github_push") {
+    meta.push(d.branch ? t("branch {b}", { b: d.branch }) : t("main branch"));
+    meta.push(((d.size || 0) / 1048576).toFixed(2) + " MB");
+    const more = d.count > (d.files || []).length ? `\n… +${d.count - d.files.length}` : "";
+    extra = `<div class="cc-lbl">${t("Commit message")}</div><pre class="cc-prev">${esc(d.message || "")}</pre>
+      ${d.coauthor ? `<div class="cc-meta">${esc(t("with the line “Co-Authored-By: Lanterna”"))}</div>` : ""}
+      <div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
+      ${(d.skipped || []).length ? `<div class="cc-meta sync-err">${esc(t("Left out (look like passwords or keys, or too big):"))} ${esc(d.skipped.join("; "))}</div>` : ""}`;
+  } else if (c.kind === "github_new_repo") {
+    meta.push(t(d.private ? "private" : "public"));
+    extra = `<div class="cc-meta">${esc(t("Confirm opens GitHub with the form filled in: press “Create repository” there, then add it to Lanterna."))}</div>`;
+  } else if (c.kind.startsWith("drive_")) {
     if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
     if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));
     if (d.size != null) meta.push((d.size / 1048576).toFixed(1) + " MB");
@@ -1191,8 +1231,8 @@ function actCard(c) {
     if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
   }
   const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
-  const el = h(`<div class="cc"><div class="cc-h">${c.kind.startsWith("drive_") ? "☁️" : "📁"} <b>${esc(title)}</b></div>
-    ${meta.length ? `<div class="cc-meta">${esc(meta.join(" · "))}</div>` : ""}${prev}
+  const el = h(`<div class="cc"><div class="cc-h">${gh ? "🐙" : c.kind.startsWith("drive_") ? "☁️" : "📁"} <b>${esc(title)}</b></div>
+    ${meta.length ? `<div class="cc-meta">${esc(meta.join(" · "))}</div>` : ""}${prev}${extra}
     <div class="cc-foot"><span class="cc-q">${t("Lanterna will do this only after you confirm.")}</span>
       <button class="btn ghost small" data-a="no">${t("Cancel")}</button><button class="btn primary small" data-a="yes">${t("Confirm")}</button></div></div>`);
   const foot = el.querySelector(".cc-foot");
@@ -1202,9 +1242,13 @@ function actCard(c) {
       : r.state === "cancelled" ? esc(t("Cancelled"))
       : r.state === "failed" ? `<span class="sync-err">⚠️ ${esc(t("Couldn't do it: {error}", { error: r.result }))}</span>`
       : esc(t("This card has expired. Ask again."));
-    foot.innerHTML = `<span class="cc-q">${msg.replace(/ — https:\/\/\S+$/, "")}</span>${link ? `<button class="btn ghost small" data-open>${t("Open in Google Drive")} ${icon("ext")}</button>` : ""}`;
+    const inst = c.kind === "github_new_repo" && r.state === "done" && d.install
+      ? `<button class="btn primary small" data-inst>${t("Add it to Lanterna")} ${icon("ext")}</button>` : "";
+    foot.innerHTML = `<span class="cc-q">${msg.replace(/ — https:\/\/\S+$/, "")}</span>${link && c.kind !== "github_new_repo" ? `<button class="btn ghost small" data-open>${t(gh ? "Open on GitHub" : "Open in Google Drive")} ${icon("ext")}</button>` : ""}${inst}`;
     const o = foot.querySelector("[data-open]");
     if (o) o.onclick = () => api.open_url(link);
+    const ins = foot.querySelector("[data-inst]");
+    if (ins) ins.onclick = () => api.open_url(d.install);
   };
   if (c.state !== "pending") done(c);
   el.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => {
@@ -1242,8 +1286,48 @@ async function workdirPanel(box) {
 // ---------------------------------------------------------------- connectors
 async function connectorsPanel(box) {
   if (!box || !box.isConnected) return;
+  box.innerHTML = `<div id="cn-drive"></div><div id="cn-gh"></div>`;
+  drivePanel($("#cn-drive", box));
+  githubPanel($("#cn-gh", box));
+}
+
+async function githubPanel(box) {
+  if (!box || !box.isConnected) return;
+  const st = await api.github_status();
+  const again = ms => setTimeout(() => githubPanel(box), ms);
+  const errs = { signed_out: t("GitHub was disconnected. Connect it again."), expired: t("The code expired. Press Connect again."),
+    not_configured: t("The GitHub connector isn't set up in this version yet.") };
+  const err = st.error ? `<p class="sync-err">${esc(errs[st.error] || st.error)}</p>` : "";
+  const ready = st.phase === "ready";
+  box.innerHTML = `<div class="row"><div class="grow"><b>🐙 GitHub</b><small class="plain">${ready ? esc(t("Connected as @{account}", { account: st.account || "?" }))
+      : !st.configured ? t("The GitHub connector isn't set up in this version yet.")
+      : t("Lets the assistant push files from the chat's folder to the repositories you choose, after you confirm each push. It can't delete repositories or change their settings.")}</small></div>
+    ${ready ? `<button class="btn ghost small" id="gh-repos">${t("Choose repositories")} ${icon("ext")}</button><button class="btn ghost small" id="gh-off">${t("Disconnect")}</button>`
+      : st.phase === "waiting" ? `<button class="btn ghost small" id="gh-cancel">${t("Cancel")}</button>`
+      : st.configured ? `<button class="btn primary small" id="gh-on">${t("Connect")}</button>` : ""}</div>
+    ${st.phase === "waiting" ? `<div class="gh-code"><span class="muted">${t("Type this code on GitHub:")}</span><b>${esc(st.code)}</b>
+      <button class="btn ghost small" id="gh-copy">${t("Copy code")}</button><button class="btn primary small" id="gh-open">${t("Open GitHub")} ${icon("ext")}</button>
+      <small class="muted"><span class="spinner"></span>${t("Waiting for GitHub…")}</small></div>` : ""}
+    ${ready ? `<label class="check"><input type="checkbox" id="gh-co" ${st.coauthor ? "checked" : ""}><span><b>${t("Add “Co-Authored-By: Lanterna” to commits")}</b>
+      <small>${t("GitHub shows Lanterna next to you as a co-author of the commit. You can turn it off.")}</small></span></label>
+      <p class="faint" style="font-size:12.5px;margin:6px 0 0">${t("Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.")}</p>` : ""}
+    ${err}`;
+  const on = $("#gh-on", box), off = $("#gh-off", box), cancel = $("#gh-cancel", box), cp = $("#gh-copy", box),
+    op = $("#gh-open", box), repos = $("#gh-repos", box), co = $("#gh-co", box);
+  if (on) on.onclick = async () => { const r = await api.github_connect(); if (r.code) copyText(r.code); githubPanel(box); };
+  if (off) off.onclick = async () => { await api.github_disconnect(); githubPanel(box); };
+  if (cancel) cancel.onclick = async () => { await api.github_cancel(); githubPanel(box); };
+  if (cp) cp.onclick = async () => { await copyText(st.code); cp.textContent = t("Copied"); };
+  if (op) op.onclick = () => api.open_url(st.url);
+  if (repos) repos.onclick = () => api.open_url(st.install_url);
+  if (co) co.onchange = () => api.github_set_coauthor(co.checked);
+  if (st.phase === "waiting") again(2000);
+}
+
+async function drivePanel(box) {
+  if (!box || !box.isConnected) return;
   const st = await api.drive_status();
-  const again = ms => setTimeout(() => connectorsPanel(box), ms);
+  const again = ms => setTimeout(() => drivePanel(box), ms);
   const err = st.error ? `<p class="sync-err">${esc(st.error === "signed_out" ? t("Google Drive was disconnected. Connect it again.") : st.error)}</p>` : "";
   const head = `<div class="row"><div class="grow"><b>☁️ Google Drive</b><small class="plain">${st.phase === "ready" ? esc(st.account ? t("Connected as {account}", { account: st.account }) : t("Connected"))
     : t("Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.")}</small></div>
@@ -1254,8 +1338,8 @@ async function connectorsPanel(box) {
       ${st.url ? `<button class="btn ghost small" id="gd-copy">${t("Copy link")}</button>` : ""}</p>` : "";
   box.innerHTML = head + wait + err;
   const on = $("#gd-on", box), off = $("#gd-off", box), cancel = $("#gd-cancel", box), cp = $("#gd-copy", box);
-  if (on) on.onclick = async () => { await api.drive_connect(); connectorsPanel(box); };
-  if (off) off.onclick = async () => { await api.drive_disconnect(); connectorsPanel(box); };
+  if (on) on.onclick = async () => { await api.drive_connect(); drivePanel(box); };
+  if (off) off.onclick = async () => { await api.drive_disconnect(); drivePanel(box); };
   if (cancel) cancel.onclick = async () => { await api.drive_cancel(); again(600); };
   if (cp) cp.onclick = async () => { await copyText(st.url); cp.textContent = t("Copied"); };
   if (st.phase === "waiting") again(1000);

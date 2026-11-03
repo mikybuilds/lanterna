@@ -769,6 +769,11 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Connect", lang) + " Google Drive", id="gdon", variant="primary")
                 yield Button(t("Cancel", lang), id="gdcancel")
                 yield Button(t("Disconnect", lang), id="gdoff")
+            yield Static("", id="ghinfo", classes="muted")
+            with Horizontal(classes="row"):
+                yield Button(t("Connect", lang) + " GitHub", id="ghon", variant="primary")
+                yield Button(t("Cancel", lang), id="ghcancel")
+                yield Button(t("Disconnect", lang), id="ghoff")
             yield Label(t("Models", lang), classes="h")
             yield Button(t("Show models", lang), id="models")
             with Horizontal(classes="row"):
@@ -784,6 +789,8 @@ class SettingsScreen(ModalScreen[str]):
         self._paint_limits()
         self._paint_drive()
         self.set_interval(1.0, self._paint_drive)
+        self._paint_github()
+        self.set_interval(1.0, self._paint_github)
 
     # -- working folder, limits, Google Drive
     def _paint_wd(self, err: str = "") -> None:
@@ -847,6 +854,39 @@ class SettingsScreen(ModalScreen[str]):
     def _gd_off(self) -> None:
         self.app.api.drive_disconnect()
         self._paint_drive()
+
+    def _paint_github(self) -> None:
+        lang, st = L(self.app), self.app.api.github_status()
+        ph = st["phase"]
+        if ph == "ready":
+            info = t("Connected as @{account}", lang, account=st["account"] or "?") + "\n" + t("Choose repositories", lang) + ": " + st["install_url"]
+        elif ph == "waiting":
+            info = t("Type this code on GitHub:", lang) + f" {st['code']}  →  {st['url']}"
+        elif not st["configured"]:
+            info = t("The GitHub connector isn't set up in this version yet.", lang)
+        else:
+            info = t("Lets the assistant push files from the chat's folder to the repositories you choose, after you confirm each push. It can't delete repositories or change their settings.", lang)
+        errs = {"signed_out": "GitHub was disconnected. Connect it again.", "expired": "The code expired. Press Connect again."}
+        if st["error"] and st["error"] != "not_configured":
+            info += "\n" + t(errs.get(st["error"], st["error"]), lang)
+        self.query_one("#ghinfo", Static).update("🐙 GitHub — " + info)
+        for bid, on_ in (("ghon", ph == "off" and st["configured"]), ("ghcancel", ph == "waiting"), ("ghoff", ph == "ready")):
+            self.query_one(f"#{bid}", Button).display = on_
+
+    @on(Button.Pressed, "#ghon")
+    def _gh_on(self) -> None:
+        self.app.api.github_connect()
+        self._paint_github()
+
+    @on(Button.Pressed, "#ghcancel")
+    def _gh_cancel(self) -> None:
+        self.app.api.github_cancel()
+        self._paint_github()
+
+    @on(Button.Pressed, "#ghoff")
+    def _gh_off(self) -> None:
+        self.app.api.github_disconnect()
+        self._paint_github()
 
     # -- Google sign-in & sync
     def _paint_sync(self) -> None:

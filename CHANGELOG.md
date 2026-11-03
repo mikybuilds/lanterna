@@ -3,6 +3,7 @@
 ## 0.3.1 — see what Lanterna is doing (not released yet)
 
 **New**
+- **GitHub connector** (Settings → Connectors): ask "push this to my repository" and Lanterna prepares one commit with the files from the chat's folder; you see the repository, the files and the message, and press Confirm. It is a GitHub App you install only on the repositories you choose, with one permission (files). It can't delete repositories or change settings; files that look like passwords or keys are never pushed. Commits carry a "Co-Authored-By: Lanterna" line (can be turned off).
 - **Limit bar** under the message box: how much of the free limit of the model in use is left, and when it resets (Gemini: midnight in California). Click it for all limits.
 - **Folder of each chat**: the button under the message box shows which folder this chat works in; change it right there, or use no folder for this chat. New chats start with the folder from Settings.
 - Instead of three jumping dots you see what Lanterna is doing right now: "Searching the web: …", "Preparing the file hello.txt", or the model's own short thought headings (Gemini). After the answer they fold into "Thinking · steps: N"; click to see them.

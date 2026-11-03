@@ -34,6 +34,7 @@ class Settings:
     auto_cloud: bool = True                # auto mode: send hard questions to online models
     update_check: bool = True              # look for a new version when the app starts
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
+    github_coauthor: bool = True           # commits pushed by Lanterna carry a "Co-Authored-By: Lanterna" line
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     profile_at: float = 0                  # when name or language last changed (newest wins when syncing)
     onboarded: bool = False

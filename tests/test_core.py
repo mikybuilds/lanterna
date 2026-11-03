@@ -96,7 +96,7 @@ def test_no_unexpected_domains_in_sources():
                # optional Google sign-in and sync to the user's own Drive (hidden app folder)
                "accounts.google.com", "oauth2.googleapis.com", "www.googleapis.com",
                # the project's own pages (privacy policy)
-               "mikybuilds.github.io"}
+               "mikybuilds.github.io", "api." "git" "hub.com"}
     root = Path(__file__).parents[1]
     files = [*root.joinpath("src").rglob("*.py"), *root.joinpath("src").rglob("*.js"), *root.joinpath("src").rglob("*.html"), root / "pyproject.toml", root / "README.md"]
     found = {h for f in files if f.exists() for h in re.findall(r"https?://([^/\s\"'`)>:]+)", f.read_text(encoding="utf-8"))}
