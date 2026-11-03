@@ -177,6 +177,46 @@ def test_a_stuck_model_does_not_block_the_whole_service():
     assert [c.model for c in r.available()] == ["fast"]            # only the stuck model rests
 
 
+def test_thought_text_is_kept_for_the_thinking_line():
+    f = _ThinkFilter()
+    out, inner = "", ""
+    for c in ["<thou", "ght>**Plan", "ning**\n\nok</tho", "ught>\nAns", "wer"]:
+        out += f.feed(c)
+        inner += f.thought()
+    assert out + f.flush() == "Answer" and inner == "**Planning**\n\nok"
+
+
+def test_reasoning_field_and_gemini_summaries_become_thoughts():
+    from lanterna.providers import Thought
+    bodies = []
+
+    def h(req):
+        bodies.append(json.loads(req.content))
+        d = [{"reasoning": "Let me check."}, {"content": "Hi"}]
+        return httpx.Response(200, content="".join(f"data: {json.dumps({'choices': [{'delta': x}]})}\n\n" for x in d).encode())
+    out = list(Client(PROVIDERS["groq"], "k", transport=httpx.MockTransport(h)).stream_chat("m", [{"role": "user", "content": "hi"}]))
+    assert out == [Thought("Let me check."), "Hi"] and "extra_body" not in bodies[0]
+    list(Client(PROVIDERS["gemini"], "k", transport=httpx.MockTransport(h)).stream_chat("m", [{"role": "user", "content": "hi"}]))
+    assert bodies[1]["extra_body"]["google"]["thinking_config"]["include_thoughts"] is True
+
+
+def test_steps_line():
+    from lanterna.thinking import Steps, tool_step
+    assert tool_step("web_search", '{"query": "Ferrara news"}', "uk") == "Шукаю в інтернеті: Ferrara news"
+    assert tool_step("read_page", '{"url": "https://www.ansa.it/x/y"}', "it") == "Leggo www.ansa.it"
+    assert tool_step("weather", "{}", "uk") == "Дивлюсь погоду"
+    assert tool_step("something_new", "not json", "en") == "Using something_new"
+    s = Steps("en")
+    s.thought("*   Problem 1: Calculate $17 \\times 23$.\n")
+    assert s.live == "Problem 1: Calculate 17 \\times 23." and s.items == []          # raw thoughts: live line only
+    s.thought("**Assessing**\n\nI am looking.\n**Checking the result**\n")
+    assert [x["text"] for x in s.items] == ["Assessing", "Checking the result"] and s.live == "Checking the result"
+    s.thought("more text")
+    assert len(s.items) == 2                                      # the same headings are not added twice
+    s.tool("calculate", '{"expression": "17*23"}')
+    assert s.view()["live"] == "Calculating: 17*23" and len(s.items) == 3
+
+
 def test_think_filter_keeps_plain_angle_brackets():
     f = _ThinkFilter()
     assert "".join(f.feed(c) for c in ["a < b and ", "x<y"]) + f.flush() == "a < b and x<y"

@@ -134,7 +134,7 @@ def run_chat(s: Settings) -> int:
             for piece in conv.ask(text):
                 if isinstance(piece, Switched):
                     console.print(f"[dim]↪ {t('switched to {m}', lang, m=piece.to.label)}[/]")
-                else:
+                elif isinstance(piece, str):                 # thoughts and tool steps are for the window apps
                     console.print(piece, end="", markup=False, highlight=False)
             console.print("\n")
         except ProviderError as e:

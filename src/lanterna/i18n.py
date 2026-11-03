@@ -358,3 +358,31 @@ _T.update({
     "Requests today: {n}": {"uk": "Запитів сьогодні: {n}", "it": "Richieste oggi: {n}"},
     "Refused: {n}": {"uk": "Відхилено: {n}", "it": "Rifiutate: {n}"},
 })
+
+# What Lanterna is doing while it answers (0.3.1)
+_T.update({
+    "Thinking · steps: {n}": {"uk": "Хід думок · кроків: {n}", "it": "Ragionamento · passi: {n}"},
+    "Calculating: {x}": {"uk": "Рахую: {x}", "it": "Calcolo: {x}"},
+    "Counting dates": {"uk": "Рахую дати", "it": "Calcolo le date"},
+    "Checking the weather: {x}": {"uk": "Дивлюсь погоду: {x}", "it": "Guardo il meteo: {x}"},
+    "Checking the weather": {"uk": "Дивлюсь погоду", "it": "Guardo il meteo"},
+    "Searching the web: {x}": {"uk": "Шукаю в інтернеті: {x}", "it": "Cerco sul web: {x}"},
+    "Searching the web": {"uk": "Шукаю в інтернеті", "it": "Cerco sul web"},
+    "Reading {x}": {"uk": "Читаю {x}", "it": "Leggo {x}"},
+    "Reading": {"uk": "Читаю", "it": "Leggo"},
+    "Remembering: {x}": {"uk": "Запам'ятовую: {x}", "it": "Memorizzo: {x}"},
+    "Forgetting: {x}": {"uk": "Забуваю: {x}", "it": "Dimentico: {x}"},
+    "Setting a reminder: {x}": {"uk": "Ставлю нагадування: {x}", "it": "Imposto un promemoria: {x}"},
+    "Setting a reminder": {"uk": "Ставлю нагадування", "it": "Imposto un promemoria"},
+    "Looking at the reminders": {"uk": "Дивлюсь нагадування", "it": "Guardo i promemoria"},
+    "Cancelling a reminder": {"uk": "Скасовую нагадування", "it": "Annullo un promemoria"},
+    "Looking at the files in the folder": {"uk": "Дивлюсь файли в папці", "it": "Guardo i file nella cartella"},
+    "Searching the folder: {x}": {"uk": "Шукаю в папці: {x}", "it": "Cerco nella cartella: {x}"},
+    "Preparing the file {x}": {"uk": "Готую файл {x}", "it": "Preparo il file {x}"},
+    "Preparing the folder {x}": {"uk": "Готую папку {x}", "it": "Preparo la cartella {x}"},
+    "Preparing to move {x}": {"uk": "Готую переміщення {x}", "it": "Preparo lo spostamento di {x}"},
+    "Looking in Google Drive": {"uk": "Дивлюсь у Google Drive", "it": "Guardo in Google Drive"},
+    "Preparing the folder {x} in Google Drive": {"uk": "Готую папку {x} у Google Drive", "it": "Preparo la cartella {x} su Google Drive"},
+    "Preparing {x} for Google Drive": {"uk": "Готую {x} для Google Drive", "it": "Preparo {x} per Google Drive"},
+    "Using {x}": {"uk": "Використовую {x}", "it": "Uso {x}"},
+})

@@ -59,6 +59,13 @@ class ToolCalls:
     calls: list[ToolCall]
 
 
+@dataclass
+class Thought:
+    """A piece of the model's reasoning (<think>/<thought> blocks, a `reasoning` field, Gemini thought summaries).
+    Never part of the reply: the UI shows it as a short "what I'm thinking about" line."""
+    text: str
+
+
 class ProviderError(Exception):
     """kind: auth | rate | network | timeout | bad_request | other"""
 
@@ -155,6 +162,8 @@ class Client:
         body = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
         if tools:
             body["tools"], body["tool_choice"] = tools, tool_choice
+        if self.provider.id == "gemini":                # short thought summaries, shown while it thinks
+            body["extra_body"] = {"google": {"thinking_config": {"include_thoughts": True}}}
         think = _ThinkFilter()
         calls: dict[int, dict] = {}
         try:
@@ -184,6 +193,9 @@ class Client:
                         slot["name"] += fn.get("name") or ""
                         slot["arguments"] += fn.get("arguments") or ""
                     out = think.feed(d.get("content") or "")
+                    inner = think.thought() + str(d.get("reasoning") or d.get("reasoning_content") or "")
+                    if inner:
+                        yield Thought(inner)
                     if out:
                         yield out
         except (httpx.ConnectError, httpx.ConnectTimeout) as e:   # no way to reach the service at all
@@ -220,6 +232,11 @@ class _ThinkFilter:
 
     def __init__(self):
         self.buf, self.close = "", ""          # close: the tag that ends the block we are inside, "" = outside
+        self.inner: list[str] = []             # the hidden text, for the "thinking" line (take it with thought())
+
+    def thought(self) -> str:
+        out, self.inner = "".join(self.inner), []
+        return out
 
     def feed(self, text: str) -> str:
         self.buf += text
@@ -228,8 +245,12 @@ class _ThinkFilter:
             if self.close:
                 end = self.buf.find(self.close)
                 if end < 0:
-                    self.buf = self.buf[-len(self.close):]
+                    keep = len(self.close)             # a closing tag may be split between chunks
+                    if len(self.buf) > keep:
+                        self.inner.append(self.buf[:-keep])
+                    self.buf = self.buf[-keep:]
                     return "".join(out)
+                self.inner.append(self.buf[:end])
                 self.buf, self.close = self.buf[end + len(self.close):].lstrip("\n"), ""
             else:
                 found = [(i, tag) for tag in self.OPEN if (i := self.buf.find(tag)) >= 0]

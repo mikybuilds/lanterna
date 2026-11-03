@@ -280,6 +280,8 @@ const STR = {
   "Confirm": { uk: "Підтвердити", it: "Conferma" },
   "Done": { uk: "Готово", it: "Fatto" },
   "Working…": { uk: "Виконую…", it: "Eseguo…" },
+  "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
+  "Thinking · steps: {n}": { uk: "Хід думок · кроків: {n}", it: "Ragionamento · passi: {n}" },
   "This card has expired. Ask again.": { uk: "Ця картка застаріла. Попроси ще раз.", it: "Questa scheda è scaduta. Chiedi di nuovo." },
   "{n} characters": { uk: "{n} символів", it: "{n} caratteri" },
   "Folder in Google Drive: {f}": { uk: "Папка в Google Drive: {f}", it: "Cartella su Google Drive: {f}" },
@@ -716,6 +718,14 @@ async function openThread(id) {
   $("#title").textContent = (th && th.title) || t("New chat");
   if (!items.length) showEmpty();
   items.forEach(m => m.role === "user" ? addUser(m.content) : addBot(m.content, m.model));
+  const waiting = await api.cards(id);               // changes still waiting for Confirm: not kept in the history
+  if (waiting.length && thread === id) {               // at the end: the reply that proposed them may still be coming
+    const last = msgs.lastElementChild;
+    const host = last && last.classList.contains("bot") ? last : addBot("");
+    const box = h(`<div class="ccs"></div>`);
+    waiting.forEach(c => box.append(actCard(c)));
+    host.querySelector(".md").after(box);
+  }
   refreshThreads();
   scrollDown(true);
   $("#input").focus();
@@ -739,7 +749,7 @@ function addUser(text) {
 function addBot(text, model) {
   const e = $(".empty"); if (e) e.remove();
   const el = h(`<div class="msg bot"><img class="av" src="logo.svg" alt=""><div class="body"><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}</div></div>`);
-  if (text === null) el.querySelector(".md").innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+  if (text === null) el.querySelector(".md").before(h(`<div class="think"><span class="think-dot"></span><span class="think-tx">${t("Thinking…")}</span></div>`));
   else el.querySelector(".md").innerHTML = md(text);
   $("#msgs").append(el); return el;
 }
@@ -773,10 +783,19 @@ async function send(retryText) {
     return;
   }
   let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0;
+  const sentTo = thread;
   const chips = h(`<div class="tools"></div>`);
   bot.querySelector(".body").prepend(chips);
   const acts = h(`<div class="ccs"></div>`);
   bot.querySelector(".md").after(acts);
+  const think = bot.querySelector(".think");
+  const thinkDone = steps => {                         // the live line becomes a folded list of the steps
+    if (!think.isConnected) return;
+    if (!steps || !steps.length) { think.remove(); return; }
+    const d = h(`<details class="thinks"><summary>${esc(t("Thinking · steps: {n}", { n: steps.length }))}</summary>
+      <ol>${steps.map(x => `<li class="${x.kind === "tool" ? "st-tool" : "st-think"}">${esc(x.text)}</li>`).join("")}</ol></details>`);
+    think.replaceWith(d);
+  };
   const step = async () => {
     let p;
     try { p = await api.poll(r.stream, offset); } catch (e) { p = { done: true, error: { kind: "network", message: String(e) } }; }
@@ -792,6 +811,7 @@ async function send(retryText) {
     tools = (p.tools || []).length;
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     cards = (p.cards || []).length;
+    if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
     if (p.final !== undefined) { text_ = p.final; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown();
@@ -805,7 +825,11 @@ async function send(retryText) {
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
       box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files }); };
     }
-    if (p.done) { busy = false; inp.oninput(); return; }
+    if (p.done) {
+      thinkDone(p.error ? [] : p.steps); busy = false; inp.oninput();
+      if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
+      return;
+    }
     setTimeout(step, 60);
   };
   step();
@@ -1196,7 +1220,10 @@ async function watchSync() {                      // a sync brought chats from a
     const st = await api.sync_status();
     if (syncSeen !== null && st.last && st.last !== syncSeen && !busy) {
       await refreshThreads();
-      if (thread && !$("#input").value) openThread(thread);
+      if (thread && !$("#input").value) {
+        const items = await api.messages(thread);
+        if (items.length !== $("#msgs").querySelectorAll(".msg").length) openThread(thread);
+      }
     }
     syncSeen = st.last || 0;
   } catch (e) { /* app closing */ }

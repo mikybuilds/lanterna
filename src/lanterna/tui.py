@@ -5,6 +5,7 @@ Uses the same backend as the window app (app.Api), so chats are shared between b
 from __future__ import annotations
 
 import asyncio
+import re
 import threading
 import time
 
@@ -1219,6 +1220,8 @@ class _ChatScreen(Screen):
                 log.mount(Static(m["content"], classes="msg-user", markup=False))
             else:
                 log.mount(Markdown(m["content"], classes="msg-bot"))
+        for card in self.app.api.cards(tid):              # changes still waiting for Confirm
+            log.mount(ActCard(card))
         log.scroll_end(animate=False)
 
     def _welcome(self) -> None:
@@ -1283,7 +1286,7 @@ class _ChatScreen(Screen):
             log.mount(Static(t("Error: {err}", L(self.app), err=err), classes="msg-err", markup=False))
             return
         self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = res["stream"], 0, "", 0, 0
-        self._cards_seen = 0
+        self._cards_seen, self._live = 0, ""
         self._bot = Markdown("_" + t("Thinking…", L(self.app)) + "_", classes="msg-bot")
         log.mount(self._bot)
         log.scroll_end(animate=False)
@@ -1321,6 +1324,9 @@ class _ChatScreen(Screen):
             self._text += r["text"]
             self._offset = r["offset"]
             changed = True
+        if not self._text and r.get("live") and self._bot is not None and r["live"] != getattr(self, "_live", ""):
+            self._live = r["live"]                       # what it is doing now, instead of a bare "Thinking…"
+            await self._bot.update("_" + re.sub(r"([_*`\[\]])", r"\\\1", r["live"]) + "_")
         if changed and self._bot is not None:
             await self._bot.update(self._text)
             log.scroll_end(animate=False)

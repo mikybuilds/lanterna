@@ -18,10 +18,11 @@ from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
 from .i18n import LANGS, t
-from .providers import PROVIDERS, Client, ProviderError
+from .providers import PROVIDERS, Client, ProviderError, Thought
 from .router import Router, Switched
 from .notify import notify
 from .store import Store
+from .thinking import Steps
 from .tools import Toolbox
 from .workspace import Actions, Workspace, folder_tools, too_broad
 
@@ -30,11 +31,12 @@ _MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)?(:[a-z0-9._-]+)?
 
 
 class _Stream:
-    def __init__(self):
+    def __init__(self, lang: str = "en"):
         self.pieces: list[str] = []
         self.notes: list[str] = []
         self.tools: list[str] = []         # "🔎 web_search" chips
         self.cards: list[dict] = []        # changes waiting for the user's OK (working folder, Google Drive)
+        self.steps = Steps(lang)           # "what I'm doing" line: thought summaries and tool steps
         self.done = False
         self.final = False                 # pieces now hold the cleaned full reply
         self.error: dict | None = None
@@ -308,7 +310,7 @@ class Api:
         except FileError as e:
             return {"ok": False, "error": "file", "message": str(e)}
         sid = uuid.uuid4().hex
-        st = _Stream()
+        st = _Stream(self.settings.lang)
         self._streams[sid] = st
         history = [{"role": m["role"], "content": m["content"]} for m in self.store.messages(tid)]
         full = "\n\n".join(x for x in (text, prep.text) if x)
@@ -332,6 +334,9 @@ class Api:
                         st.notes.append(p.to.label)
                     elif isinstance(p, ToolUse):
                         st.tools.append(f"{p.label} {p.name}")
+                        st.steps.tool(p.name, p.arguments)
+                    elif isinstance(p, Thought):
+                        st.steps.thought(p.text)
                     else:
                         st.pieces.append(p)
             self.store.add(tid, "assistant", conv.last_reply, router.current.label if router.current else "")
@@ -358,18 +363,25 @@ class Api:
         with st.lock:
             if st.final:
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
+                       **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}
             else:
                 text = "".join(st.pieces)
                 out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
-                       "cards": list(st.cards),
+                       "cards": list(st.cards), **st.steps.view(),
                        "done": st.done, "error": st.error}
         if out["done"]:
             self._streams.pop(sid, None)
         return out
 
     # ---------------------------------------------------------------- confirmations (working folder, Drive)
+    def cards(self, tid: int) -> list[dict]:
+        """Cards of this chat still waiting for an answer (shown again when the chat is opened or redrawn)."""
+        tid = int(tid)
+        return [a.card() for a in list(self.actions.items.values())
+                if a.tid == tid and (self.actions.get(a.id) or a).state == "pending"]
+
     def action_confirm(self, aid: str) -> dict:
         return self._action_done(self.actions.confirm(str(aid)))
 

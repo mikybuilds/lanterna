@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 — see what Lanterna is doing (not released yet)
+
+**New**
+- Instead of three jumping dots you see what Lanterna is doing right now: "Searching the web: …", "Preparing the file hello.txt", or the model's own short thought headings (Gemini). After the answer they fold into "Thinking · steps: N"; click to see them.
+
+**Fixed**
+- A confirmation card could vanish when the chat was redrawn (after closing Settings, a sync or switching chats), so there was nothing to press. Cards waiting for Confirm now always come back at the end of the chat.
+- Closing Settings while an answer was being written hid that answer until the chat was opened again.
+- Lanterna said "I created the file" before you confirmed; now it says what will happen.
+
 ## 0.3.0 — your folder, Google Drive, limits and one-click updates
 
 **New**

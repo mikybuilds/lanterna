@@ -134,6 +134,45 @@ def test_api_card_flow(tmp_path, monkeypatch):
     assert a.store.messages(tid)[-1]["content"].startswith("✅ ")
 
 
+def test_waiting_card_comes_back_when_the_chat_is_redrawn(tmp_path, monkeypatch):
+    # a sync redraws the open chat from the history 15 s after the reply: the card must not vanish
+    from lanterna.app import Api
+    from lanterna.discovery import Candidate
+    from lanterna.providers import PROVIDERS, Client
+    from lanterna.router import Router
+    from lanterna.store import Store
+    monkeypatch.setattr(keys, "get_key", lambda n: None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path.anchor) + "no-such-appdata")
+    work = tmp_path / "work"
+    work.mkdir()
+    n = []
+
+    def h(req):
+        n.append(1)
+        if len(n) == 1:
+            think = {"choices": [{"delta": {"content": "<thought>**Planning the file**\n\nI will write it.</thought>"}}]}
+            return httpx.Response(200, content=f"data: {json.dumps(think)}\n\n".encode() + _sse_tool("folder_write", {"path": "hello.txt", "text": "привіт"}))
+        return httpx.Response(200, content=_sse("Press Confirm."))
+
+    a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    a.settings.lang = "uk"
+    assert a.set_workdir(str(work))["ok"]
+    a._router = Router([Candidate("groq", "m", 50)], client_for=lambda pid: Client(PROVIDERS["groq"], "k", transport=httpx.MockTransport(h)))
+    tid, other = a.new_thread()["id"], a.new_thread()["id"]
+    sid = a.send(tid, "створи hello.txt з привіт")["stream"]
+    for _ in range(200):
+        p = a.poll(sid)
+        if p["done"]:
+            break
+        time.sleep(0.02)
+    assert p["final"] == "Press Confirm." and "Planning" not in p["final"]
+    assert p["steps"] == [{"kind": "think", "text": "Planning the file"}, {"kind": "tool", "text": "Готую файл hello.txt"}]
+    waiting = a.cards(tid)
+    assert [c["kind"] for c in waiting] == ["write_new"] and a.cards(other) == []
+    a.action_cancel(waiting[0]["id"])
+    assert a.cards(tid) == []
+
+
 # ---------------------------------------------------------------- Google Drive
 class FakeDrive:
     def __init__(self):

@@ -138,7 +138,8 @@ class Connector:
 
 
 WAITING = ("Prepared. Nothing has been sent to Google Drive yet: the user now sees a card with this action and a "
-           "Confirm button. Tell them in one short sentence what will happen when they confirm.")
+           "Confirm button. Tell them in one short sentence what will happen when they confirm (future tense, never "
+           "'I created' or 'done').")
 MISSING = ("There is no folder '{name}' that Lanterna can see. Lanterna sees only the folders it created itself; "
            "offer to create it with drive_make_folder.")
 
