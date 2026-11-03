@@ -28,8 +28,8 @@ import httpx
 from . import sync
 
 # The public ID of the "Lanterna" GitHub App (not a secret: the device flow needs no secret).
-CLIENT_ID = os.getenv("LANTERNA_GITHUB_CLIENT_ID", "")
-APP_SLUG = os.getenv("LANTERNA_GITHUB_APP", "")
+CLIENT_ID = os.getenv("LANTERNA_GITHUB_CLIENT_ID", "Iv23lisqUKAubK0btDJn")
+APP_SLUG = os.getenv("LANTERNA_GITHUB_APP", "lanterna-assistant")
 API, WEB = "https://api.github.com", "https://github.com"
 VAULT_TOKEN, VAULT_ACCOUNT = "github-token", "github-account"
 COAUTHOR = "Co-Authored-By: Lanterna <mikybuilds@users.noreply.github.com>"
@@ -341,7 +341,13 @@ def github_tools(conn: Connector, ws, actions, coauthor) -> list:
         repo = str(repo or "").strip().removeprefix(WEB + "/").removesuffix(".git").strip("/")
         if not REPO.match(repo):
             raise GitHubError("refused", "give the repository as owner/name")
-        return repo
+        names = [r["full_name"] for r in conn.hub().repos()]
+        exact = next((n for n in names if n.lower() == repo.lower()), None)
+        if exact:
+            return exact
+        raise GitHubError("refused", f"Lanterna has no access to '{repo}'. It can write only to: "
+                          + (", ".join(names) or "nothing yet") + ". If the repository is right, the user adds it "
+                          "here: " + install_url())
 
     @guard
     def github_repos() -> str:
