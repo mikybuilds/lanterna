@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early preview (v0.3.1).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder per chat, Google Drive and GitHub connectors, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
+> **Status: early preview (v0.3.2).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder per chat, Google Drive and GitHub connectors, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
 <p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#linux">🐧 Install on Linux</a></b></p>
 
@@ -111,7 +111,7 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 
 - It is the GitHub App *Lanterna Assistant* with one permission: the files (Contents) of the repositories you pick. It can't create or delete repositories, change settings or add people; for a new repository it opens GitHub's own page filled in.
 - No password or token is typed into Lanterna; the sign-in is kept in your system's vault. Files that look like passwords or keys (`.env`, private keys, API tokens inside) are never pushed.
-- Commits are yours; Lanterna Assistant is shown as a co-author (turn it off in Settings). That is only a name on the commit, not access.
+- Commits are yours; every one shows Lanterna Assistant as a co-author. That is only a name on the commit, not access.
 
 ## Limits and updates
 

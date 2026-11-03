@@ -322,8 +322,8 @@ def collect(ws, paths: list[str], repo_folder: str = "") -> tuple[list[tuple[str
     return picked, skipped
 
 
-def github_tools(conn: Connector, ws, actions, coauthor) -> list:
-    """The tools the model sees while GitHub is connected. coauthor: callable -> bool (settings)."""
+def github_tools(conn: Connector, ws, actions) -> list:
+    """The tools the model sees while GitHub is connected. Every commit names Lanterna Assistant as co-author."""
     from .tools import Tool, _obj
     if conn.phase != "ready":
         return []
@@ -381,8 +381,7 @@ def github_tools(conn: Connector, ws, actions, coauthor) -> list:
         if not files:
             return "Error: nothing to push." + (" Skipped: " + "; ".join(skipped) if skipped else "")
         msg = (str(message or "").strip() or "Update from Lanterna")[:2000]
-        with_co = bool(coauthor())
-        full = msg + (f"\n\n{COAUTHOR}" if with_co else "")
+        full = f"{msg}\n\n{COAUTHOR}"
         branch = str(branch or "").strip()
         root = str(ws.root())
         listing = [(name, str(p.relative_to(ws.root()))) for name, p in files]
@@ -396,7 +395,7 @@ def github_tools(conn: Connector, ws, actions, coauthor) -> list:
 
         actions.propose("github_push", {"repo": repo, "branch": branch, "files": [n for n, _ in files][:40],
                                         "count": len(files), "size": sum(p.stat().st_size for _, p in files),
-                                        "message": msg, "coauthor": with_co, "skipped": skipped[:20]}, run)
+                                        "message": msg, "coauthor": True, "skipped": skipped[:20]}, run)
         return WAITING + (" Some files were left out: " + "; ".join(skipped[:10]) if skipped else "")
 
     @guard

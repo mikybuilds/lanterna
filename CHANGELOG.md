@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2 — the new look shows up after updating
+
+**Fixed**
+- After updating, the window could keep showing the previous version's interface from its cache, so the limit bar and the folder button under the message box were missing. Lanterna now clears only the window's cache when its interface files change; chats, settings and sign-ins are not touched.
+
+**Changed**
+- Every commit pushed through the GitHub connector shows Lanterna Assistant as a co-author; the switch to turn that off is gone. It is only a name on the commit and gives no access.
+
 ## 0.3.1 — GitHub, a folder per chat, and see what Lanterna is doing
 
 **New**

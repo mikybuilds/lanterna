@@ -54,7 +54,7 @@ class Api:
         self.github = github.Connector()
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
-                               + github.github_tools(self.github, self.workspace, self.actions, lambda: self.settings.github_coauthor))
+                               + github.github_tools(self.github, self.workspace, self.actions))
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._lock = threading.Lock()
@@ -524,7 +524,7 @@ class Api:
 
     # ---------------------------------------------------------------- GitHub connector
     def github_status(self) -> dict:
-        return {**self.github.status(), "coauthor": self.settings.github_coauthor}
+        return self.github.status()
 
     def github_connect(self) -> dict:
         return self.github.start()
@@ -534,11 +534,6 @@ class Api:
 
     def github_disconnect(self) -> dict:
         return self.github.disconnect()
-
-    def github_set_coauthor(self, on: bool) -> dict:
-        self.settings.github_coauthor = bool(on)
-        self.settings.save()
-        return self.github_status()
 
     # ---------------------------------------------------------------- memory & reminders
     def facts(self) -> list[dict]:

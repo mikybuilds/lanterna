@@ -148,7 +148,7 @@ def test_push_is_one_commit_after_confirm_and_secrets_stay_home(tmp_path, monkey
     fake = FakeGitHub()
     c = _signed_in(fake, vault)
     ws, acts, cards = _ws(tmp_path, monkeypatch)
-    tools = {t.name: t for t in github.github_tools(c, ws, acts, lambda: True)}
+    tools = {t.name: t for t in github.github_tools(c, ws, acts)}
     assert "anna/mod" in tools["github_repos"].run()
     out = tools["github_push"].run(repo=G + "/anna/mod.git", message="Add the mod")
     assert out.startswith("Prepared") and not fake.blobs                       # nothing sent before Confirm
@@ -165,16 +165,16 @@ def test_push_is_one_commit_after_confirm_and_secrets_stay_home(tmp_path, monkey
     assert all(b"gsk_" not in b and b"KEY=" not in b for b in fake.blobs.values())
 
 
-def test_push_into_an_empty_repository_and_a_subfolder_without_coauthor(tmp_path, monkeypatch, vault):
+def test_push_into_an_empty_repository_and_a_subfolder(tmp_path, monkeypatch, vault):
     fake = FakeGitHub(empty=True)
     c = _signed_in(fake, vault)
     ws, acts, cards = _ws(tmp_path, monkeypatch)
-    tools = {t.name: t for t in github.github_tools(c, ws, acts, lambda: False)}
+    tools = {t.name: t for t in github.github_tools(c, ws, acts)}
     tools["github_push"].run(repo="anna/mod", paths=["src", "README.md"], message="First", repo_folder="mods/")
     a = acts.confirm(cards[-1]["id"])
     assert a.state == "done", a.result
     first = next(iter(fake.contents))
-    assert first.startswith("mods/") and "Co-Authored-By" not in fake.commit["message"]
+    assert first.startswith("mods/") and fake.commit["message"].endswith(github.COAUTHOR)
     assert {x["path"] for x in fake.tree["tree"]} | {first} == {"mods/mod.wh.cpp", "mods/README.md"}
 
 
@@ -182,7 +182,7 @@ def test_push_needs_a_folder_and_a_real_repo_name(tmp_path, monkeypatch, vault):
     fake = FakeGitHub()
     c = _signed_in(fake, vault)
     acts = Actions()
-    tools = {t.name: t for t in github.github_tools(c, Workspace(lambda: "", acts), acts, lambda: True)}
+    tools = {t.name: t for t in github.github_tools(c, Workspace(lambda: "", acts), acts)}
     assert "no working folder" in tools["github_push"].run(repo="anna/mod", message="x")
     assert "owner/name" in tools["github_push"].run(repo="not a repo", message="x")
 
@@ -192,7 +192,7 @@ def test_new_repository_opens_github_filled_in(tmp_path, monkeypatch, vault):
     c = _conn(FakeGitHub(), opened)
     c.phase = "ready"
     ws, acts, cards = _ws(tmp_path, monkeypatch)
-    tools = {t.name: t for t in github.github_tools(c, ws, acts, lambda: True)}
+    tools = {t.name: t for t in github.github_tools(c, ws, acts)}
     tools["github_new_repo"].run(name="My Windhawk mod", private=True)
     assert cards[-1]["details"]["name"] == "My-Windhawk-mod" and not opened
     acts.confirm(cards[-1]["id"])

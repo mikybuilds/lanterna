@@ -289,7 +289,7 @@ const STR = {
   "Commit message": { uk: "Опис коміту", it: "Messaggio del commit" },
   "Files": { uk: "Файли", it: "File" },
   "Left out (look like passwords or keys, or too big):": { uk: "Не увійдуть (схожі на паролі чи ключі, або завеликі):", it: "Esclusi (sembrano password o chiavi, o troppo grandi):" },
-  "with the line “Co-Authored-By: Lanterna”": { uk: "з рядком «Co-Authored-By: Lanterna»", it: "con la riga “Co-Authored-By: Lanterna”" },
+  "Co-author: Lanterna Assistant": { uk: "Співавтор: Lanterna Assistant", it: "Coautore: Lanterna Assistant" },
   "private": { uk: "приватний", it: "privato" },
   "public": { uk: "публічний", it: "pubblico" },
   "Confirm opens GitHub with the form filled in: press “Create repository” there, then add it to Lanterna.": { uk: "«Підтвердити» відкриє GitHub із заповненою формою: натисни там «Create repository», а потім додай його в Lanterna.", it: "Conferma apre GitHub con il modulo compilato: premi “Create repository”, poi aggiungilo a Lanterna." },
@@ -302,8 +302,7 @@ const STR = {
   "Waiting for GitHub…": { uk: "Чекаю на GitHub…", it: "In attesa di GitHub…" },
   "Choose repositories": { uk: "Вибрати репозиторії", it: "Scegli i repository" },
   "Connected as @{account}": { uk: "Підключено як @{account}", it: "Connesso come @{account}" },
-  "Add “Co-Authored-By: Lanterna” to commits": { uk: "Додавати «Co-Authored-By: Lanterna» до комітів", it: "Aggiungi “Co-Authored-By: Lanterna” ai commit" },
-  "GitHub shows Lanterna next to you as a co-author of the commit. You can turn it off.": { uk: "GitHub покаже Lanterna поруч із тобою як співавтора коміту. Можна вимкнути.", it: "GitHub mostra Lanterna accanto a te come coautore del commit. Puoi disattivarlo." },
+  "Every commit shows Lanterna Assistant next to you as a co-author. That is only a name on the commit, not access.": { uk: "У кожному коміті GitHub покаже Lanterna Assistant поруч із тобою як співавтора. Це лише ім'я в коміті, а не доступ.", it: "Ogni commit mostra Lanterna Assistant accanto a te come coautore. È solo un nome nel commit, non un accesso." },
   "The GitHub connector isn't set up in this version yet.": { uk: "Конектор GitHub у цій версії ще не налаштований.", it: "Il connettore GitHub non è ancora configurato in questa versione." },
   "The code expired. Press Connect again.": { uk: "Код застарів. Натисни «Підключити» ще раз.", it: "Il codice è scaduto. Premi di nuovo Connetti." },
   "GitHub was disconnected. Connect it again.": { uk: "GitHub відключився. Підключи його знову.", it: "GitHub si è disconnesso. Collegalo di nuovo." },
@@ -1216,7 +1215,7 @@ function actCard(c) {
     meta.push(((d.size || 0) / 1048576).toFixed(2) + " MB");
     const more = d.count > (d.files || []).length ? `\n… +${d.count - d.files.length}` : "";
     extra = `<div class="cc-lbl">${t("Commit message")}</div><pre class="cc-prev">${esc(d.message || "")}</pre>
-      ${d.coauthor ? `<div class="cc-meta">${esc(t("with the line “Co-Authored-By: Lanterna”"))}</div>` : ""}
+      <div class="cc-meta">${esc(t("Co-author: Lanterna Assistant"))}</div>
       <div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
       ${(d.skipped || []).length ? `<div class="cc-meta sync-err">${esc(t("Left out (look like passwords or keys, or too big):"))} ${esc(d.skipped.join("; "))}</div>` : ""}`;
   } else if (c.kind === "github_new_repo") {
@@ -1308,19 +1307,17 @@ async function githubPanel(box) {
     ${st.phase === "waiting" ? `<div class="gh-code"><span class="muted">${t("Type this code on GitHub:")}</span><b>${esc(st.code)}</b>
       <button class="btn ghost small" id="gh-copy">${t("Copy code")}</button><button class="btn primary small" id="gh-open">${t("Open GitHub")} ${icon("ext")}</button>
       <small class="muted"><span class="spinner"></span>${t("Waiting for GitHub…")}</small></div>` : ""}
-    ${ready ? `<label class="check"><input type="checkbox" id="gh-co" ${st.coauthor ? "checked" : ""}><span><b>${t("Add “Co-Authored-By: Lanterna” to commits")}</b>
-      <small>${t("GitHub shows Lanterna next to you as a co-author of the commit. You can turn it off.")}</small></span></label>
+    ${ready ? `<p class="faint" style="font-size:12.5px;margin:10px 0 0">${t("Every commit shows Lanterna Assistant next to you as a co-author. That is only a name on the commit, not access.")}</p>
       <p class="faint" style="font-size:12.5px;margin:6px 0 0">${t("Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.")}</p>` : ""}
     ${err}`;
   const on = $("#gh-on", box), off = $("#gh-off", box), cancel = $("#gh-cancel", box), cp = $("#gh-copy", box),
-    op = $("#gh-open", box), repos = $("#gh-repos", box), co = $("#gh-co", box);
+    op = $("#gh-open", box), repos = $("#gh-repos", box);
   if (on) on.onclick = async () => { const r = await api.github_connect(); if (r.code) copyText(r.code); githubPanel(box); };
   if (off) off.onclick = async () => { await api.github_disconnect(); githubPanel(box); };
   if (cancel) cancel.onclick = async () => { await api.github_cancel(); githubPanel(box); };
   if (cp) cp.onclick = async () => { await copyText(st.code); cp.textContent = t("Copied"); };
   if (op) op.onclick = () => api.open_url(st.url);
   if (repos) repos.onclick = () => api.open_url(st.install_url);
-  if (co) co.onchange = () => api.github_set_coauthor(co.checked);
   if (st.phase === "waiting") again(2000);
 }
 
