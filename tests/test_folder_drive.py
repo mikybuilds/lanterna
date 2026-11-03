@@ -183,6 +183,8 @@ def test_drive_tools(ws, monkeypatch):
     assert not fake.items                                            # nothing before the click
     a = ws.actions.confirm(ws.cards[-1]["id"])
     assert a.state == "done" and a.result.endswith("|https://drive.google.com/d1")
+    n = len(ws.cards)
+    assert "already exists" in tools["drive_make_folder"].run(name="School") and len(ws.cards) == n
 
     tools["drive_upload"].run(path="notes/plan.md", folder="School")
     ws.actions.confirm(ws.cards[-1]["id"])

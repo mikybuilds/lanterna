@@ -178,6 +178,12 @@ def drive_tools(conn: Connector, ws, actions) -> list:
             return "Error: give the folder a name."
         if parent:
             conn.files().folder_id(parent)            # fail now if the parent is missing, not after the click
+        try:                                          # don't make a second folder with the same name
+            conn.files().folder_id(f"{parent}/{name}" if parent else name)
+            return f"The folder '{name}' already exists in Google Drive (Lanterna created it earlier). Nothing to do."
+        except SyncError as e:
+            if e.kind != "missing":
+                raise
         actions.propose("drive_folder", {"name": name, "parent": parent},
                         lambda: _link(conn.files().make_folder(name, parent)))
         return WAITING
