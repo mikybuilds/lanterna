@@ -285,6 +285,61 @@ const STR = {
   "Confirm": { uk: "Підтвердити", it: "Conferma" },
   "Done": { uk: "Готово", it: "Fatto" },
   "Working…": { uk: "Виконую…", it: "Eseguo…" },
+  "Downloads": { uk: "Завантаження", it: "Download" },
+  "Desktop": { uk: "Робочий стіл", it: "Scrivania" },
+  "Documents": { uk: "Документи", it: "Documenti" },
+  "Pictures": { uk: "Зображення", it: "Immagini" },
+  "Videos": { uk: "Відео", it: "Video" },
+  "Music": { uk: "Музика", it: "Musica" },
+  "Images": { uk: "Картинки", it: "Immagini" },
+  "Archives": { uk: "Архіви", it: "Archivi" },
+  "Installers": { uk: "Інсталятори", it: "Installer" },
+  "Code": { uk: "Код", it: "Codice" },
+  "Torrents": { uk: "Торенти", it: "Torrent" },
+  "Fonts": { uk: "Шрифти", it: "Font" },
+  "Other": { uk: "Інше", it: "Altro" },
+  "Sort {count} files in {place}": { uk: "Розкласти {count} файлів у папці {place}", it: "Ordinare {count} file in {place}" },
+  "Sorted {count} files in {place}": { uk: "Розкладено {count} файлів у папці {place}", it: "Ordinati {count} file in {place}" },
+  "Move {count} items to {to}": { uk: "Перемістити {count} шт. у {to}", it: "Spostare {count} elementi in {to}" },
+  "Moved {count} items to {to}": { uk: "Переміщено {count} шт. у {to}", it: "Spostati {count} elementi in {to}" },
+  "Rename {path} → {to}": { uk: "Перейменувати {path} → {to}", it: "Rinominare {path} → {to}" },
+  "Renamed {path} → {to}": { uk: "Перейменовано {path} → {to}", it: "Rinominato {path} → {to}" },
+  "Move {count} items to the Recycle Bin": { uk: "Перемістити {count} шт. у Кошик", it: "Spostare {count} elementi nel Cestino" },
+  "Moved {count} items to the Recycle Bin": { uk: "Переміщено {count} шт. у Кошик", it: "Spostati {count} elementi nel Cestino" },
+  "Install {name}": { uk: "Встановити {name}", it: "Installare {name}" },
+  "Installed {name}": { uk: "Встановлено {name}", it: "Installato {name}" },
+  "Update {name}": { uk: "Оновити {name}", it: "Aggiornare {name}" },
+  "Updated {name}": { uk: "Оновлено {name}", it: "Aggiornato {name}" },
+  "Remove {name}": { uk: "Видалити {name}", it: "Rimuovere {name}" },
+  "Removed {name}": { uk: "Видалено {name}", it: "Rimosso {name}" },
+  "Switch to the dark theme": { uk: "Увімкнути темну тему", it: "Passare al tema scuro" },
+  "Switched to the dark theme": { uk: "Увімкнено темну тему", it: "Tema scuro attivato" },
+  "Switch to the light theme": { uk: "Увімкнути світлу тему", it: "Passare al tema chiaro" },
+  "Switched to the light theme": { uk: "Увімкнено світлу тему", it: "Tema chiaro attivato" },
+  "Switch the power plan to {name}": { uk: "Перемкнути план живлення на «{name}»", it: "Passare al piano energia «{name}»" },
+  "Power plan: {name}": { uk: "План живлення: {name}", it: "Piano energia: {name}" },
+  "Start {name} with the computer": { uk: "Запускати {name} разом із комп'ютером", it: "Avviare {name} con il computer" },
+  "{name} starts with the computer": { uk: "{name} запускається разом із комп'ютером", it: "{name} si avvia con il computer" },
+  "Don't start {name} with the computer": { uk: "Не запускати {name} разом із комп'ютером", it: "Non avviare {name} con il computer" },
+  "{name} no longer starts with the computer": { uk: "{name} більше не запускається разом із комп'ютером", it: "{name} non si avvia più con il computer" },
+  "{n} files still downloading are left alone.": { uk: "{n} файлів, які ще завантажуються, не чіпаю.", it: "{n} file ancora in download restano dove sono." },
+  "You can undo the sort afterwards.": { uk: "Розкладання можна буде скасувати.", it: "Potrai annullare l'ordinamento." },
+  "Undo": { uk: "Повернути як було", it: "Annulla" },
+  "They go to the Recycle Bin: you can restore them from there.": { uk: "Вони підуть у Кошик: звідти їх можна відновити.", it: "Vanno nel Cestino: puoi recuperarli da lì." },
+  "Reason: {r}": { uk: "Причина: {r}", it: "Motivo: {r}" },
+  "Publisher: {p}": { uk: "Видавець: {p}", it: "Editore: {p}" },
+  "from {s}": { uk: "з {s}", it: "da {s}" },
+  "Command": { uk: "Команда", it: "Comando" },
+  "Windows may ask for administrator rights.": { uk: "Windows може попросити права адміністратора.", it: "Windows potrebbe chiedere i diritti di amministratore." },
+  "The system will ask for your password.": { uk: "Система попросить твій пароль.", it: "Il sistema chiederà la tua password." },
+  "Installing… this can take a few minutes.": { uk: "Встановлюю… це може зайняти кілька хвилин.", it: "Installo… può richiedere qualche minuto." },
+  "Now: {x}": { uk: "Зараз: {x}", it: "Ora: {x}" },
+  "dark": { uk: "темна", it: "scura" },
+  "light": { uk: "світла", it: "chiara" },
+  "It can be turned back on the same way.": { uk: "Так само можна буде увімкнути назад.", it: "Si può riattivare allo stesso modo." },
+  "Computer": { uk: "Комп'ютер", it: "Computer" },
+  "Let Lanterna help with this computer": { uk: "Дозволити Lanterna допомагати з цим комп'ютером", it: "Lascia che Lanterna aiuti con questo computer" },
+  "Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.": { uk: "Твої папки (Завантаження, Робочий стіл, Документи, Зображення, Відео, Музика), програми й кілька безпечних налаштувань. Дивитися Lanterna може сама; кожна зміна — переміщення, Кошик, встановлення, налаштування — чекає твого «Підтвердити». Назви файлів і файли, які вона відкриває, отримує модель, що зараз працює.", it: "Le tue cartelle (Download, Scrivania, Documenti, Immagini, Video, Musica), i programmi e alcune impostazioni sicure. Lanterna guarda da sola; ogni modifica — spostare, il Cestino, installare, un'impostazione — aspetta la tua conferma. I nomi dei file e i file che apre vanno al modello in uso." },
   "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
   "No folder": { uk: "Без папки", it: "Nessuna cartella" },
   "Push {count} files to {repo}": { uk: "Запушити файлів: {count} у {repo}", it: "Fare push di {count} file su {repo}" },
@@ -969,6 +1024,9 @@ function openSettings() {
       <div id="rems"></div>
       <h4 style="margin-top:22px">${t("Working folder")}</h4>
       <div id="workdir"></div>
+      <h4 style="margin-top:22px">${t("Computer")}</h4>
+      <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
+        <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Updates")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
         <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
@@ -995,6 +1053,8 @@ function openSettings() {
     body.querySelectorAll("#seg-mode [data-mode]").forEach(b => b.onclick = async () => { S = await api.save_settings({ mode: b.dataset.mode }); paint(); });
     const ac = $("#auto-cloud", body);
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
+    const pa = $("#pc-access", body);
+    pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();
@@ -1232,11 +1292,26 @@ function folderMenu() {
 const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", write_append: "Add to {path}",
   mkdir: "Create the folder {path}", move: "Move {path} → {to}", drive_folder: "Create the folder {name} in Google Drive",
   drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive",
-  github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub" };
+  github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub",
+  pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
+  pc_mkdir: "Create the folder {path}", pc_trash: "Move {count} items to the Recycle Bin",
+  app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}",
+  sys_power: "Switch the power plan to {name}" };
+const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
+function actKey(c) {
+  const d = c.details || {};
+  if (c.kind === "sys_theme") return d.theme === "dark" ? "Switch to the dark theme" : "Switch to the light theme";
+  if (c.kind === "sys_startup") return d.on ? "Start {name} with the computer" : "Don't start {name} with the computer";
+  return ACT_KEYS[c.kind] || "Change";
+}
+const cardIcon = k => k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
+  k.startsWith("pc_") ? "🗂" : k.startsWith("app_") ? "📦" : k.startsWith("sys_") ? "⚙️" : "📁";
 
 function actCard(c) {
   const d = c.details || {};
-  const title = t(ACT_KEYS[c.kind] || "Change", { path: d.path || "", to: d.to || "", name: d.name || "", repo: d.repo || "", count: d.count || 0 });
+  let to = d.to || "";
+  if (c.kind === "pc_move" && d.to_place) to = placeName(d.to_place) + (to && to !== "." ? "/" + to : "");
+  const title = t(actKey(c), { path: d.path || "", to, name: d.name || "", repo: d.repo || "", count: d.count || 0, place: placeName(d.place) });
   const meta = [];
   const gh = c.kind.startsWith("github_");
   let extra = "";
@@ -1251,6 +1326,29 @@ function actCard(c) {
   } else if (c.kind === "github_new_repo") {
     meta.push(t(d.private ? "private" : "public"));
     extra = `<div class="cc-meta">${esc(t("Confirm opens GitHub with the form filled in: press “Create repository” there, then add it to Lanterna."))}</div>`;
+  } else if (c.kind === "pc_sort") {
+    meta.push(((d.size || 0) / 1048576).toFixed(1) + " MB");
+    extra = `<div class="cc-groups">${(d.groups || []).map(g => `<details><summary>📁 <b>${esc(g.to)}</b> <span class="muted">— ${g.count}</span></summary>
+      <pre class="cc-prev">${esc(g.files.join("\n"))}${g.count > g.files.length ? `\n… +${g.count - g.files.length}` : ""}</pre></details>`).join("")}</div>
+      ${d.skipped ? `<div class="cc-meta">${esc(t("{n} files still downloading are left alone.", { n: d.skipped }))}</div>` : ""}
+      <div class="cc-meta">${esc(t("You can undo the sort afterwards."))}</div>`;
+  } else if (c.kind === "pc_move" || c.kind === "pc_trash") {
+    meta.push(((d.size || 0) / 1048576).toFixed(1) + " MB");
+    const more = d.count > (d.files || []).length ? `\n… +${d.count - d.files.length}` : "";
+    extra = `<div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
+      ${d.reason ? `<div class="cc-meta">${esc(t("Reason: {r}", { r: d.reason }))}</div>` : ""}
+      ${c.kind === "pc_trash" ? `<div class="cc-meta">${esc(t("They go to the Recycle Bin: you can restore them from there."))}</div>` : ""}`;
+  } else if (c.kind.startsWith("app_")) {
+    if (d.publisher) meta.push(t("Publisher: {p}", { p: d.publisher }));
+    if (d.version) meta.push(t("Version {v}", { v: d.version }));
+    meta.push(t("from {s}", { s: d.source || "" }));
+    extra = `${d.description ? `<p class="cc-desc">${esc(d.description)}</p>` : ""}
+      <div class="cc-lbl">${t("Command")}</div><pre class="cc-prev">${esc(d.command || "")}</pre>
+      ${d.admin ? `<div class="cc-meta">${esc(t(d.source === "winget" ? "Windows may ask for administrator rights." : "The system will ask for your password."))}</div>` : ""}`;
+  } else if (c.kind === "sys_startup") {
+    extra = `<pre class="cc-prev">${esc(d.command || "")}</pre><div class="cc-meta">${esc(t("It can be turned back on the same way."))}</div>`;
+  } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
+    if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
   } else if (c.kind.startsWith("drive_")) {
     if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
     if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));
@@ -1260,7 +1358,7 @@ function actCard(c) {
     if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
   }
   const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
-  const el = h(`<div class="cc"><div class="cc-h">${gh ? "🐙" : c.kind.startsWith("drive_") ? "☁️" : "📁"} <b>${esc(title)}</b></div>
+  const el = h(`<div class="cc"><div class="cc-h">${cardIcon(c.kind)} <b>${esc(title)}</b></div>
     ${meta.length ? `<div class="cc-meta">${esc(meta.join(" · "))}</div>` : ""}${prev}${extra}
     <div class="cc-foot"><span class="cc-q">${t("Lanterna will do this only after you confirm.")}</span>
       <button class="btn ghost small" data-a="no">${t("Cancel")}</button><button class="btn primary small" data-a="yes">${t("Confirm")}</button></div></div>`);
@@ -1278,11 +1376,17 @@ function actCard(c) {
     if (o) o.onclick = () => api.open_url(link);
     const ins = foot.querySelector("[data-inst]");
     if (ins) ins.onclick = () => api.open_url(d.install);
+    const undo = c.kind === "pc_sort" && r.state === "done" && d.undo;
+    if (undo && !foot.querySelector("[data-undo]")) {
+      const b = h(`<button class="btn ghost small" data-undo>${t("Undo")}</button>`);
+      foot.appendChild(b);
+      b.onclick = async () => { b.disabled = true; const u = await api.pc_undo(d.undo); b.replaceWith(h(`<span class="cc-q">${u.ok ? "↩ " : "⚠️ "}${esc(u.text)}</span>`)); };
+    }
   };
   if (c.state !== "pending") done(c);
   el.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => {
     el.querySelectorAll("[data-a]").forEach(x => x.disabled = true);
-    if (b.dataset.a === "yes") foot.querySelector(".cc-q").innerHTML = `<span class="spinner"></span>${t("Working…")}`;
+    if (b.dataset.a === "yes") foot.querySelector(".cc-q").innerHTML = `<span class="spinner"></span>${t(c.kind.startsWith("app_") ? "Installing… this can take a few minutes." : "Working…")}`;
     done(await (b.dataset.a === "yes" ? api.action_confirm(c.id) : api.action_cancel(c.id)));
   });
   return el;

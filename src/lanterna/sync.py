@@ -46,7 +46,7 @@ FILE_NAME = "lanterna-sync.bin"
 VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT = "google-sync-token", "google-sync-key", "google-sync-account"
 MAGIC = b"LNT1"
 # Settings that follow the user to every device (folders and local models belong to one computer).
-PREFS = ("mode", "provider", "models", "auto_cloud", "update_check")
+PREFS = ("mode", "provider", "models", "auto_cloud", "update_check", "pc_access")
 SIGN_IN_TIMEOUT = 300
 
 

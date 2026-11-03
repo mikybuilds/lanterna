@@ -137,7 +137,8 @@ class Actions:
 
 WAITING = ("Prepared. Nothing has been changed yet: the user now sees a card with this change and a Confirm button. "
            "Tell them in one short sentence what will happen when they confirm (future tense: 'it will be created', "
-           "never 'I created' or 'done').")
+           "'it will switch'). Do NOT start with 'Done', 'I did it', 'Зробив', 'Готово', 'Fatto' — it hasn't "
+           "happened yet.")
 
 
 # ---------------------------------------------------------------- the folder

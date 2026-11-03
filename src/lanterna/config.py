@@ -39,6 +39,7 @@ class Settings:
     prefs_at: float = 0                    # when the synced settings (sync.PREFS) last changed
     keys_at: dict = field(default_factory=dict)   # {"service": when its API key was saved or removed}
     sync_asked: bool = False               # the "sign in with Google" step was shown once
+    pc_access: bool = True                 # the assistant may look at the user's folders, programs and PC settings
     onboarded: bool = False
 
     @classmethod

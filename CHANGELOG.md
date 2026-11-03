@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.3 — one Google sign-in for everything, and help with your computer
+
+**New**
+- **Sign in with Google first**: right after picking the language, setup offers Sign in with Google (you can skip it; installs set up before see it once). After the sync password a new device gets your chats, settings and API keys and skips the rest of the setup.
+- Sync now also carries the main settings (mode, service, models) and the model services' API keys, inside the same file encrypted with your sync password. The newest change wins; a device that is already set up wins over a fresh install. Folders, local models and sign-ins stay on each device.
+- The same sign-in connects the Google Drive connector too, so there is no second sign-in. Disconnecting Drive keeps sync.
+- **Help with this computer** (Settings → Computer, on by default). Ask "sort my Downloads", "find duplicates on my Desktop", "install VLC", "my PC is slow", "turn on dark mode":
+  - Lanterna knows where your Downloads, Desktop, Documents, Pictures, Videos and Music are and looks there on its own. System folders, program folders, AppData and hidden files are off limits; files that look like passwords or keys are never opened.
+  - Sorting puts files into folders by type and/or month, skips files still downloading, and can be **undone** with one button.
+  - Moving, renaming, new folders and **Recycle Bin** (never deleted for good) each wait for Confirm.
+  - Programs: search, install, update and uninstall with **winget** on Windows, **dnf / Flatpak** on Linux. The card shows the publisher, version, source and the exact command before Confirm.
+  - Settings: a fixed list of safe actions only — light/dark theme, power plan, which apps start with the computer, opening a Settings page. Plus a read-only check-up: disk space, memory, what uses the processor now, what starts with the computer. No other commands are ever run.
+- Terminal app: the same Google step, the computer help, and the chat list follows sync without a restart.
+
+**Fixed**
+- Lanterna could say "Done" before you pressed Confirm; now it says what will happen.
+
 ## 0.3.2 — the new look shows up after updating
 
 **Fixed**

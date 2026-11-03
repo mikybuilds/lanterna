@@ -113,6 +113,16 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - No password or token is typed into Lanterna; the sign-in is kept in your system's vault. Files that look like passwords or keys (`.env`, private keys, API tokens inside) are never pushed.
 - Commits are yours; every one shows Lanterna Assistant as a co-author. That is only a name on the commit, not access.
 
+## Help with this computer
+
+**Settings → Computer** (on by default). Just ask: "sort my Downloads", "what takes the most space in Downloads?", "find duplicate photos", "install VLC", "update my programs", "my computer is slow", "turn on dark mode", "stop Discord from starting with Windows".
+
+- **Folders:** Lanterna finds your Downloads, Desktop, Documents, Pictures, Videos and Music by itself and may look there freely. System and program folders, AppData and hidden files are off limits, and files that look like passwords or keys are never opened.
+- **Changes wait for Confirm:** sorting into folders (by type or month — skips files still downloading, and has an **Undo** button), moving, renaming, new folders and moving to the **Recycle Bin**. Nothing is deleted for good.
+- **Programs:** search, install, update and uninstall with `winget` on Windows and `dnf` / Flatpak on Linux. The card shows the program, publisher, version, source and the exact command; the install starts only after Confirm.
+- **Settings:** only a fixed list of safe actions — theme, power plan, apps that start with the computer, opening a Settings page — plus a read-only check-up (free disk space, memory, what is using the processor). Lanterna never runs any other command.
+- File names and the files it opens go to the model in use, like a message (nowhere in Local mode).
+
 ## Limits and updates
 
 - The **bar under the message box** shows how much of the free limit of the model in use is left and when it resets; click it for the details.
@@ -165,7 +175,7 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 
 ## Privacy
 
-- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. The GitHub connector, if you connect it, can only write files in the repositories you chose, and only after you confirm. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
+- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. The GitHub connector, if you connect it, can only write files in the repositories you chose, and only after you confirm. Help with this computer (Settings → Computer) sees only your standard folders, and every change waits for Confirm. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions.

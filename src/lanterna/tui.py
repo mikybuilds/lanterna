@@ -22,7 +22,7 @@ from textual.widgets import (Button, Checkbox, DataTable, Footer, Input, Label, 
 from pathlib import Path
 
 from . import AUTHOR, __version__
-from .app import Api, action_title
+from .app import Api, action_title, card_text
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
 from .providers import PROVIDERS
@@ -235,24 +235,51 @@ class ActCard(Vertical):
     def compose(self) -> ComposeResult:
         lang, c = L(self.app), self.card
         d = c.get("details", {})
-        yield Static(("☁️ " if c["kind"].startswith("drive_") else "📁 ") + action_title(c["kind"], d, "", lang), markup=False)
+        k = c["kind"]
+        icon = ("☁️ " if k.startswith("drive_") else "🐙 " if k.startswith("github_") else "🗑 " if k == "pc_trash" else
+                "🗂 " if k.startswith("pc_") else "📦 " if k.startswith("app_") else "⚙️ " if k.startswith("sys_") else "📁 ")
+        yield Static(icon + action_title(k, d, "", lang), markup=False)
+        body = card_text(k, d, lang)
+        if body:
+            yield Static(body, classes="muted", markup=False)
         if d.get("preview"):
             yield Static(d["preview"][:600] + ("…" if len(d["preview"]) > 600 else ""), classes="muted", markup=False)
         yield Static(t("Lanterna will do this only after you confirm.", lang), classes="muted", id="actq", markup=False)
         with Horizontal(classes="row", id="actbtns"):
             yield Button(t("Confirm", lang), id="actyes", variant="primary")
             yield Button(t("Cancel", lang), id="actno")
+        yield Button(t("Undo", lang), id="actundo")
+
+    def on_mount(self) -> None:
+        self.query_one("#actundo").display = False
 
     @on(Button.Pressed, "#actyes")
     @on(Button.Pressed, "#actno")
     def _answer(self, ev: Button.Pressed) -> None:
-        api, lang = self.app.api, L(self.app)
-        r = api.action_confirm(self.card["id"]) if ev.button.id == "actyes" else api.action_cancel(self.card["id"])
+        api, lang, yes = self.app.api, L(self.app), ev.button.id == "actyes"
         self.query_one("#actbtns").display = False
+        if yes:
+            self.query_one("#actq", Static).update(t("Installing… this can take a few minutes." if self.card["kind"].startswith("app_")
+                                                     else "Working…", lang))
+
+        def work() -> None:                                   # installs take minutes: keep the app responsive
+            r = api.action_confirm(self.card["id"]) if yes else api.action_cancel(self.card["id"])
+            self.app.call_from_thread(self._show, r)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _show(self, r: dict) -> None:
+        lang = L(self.app)
         msg = ("✅ " + r.get("text", "") if r["state"] == "done" else t("Cancelled", lang) if r["state"] == "cancelled"
                else "⚠️ " + t("Couldn't do it: {error}", lang, error=r.get("result", "")) if r["state"] == "failed"
                else t("This card has expired. Ask again.", lang))
         self.query_one("#actq", Static).update(msg)
+        self.query_one("#actundo").display = self.card["kind"] == "pc_sort" and r["state"] == "done"
+
+    @on(Button.Pressed, "#actundo")
+    def _undo(self) -> None:
+        r = self.app.api.pc_undo(self.card.get("details", {}).get("undo", ""))
+        self.query_one("#actundo").display = False
+        self.query_one("#actq", Static).update(("↩ " if r["ok"] else "⚠️ ") + r["text"])
 
 
 class ConfirmScreen(ModalScreen[bool]):
@@ -748,6 +775,9 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Stop using it", lang), id="wdoff")
             yield Label(t("Limits", lang), classes="h")
             yield Static("", id="limits", classes="muted")
+            yield Label(t("Computer", lang), classes="h")
+            yield Checkbox(t("Let Lanterna help with this computer", lang), self.app.api.settings.pc_access, id="pcaccess")
+            yield Static(t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -944,6 +974,10 @@ class SettingsScreen(ModalScreen[str]):
             self.app.push_screen(LocalScreen())
         elif bid == "close":
             self.action_close()
+
+    @on(Checkbox.Changed, "#pcaccess")
+    def _pc_access(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"pc_access": ev.value})
 
     @on(Checkbox.Changed, "#updcheck")
     def _update_check(self, ev: Checkbox.Changed) -> None:

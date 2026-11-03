@@ -103,6 +103,10 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .mode-row { display: flex; flex-direction: row; align-items: center; gap: 14px; }
 .mode-row p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
 .back { margin-top: 22px; color: var(--muted); font-size: 14px; }
+.cc-groups { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 4px; }
+.cc-groups summary { cursor: pointer; padding: 3px 0; list-style-position: inside; }
+.cc-groups .cc-prev { margin-top: 4px; max-height: 160px; }
+.cc-desc { margin: 6px 0 2px; color: var(--muted); font-size: 13.5px; }
 .sync-card { width: 100%; max-width: 470px; padding: 20px 22px; text-align: left; cursor: default; }
 .sync-card .sync-p { margin-top: 0; }
 .sync-card #sync-in { width: 100%; margin-top: 6px; }

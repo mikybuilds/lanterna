@@ -53,9 +53,13 @@ class Api:
         self.workspace = Workspace(lambda: self._folder_for(self.actions.tid()), self.actions)
         self.drive = gdrive.Connector()
         self.github = github.Connector()
+        from . import apps, pcfiles, pcsys
+        self.places = pcfiles.Places(self.actions, lang=lambda: self.settings.lang)
+        self.apps = apps.Apps(self.actions)
+        self.system = pcsys.System(self.actions)
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
-                               + github.github_tools(self.github, self.workspace, self.actions))
+                               + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools())
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._lock = threading.Lock()
@@ -90,10 +94,10 @@ class Api:
         }
 
     def save_settings(self, patch: dict) -> dict:
-        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked"}
+        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access"}
         for k, v in (patch or {}).items():
             if k in allowed:
-                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked") else v)
+                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -134,6 +138,38 @@ class Api:
             self._key_changed(provider)
             self._router = None
         return self.state()
+
+    def _pc_tools(self) -> list:
+        if not self.settings.pc_access:
+            return []
+        from .apps import app_tools
+        from .pcfiles import place_tools
+        from .pcsys import system_tools
+        out = []
+        for group, make in (("pc", lambda: place_tools(self.places)), ("apps", lambda: app_tools(self.apps)),
+                            ("sys", lambda: system_tools(self.system))):
+            try:
+                tools = make()
+            except Exception:                              # noqa: BLE001  a missing tool never breaks the chat
+                tools = []
+            for tl in tools:
+                tl.group = group
+            out += tools
+        return out
+
+    def pc_undo(self, sort_id: str) -> dict:
+        """The Undo button of a finished sort card."""
+        from .workspace import WorkError
+        lang = self.settings.lang
+        try:
+            self.places.undo_sort(str(sort_id))
+        except WorkError:
+            return {"ok": False, "text": t("This sort can't be undone any more (Lanterna was restarted or it was undone already).", lang)}
+        back, left = self.places.last_undo
+        text = t("{n} files are back where they were.", lang, n=back)
+        if left:
+            text += " " + t("{n} had been moved or changed since and stayed.", lang, n=left)
+        return {"ok": True, "text": text}
 
     def _key_changed(self, provider: str) -> None:
         self.settings.keys_at = {**(self.settings.keys_at or {}), provider: time.time()}
@@ -609,12 +645,61 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "drive_upload": ("Upload {path} to Google Drive", "Uploaded {path} to Google Drive"),
             "drive_text": ("Save {name} to Google Drive", "Saved {name} to Google Drive"),
             "github_push": ("Push {count} files to {repo}", "Pushed {count} files to {repo}"),
-            "github_new_repo": ("Create the repository {name} on GitHub", "Opened GitHub to create {name}")}
-    out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang,
-            **{k: str(d.get(k, "")) for k in ("path", "to", "name", "repo", "count")})
+            "github_new_repo": ("Create the repository {name} on GitHub", "Opened GitHub to create {name}"),
+            "pc_sort": ("Sort {count} files in {place}", "Sorted {count} files in {place}"),
+            "pc_move": ("Move {count} items to {to}", "Moved {count} items to {to}"),
+            "pc_rename": ("Rename {path} → {to}", "Renamed {path} → {to}"),
+            "pc_mkdir": ("Create the folder {path}", "Created the folder {path}"),
+            "pc_trash": ("Move {count} items to the Recycle Bin", "Moved {count} items to the Recycle Bin"),
+            "app_install": ("Install {name}", "Installed {name}"), "app_upgrade": ("Update {name}", "Updated {name}"),
+            "app_uninstall": ("Remove {name}", "Removed {name}"),
+            "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
+            "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
+            "sys_startup": (("Start {name} with the computer", "{name} starts with the computer") if d.get("on") else
+                            ("Don't start {name} with the computer", "{name} no longer starts with the computer"))}
+    place = t(str(d.get("place", "")).title(), lang) if d.get("place") else ""
+    to = d.get("to", "")
+    if kind == "pc_move" and d.get("to_place"):
+        to = t(str(d["to_place"]).title(), lang) + ("" if to in ("", ".") else "/" + to)
+    out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang, place=place,
+            **{k: str(to if k == "to" else d.get(k, "")) for k in ("path", "to", "name", "repo", "count")})
     if kind == "write_replace" and "(" in (result or ""):
         out += " " + result[result.index("("):]
     return out + (f" — {link}" if link.startswith("https://") else "")
+
+
+def card_text(kind: str, d: dict, lang: str) -> str:
+    """The body of a card in plain text (terminal app)."""
+    lines = []
+    if kind == "pc_sort":
+        for g in d.get("groups", []):
+            lines.append(f"📁 {g['to']} — {g['count']}: " + ", ".join(g["files"][:6]) + (" …" if g["count"] > 6 else ""))
+        if d.get("skipped"):
+            lines.append(t("{n} files still downloading are left alone.", lang, n=d["skipped"]))
+        lines.append(t("You can undo the sort afterwards.", lang))
+    elif kind in ("pc_move", "pc_trash"):
+        files = d.get("files", [])
+        lines.append(", ".join(files[:12]) + (f" … +{d.get('count', 0) - 12}" if d.get("count", 0) > 12 else ""))
+        if kind == "pc_trash":
+            if d.get("reason"):
+                lines.append(t("Reason: {r}", lang, r=d["reason"]))
+            lines.append(t("They go to the Recycle Bin: you can restore them from there.", lang))
+    elif kind.startswith("app_"):
+        bits = [t("Publisher: {p}", lang, p=d["publisher"]) if d.get("publisher") else "",
+                t("Version {v}", lang, v=d["version"]) if d.get("version") else "", t("from {s}", lang, s=d.get("source", ""))]
+        lines.append(" · ".join(b for b in bits if b))
+        if d.get("description"):
+            lines.append(d["description"][:200])
+        lines.append(f"$ {d.get('command', '')}")
+        if d.get("admin"):
+            lines.append(t("Windows may ask for administrator rights." if d.get("source") == "winget"
+                           else "The system will ask for your password.", lang))
+    elif kind == "sys_startup":
+        lines.append(d.get("command", "")[:160])
+        lines.append(t("It can be turned back on the same way.", lang))
+    elif kind in ("sys_theme", "sys_power") and d.get("was"):
+        lines.append(t("Now: {x}", lang, x=t(d["was"], lang)))
+    return "\n".join(x for x in lines if x)
 
 
 _FILE_BLOCK = re.compile(r"\[File: ([^\]\n]+)\]\n```\n.*?\n```(?:\n\[…file cut, too long\])?", re.S)

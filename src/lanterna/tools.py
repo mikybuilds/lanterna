@@ -34,6 +34,7 @@ class Tool:
     parameters: dict
     run: Callable[..., str]
     label: str                       # short text the UI shows while it runs
+    group: str = ""                  # "" = always offered; otherwise only when the talk is about it (see GROUPS)
 
     def schema(self) -> dict:
         return {"type": "function", "function": {"name": self.name, "description": self.description,
@@ -287,6 +288,21 @@ def parse_when(at: str = "", in_minutes: float = 0, now: dt.datetime | None = No
     return None
 
 
+GROUPS = {
+    "pc": re.compile(r"завантаж|скачан|download|робоч\w* стол|desktop|документ|document|зображен|картинк|фотк|pictures|"
+                     r"відео|video|музик|music|папк|folder|файл|file|сорт|розклад|розбер|прибер|навед\w* поряд|дублікат|"
+                     r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
+                     r"cestino|elimina|sort|organi[sz]e|clean ?up|tidy", re.I),
+    "apps": re.compile(r"встанов|установ|інстал|install|програм|додат|застосун|\bapp|онов|update|upgrade|uninstall|winget|"
+                       r"flatpak|dnf\b|installa|aggiorna|programm|applicazion|software|видали", re.I),
+    "sys": re.compile(r"\bпк\b|\bpc\b|комп.ютер|computer|ноутбук|laptop|гальм|лаг|повільн|тормоз|slow|lent|"
+                      r"автозапуск|startup|avvio|тем(а|у|н)|theme|dark|light|світл|живлен|power|energia|батаре|battery|"
+                      r"диск|disk|місц|space|spazio|пам.ят|ram\b|memor|процесор|cpu|processor|налашт|настро|setting|"
+                      r"impostaz|bluetooth|wi-?fi|звук|sound|audio|екран|display|schermo|характеристик|specs?\b|відеокарт|"
+                      r"gpu|видеокарт|оновлен|windows|fedora|linux", re.I),
+}
+
+
 class Toolbox:
     """The tools for one app session. Memory and reminders live in the local database (store)."""
 
@@ -300,8 +316,11 @@ class Toolbox:
     def tools(self) -> dict[str, Tool]:
         return {**self._base, **{t.name: t for t in self._extra()}}
 
-    def schemas(self) -> list[dict]:
-        return [t.schema() for t in self.tools.values()]
+    def schemas(self, context: str | None = None) -> list[dict]:
+        """All tools, except groups (the user's folders, programs, the PC) the recent messages don't touch:
+        every tool description costs tokens on free plans, and small models choose better from a short list."""
+        on = None if context is None else {g for g, rx in GROUPS.items() if rx.search(context)}
+        return [t.schema() for t in self.tools.values() if not t.group or on is None or t.group in on]
 
     def run(self, name: str, arguments: str) -> str:
         tool = self.tools.get(name)
