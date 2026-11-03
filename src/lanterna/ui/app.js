@@ -223,6 +223,77 @@ const STR = {
   "Sign out and delete the copy in Google Drive": { uk: "Вийти й видалити копію з Google Drive", it: "Esci ed elimina la copia su Google Drive" },
   "Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.": { uk: "Видалити зашифровану копію чатів з Google Drive? Чати на цьому пристрої залишаться.", it: "Eliminare la copia cifrata delle chat da Google Drive? Le chat su questo dispositivo restano." },
   "Couldn't sync: {error}": { uk: "Не вдалося синхронізувати: {error}", it: "Sincronizzazione non riuscita: {error}" },
+  "(tried {n} models)": { uk: "(спробував {n} моделей)", it: "(provati {n} modelli)" },
+  "Requests today: {n}": { uk: "Запитів сьогодні: {n}", it: "Richieste oggi: {n}" },
+  "Refused: {n}": { uk: "Відхилено: {n}", it: "Rifiutate: {n}" },
+  "Update now": { uk: "Оновити зараз", it: "Aggiorna ora" },
+  "Update by hand": { uk: "Оновити вручну", it: "Aggiorna a mano" },
+  "Lanterna downloads the update, checks it, installs it over this version and opens again. Your chats, settings and keys stay as they are.": { uk: "Lanterna завантажить оновлення, перевірить його, встановить поверх цієї версії й відкриється знову. Чати, налаштування й ключі залишаться як є.", it: "Lanterna scarica l'aggiornamento, lo controlla, lo installa sopra questa versione e si riapre. Chat, impostazioni e chiavi restano come sono." },
+  "Downloading the update… {done} of {total} MB": { uk: "Завантажую оновлення… {done} з {total} МБ", it: "Scarico l'aggiornamento… {done} di {total} MB" },
+  "Installing… Lanterna will close and open again in a moment.": { uk: "Встановлюю… Lanterna зараз закриється й відкриється знову.", it: "Installo… Lanterna si chiuderà e si riaprirà tra un attimo." },
+  "The update didn't work: {error}": { uk: "Оновлення не вдалося: {error}", it: "L'aggiornamento non è riuscito: {error}" },
+  "This version keeps working. You can update by hand.": { uk: "Ця версія працює далі. Можна оновити вручну.", it: "Questa versione continua a funzionare. Puoi aggiornare a mano." },
+  "Limits": { uk: "Ліміти", it: "Limiti" },
+  "How much of the free limits is left. Counted on this computer from what the services answer; nothing is sent.": { uk: "Скільки залишилось безкоштовних лімітів. Рахується на цьому комп'ютері з того, що відповідають сервіси; нічого нікуди не надсилається.", it: "Quanto resta dei limiti gratuiti. Calcolato su questo computer da ciò che rispondono i servizi; non viene inviato nulla." },
+  "No requests to online models yet today.": { uk: "Сьогодні ще не було запитів до онлайн-моделей.", it: "Oggi ancora nessuna richiesta ai modelli online." },
+  "{n} requests today": { uk: "{n} запитів сьогодні", it: "{n} richieste oggi" },
+  "{n} refused": { uk: "{n} відхилено", it: "{n} rifiutate" },
+  "{left} of {limit} left today": { uk: "сьогодні залишилось {left} з {limit}", it: "oggi ne restano {left} su {limit}" },
+  "full again in {t}": { uk: "оновиться через {t}", it: "si ricarica tra {t}" },
+  "resting, back in {t}": { uk: "відпочиває, повернеться через {t}", it: "in pausa, torna tra {t}" },
+  "The service doesn't say how much is left; it is shown when the limit is reached.": { uk: "Сервіс не каже, скільки залишилось; це буде видно, коли ліміт закінчиться.", it: "Il servizio non dice quanto resta; si vedrà quando il limite sarà raggiunto." },
+  "Requests left today": { uk: "Запитів на сьогодні", it: "Richieste rimaste oggi" },
+  "Requests left this minute": { uk: "Запитів на цю хвилину", it: "Richieste rimaste in questo minuto" },
+  "Requests left this hour": { uk: "Запитів на цю годину", it: "Richieste rimaste in quest'ora" },
+  "Requests left this month": { uk: "Запитів на цей місяць", it: "Richieste rimaste questo mese" },
+  "Requests left": { uk: "Залишилось запитів", it: "Richieste rimaste" },
+  "Tokens left today": { uk: "Токенів на сьогодні", it: "Token rimasti oggi" },
+  "Tokens left this minute": { uk: "Токенів на цю хвилину", it: "Token rimasti in questo minuto" },
+  "Tokens left this hour": { uk: "Токенів на цю годину", it: "Token rimasti in quest'ora" },
+  "Tokens left this month": { uk: "Токенів на цей місяць", it: "Token rimasti questo mese" },
+  "Tokens left": { uk: "Залишилось токенів", it: "Token rimasti" },
+  "{n} s": { uk: "{n} с", it: "{n} s" },
+  "{n} min": { uk: "{n} хв", it: "{n} min" },
+  "{n} h": { uk: "{n} год", it: "{n} h" },
+  "Working folder": { uk: "Робоча папка", it: "Cartella di lavoro" },
+  "Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.": { uk: "Lanterna може переглядати файли в одній папці, яку ти вибереш, і створювати чи змінювати там файли після того, як ти підтвердиш кожну зміну. Вона нічого не видаляє й не бачить нічого поза цією папкою.", it: "Lanterna può guardare i file in una cartella che scegli tu, e creare o modificare file lì dopo che confermi ogni modifica. Non elimina mai nulla e non vede nulla fuori da questa cartella." },
+  "The files it opens are sent to the model in use (to the online service in Cloud mode).": { uk: "Файли, які вона відкриває, надсилаються моделі, що зараз працює (у хмарному режимі — онлайн-сервісу).", it: "I file che apre vengono inviati al modello in uso (al servizio online in modalità Cloud)." },
+  "Choose a folder": { uk: "Вибрати папку", it: "Scegli una cartella" },
+  "Stop using it": { uk: "Більше не використовувати", it: "Non usarla più" },
+  "Folder path": { uk: "Шлях до папки", it: "Percorso della cartella" },
+  "No folder chosen.": { uk: "Папку не вибрано.", it: "Nessuna cartella scelta." },
+  "not found": { uk: "не знайдено", it: "non trovata" },
+  "There is no such folder.": { uk: "Такої папки немає.", it: "Questa cartella non esiste." },
+  "Choose a smaller folder: not a whole disk, your whole home folder or a system folder.": { uk: "Вибери меншу папку: не цілий диск, не всю домашню папку й не системну.", it: "Scegli una cartella più piccola: non un intero disco, non tutta la cartella home né una cartella di sistema." },
+  "Create {path}": { uk: "Створити {path}", it: "Creare {path}" },
+  "Rewrite {path}": { uk: "Переписати {path}", it: "Riscrivere {path}" },
+  "Add to {path}": { uk: "Дописати в {path}", it: "Aggiungere a {path}" },
+  "Create the folder {path}": { uk: "Створити папку {path}", it: "Creare la cartella {path}" },
+  "Move {path} → {to}": { uk: "Перемістити {path} → {to}", it: "Spostare {path} → {to}" },
+  "Create the folder {name} in Google Drive": { uk: "Створити папку {name} у Google Drive", it: "Creare la cartella {name} su Google Drive" },
+  "Upload {path} to Google Drive": { uk: "Завантажити {path} у Google Drive", it: "Caricare {path} su Google Drive" },
+  "Save {name} to Google Drive": { uk: "Зберегти {name} у Google Drive", it: "Salvare {name} su Google Drive" },
+  "Cancelled: {what}": { uk: "Скасовано: {what}", it: "Annullato: {what}" },
+  "Cancelled": { uk: "Скасовано", it: "Annullato" },
+  "Couldn't do it: {error}": { uk: "Не вдалося: {error}", it: "Non è riuscito: {error}" },
+  "Lanterna will do this only after you confirm.": { uk: "Lanterna зробить це тільки після твого підтвердження.", it: "Lanterna lo farà solo dopo la tua conferma." },
+  "Confirm": { uk: "Підтвердити", it: "Conferma" },
+  "Done": { uk: "Готово", it: "Fatto" },
+  "Working…": { uk: "Виконую…", it: "Eseguo…" },
+  "This card has expired. Ask again.": { uk: "Ця картка застаріла. Попроси ще раз.", it: "Questa scheda è scaduta. Chiedi di nuovo." },
+  "{n} characters": { uk: "{n} символів", it: "{n} caratteri" },
+  "Folder in Google Drive: {f}": { uk: "Папка в Google Drive: {f}", it: "Cartella su Google Drive: {f}" },
+  "Folder in Google Drive: My Drive": { uk: "Папка в Google Drive: Мій диск", it: "Cartella su Google Drive: Il mio Drive" },
+  "as a Google Doc": { uk: "як Google Документ", it: "come documento Google" },
+  "as a text file": { uk: "як текстовий файл", it: "come file di testo" },
+  "Open in Google Drive": { uk: "Відкрити в Google Drive", it: "Apri su Google Drive" },
+  "Connectors": { uk: "Конектори", it: "Connettori" },
+  "Connect": { uk: "Підключити", it: "Collega" },
+  "Disconnect": { uk: "Відключити", it: "Scollega" },
+  "Connected": { uk: "Підключено", it: "Collegato" },
+  "Connected as {account}": { uk: "Підключено як {account}", it: "Collegato come {account}" },
+  "Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.": { uk: "Помічник зможе створювати папки й зберігати файли у твоєму Google Drive після того, як ти підтвердиш кожну дію. Він бачить тільки те, що створив сам.", it: "L'assistente potrà creare cartelle e salvare file nel tuo Google Drive, dopo che confermi ogni azione. Vede solo ciò che ha creato lui." },
+  "Google Drive was disconnected. Connect it again.": { uk: "Google Drive відключено. Підключи його знову.", it: "Google Drive è stato scollegato. Collegalo di nuovo." },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -701,16 +772,26 @@ async function send(retryText) {
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`; else bot.remove();
     return;
   }
-  let text_ = "", offset = 0, notes = 0, tools = 0;
+  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0;
   const chips = h(`<div class="tools"></div>`);
   bot.querySelector(".body").prepend(chips);
+  const acts = h(`<div class="ccs"></div>`);
+  bot.querySelector(".md").after(acts);
   const step = async () => {
     let p;
     try { p = await api.poll(r.stream, offset); } catch (e) { p = { done: true, error: { kind: "network", message: String(e) } }; }
-    (p.notes || []).slice(notes).forEach(m => { bot.before(h(`<div class="switch">↪ ${esc(t("switched to {m}", { m }))}</div>`)); setModel(m); });
+    (p.notes || []).slice(notes).forEach((m, i) => {   // one line, updated: not a ladder of "switched to" notes
+      let sw = bot.previousElementSibling;
+      if (!sw || !sw.classList.contains("switch")) { sw = h(`<div class="switch"></div>`); bot.before(sw); }
+      const tried = notes + i + 2;                        // the first model plus every switch so far
+      sw.textContent = "↪ " + t("switched to {m}", { m }) + (tried > 2 ? " " + t("(tried {n} models)", { n: tried }) : "");
+      setModel(m);
+    });
     notes = (p.notes || []).length;
     (p.tools || []).slice(tools).forEach(s => chips.insertAdjacentHTML("beforeend", toolChip(s)));
     tools = (p.tools || []).length;
+    (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
+    cards = (p.cards || []).length;
     if (p.final !== undefined) { text_ = p.final; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown();
@@ -765,6 +846,9 @@ function openSettings() {
         ${p.has_key ? `<button class="btn ghost small" data-act="rm">${t("Remove")}</button>` : ""}
         <button class="btn ${p.has_key ? "ghost" : "primary"} small" data-act="add">${p.has_key ? t("Change") : t("Add")}</button>
       </div>`).join("")}</div>
+      <h4 style="margin-top:22px;display:flex;align-items:center">${t("Limits")}<button class="btn ghost small" id="lim-refresh" style="margin-left:auto">${icon("refresh")}</button></h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("How much of the free limits is left. Counted on this computer from what the services answer; nothing is sent.")}</p>
+      <div id="limits"></div>
       <h4 style="margin-top:22px">${t("Memory")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Facts Lanterna remembers about you. They stay on this computer and are sent to the model with each message.")}</p>
       <div id="facts"></div>
@@ -772,11 +856,15 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Reminders")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>
       <div id="rems"></div>
+      <h4 style="margin-top:22px">${t("Working folder")}</h4>
+      <div id="workdir"></div>
       <h4 style="margin-top:22px">${t("Updates")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
         <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Account and sync")}</h4>
       <div id="sync"></div>
+      <h4 style="margin-top:22px">${t("Connectors")}</h4>
+      <div id="connectors"></div>
       <h4 style="margin-top:22px">${t("Found a bug?")}</h4>
       <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
       <button class="btn ghost small" id="set-bug">${t("Report a bug")}</button>
@@ -800,6 +888,10 @@ function openSettings() {
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();
     syncPanel($("#sync", body));
+    limitsPanel($("#limits", body));
+    $("#lim-refresh", body).onclick = () => limitsPanel($("#limits", body));
+    workdirPanel($("#workdir", body));
+    connectorsPanel($("#connectors", body));
     if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
@@ -881,19 +973,43 @@ function showUpdate(u) {
   const v = dialog(t("Lanterna {v} is out", { v: u.latest }), `<section class="upd">
     <p class="muted" style="margin:0 0 14px">${t("You have {v}.", { v: esc(u.current) })}</p>
     ${notes ? `<h4>${t("What's new")}</h4><ul class="upd-notes">${notes}</ul>` : ""}
-    <h4>${t("How to update")}</h4>
-    <ol class="upd-steps">${steps}</ol>
+    ${u.auto ? `<p class="upd-auto" id="upd-auto">${t("Lanterna downloads the update, checks it, installs it over this version and opens again. Your chats, settings and keys stay as they are.")}</p>
+      <details class="upd-hand"><summary>${t("Update by hand")}</summary><ol class="upd-steps">${steps}</ol></details>`
+      : `<h4>${t("How to update")}</h4><ol class="upd-steps">${steps}</ol>`}
     ${cmdShown ? "" : cmd}
     <div class="upd-actions">
       <button class="btn ghost" id="upd-page">${t("Release page")} ${icon("ext")}</button>
       <span style="flex:1"></span>
       <button class="btn ghost" id="upd-later">${t("Later")}</button>
-      ${u.download ? `<button class="btn primary" id="upd-dl">${t("Download")}</button>` : ""}
+      ${u.download ? `<button class="btn ${u.auto ? "ghost" : "primary"}" id="upd-dl">${t("Download")}</button>` : ""}
+      ${u.auto ? `<button class="btn primary" id="upd-now">${t("Update now")}</button>` : ""}
     </div></section>`);
   $("#upd-page", v).onclick = () => api.open_url(u.url);
   $("#upd-later", v).onclick = () => v.remove();
   const dl = $("#upd-dl", v);
   if (dl) dl.onclick = () => api.open_url(u.download);
+  const now = $("#upd-now", v);
+  if (now) now.onclick = async () => {
+    now.disabled = true; if (dl) dl.disabled = true;
+    const box = $("#upd-auto", v);
+    const mb = n => (n / 1048576).toFixed(1);
+    const tick = st => {
+      if (st.phase === "downloading") {
+        const pct = st.total ? Math.round(st.done * 100 / st.total) : 0;
+        box.innerHTML = `<span class="spinner"></span>${t("Downloading the update… {done} of {total} MB", { done: mb(st.done), total: st.total ? mb(st.total) : "?" })}
+          <span class="upd-bar"><i style="width:${pct}%"></i></span>`;
+      } else if (st.phase === "installing") {
+        box.innerHTML = `<span class="spinner"></span>${t("Installing… Lanterna will close and open again in a moment.")}`;
+        return;
+      } else if (st.phase === "error") {
+        box.innerHTML = `<span class="sync-err">${esc(t("The update didn't work: {error}", { error: st.error }))}</span> ${t("This version keeps working. You can update by hand.")}`;
+        now.disabled = false; if (dl) dl.disabled = false;
+        return;
+      }
+      setTimeout(async () => tick(await api.update_status()), 400);
+    };
+    tick(await api.update_install());
+  };
   const cp = $("#upd-copy", v);
   if (cp) cp.onclick = async () => {
     try { await navigator.clipboard.writeText(u.command); }
@@ -904,6 +1020,119 @@ function showUpdate(u) {
     cp.textContent = t("Copied");
   };
   return v;
+}
+
+// ---------------------------------------------------------------- confirmation cards
+const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", write_append: "Add to {path}",
+  mkdir: "Create the folder {path}", move: "Move {path} → {to}", drive_folder: "Create the folder {name} in Google Drive",
+  drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive" };
+
+function actCard(c) {
+  const d = c.details || {};
+  const title = t(ACT_KEYS[c.kind] || "Change", { path: d.path || "", to: d.to || "", name: d.name || "" });
+  const meta = [];
+  if (c.kind.startsWith("drive_")) {
+    if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
+    if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));
+    if (d.size != null) meta.push((d.size / 1048576).toFixed(1) + " MB");
+  } else if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
+  const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
+  const el = h(`<div class="cc"><div class="cc-h">${c.kind.startsWith("drive_") ? "☁️" : "📁"} <b>${esc(title)}</b></div>
+    ${meta.length ? `<div class="cc-meta">${esc(meta.join(" · "))}</div>` : ""}${prev}
+    <div class="cc-foot"><span class="cc-q">${t("Lanterna will do this only after you confirm.")}</span>
+      <button class="btn ghost small" data-a="no">${t("Cancel")}</button><button class="btn primary small" data-a="yes">${t("Confirm")}</button></div></div>`);
+  const foot = el.querySelector(".cc-foot");
+  const done = r => {
+    const link = (r.result || "").includes("|https://") ? r.result.split("|")[1] : "";
+    const msg = r.state === "done" ? "✅ " + esc(r.text || t("Done"))
+      : r.state === "cancelled" ? esc(t("Cancelled"))
+      : r.state === "failed" ? `<span class="sync-err">⚠️ ${esc(t("Couldn't do it: {error}", { error: r.result }))}</span>`
+      : esc(t("This card has expired. Ask again."));
+    foot.innerHTML = `<span class="cc-q">${msg.replace(/ — https:\/\/\S+$/, "")}</span>${link ? `<button class="btn ghost small" data-open>${t("Open in Google Drive")} ${icon("ext")}</button>` : ""}`;
+    const o = foot.querySelector("[data-open]");
+    if (o) o.onclick = () => api.open_url(link);
+  };
+  if (c.state !== "pending") done(c);
+  el.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => {
+    el.querySelectorAll("[data-a]").forEach(x => x.disabled = true);
+    if (b.dataset.a === "yes") foot.querySelector(".cc-q").innerHTML = `<span class="spinner"></span>${t("Working…")}`;
+    done(await (b.dataset.a === "yes" ? api.action_confirm(c.id) : api.action_cancel(c.id)));
+  });
+  return el;
+}
+
+// ---------------------------------------------------------------- working folder
+async function workdirPanel(box) {
+  if (!box || !box.isConnected) return;
+  const w = await api.workdir();
+  const errs = { not_found: t("There is no such folder."), too_broad: t("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.") };
+  box.innerHTML = `<p class="muted sync-p">${t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.")}
+      ${t("The files it opens are sent to the model in use (to the online service in Cloud mode).")}</p>
+    ${w.path ? `<div class="row"><div class="grow"><b>📁 ${esc(w.name || w.path)}</b><small>${esc(w.path)}${w.missing ? " · " + t("not found") : ""}</small></div>
+      <button class="btn ghost small" id="wd-off">${t("Stop using it")}</button><button class="btn ghost small" id="wd-pick">${t("Change")}</button></div>`
+      : `<button class="btn primary small" id="wd-pick">${t("Choose a folder")}</button>`}
+    <div class="keyrow" id="wd-row" style="display:none"><div class="wrap"><input class="field" id="wd-path" placeholder="${t("Folder path")}"></div><button class="btn ghost" id="wd-save" style="height:48px">${t("Save")}</button></div>
+    <p class="sync-err" id="wd-err"></p>`;
+  const show = r => { if (r.ok) workdirPanel(box); else if (r.error !== "cancelled") $("#wd-err", box).textContent = errs[r.error] || r.error; };
+  $("#wd-pick", box).onclick = async () => {
+    const r = await api.pick_folder();
+    if (r.error === "no_dialog") { $("#wd-row", box).style.display = ""; $("#wd-path", box).focus(); return; }
+    show(r);
+  };
+  $("#wd-save", box).onclick = async () => show(await api.set_workdir($("#wd-path", box).value));
+  const off = $("#wd-off", box);
+  if (off) off.onclick = async () => show(await api.set_workdir(""));
+}
+
+// ---------------------------------------------------------------- connectors
+async function connectorsPanel(box) {
+  if (!box || !box.isConnected) return;
+  const st = await api.drive_status();
+  const again = ms => setTimeout(() => connectorsPanel(box), ms);
+  const err = st.error ? `<p class="sync-err">${esc(st.error === "signed_out" ? t("Google Drive was disconnected. Connect it again.") : st.error)}</p>` : "";
+  const head = `<div class="row"><div class="grow"><b>☁️ Google Drive</b><small class="plain">${st.phase === "ready" ? esc(st.account ? t("Connected as {account}", { account: st.account }) : t("Connected"))
+    : t("Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.")}</small></div>
+    ${st.phase === "ready" ? `<button class="btn ghost small" id="gd-off">${t("Disconnect")}</button>`
+      : st.phase === "waiting" ? `<button class="btn ghost small" id="gd-cancel">${t("Cancel")}</button>`
+      : `<button class="btn primary small" id="gd-on">${t("Connect")}</button>`}</div>`;
+  const wait = st.phase === "waiting" ? `<p class="muted sync-p"><span class="spinner"></span>${t("Finish signing in in your browser…")}
+      ${st.url ? `<button class="btn ghost small" id="gd-copy">${t("Copy link")}</button>` : ""}</p>` : "";
+  box.innerHTML = head + wait + err;
+  const on = $("#gd-on", box), off = $("#gd-off", box), cancel = $("#gd-cancel", box), cp = $("#gd-copy", box);
+  if (on) on.onclick = async () => { await api.drive_connect(); connectorsPanel(box); };
+  if (off) off.onclick = async () => { await api.drive_disconnect(); connectorsPanel(box); };
+  if (cancel) cancel.onclick = async () => { await api.drive_cancel(); again(600); };
+  if (cp) cp.onclick = async () => { await copyText(st.url); cp.textContent = t("Copied"); };
+  if (st.phase === "waiting") again(1000);
+}
+
+// ---------------------------------------------------------------- limits
+function fmtSecs(s) {
+  if (s == null) return "";
+  if (s < 90) return t("{n} s", { n: Math.max(1, Math.round(s)) });
+  if (s < 5400) return t("{n} min", { n: Math.round(s / 60) });
+  return t("{n} h", { n: Math.round(s / 3600) });
+}
+
+async function limitsPanel(box) {
+  if (!box || !box.isConnected) return;
+  const rows = await api.limits();
+  if (!rows.length) { box.innerHTML = `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No requests to online models yet today.")}</p>`; return; }
+  const LBL = {
+    "requests:day": "Requests left today", "requests:minute": "Requests left this minute", "requests:hour": "Requests left this hour",
+    "requests:month": "Requests left this month", "requests:": "Requests left",
+    "tokens:day": "Tokens left today", "tokens:minute": "Tokens left this minute", "tokens:hour": "Tokens left this hour",
+    "tokens:month": "Tokens left this month", "tokens:": "Tokens left" };
+  box.innerHTML = `<div class="limits">${rows.map(r => {
+    const parts = [];
+    if (r.limit) parts.push(`<b>${t("{left} of {limit} left today", { left: r.resting ? 0 : Math.max(0, r.limit - r.used), limit: r.limit })}</b>`);
+    r.left.forEach(x => parts.push(`${t(LBL[x.kind + ":" + x.period] || "Requests left")}: <b>${x.remaining.toLocaleString()}</b>${x.limit ? " / " + x.limit.toLocaleString() : ""}${x.reset_in != null ? ` <span class="faint">· ${t("full again in {t}", { t: fmtSecs(x.reset_in) })}</span>` : ""}`));
+    if (!r.limit && !r.left.length && !r.resting) parts.push(`<span class="faint">${t("The service doesn't say how much is left; it is shown when the limit is reached.")}</span>`);
+    if (r.resting) parts.unshift(`<span class="amber-t">${t("resting, back in {t}", { t: fmtSecs(r.resting) })}</span>`);
+    return `<div class="limrow"><div class="nm"><small>${esc(r.service)}</small>${esc(r.model)}</div>
+      <div class="lnum">${t("Requests today: {n}", { n: r.used })}${r.refused ? ` · <span class="amber-t">${t("Refused: {n}", { n: r.refused })}</span>` : ""}</div>
+      <div class="ldet">${parts.join("<br>")}</div></div>`;
+  }).join("")}</div>`;
 }
 
 // ---------------------------------------------------------------- Google sign-in & sync

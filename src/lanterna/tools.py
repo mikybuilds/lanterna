@@ -290,9 +290,15 @@ def parse_when(at: str = "", in_minutes: float = 0, now: dt.datetime | None = No
 class Toolbox:
     """The tools for one app session. Memory and reminders live in the local database (store)."""
 
-    def __init__(self, store, lang: Callable[[], str] = lambda: "en", now: Callable[[], dt.datetime] = dt.datetime.now):
+    def __init__(self, store, lang: Callable[[], str] = lambda: "en", now: Callable[[], dt.datetime] = dt.datetime.now,
+                 extra: Callable[[], list[Tool]] | None = None):
         self.store, self._lang, self._now = store, lang, now
-        self.tools: dict[str, Tool] = {t.name: t for t in self._make()}
+        self._base: dict[str, Tool] = {t.name: t for t in self._make()}
+        self._extra = extra or (lambda: [])          # tools that come and go (working folder, Google Drive)
+
+    @property
+    def tools(self) -> dict[str, Tool]:
+        return {**self._base, **{t.name: t for t in self._extra()}}
 
     def schemas(self) -> list[dict]:
         return [t.schema() for t in self.tools.values()]

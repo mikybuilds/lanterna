@@ -124,7 +124,7 @@ _DONE_PAGE = """<!doctype html><meta charset="utf-8"><title>Lanterna</title>
 
 
 def sign_in(open_browser=webbrowser.open, timeout: float = SIGN_IN_TIMEOUT, cancel: threading.Event | None = None,
-            client: httpx.Client | None = None) -> dict:
+            client: httpx.Client | None = None, scope: str = SCOPE) -> dict:
     """Runs the browser sign-in and returns Google's tokens (with a refresh_token). Blocks until done."""
     verifier, challenge = _pkce()
     state = secrets.token_urlsafe(24)
@@ -155,7 +155,7 @@ def sign_in(open_browser=webbrowser.open, timeout: float = SIGN_IN_TIMEOUT, canc
     srv.timeout = 0.5
     redirect = f"http://127.0.0.1:{srv.server_address[1]}"
     url = AUTH_URL + "?" + urllib.parse.urlencode({
-        "client_id": CLIENT_ID, "redirect_uri": redirect, "response_type": "code", "scope": SCOPE,
+        "client_id": CLIENT_ID, "redirect_uri": redirect, "response_type": "code", "scope": scope,
         "code_challenge": challenge, "code_challenge_method": "S256", "state": state,
         "access_type": "offline", "prompt": "consent"})
     try:

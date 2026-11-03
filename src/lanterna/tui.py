@@ -21,7 +21,7 @@ from textual.widgets import (Button, Checkbox, DataTable, Footer, Input, Label, 
 from pathlib import Path
 
 from . import AUTHOR, __version__
-from .app import Api
+from .app import Api, action_title
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
 from .providers import PROVIDERS
@@ -217,6 +217,41 @@ class FileScreen(ModalScreen[str]):
     @on(Button.Pressed, "#cancel")
     def action_cancel(self) -> None:
         self.dismiss("")
+
+
+class ActCard(Vertical):
+    """A change the assistant proposed (working folder, Google Drive): it happens only after Confirm."""
+
+    DEFAULT_CSS = """
+    ActCard { border: round $warning; padding: 0 1; margin: 1 0 0 0; height: auto; }
+    ActCard .row { height: auto; }
+    """
+
+    def __init__(self, card: dict):
+        super().__init__()
+        self.card = card
+
+    def compose(self) -> ComposeResult:
+        lang, c = L(self.app), self.card
+        d = c.get("details", {})
+        yield Static(("☁️ " if c["kind"].startswith("drive_") else "📁 ") + action_title(c["kind"], d, "", lang), markup=False)
+        if d.get("preview"):
+            yield Static(d["preview"][:600] + ("…" if len(d["preview"]) > 600 else ""), classes="muted", markup=False)
+        yield Static(t("Lanterna will do this only after you confirm.", lang), classes="muted", id="actq", markup=False)
+        with Horizontal(classes="row", id="actbtns"):
+            yield Button(t("Confirm", lang), id="actyes", variant="primary")
+            yield Button(t("Cancel", lang), id="actno")
+
+    @on(Button.Pressed, "#actyes")
+    @on(Button.Pressed, "#actno")
+    def _answer(self, ev: Button.Pressed) -> None:
+        api, lang = self.app.api, L(self.app)
+        r = api.action_confirm(self.card["id"]) if ev.button.id == "actyes" else api.action_cancel(self.card["id"])
+        self.query_one("#actbtns").display = False
+        msg = ("✅ " + r.get("text", "") if r["state"] == "done" else t("Cancelled", lang) if r["state"] == "cancelled"
+               else "⚠️ " + t("Couldn't do it: {error}", lang, error=r.get("result", "")) if r["state"] == "failed"
+               else t("This card has expired. Ask again.", lang))
+        self.query_one("#actq", Static).update(msg)
 
 
 class ConfirmScreen(ModalScreen[bool]):
@@ -702,6 +737,16 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Add", lang), id="addfact")
             yield Label(t("Reminders", lang), classes="h")
             yield Vertical(id="rems")
+            yield Label(t("Working folder", lang), classes="h")
+            yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
+                         + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
+            yield Static("", id="wdinfo")
+            with Horizontal(classes="keyrow"):
+                yield Input(self.app.api.settings.work_dir, placeholder=t("Folder path", lang), id="wdpath")
+                yield Button(t("Save", lang), id="wdsave")
+                yield Button(t("Stop using it", lang), id="wdoff")
+            yield Label(t("Limits", lang), classes="h")
+            yield Static("", id="limits", classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -717,6 +762,12 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Sync now", lang), id="syncnow")
                 yield Button(t("Sign out", lang), id="syncout")
                 yield Button(t("Sign out and delete the copy in Google Drive", lang), id="syncdel", variant="error")
+            yield Label(t("Connectors", lang), classes="h")
+            yield Static("", id="gdinfo", classes="muted")
+            with Horizontal(classes="row"):
+                yield Button(t("Connect", lang) + " Google Drive", id="gdon", variant="primary")
+                yield Button(t("Cancel", lang), id="gdcancel")
+                yield Button(t("Disconnect", lang), id="gdoff")
             yield Label(t("Models", lang), classes="h")
             yield Button(t("Show models", lang), id="models")
             with Horizontal(classes="row"):
@@ -728,6 +779,73 @@ class SettingsScreen(ModalScreen[str]):
         self._sync_working = False
         self._paint_sync()
         self.set_interval(1.0, self._paint_sync)
+        self._paint_wd()
+        self._paint_limits()
+        self._paint_drive()
+        self.set_interval(1.0, self._paint_drive)
+
+    # -- working folder, limits, Google Drive
+    def _paint_wd(self, err: str = "") -> None:
+        lang, w = L(self.app), self.app.api.workdir()
+        info = ("📁 " + w["path"] + (" · " + t("not found", lang) if w["missing"] else "")) if w["path"] else t("No folder chosen.", lang)
+        self.query_one("#wdinfo", Static).update(info + ("\n" + err if err else ""))
+
+    @on(Button.Pressed, "#wdsave")
+    @on(Input.Submitted, "#wdpath")
+    def _wd_save(self) -> None:
+        self._wd_set(self.query_one("#wdpath", Input).value)
+
+    @on(Button.Pressed, "#wdoff")
+    def _wd_off(self) -> None:
+        self.query_one("#wdpath", Input).value = ""
+        self._wd_set("")
+
+    def _wd_set(self, path: str) -> None:
+        lang, r = L(self.app), self.app.api.set_workdir(path)
+        errs = {"not_found": "There is no such folder.",
+                "too_broad": "Choose a smaller folder: not a whole disk, your whole home folder or a system folder."}
+        self._paint_wd("" if r["ok"] else t(errs.get(r["error"], r["error"]), lang))
+
+    def _paint_limits(self) -> None:
+        lang, rows = L(self.app), self.app.api.limits()
+        lines = []
+        for r in rows:
+            parts = [t("Requests today: {n}", lang, n=r["used"])]
+            if r["limit"]:
+                left = 0 if r["resting"] else max(0, r["limit"] - r["used"])
+                parts.append(t("{left} of {limit} left today", lang, left=left, limit=r["limit"]))
+            for x in r["left"]:
+                parts.append(f"{x['kind']} ({x['period'] or '—'}): {x['remaining']}" + (f"/{x['limit']}" if x["limit"] else ""))
+            if r["resting"]:
+                parts.append(t("resting, back in {t}", lang, t=f"{max(1, round(r['resting'] / 60))} min"))
+            lines.append(f"{r['service']} · {r['model']}: " + " · ".join(parts))
+        self.query_one("#limits", Static).update("\n".join(lines) or t("No requests to online models yet today.", lang))
+
+    def _paint_drive(self) -> None:
+        lang, st = L(self.app), self.app.api.drive_status()
+        ph = st["phase"]
+        info = (t("Connected as {account}", lang, account=st["account"]) if st["account"] else t("Connected", lang)) if ph == "ready" \
+            else t("Finish signing in in your browser…", lang) + ("\n" + st["url"] if st["url"] else "") if ph == "waiting" \
+            else t("Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.", lang)
+        if st["error"]:
+            info += "\n" + (t("Google Drive was disconnected. Connect it again.", lang) if st["error"] == "signed_out" else st["error"])
+        self.query_one("#gdinfo", Static).update("☁️ Google Drive — " + info)
+        for bid, on_ in (("gdon", ph == "off"), ("gdcancel", ph == "waiting"), ("gdoff", ph == "ready")):
+            self.query_one(f"#{bid}", Button).display = on_
+
+    @on(Button.Pressed, "#gdon")
+    def _gd_on(self) -> None:
+        self.app.api.drive_connect()
+        self._paint_drive()
+
+    @on(Button.Pressed, "#gdcancel")
+    def _gd_cancel(self) -> None:
+        self.app.api.drive_cancel()
+
+    @on(Button.Pressed, "#gdoff")
+    def _gd_off(self) -> None:
+        self.app.api.drive_disconnect()
+        self._paint_drive()
 
     # -- Google sign-in & sync
     def _paint_sync(self) -> None:
@@ -1165,6 +1283,7 @@ class _ChatScreen(Screen):
             log.mount(Static(t("Error: {err}", L(self.app), err=err), classes="msg-err", markup=False))
             return
         self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = res["stream"], 0, "", 0, 0
+        self._cards_seen = 0
         self._bot = Markdown("_" + t("Thinking…", L(self.app)) + "_", classes="msg-bot")
         log.mount(self._bot)
         log.scroll_end(animate=False)
@@ -1177,12 +1296,22 @@ class _ChatScreen(Screen):
         r = self.app.api.poll(self._stream, self._offset)
         log = self.query_one("#log", VerticalScroll)
         lang = L(self.app)
-        for note in r.get("notes", [])[self._notes_seen:]:
-            await log.mount(Static("↪ " + t("switched to {m}", lang, m=note), classes="msg-note", markup=False), before=self._bot)
+        notes = r.get("notes", [])
+        if len(notes) > self._notes_seen:                  # one line, updated: not a ladder of "switched to" notes
+            text = "↪ " + t("switched to {m}", lang, m=notes[-1]) + (
+                " " + t("(tried {n} models)", lang, n=len(notes) + 1) if len(notes) > 1 else "")
+            if getattr(self, "_switch_note", None) is not None and self._notes_seen:
+                self._switch_note.update(text)
+            else:
+                self._switch_note = Static(text, classes="msg-note", markup=False)
+                await log.mount(self._switch_note, before=self._bot)
         self._notes_seen = len(r.get("notes", []))
         for chip in r.get("tools", [])[self._tools_seen:]:
             await log.mount(Static(tool_text(chip, lang), classes="msg-tool", markup=False), before=self._bot)
         self._tools_seen = len(r.get("tools", []))
+        for card in r.get("cards", [])[self._cards_seen:]:
+            await log.mount(ActCard(card))
+        self._cards_seen = len(r.get("cards", []))
         changed = False
         if "final" in r:
             self._text, changed = r["final"], True

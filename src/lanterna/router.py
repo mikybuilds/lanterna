@@ -11,7 +11,8 @@ from .providers import PROVIDERS, Client, ProviderError, ToolCalls
 
 # How long to skip a model (or a whole provider) after each kind of failure, in seconds.
 MAX_WAIT = 12            # seconds worth waiting for a rate limit instead of failing
-COOLDOWN = {"rate": 60, "network": 30, "timeout": 15 * 60, "other": 60, "bad_request": 24 * 3600, "auth": 3600}
+COOLDOWN = {"rate": 60, "network": 30, "timeout": 15 * 60, "dropped": 30, "other": 60, "bad_request": 24 * 3600,
+            "auth": 3600}
 
 
 @dataclass
@@ -52,12 +53,24 @@ class Router:
 
     def _cooling(self, c: Candidate) -> bool:
         now = self._clock()
-        return self._until.get((c.provider, c.model), 0) > now or self._until.get((c.provider, "*"), 0) > now
+        if self._until.get((c.provider, c.model), 0) > now or self._until.get((c.provider, "*"), 0) > now:
+            return True
+        from .limits import TRACKER                      # a daily limit seen earlier, maybe before a restart
+        return TRACKER.rest_until(c.provider, c.model) > time.time()
 
     def _cool(self, c: Candidate, e: ProviderError) -> None:
         secs = e.retry_after if e.kind == "rate" and e.retry_after else COOLDOWN.get(e.kind, 60)
         whole_provider = e.kind in ("auth", "network")
         self._until[(c.provider, "*" if whole_provider else c.model)] = self._clock() + secs
+
+    def resting(self) -> dict[str, float]:
+        """"provider/model" -> seconds until it is tried again (after a limit or an error)."""
+        now, out = self._clock(), {}
+        for c in self.candidates:
+            left = max(self._until.get((c.provider, c.model), 0), self._until.get((c.provider, "*"), 0)) - now
+            if left > 0:
+                out[f"{c.provider}/{c.model}"] = left
+        return out
 
     def available(self) -> list[Candidate]:
         return [c for c in self.candidates if not self._cooling(c)]
@@ -92,12 +105,13 @@ class Router:
         if need_vision and not any(c.vision for c in self.candidates):
             raise ProviderError("vision", "No model that understands photos")
         last: ProviderError | None = None
-        first = self.current
         order = self.available()
         if getattr(self, "_prefer_cloud", False):
             order.sort(key=lambda c: PROVIDERS[c.provider].local)      # stable: cloud models keep their ranking
         if need_vision:
             order.sort(key=lambda c: not c.photo)                       # the local photo model first
+        # a model already known to be resting (limit reached earlier) is skipped quietly, without a "switched" note
+        first = self.current if self.current in order else next((c for c in order if c.vision or not need_vision), None)
         for c in order:
             if need_vision and not c.vision:
                 continue
@@ -128,7 +142,11 @@ class Router:
             except ProviderError as e:
                 if started:                                 # the answer was half-way: don't mix two models
                     raise
-                self._cool(c, e)
+                if e.kind == "bad_request" and any(m.get("role") == "tool" for m in messages):
+                    # refused in the middle of a tool round (often history another model left): not the model's fault
+                    self._cool(c, ProviderError("other", str(e), e.status))
+                else:
+                    self._cool(c, e)
                 if e.kind == "rate" and e.retry_after is not None:
                     self._short_wait = e.retry_after if self._short_wait is None else min(self._short_wait, e.retry_after)
                 last, first = e, None

@@ -34,6 +34,9 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 LicenseFile=..\LICENSE
+; Updating from inside Lanterna: the running app is closed so its files can be replaced.
+CloseApplications=force
+RestartApplications=no
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -42,6 +45,10 @@ Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[InstallDelete]
+; Program files of the old version (libraries change between versions); user data lives elsewhere.
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "..\dist\Lanterna\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -53,3 +60,11 @@ Name: "{autodesktop}\Lanterna"; Filename: "{app}\Lanterna.exe"; Tasks: desktopic
 
 [Run]
 Filename: "{app}\Lanterna.exe"; Description: "{cm:LaunchProgram,Lanterna}"; Flags: nowait postinstall skipifsilent
+; Lanterna's own update runs the installer silently with RELAUNCH=1: open the new version when it is done.
+Filename: "{app}\Lanterna.exe"; Flags: nowait; Check: ShouldRelaunch
+
+[Code]
+function ShouldRelaunch: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1');
+end;

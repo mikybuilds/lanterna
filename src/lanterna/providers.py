@@ -80,9 +80,11 @@ def _error(resp: httpx.Response) -> ProviderError:
     kind = "auth" if s in (401, 403) else "rate" if s == 429 else "bad_request" if s in (400, 404, 422) else "other"
     ra = resp.headers.get("retry-after")
     wait = float(ra) if ra and ra.replace(".", "", 1).isdigit() else None
-    m = re.search(r"try again in (?:(\d+)m)?([\d.]+)s", msg or "")
-    if wait is None and m:                                   # e.g. Groq: "Please try again in 2.4s"
-        wait = int(m.group(1) or 0) * 60 + float(m.group(2))
+    # Groq: "Please try again in 2.4s" / "in 7m12.5s"; Gemini: "Please retry in 1h31m43.18s" (daily limit)
+    m = re.search(r"(?:try again|retry) in ((?:\d+h)?(?:\d+m)?[\d.]+s)", msg or "")
+    if wait is None and m:
+        h, mi, sec = re.match(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", m.group(1)).groups()
+        wait = int(h or 0) * 3600 + int(mi or 0) * 60 + float(sec)
     return ProviderError(kind, msg or f"HTTP {s}", s, wait)
 
 
@@ -159,7 +161,10 @@ class Client:
             with self._http.stream("POST", "chat/completions", json=body) as r:
                 if r.status_code != 200:
                     r.read()
-                    raise _error(r)
+                    err = _error(r)
+                    self._note(model, r, str(err), err.retry_after)
+                    raise err
+                self._note(model, r)
                 for line in r.iter_lines():
                     if not line.startswith("data:"):
                         continue
@@ -181,16 +186,28 @@ class Client:
                     out = think.feed(d.get("content") or "")
                     if out:
                         yield out
+        except (httpx.ConnectError, httpx.ConnectTimeout) as e:   # no way to reach the service at all
+            raise ProviderError("network", str(e)) from e
         except httpx.TimeoutException as e:                  # this model is stuck; others may be fine
             raise ProviderError("timeout", str(e) or "The model did not answer in time") from e
-        except httpx.HTTPError as e:
-            raise ProviderError("network", str(e)) from e
+        except httpx.HTTPError as e:                         # one answer broke off: only this model rests a bit
+            raise ProviderError("dropped", str(e) or e.__class__.__name__) from e
         tail = think.flush()
         if tail:
             yield tail
         if calls:
             yield ToolCalls([ToolCall(c["id"] or f"call_{i}", c["name"], c["arguments"] or "{}", c["extra"])
                              for i, c in sorted(calls.items()) if c["name"]])
+
+    def _note(self, model: str, r: httpx.Response, message: str = "", retry_after: float | None = None) -> None:
+        """Remembers what the service said about its limits (Settings → Limits). Local models have none."""
+        if self.provider.local:
+            return
+        try:
+            from .limits import TRACKER
+            TRACKER.note(self.provider.id, model, r.status_code, r.headers, message, retry_after)
+        except Exception:                                   # noqa: BLE001  never break a reply over a counter
+            pass
 
     def chat(self, model: str, messages: list[dict], temperature: float = 0.7) -> str:
         return "".join(p for p in self.stream_chat(model, messages, temperature) if isinstance(p, str)).strip()

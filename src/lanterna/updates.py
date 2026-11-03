@@ -1,12 +1,23 @@
 """Is there a newer Lanterna? Asks the project's public release list when the app starts (can be turned off) and in About.
 
 Sends nothing about the user: a plain GET of the latest release, no IDs, no stats.
+
+Installed with Setup.exe, Lanterna updates itself: it downloads the new installer to a temporary folder, checks
+it against the SHA-256 that the release page lists, runs it silently over the old version (same folder, same
+shortcuts, chats and keys untouched) and opens again. The temporary file is removed on the next start.
 """
 from __future__ import annotations
 
+import hashlib
+import os
 import re
+import subprocess
 import sys
+import tempfile
+import threading
+import time
 from pathlib import Path
+from typing import Callable
 
 import httpx
 
@@ -37,8 +48,10 @@ def check(transport: httpx.BaseTransport | None = None) -> dict:
             out["latest"] = str(data.get("tag_name", "")).lstrip("v")
             out["newer"] = bool(out["latest"]) and newer(out["latest"])
             out["notes"] = release_notes(str(data.get("body") or ""), out["latest"])
-            out["assets"] = {str(a["name"]): str(a["browser_download_url"]) for a in data.get("assets") or []
-                             if isinstance(a, dict) and a.get("name") and a.get("browser_download_url")}
+            assets = [a for a in data.get("assets") or [] if isinstance(a, dict) and a.get("name") and a.get("browser_download_url")]
+            out["assets"] = {str(a["name"]): str(a["browser_download_url"]) for a in assets}
+            out["digests"] = {str(a["name"]): str(a["digest"]) for a in assets
+                              if str(a.get("digest") or "").startswith("sha256:")}
     except (httpx.HTTPError, ValueError, AttributeError):
         pass
     return out
@@ -92,3 +105,102 @@ def how_to(kind: str, latest: str, assets: dict | None = None) -> dict:
     command = "pipx upgrade lanterna" if kind == "pipx" else "pip install --upgrade git+" + HOMEPAGE
     return {"steps": ["Close Lanterna.", "Open a terminal and run:", "Start Lanterna again. " + SAME_DATA],
             "file": "", "command": command, "download": ""}
+
+
+# ---------------------------------------------------------------- self-update (Windows installer)
+UPDATE_DIR = Path(tempfile.gettempdir()) / "lanterna-update"
+MAX_SETUP = 300 * 1024 * 1024
+
+
+def setup_asset(info: dict) -> dict | None:
+    """The installer of the latest release with its checksum, or None when it can't be updated automatically."""
+    latest = str(info.get("latest") or "")
+    name = f"Lanterna-Setup-{latest}.exe"
+    url = (info.get("assets") or {}).get(name, "")
+    digest = (info.get("digests") or {}).get(name, "")
+    if not (latest and info.get("newer") and digest and url.startswith(f"{HOMEPAGE}/releases/download/")):
+        return None
+    return {"version": latest, "name": name, "url": url, "sha256": digest.split(":", 1)[1].lower()}
+
+
+def cleanup(older_than: float = 60.0) -> None:
+    """Removes installers left from an earlier update (only Lanterna's own temporary folder)."""
+    try:
+        for f in UPDATE_DIR.glob("Lanterna-Setup-*"):
+            if time.time() - f.stat().st_mtime > older_than:
+                f.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def launch_setup(path: Path, lang: str = "en") -> None:
+    """Runs the installer silently over this copy; it closes Lanterna if needed and opens it again when done."""
+    flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    subprocess.Popen([str(path), *setup_args(lang)], creationflags=flags, close_fds=True)
+
+
+def setup_args(lang: str = "en") -> list[str]:
+    """Inno Setup switches: no windows, close the running app, open it again afterwards (RELAUNCH is ours)."""
+    names = ["VERYSILENT", "SUPPRESSMSGBOXES", "NORESTART", "CLOSEAPPLICATIONS", "RELAUNCH=1",
+             "LANG=" + (lang if lang in ("en", "uk", "it") else "en")]
+    return [chr(47) + n for n in names]
+
+
+class Updater:
+    """phase: idle · downloading · installing · error. The UI polls status()."""
+
+    def __init__(self, transport: httpx.BaseTransport | None = None,
+                 launch: Callable[[Path, str], None] = launch_setup, quit_app: Callable[[], None] | None = None,
+                 folder: Path | None = None):
+        self.transport, self.launch = transport, launch
+        self.quit_app = quit_app or (lambda: os._exit(0))
+        self.folder = folder or UPDATE_DIR
+        self.phase, self.error, self.done, self.total, self.version = "idle", "", 0, 0, ""
+        self._lock = threading.Lock()
+
+    def status(self) -> dict:
+        return {"phase": self.phase, "error": self.error, "done": self.done, "total": self.total, "version": self.version}
+
+    def start(self, asset: dict, lang: str = "en", wait: bool = False) -> dict:
+        with self._lock:
+            if self.phase in ("downloading", "installing"):
+                return self.status()
+            self.phase, self.error, self.done, self.total, self.version = "downloading", "", 0, 0, asset["version"]
+        th = threading.Thread(target=self._run, args=(asset, lang), daemon=True)
+        th.start()
+        if wait:
+            th.join()
+        return self.status()
+
+    def _run(self, asset: dict, lang: str) -> None:
+        try:
+            path = self.download(asset)
+            self.phase = "installing"
+            self.launch(path, lang)
+            time.sleep(1.5)                       # let the UI say "Lanterna will open again"
+            self.quit_app()
+        except Exception as e:                    # noqa: BLE001  shown in the dialog, the old version keeps working
+            self.phase, self.error = "error", str(e)[:200] or e.__class__.__name__
+
+    def download(self, asset: dict) -> Path:
+        self.folder.mkdir(parents=True, exist_ok=True)
+        dest = self.folder / asset["name"]
+        part = dest.with_suffix(".part")
+        sha = hashlib.sha256()
+        with httpx.Client(timeout=60, follow_redirects=True, transport=self.transport,
+                          headers={"User-Agent": "Lanterna"}) as c, c.stream("GET", asset["url"]) as r:
+            if r.status_code != 200:
+                raise RuntimeError(f"download failed: HTTP {r.status_code}")
+            self.total = int(r.headers.get("content-length") or 0)
+            with open(part, "wb") as f:
+                for chunk in r.iter_bytes(256 * 1024):
+                    self.done += len(chunk)
+                    if self.done > MAX_SETUP:
+                        raise RuntimeError("the file is too big")
+                    sha.update(chunk)
+                    f.write(chunk)
+        if sha.hexdigest() != asset["sha256"]:
+            part.unlink(missing_ok=True)
+            raise RuntimeError("the downloaded file is damaged (checksum mismatch)")
+        part.replace(dest)
+        return dest

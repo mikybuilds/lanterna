@@ -1,11 +1,19 @@
 # Changelog
 
-## 0.2.1 — Gemini tools fix
+## 0.3.0 — your folder, Google Drive, limits and one-click updates
+
+**New**
+- **Working folder** (Settings → Working folder): choose one folder and Lanterna can look at its files, find and read them (text, code, PDF, Word), and create, change or move files there. Every change shows a card with what will happen and a **Confirm** button first. Nothing is ever deleted, a rewritten file is backed up, and Lanterna sees nothing outside that folder.
+- **Google Drive connector** (Settings → Connectors): ask "make a folder School in my Drive" or "upload plan.md to Drive" — after you confirm, it's done. Lanterna asks Google only for its own files (`drive.file`): it can't see the rest of your Drive.
+- **Limits** (Settings → Limits): requests per model today, what each service says is left, and which models are resting after a limit and for how long.
+- **Update now**: the installed app downloads the new version, checks it against the release checksum, installs it over the old one and opens again. No more Setup files piling up in Downloads.
 
 **Fixed**
 - With Gemini 3, questions that use a tool (weather, search, reminders…) jumped through many models ("switched to …" again and again) and could stop working for the rest of the day. Lanterna now sends back the extra data Gemini needs, so the first model answers.
 - A model that hangs is set aside for 15 minutes on its own instead of blocking the whole service.
 - Gemma models on Gemini no longer show their hidden reasoning (`<thought>…`) in the reply.
+- A daily limit ("retry in 1h31m") is understood and remembered, even after a restart, so Lanterna doesn't try that model again and again. Instead of a ladder of "switched to …" lines you see one.
+- One broken answer no longer pauses every model of that service.
 
 ## 0.2.0 — your chats on all your devices
 

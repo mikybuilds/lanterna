@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early preview (v0.2.0).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
+> **Status: early preview (v0.3.0).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder, Google Drive, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
 <p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#linux">🐧 Install on Linux</a></b></p>
 
@@ -98,6 +98,20 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 - **Sign out and delete the copy in Google Drive** removes everything from Drive; chats on your devices stay.
 - Forgot the sync password? Chats on your devices are safe; sign out with *delete the copy* and start again with a new password.
 
+## Your folder and Google Drive
+
+**Settings → Working folder → Choose a folder.** Then just ask: "what's in my homework file?", "make plan.md with a plan for tonight", "move the old notes into a folder Archive".
+
+- Lanterna sees only that folder (not a whole disk, your home folder or system folders). Reading is immediate; every change — a new or rewritten file, a new folder, a move — shows a card with the change and a **Confirm** button. Nothing is ever deleted; a rewritten file is backed up in Lanterna's own folder first. Files Windows could run (.exe, .bat, .ps1…) are never written.
+- The files it opens go to the model in use (to the online service in Cloud mode, nowhere in Local mode).
+
+**Settings → Connectors → Google Drive → Connect.** Then: "create a folder School in my Drive", "upload plan.md to the School folder", "save these notes to Drive as a Google Doc". Each one waits for **Confirm**. Lanterna asks Google only for `drive.file`: it sees and changes only what it created, never the rest of your Drive. **Disconnect** removes the permission.
+
+## Limits and updates
+
+- **Settings → Limits** shows, per model, how many requests you made today, what the service says is left (Groq, Cerebras, Mistral and GitHub tell it; Gemini only says it when the limit is reached) and which models are resting after a limit.
+- **Update now** (in the update notice, installed app): Lanterna downloads the new Setup, checks its SHA-256 against the release page, installs it silently over the old version and opens again. Chats, settings and keys stay.
+
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
@@ -108,6 +122,7 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 - [x] Full-screen terminal app for Linux (mouse + keyboard, same chats as the window app)
 - [x] Memory, reminders, web search, files & photos, weather, exact math and dates
 - [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
+- [x] Working folder with confirmation cards, Google Drive connector, limits view, one-click updates
 - [ ] Voice
 
 ## What it can do
@@ -142,11 +157,11 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 
 ## Privacy
 
-- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
+- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions.
-- The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**.
+- The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**. The limits view is counted from the services' own answers, on your computer.
 - Bug reports are never sent automatically: you see the whole text and send it yourself (see below).
 
 ## Found a bug?

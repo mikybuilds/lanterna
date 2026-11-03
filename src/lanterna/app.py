@@ -23,6 +23,7 @@ from .router import Router, Switched
 from .notify import notify
 from .store import Store
 from .tools import Toolbox
+from .workspace import Actions, Workspace, folder_tools, too_broad
 
 FIRST_CHOICES = ["groq", "gemini"]
 _MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)?(:[a-z0-9._-]+)?$", re.I)
@@ -33,6 +34,7 @@ class _Stream:
         self.pieces: list[str] = []
         self.notes: list[str] = []
         self.tools: list[str] = []         # "🔎 web_search" chips
+        self.cards: list[dict] = []        # changes waiting for the user's OK (working folder, Google Drive)
         self.done = False
         self.final = False                 # pieces now hold the cleaned full reply
         self.error: dict | None = None
@@ -43,18 +45,27 @@ class Api:
     def __init__(self, store: Store | None = None, scheduler: bool = True):
         self.settings = Settings.load()
         self.store = store or Store()
-        self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang)
+        from . import gdrive
+        self.actions = Actions()
+        self.workspace = Workspace(lambda: self.settings.work_dir, self.actions)
+        self.drive = gdrive.Connector()
+        self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
+                               extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions))
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._lock = threading.Lock()
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
         self._hw: hardware.Hardware | None = None
         self._downloads = local.Downloads()
+        from . import updates
+        self.updater = updates.Updater()
+        self._update_asset: dict | None = None
         from .sync import Syncer
         self.syncer = Syncer(self.store, self.settings)
         if scheduler:
             threading.Thread(target=self._reminder_loop, daemon=True).start()
             threading.Thread(target=self.syncer.loop, daemon=True).start()
+            threading.Thread(target=updates.cleanup, daemon=True).start()
 
     # ---------------------------------------------------------------- state & settings
     def state(self) -> dict:
@@ -174,6 +185,14 @@ class Api:
                 "models": [{"provider": PROVIDERS[c.provider].name, "model": c.model, "score": c.score,
                             "status": c.status, "latency": c.latency, "vision": c.vision} for c in r.candidates]}
 
+    def limits(self) -> list[dict]:
+        """Free limits per model: used today, what the service says is left, resting after a limit."""
+        from .limits import TRACKER
+        rows = TRACKER.view(self._router.resting() if self._router else None)
+        for x in rows:
+            x["service"] = PROVIDERS[x["provider"]].name if x["provider"] in PROVIDERS else x["provider"]
+        return rows
+
     def check_update(self) -> dict:
         """Latest release, plus what to do to update this copy (steps in the interface language)."""
         from . import updates
@@ -183,8 +202,20 @@ class Api:
             how = updates.how_to(updates.install_kind(), res["latest"], res.get("assets"))
             res["steps"] = [t(s, lang, file=how["file"]) if "{file}" in s else t(s, lang) for s in how["steps"]]
             res["command"], res["download"] = how["command"], how["download"]
+            self._update_asset = updates.setup_asset(res) if updates.install_kind() == "installer" else None
+            res["auto"] = self._update_asset is not None
         res.pop("assets", None)
+        res.pop("digests", None)
         return res
+
+    def update_install(self) -> dict:
+        """Update now: download the new installer, check it, install it over this copy and open Lanterna again."""
+        if not self._update_asset:
+            return {"phase": "error", "error": "no_auto", "done": 0, "total": 0, "version": ""}
+        return self.updater.start(self._update_asset, self.settings.lang)
+
+    def update_status(self) -> dict:
+        return self.updater.status()
 
     def update_notice(self) -> dict:
         """Called once when the app starts: the same as check_update, or nothing when the user turned it off."""
@@ -289,6 +320,7 @@ class Api:
 
     def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None) -> None:
         st = self._streams[sid]
+        self.actions.bind(st.cards, tid)
         try:
             router = self._get_router()
             conv = Conversation(router, self.settings.name, history=history, toolbox=self.toolbox,
@@ -315,6 +347,7 @@ class Api:
             with st.lock:
                 st.error = {"kind": "other", "message": str(e)[:300]}
         finally:
+            self.actions.bind(None)
             with st.lock:
                 st.done = True
 
@@ -324,15 +357,85 @@ class Api:
             return {"done": True, "error": {"kind": "other", "message": "unknown stream"}}
         with st.lock:
             if st.final:
-                out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "done": st.done, "error": st.error,
+                out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
+                       "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}
             else:
                 text = "".join(st.pieces)
                 out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
+                       "cards": list(st.cards),
                        "done": st.done, "error": st.error}
         if out["done"]:
             self._streams.pop(sid, None)
         return out
+
+    # ---------------------------------------------------------------- confirmations (working folder, Drive)
+    def action_confirm(self, aid: str) -> dict:
+        return self._action_done(self.actions.confirm(str(aid)))
+
+    def action_cancel(self, aid: str) -> dict:
+        return self._action_done(self.actions.cancel(str(aid)))
+
+    def _action_done(self, a) -> dict:
+        if a is None:
+            return {"id": "", "state": "expired", "result": "", "text": ""}
+        lang = self.settings.lang
+        what = action_title(a.kind, a.details, a.result if a.state == "done" else "", lang, done=a.state == "done")
+        if a.state in ("done", "failed", "cancelled") and a.tid and not getattr(a, "noted", False):
+            a.noted = True                              # the chat remembers what happened (and the model sees it)
+            note = ("✅ " + what if a.state == "done" else "✖ " + t("Cancelled: {what}", lang, what=what)
+                    if a.state == "cancelled" else "⚠️ " + t("Couldn't do it: {error}", lang, error=a.result))
+            self.store.add(a.tid, "assistant", note)
+        return {**a.card(), "text": what}
+
+    # ---------------------------------------------------------------- working folder
+    def workdir(self) -> dict:
+        root = self.workspace.root()
+        return {"path": str(root) if root else self.settings.work_dir, "name": root.name if root else "",
+                "missing": bool(self.settings.work_dir and not root)}
+
+    def pick_folder(self) -> dict:
+        """Opens the system folder picker (window app). Returns {"ok", "path"} or {"ok": False, "error": "no_dialog"}."""
+        try:
+            import webview
+            win = webview.windows[0] if webview.windows else None
+        except ImportError:
+            win = None
+        if win is None:
+            return {"ok": False, "error": "no_dialog"}
+        kind = webview.FileDialog.FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG
+        res = win.create_file_dialog(kind, directory=self.settings.work_dir or "")
+        if not res:
+            return {"ok": False, "error": "cancelled"}
+        return self.set_workdir(res[0] if isinstance(res, (list, tuple)) else str(res))
+
+    def set_workdir(self, path: str) -> dict:
+        from pathlib import Path
+        path = str(path or "").strip().strip(chr(34))
+        if path:
+            p = Path(path).expanduser()
+            if not p.is_dir():
+                return {"ok": False, "error": "not_found"}
+            why = too_broad(p)
+            if why:
+                return {"ok": False, "error": "too_broad", "why": why}
+            path = str(p.resolve())
+        self.settings.work_dir = path
+        self.settings.save()
+        return {"ok": True, **self.workdir()}
+
+    # ---------------------------------------------------------------- Google Drive connector
+    def drive_status(self) -> dict:
+        return self.drive.status()
+
+    def drive_connect(self) -> dict:
+        return self.drive.start()
+
+    def drive_cancel(self) -> dict:
+        return self.drive.cancel()
+
+    def drive_disconnect(self) -> dict:
+        return self.drive.disconnect()
 
     # ---------------------------------------------------------------- memory & reminders
     def facts(self) -> list[dict]:
@@ -379,6 +482,21 @@ class Api:
             except Exception:                               # noqa: BLE001  keep the scheduler alive
                 pass
             time.sleep(15)
+
+
+def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False) -> str:
+    """One line about a proposed (or, with done, finished) change in the interface language; stored in the chat too."""
+    link = result.split("|", 1)[1] if "|" in (result or "") else ""
+    keys = {"write_new": ("Create {path}", "Created {path}"), "write_replace": ("Rewrite {path}", "Rewrote {path}"),
+            "write_append": ("Add to {path}", "Added to {path}"),
+            "mkdir": ("Create the folder {path}", "Created the folder {path}"), "move": ("Move {path} → {to}", "Moved {path} → {to}"),
+            "drive_folder": ("Create the folder {name} in Google Drive", "Created the folder {name} in Google Drive"),
+            "drive_upload": ("Upload {path} to Google Drive", "Uploaded {path} to Google Drive"),
+            "drive_text": ("Save {name} to Google Drive", "Saved {name} to Google Drive")}
+    out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang, **{k: str(d.get(k, "")) for k in ("path", "to", "name")})
+    if kind == "write_replace" and "(" in (result or ""):
+        out += " " + result[result.index("("):]
+    return out + (f" — {link}" if link.startswith("https://") else "")
 
 
 _FILE_BLOCK = re.compile(r"\[File: ([^\]\n]+)\]\n```\n.*?\n```(?:\n\[…file cut, too long\])?", re.S)
