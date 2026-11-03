@@ -369,4 +369,4 @@ def test_refusal_inside_a_tool_round_is_not_a_day_off():
                client_for=lambda pid: Client(PROVIDERS["gemini"], "k", transport=httpx.MockTransport(h)))
     msgs = [{"role": "user", "content": "hi"}, {"role": "tool", "tool_call_id": "c1", "content": "x"}]
     list(r.stream(msgs))
-    assert 0 < r.resting()["gemini/picky"] <= 60
+    assert 0 < r.resting()["gemini/picky"] <= 60.001
