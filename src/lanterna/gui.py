@@ -6,9 +6,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import mimetypes
 import secrets
+import shutil
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,10 +33,35 @@ def run_window() -> int:
     import webview
 
     api = Api()
+    fresh_ui_cache(api.store.path.parent / "webview")
     webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=api, width=1120, height=780,
                           min_size=(720, 540), background_color="#0B0E17", text_select=True)
     webview.start(private_mode=False, storage_path=str(api.store.path.parent / "webview"))
     return 0
+
+
+def ui_stamp() -> str:
+    h = hashlib.sha1()
+    for f in ("index.html", "app.js", "style.css", "logo.svg"):
+        p = UI / f
+        h.update(p.read_bytes() if p.is_file() else b"")
+    return h.hexdigest()
+
+
+def fresh_ui_cache(storage: Path) -> bool:
+    """The window's HTTP cache can keep the old app.js after an update. When the UI files change,
+    drop only the cache folders (chats, settings and sign-ins live elsewhere)."""
+    stamp, mark = ui_stamp(), storage / "ui-stamp"
+    try:
+        if mark.is_file() and mark.read_text(encoding="utf-8").strip() == stamp:
+            return False
+        for sub in ("Cache", "Code Cache", "GPUCache"):
+            shutil.rmtree(storage / "EBWebView" / "Default" / sub, ignore_errors=True)
+        storage.mkdir(parents=True, exist_ok=True)
+        mark.write_text(stamp, encoding="utf-8")
+        return True
+    except OSError:
+        return False
 
 
 def make_server(api: Api, port: int = 0) -> tuple[ThreadingHTTPServer, str]:
