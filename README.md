@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early preview (v0.3.0).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder, Google Drive, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
+> **Status: early preview (v0.3.1).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder per chat, Google Drive and GitHub connectors, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
 <p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#linux">🐧 Install on Linux</a></b></p>
 
@@ -100,15 +100,22 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 
 ## Your folder and Google Drive
 
-**Settings → Working folder → Choose a folder.** Then just ask: "what's in my homework file?", "make plan.md with a plan for tonight", "move the old notes into a folder Archive".
+**Settings → Working folder → Choose a folder** (the folder new chats start with; each chat can change it with the folder button under the message box). Then just ask: "what's in my homework file?", "make plan.md with a plan for tonight", "move the old notes into a folder Archive".
 
 - Lanterna sees only that folder (not a whole disk, your home folder or system folders). Reading is immediate; every change — a new or rewritten file, a new folder, a move — shows a card with the change and a **Confirm** button. Nothing is ever deleted; a rewritten file is backed up in Lanterna's own folder first. Files Windows could run (.exe, .bat, .ps1…) are never written.
 - The files it opens go to the model in use (to the online service in Cloud mode, nowhere in Local mode).
 
 **Settings → Connectors → Google Drive → Connect.** Then: "create a folder School in my Drive", "upload plan.md to the School folder", "save these notes to Drive as a Google Doc". Each one waits for **Confirm**. Lanterna asks Google only for `drive.file`: it sees and changes only what it created, never the rest of your Drive. **Disconnect** removes the permission.
 
+**Settings → Connectors → GitHub → Connect.** Lanterna shows a short code; type it on GitHub. Then choose which repositories it may use (**Choose repositories**). Now you can ask: "push my mod to mikybuilds/my-mod". You see a card with the repository, the branch, the files and the commit message, and nothing is sent before **Confirm**.
+
+- It is the GitHub App *Lanterna Assistant* with one permission: the files (Contents) of the repositories you pick. It can't create or delete repositories, change settings or add people; for a new repository it opens GitHub's own page filled in.
+- No password or token is typed into Lanterna; the sign-in is kept in your system's vault. Files that look like passwords or keys (`.env`, private keys, API tokens inside) are never pushed.
+- Commits are yours; Lanterna Assistant is shown as a co-author (turn it off in Settings). That is only a name on the commit, not access.
+
 ## Limits and updates
 
+- The **bar under the message box** shows how much of the free limit of the model in use is left and when it resets; click it for the details.
 - **Settings → Limits** shows, per model, how many requests you made today, what the service says is left (Groq, Cerebras, Mistral and GitHub tell it; Gemini only says it when the limit is reached) and which models are resting after a limit.
 - **Update now** (in the update notice, installed app): Lanterna downloads the new Setup, checks its SHA-256 against the release page, installs it silently over the old version and opens again. Chats, settings and keys stay.
 
@@ -123,6 +130,7 @@ Other commands: `lanterna models` (free models available right now), `lanterna l
 - [x] Memory, reminders, web search, files & photos, weather, exact math and dates
 - [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
 - [x] Working folder with confirmation cards, Google Drive connector, limits view, one-click updates
+- [x] GitHub connector, a folder per chat, limit bar, live "what I'm doing" steps
 - [ ] Voice
 
 ## What it can do
@@ -157,7 +165,7 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 
 ## Privacy
 
-- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
+- **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. The GitHub connector, if you connect it, can only write files in the repositories you chose, and only after you confirm. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions.
