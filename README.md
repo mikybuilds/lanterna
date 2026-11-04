@@ -4,7 +4,7 @@
 <p align="center">A friendly AI assistant that runs on <b>free cloud models</b> — or on <b>your own local models</b> if your PC is strong enough.<br>
 <sub>by mikybuilds · MIT licence</sub></p>
 
-> **Status: early preview (v0.3.2).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder per chat, Google Drive and GitHub connectors, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
+> **Status: early preview (v0.3.3).** Windows window app and a full-screen terminal app for Linux, with memory, reminders, web search, weather, files and photos, a working folder per chat, help with your computer (folders, programs, safe settings), Google Drive and GitHub connectors, free-model discovery with fallback, and optional local models through Ollama. Expect rough edges — [issues](../../issues) are welcome.
 
 <p align="center"><b><a href="#windows-10--11">⬇ Install on Windows</a></b> · <b><a href="#linux">🐧 Install on Linux</a></b></p>
 
