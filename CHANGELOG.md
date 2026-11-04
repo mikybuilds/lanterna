@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.4 — no more browser messages over the terminal app
 
 **Fixed**
 - Terminal app on Linux: the browser opened for Google sign-in (or any link, folder or Settings page) printed its own log lines over Lanterna's screen. Programs Lanterna starts are now cut off from its terminal.
