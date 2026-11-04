@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from . import quiet
 from .workspace import WAITING, WorkError
 
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -329,7 +330,7 @@ class System:
         else:
             if not gnome or not self.which("gnome-control-center"):
                 raise WorkError("This settings page can't be opened from Lanterna on this system.")
-            subprocess.Popen(["gnome-control-center", gnome])
+            quiet.spawn(["gnome-control-center", gnome])
         return f"Opened the {page} settings page."
 
 

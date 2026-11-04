@@ -23,6 +23,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
+from . import quiet
 from .files import IMAGE_EXT, FileError, prepare_one
 from .workspace import NEVER_WRITE, WAITING, WorkError
 
@@ -552,12 +553,12 @@ def _size_of(p: Path) -> int:
 def _open_in_file_manager(p: Path) -> None:
     if sys.platform == "win32":
         args = ["explorer", "/select,", str(p)] if p.is_file() else ["explorer", str(p)]
-        subprocess.Popen(args)
+        quiet.spawn(args)
     else:
         target = p.parent if p.is_file() else p
         opener = shutil.which("xdg-open") or shutil.which("gio")
         if opener:
-            subprocess.Popen([opener, str(target)] if opener.endswith("xdg-open") else [opener, "open", str(target)])
+            quiet.spawn([opener, str(target)] if opener.endswith("xdg-open") else [opener, "open", str(target)])
 
 
 # ---------------------------------------------------------------- tools

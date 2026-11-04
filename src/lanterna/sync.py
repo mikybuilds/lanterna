@@ -25,11 +25,10 @@ import secrets
 import threading
 import time
 import urllib.parse
-import webbrowser
 
 import httpx
 
-from . import keys
+from . import keys, quiet
 
 # The OAuth client of the Lanterna desktop app. For installed apps Google does not treat the client secret as
 # a secret (it cannot be hidden in an app people download); it only lets the app open Google's sign-in page as
@@ -134,7 +133,7 @@ _DONE_PAGE = """<!doctype html><meta charset="utf-8"><title>Lanterna</title>
 <div style="text-align:center"><div style="font-size:42px">🏮</div><h2>{title}</h2><p>{text}</p></div></body>"""
 
 
-def sign_in(open_browser=webbrowser.open, timeout: float = SIGN_IN_TIMEOUT, cancel: threading.Event | None = None,
+def sign_in(open_browser=quiet.open_url, timeout: float = SIGN_IN_TIMEOUT, cancel: threading.Event | None = None,
             client: httpx.Client | None = None, scope: str = SCOPE) -> dict:
     """Runs the browser sign-in and returns Google's tokens (with a refresh_token). Blocks until done."""
     verifier, challenge = _pkce()
@@ -289,7 +288,7 @@ class Syncer:
            ready (signed in, synced or about to) · syncing · error
     """
 
-    def __init__(self, store, settings, http: httpx.Client | None = None, browser=webbrowser.open):
+    def __init__(self, store, settings, http: httpx.Client | None = None, browser=quiet.open_url):
         self.store, self.settings, self.http, self.browser = store, settings, http, browser
         self.lock = threading.Lock()
         self.phase = "ready" if self.signed_in() else "off"

@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import json
 import threading
-import webbrowser
 from pathlib import Path
 
 import httpx
 
-from . import sync
+from . import quiet, sync
 from .sync import DRIVE, UPLOAD, SyncError
 
 SCOPE_FILE = "https://www.googleapis.com/auth/drive.file"
@@ -77,7 +76,7 @@ class Files(sync.Drive):
 class Connector:
     """phase: off · waiting (browser sign-in open) · ready."""
 
-    def __init__(self, http: httpx.Client | None = None, browser=webbrowser.open):
+    def __init__(self, http: httpx.Client | None = None, browser=quiet.open_url):
         self.http, self.browser = http, browser
         self.phase = "ready" if sync._vault_get(VAULT_TOKEN) else "off"
         self.account, self.error, self.url = sync._vault_get(VAULT_ACCOUNT), "", ""

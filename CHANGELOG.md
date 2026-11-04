@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- Terminal app on Linux: the browser opened for Google sign-in (or any link, folder or Settings page) printed its own log lines over Lanterna's screen. Programs Lanterna starts are now cut off from its terminal.
+
 ## 0.3.3 — one Google sign-in for everything, and help with your computer
 
 **New**

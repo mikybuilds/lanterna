@@ -19,13 +19,12 @@ import os
 import re
 import threading
 import time
-import webbrowser
 from pathlib import Path
 from urllib.parse import quote, urlencode
 
 import httpx
 
-from . import sync
+from . import quiet, sync
 
 # The public ID of the "Lanterna" GitHub App (not a secret: the device flow needs no secret).
 CLIENT_ID = os.getenv("LANTERNA_GITHUB_CLIENT_ID", "Iv23lisqUKAubK0btDJn")
@@ -190,7 +189,7 @@ class Hub:
 class Connector:
     """phase: off · waiting (the user types the code on github.com) · ready."""
 
-    def __init__(self, http: httpx.Client | None = None, browser=webbrowser.open):
+    def __init__(self, http: httpx.Client | None = None, browser=quiet.open_url):
         self.http, self.browser = http, browser
         self.phase = "ready" if _token_load().get("access") else "off"
         self.account, self.error = sync._vault_get(VAULT_ACCOUNT), ""

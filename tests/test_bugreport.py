@@ -86,7 +86,7 @@ def test_failed_reply_is_remembered(api, monkeypatch):
 
 def test_open_links(api, monkeypatch):
     opened = []
-    monkeypatch.setattr("lanterna.app.webbrowser.open", opened.append)
+    monkeypatch.setattr("lanterna.quiet.open_url", opened.append)
     issue = api.bug_report("x" * 3000, True)["issue"]
     assert len(issue) > 2000 and api.open_url(issue)                 # a long issue link is allowed
     assert not api.open_url("https://example.com/?" + "a" * 3000)     # other long links are not

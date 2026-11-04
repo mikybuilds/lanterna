@@ -9,10 +9,9 @@ import re
 import threading
 import time
 import uuid
-import webbrowser
 from dataclasses import asdict
 
-from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local
+from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
 from .chat import Conversation, ToolUse
 from .files import FileError, prepare
 from .config import Settings
@@ -183,7 +182,7 @@ class Api:
         url = str(url or "")
         limit = bugreport.ISSUE_LIMIT if url.startswith(HOMEPAGE + "/" + "issues/new?") else 2000
         if url.startswith("https://") and len(url) <= limit and not any(c in url for c in "\n\r\"'<> "):
-            webbrowser.open(url)
+            quiet.open_url(url)
             return True
         return False
 
@@ -217,7 +216,7 @@ class Api:
         """Opens the user's mail app with the ready letter; they press Send themselves."""
         if not bugreport.valid_mailto(url):
             return False
-        webbrowser.open(url)
+        quiet.open_url(url)
         return True
 
     # ---------------------------------------------------------------- models

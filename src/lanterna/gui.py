@@ -105,8 +105,8 @@ def run_browser(port: int, open_browser: bool) -> int:
     srv, url = make_server(Api(), port)
     print(url, flush=True)
     if open_browser:
-        import webbrowser
-        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
+        from .quiet import open_url
+        threading.Timer(0.5, open_url, args=(url,)).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
