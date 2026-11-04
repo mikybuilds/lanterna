@@ -285,7 +285,12 @@ def test_linux_autostart_off_and_on(tmp_path):
 def test_tools_only_when_the_talk_is_about_the_pc(tmp_path, monkeypatch):
     monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
     from lanterna.app import Api, action_title, card_text
+    from lanterna.apps import Apps
+    from lanterna.pcfiles import Places
     from lanterna.store import Store
+    (tmp_path / "Downloads").mkdir()                    # CI machines may have no Downloads and no package tool
+    monkeypatch.setattr(Places, "folders", lambda self: {"downloads": tmp_path / "Downloads"})
+    monkeypatch.setattr(Apps, "managers", lambda self: ["winget"])
     api = Api(store=Store(tmp_path / "t.db"), scheduler=False)
     names = lambda q: {s["function"]["name"] for s in api.toolbox.schemas(q)}   # noqa: E731
     assert not any(n.startswith(("pc_", "app_")) for n in names("what's the weather in Ferrara?"))
