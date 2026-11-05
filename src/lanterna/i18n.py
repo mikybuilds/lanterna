@@ -137,9 +137,10 @@ _T: dict[str, dict[str, str]] = {
 
 @cache
 def catalog(lang: str) -> dict[str, str]:
-    """English text -> translation for a language kept in locale/<lang>.json."""
+    """English text -> translation: uk/it from _T, the others from locale/<lang>.json. The window app gets it
+    whole, so a string translated only on the Python side still shows translated there."""
     if lang not in FILE_LANGS:
-        return {}
+        return {k: v[lang] for k, v in _T.items() if lang in v}
     try:
         return json.loads((Path(__file__).with_name("locale") / f"{lang}.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -633,7 +634,11 @@ _T.update({
         "uk": "Диск майже заповнений: лишилося {gb} ГБ. Запитай мене «що займає місце?», і я покажу, що можна прибрати.",
         "it": "Il disco è quasi pieno: restano {gb} GB. Chiedimi «cosa occupa spazio?» e ti mostro cosa si può togliere."},
     # what went to the model
+    "Retry": {"uk": "Ще раз", "it": "Riprova"},
     "What went to the model": {"uk": "Що пішло в модель", "it": "Cosa è andato al modello"},
+    "The model sent no answer. Press Retry or ask in other words.":
+        {"uk": "Модель не надіслала відповіді. Натисни «Ще раз» або спитай іншими словами.",
+         "it": "Il modello non ha mandato una risposta. Premi Riprova o chiedi con altre parole."},
     "Sent to {model}": {"uk": "Надіслано в {model}", "it": "Inviato a {model}"},
     "Stayed on this computer ({model})": {"uk": "Залишилось на цьому комп'ютері ({model})", "it": "Rimasto su questo computer ({model})"},
     "Your message": {"uk": "Твоє повідомлення", "it": "Il tuo messaggio"},

@@ -160,7 +160,9 @@ class Client:
         With tools, the model may ask to call some: then the last item yielded is a ToolCalls.
         """
         body = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
-        if tools:
+        # "none" = answer now. Gemini needs the tool list kept for that (without it, after tool calls, it sends
+        # nothing); other services simply get no tools, as some (Ollama) ignore tool_choice
+        if tools and (tool_choice != "none" or self.provider.id == "gemini"):
             body["tools"], body["tool_choice"] = tools, tool_choice
         if self.provider.id == "gemini":                # short thought summaries, shown while it thinks
             body["extra_body"] = {"google": {"thinking_config": {"include_thoughts": True}}}

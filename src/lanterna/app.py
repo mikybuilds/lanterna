@@ -499,6 +499,8 @@ class Api:
                         st.steps.thought(p.text)
                     else:
                         st.pieces.append(p)
+            if not conv.last_reply.strip():
+                raise ProviderError("empty", "the model sent no answer")
             from . import sent
             cur = router.current
             st.sent = sent.dumps(sent.build(

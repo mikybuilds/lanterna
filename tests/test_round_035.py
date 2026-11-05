@@ -216,3 +216,60 @@ def test_doctor_quick_checks_are_translated_and_go_into_bug_reports(api):
     assert "Datenordner" in titles or "Version" in titles
     body = api.bug_report("it crashed", True)["body"]
     assert "it crashed" in body
+
+
+# ---------------------------------------------------------------- empty answer after tools
+def test_empty_answer_after_a_search_is_asked_again():
+    from types import SimpleNamespace
+
+    from lanterna.chat import EMPTY_NUDGE, Conversation
+    from lanterna.providers import Thought, ToolCall, ToolCalls
+
+    seen = []
+
+    class FakeRouter:
+        current = SimpleNamespace(label="Gemini · test")
+
+        def stream(self, msgs, **kw):
+            seen.append((list(msgs), kw.get("tool_choice")))
+            n = len(seen)
+            if n == 1:
+                yield ToolCalls([ToolCall("c1", "web_search", '{"query": "x"}')])
+            elif n == 2:
+                yield Thought("thinking only")              # Gemini 3: thoughts, no text
+            else:
+                yield "Use upper() on the first letter."
+
+    box = SimpleNamespace(tools={}, store=SimpleNamespace(facts=lambda: []),
+                          schemas=lambda ctx: [{"type": "function", "function": {"name": "web_search"}}],
+                          run=lambda name, args: "results")
+    conv = Conversation(router=FakeRouter(), toolbox=box)
+    out = [p for p in conv.ask("how do I capitalise a name?") if isinstance(p, str)]
+    assert "".join(out) == "Use upper() on the first letter."
+    assert len(seen) == 3 and seen[2][1] == "none" and seen[2][0][-1]["content"] == EMPTY_NUDGE
+    assert conv.last_reply == "Use upper() on the first letter."
+
+
+def test_window_gets_uk_and_it_strings_too():
+    from lanterna import i18n
+    assert i18n.catalog("uk")["What went to the model"] == "Що пішло в модель"
+    assert i18n.catalog("it")["What went to the model"] == "Cosa è andato al modello"
+    assert i18n.catalog("en") == {}
+
+
+def test_final_round_body_keeps_tools_only_for_gemini():
+    import json as _json
+
+    import httpx
+
+    from lanterna.providers import PROVIDERS, Client
+    bodies = []
+
+    def h(req):
+        bodies.append(_json.loads(req.content))
+        return httpx.Response(200, content=b'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n')
+    tools = [{"type": "function", "function": {"name": "web_search"}}]
+    for pid in ("gemini", "groq"):
+        list(Client(PROVIDERS[pid], "k", transport=httpx.MockTransport(h)).stream_chat("m", [], tools=tools, tool_choice="none"))
+    assert bodies[0]["tool_choice"] == "none" and bodies[0]["tools"] == tools
+    assert "tools" not in bodies[1] and "tool_choice" not in bodies[1]

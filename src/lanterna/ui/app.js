@@ -995,6 +995,7 @@ async function send(retryText) {
         : k === "network" ? (S.settings.mode === "local" ? t("Ollama isn't running. Start it, or switch to Cloud in Settings.") : t("No connection. Check your internet.")) : k === "auth" ? t("Add a key in Settings to start.")
         : k === "vision" ? (S.settings.mode === "local" ? t("To understand photos, download a photo model in Settings → Local models.") : t("To understand photos, add a free Gemini key in Settings."))
         : k === "local" ? (p.error.message === "no local models" ? t("No local model yet. Download one in Settings → Local models.") : t("Ollama isn't running. Start it, or switch to Cloud in Settings."))
+        : k === "empty" ? t("The model sent no answer. Press Retry or ask in other words.")
         : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
       box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files }); };

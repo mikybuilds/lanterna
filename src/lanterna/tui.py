@@ -1734,6 +1734,8 @@ class _ChatScreen(Screen):
                     + t("Tip: a local model (Settings → Local models) answers when the limits run out.", lang))
         if kind == "auth":
             return t("No working key. Add one in Settings (Ctrl+S).", lang)
+        if kind == "empty":
+            return t("The model sent no answer. Press Retry or ask in other words.", lang)
         local_mode = self.app.api.settings.mode == "local"
         if kind == "local" and err.get("message") == "no local models":
             return t("No local model yet. Download one in Settings → Local models.", lang)

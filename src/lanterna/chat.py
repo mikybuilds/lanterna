@@ -12,6 +12,8 @@ from .router import Router, Switched
 
 MAX_HISTORY = 30          # messages kept in context (older ones are dropped)
 MAX_TOOL_ROUNDS = 4       # tool calls per answer, then the model must reply
+EMPTY_NUDGE = ("(Your last turn had no text for me. Answer my question above now, in plain words, using what you "
+               "already found. Do not search again.)")
 
 
 @dataclass
@@ -148,8 +150,11 @@ class Conversation:
         for rnd in range(MAX_TOOL_ROUNDS + 1):
             calls: ToolCalls | None = None
             round_text: list[str] = []
-            tools = schemas if rnd < MAX_TOOL_ROUNDS else None
-            choice = "required" if tools and rnd == 0 and must_use_tool(text) else "auto"
+            last = rnd == MAX_TOOL_ROUNDS
+            # the last round keeps the tool list but forbids calls: Gemini answers nothing when the list is gone
+            # while the history still has tool calls in it
+            tools = schemas
+            choice = "none" if last else "required" if tools and rnd == 0 and must_use_tool(text) else "auto"
             for p in self.router.stream(msgs, need_vision=bool(images), tools=tools, tool_choice=choice,
                                           prefer_cloud=cloud_first):
                 if isinstance(p, ToolCalls):
@@ -160,7 +165,7 @@ class Conversation:
                 else:
                     yield p
             pieces += round_text
-            if not calls or not calls.calls:
+            if not calls or not calls.calls or last:
                 break
             msgs.append({"role": "assistant", "content": "".join(round_text) or None,
                          "tool_calls": [c.message() for c in calls.calls]})
@@ -169,6 +174,17 @@ class Conversation:
                 yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)
                 result = self.toolbox.run(c.name, c.arguments)
                 msgs.append({"role": "tool", "tool_call_id": c.id, "content": result[:12000]})
+        if not "".join(pieces).strip():
+            # some models (Gemini 3 after a search) end with only thoughts and no text: ask once more, no calls
+            msgs.append({"role": "user", "content": EMPTY_NUDGE})
+            for p in self.router.stream(msgs, need_vision=bool(images), tools=schemas,
+                                          tool_choice="none" if schemas else "auto",
+                                          prefer_cloud=cloud_first):
+                if isinstance(p, str):
+                    pieces.append(p)
+                    yield p
+                elif not isinstance(p, ToolCalls):
+                    yield p
         reply = soul.humanize("".join(pieces).strip(), self.last_reply)
         note = f"{text}\n[attached {len(images)} image(s)]" if images else text
         self.history += [{"role": "user", "content": note}, {"role": "assistant", "content": reply}]

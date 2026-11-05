@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- Gemini sometimes gave no answer at all after searching the web (the reply stayed empty). The last round now tells it to answer instead of taking the tool list away; if a model still sends nothing, it is asked once more, and then a clear message with Retry is shown.
+- "What went to the model" and a few other window strings were in English in Ukrainian and Italian.
+
 ## 0.3.5 — undo, a check-up and four more languages
 
 **New**
