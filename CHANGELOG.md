@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **Four more languages:** Deutsch, Español, Français, Polski (window app, terminal app and command line).
+- **What Lanterna did:** a list of every confirmed change on this computer with **Undo** — moved and sorted files go back, files come back from the Recycle Bin (Windows and Linux), a new empty folder is removed, a file's old version comes back, theme / power plan / startup apps switch back, an installed program is uninstalled. Kept on this device only.
+- **Check Lanterna** (About → Check Lanterna, `lanterna doctor`): every part with ✓ / ! / ✗ and a plain sentence; copy it or put it into a bug report.
+- **Linux: Update now** for pipx installs — Lanterna runs the upgrade and offers Restart.
+- **Weekly tidy-up of Downloads** and **help freeing disk space** — both off by default, in Settings → Computer.
+- **What went to the model** under each reply.
+- **Try one:** ready example buttons in an empty chat.
+- **Local model as a spare** when the free online limits run out (Cloud mode, on by default), and **Install Ollama** with winget on Windows.
+- CI takes SVG screenshots of every terminal-app screen in every language and fails on untranslated text.
+
+**Changed**
+- Window app: the sidebar buttons at the bottom are stacked, so long names in any language fit.
+
 ## 0.3.4 — no more browser messages over the terminal app
 
 **Fixed**

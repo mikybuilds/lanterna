@@ -49,6 +49,7 @@ class Candidate:
     latency: float | None = None
     tools: bool = True              # False: the model can't call tools (Ollama tells us per model)
     photo: bool = False             # preferred for photos (the local photo model)
+    fallback: bool = False          # a local model used only when the online ones can't answer (limits, no internet)
 
     @property
     def label(self) -> str:
@@ -216,10 +217,20 @@ def local_models(picks: dict | None = None) -> list[Candidate]:
 
 
 def get_models(preferred: str = "", refresh: bool = False, mode: str = "cloud",
-               picks: dict | None = None) -> list[Candidate]:
-    """cloud: free online models. local: only Ollama on this computer. auto: local first, cloud as backup."""
+               picks: dict | None = None, fallback: bool = False) -> list[Candidate]:
+    """cloud: free online models. local: only Ollama on this computer. auto: local first, cloud as backup.
+    fallback (cloud mode): local models go last, for when every online model is out of limits or offline."""
     if mode == "local":
         return local_models(picks)
     if mode == "auto":
         return local_models(picks) + cloud_models(preferred, refresh)
-    return cloud_models(preferred, refresh)
+    out = cloud_models(preferred, refresh)
+    if fallback:
+        try:
+            spare = local_models(picks)
+        except Exception:                                     # noqa: BLE001  Ollama missing: no spare models
+            spare = []
+        for c in spare:
+            c.fallback, c.photo = True, False
+        out += spare
+    return out

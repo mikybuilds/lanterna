@@ -12,3 +12,4 @@ build.log
 *.key
 *.sqlite
 *.db
+tui-shots/

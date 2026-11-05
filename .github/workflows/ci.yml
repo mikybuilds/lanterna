@@ -29,6 +29,24 @@ jobs:
       - name: Secrets scan (files and history)
         run: python tools/scan_secrets.py --history
 
+  # Every screen of the terminal app in every language: SVG screenshots to look at, and a check that each
+  # opens, shows no error and has no English text left untranslated.
+  tui-screens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: python tools/tui_shots.py --out tui-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tui-screens
+          path: tui-shots/
+          retention-days: 14
+
   # The exact Ubuntu steps from the README, on clean Ubuntu images with the system Python.
   ubuntu-install:
     strategy:

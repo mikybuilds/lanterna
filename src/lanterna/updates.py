@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -146,13 +147,65 @@ def setup_args(lang: str = "en") -> list[str]:
     return [chr(47) + n for n in names]
 
 
+# ---------------------------------------------------------------- self-update (Linux, installed with pipx)
+PIPX_TIMEOUT = 900
+
+
+def pipx_asset(info: dict, kind: str | None = None, which: Callable[[str], str | None] = shutil.which) -> dict | None:
+    """Update now for a pipx install: Lanterna runs pipx itself. None when pipx is not there."""
+    kind = kind or install_kind()
+    if kind != "pipx" or not info.get("newer") or not info.get("latest") or not which("pipx"):
+        return None
+    return {"version": str(info["latest"]), "pipx": True}
+
+
+def run_pipx(args: list[str], timeout: float = PIPX_TIMEOUT) -> tuple[int, str]:
+    exe = shutil.which("pipx")
+    if not exe:
+        return 127, "pipx was not found"
+    try:
+        r = subprocess.run([exe, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, timeout=timeout, start_new_session=True)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except subprocess.TimeoutExpired:
+        return 124, "pipx took too long"
+    except OSError as e:
+        return 126, str(e)
+
+
+def pipx_update(version: str, runner: Callable[[list[str]], tuple[int, str]] = run_pipx) -> str:
+    """pipx upgrade; if pipx thinks it is up to date (an install pinned to an old tag), reinstall that release."""
+    code, out = runner(["upgrade", "lanterna"])
+    if code == 0 and "already at latest" not in out.lower():
+        return out
+    if code not in (0, 1):
+        raise RuntimeError(_tail(out) or f"pipx stopped with code {code}")
+    code, out = runner(["install", "--force", f"git+{HOMEPAGE}@v{version}"])
+    if code != 0:
+        raise RuntimeError(_tail(out) or f"pipx stopped with code {code}")
+    return out
+
+
+def _tail(out: str) -> str:
+    lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
+    return " ".join(lines[-3:])[-300:]
+
+
+def restart_args() -> list[str]:
+    """How to start this Lanterna again after an update: the same command it was started with."""
+    exe = sys.argv[0] if sys.argv and sys.argv[0] else ""
+    if exe and os.path.isfile(exe) and os.access(exe, os.X_OK) and not exe.endswith(".py"):
+        return [exe, *sys.argv[1:]]
+    return [sys.executable, "-m", "lanterna.cli", *sys.argv[1:]]
+
+
 class Updater:
-    """phase: idle · downloading · installing · error. The UI polls status()."""
+    """phase: idle · downloading · installing · restart (pipx: installed, start again) · error. The UI polls status()."""
 
     def __init__(self, transport: httpx.BaseTransport | None = None,
                  launch: Callable[[Path, str], None] = launch_setup, quit_app: Callable[[], None] | None = None,
-                 folder: Path | None = None):
-        self.transport, self.launch = transport, launch
+                 folder: Path | None = None, pipx_runner: Callable[[list[str]], tuple[int, str]] = run_pipx):
+        self.transport, self.launch, self.pipx_runner = transport, launch, pipx_runner
         self.quit_app = quit_app or (lambda: os._exit(0))
         self.folder = folder or UPDATE_DIR
         self.phase, self.error, self.done, self.total, self.version = "idle", "", 0, 0, ""
@@ -173,6 +226,14 @@ class Updater:
         return self.status()
 
     def _run(self, asset: dict, lang: str) -> None:
+        if asset.get("pipx"):
+            try:
+                self.phase = "installing"
+                pipx_update(asset["version"], self.pipx_runner)
+                self.phase = "restart"
+            except Exception as e:                # noqa: BLE001  the old version keeps working
+                self.phase, self.error = "error", str(e)[:200] or e.__class__.__name__
+            return
         try:
             path = self.download(asset)
             self.phase = "installing"

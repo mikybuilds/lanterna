@@ -16,7 +16,7 @@ from textual.containers import Center, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen, Screen
 from textual.theme import Theme
-from textual.widgets import (Button, Checkbox, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
+from textual.widgets import (Button, Checkbox, Collapsible, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
                              Markdown, ProgressBar, Select, Static, TextArea)
 
 from pathlib import Path
@@ -26,6 +26,13 @@ from .app import Api, action_title, card_text
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
 from .providers import PROVIDERS
+
+
+def lang_rows(per: int = 4) -> list[list[tuple[str, str]]]:
+    """Language buttons in rows, so seven of them fit an 80-column terminal."""
+    items = list(LANGS.items())
+    return [items[i:i + per] for i in range(0, len(items), per)]
+
 
 AMBER = "#F5B544"
 THEME = Theme(name="lanterna", primary=AMBER, secondary="#7C8BB5", accent=AMBER, warning="#F0A030",
@@ -80,6 +87,13 @@ ModalScreen { align: center middle; background: $background 70%; }
 .dialog { width: 80; max-width: 100%; height: auto; max-height: 90%; border: round $primary; background: $surface; padding: 1 2; }
 .dialog .h { text-style: bold; color: $primary; margin: 1 0 0 0; }
 .keyrow { height: auto; width: 100%; }
+.histrow { height: auto; width: 100%; }
+.sent { margin: 0 8 0 0; padding: 0; border: none; background: transparent; }
+.sent CollapsibleTitle { color: $text-muted; padding: 0; }
+.sugg { height: auto; }
+.idea { margin: 0 0 0 0; min-width: 20; height: 3; }
+.histtext { width: 1fr; padding: 1 0 0 0; }
+#histrows { height: auto; }
 .keyrow Label { width: 1fr; padding: 1 0 0 0; }
 .keyrow Input { width: 1fr; }
 #keys { height: auto; }
@@ -333,11 +347,48 @@ class UpdateScreen(ModalScreen[None]):
                     yield Button(t("Copy", lang), id="updcopy")
             if steps[cut:]:
                 yield Static("\n".join(steps[cut:]), markup=False, id="updrest")
+            if u.get("auto"):
+                yield Static(t("Or press Update now: Lanterna runs it for you and you only start it again.", lang),
+                             id="updstate", classes="muted")
             with Horizontal(classes="row"):
+                if u.get("auto"):
+                    yield Button(t("Update now", lang), id="updnow", variant="primary")
+                    yield Button(t("Restart now", lang), id="updrestart", variant="success")
                 if u.get("download"):
                     yield Button(t("Download", lang), id="upddl", variant="primary")
                 yield Button(t("Release page", lang), id="updpage")
                 yield Button(t("Later", lang), id="updlater")
+
+    def on_mount(self) -> None:
+        if self.info.get("auto"):
+            self.query_one("#updrestart", Button).display = False
+
+    @on(Button.Pressed, "#updnow")
+    def _now(self, ev: Button.Pressed) -> None:
+        ev.button.disabled = True
+        self._show(self.app.api.update_install())
+        self._timer = self.set_interval(0.7, lambda: self._show(self.app.api.update_status()))
+
+    def _show(self, st: dict) -> None:
+        lang, box = L(self.app), self.query_one("#updstate", Static)
+        if st["phase"] in ("installing", "downloading"):
+            box.update(t("Updating with pipx… this can take a minute or two.", lang))
+            return
+        if hasattr(self, "_timer"):
+            self._timer.stop()
+        if st["phase"] == "restart":
+            box.update("✓ " + t("Lanterna {v} is installed. Start it again to use it.", lang, v=self.info["latest"]))
+            self.query_one("#updnow", Button).display = False
+            self.query_one("#updrestart", Button).display = True
+            self.query_one("#updrestart", Button).focus()
+        else:
+            box.update("⚠️ " + t("The update didn't work: {error}", lang, error=st.get("error", "")) + "\n"
+                       + t("This version keeps working. You can update by hand.", lang))
+            self.query_one("#updnow", Button).disabled = False
+
+    @on(Button.Pressed, "#updrestart")
+    def _restart(self) -> None:
+        self.app.exit("restart")
 
     @on(Button.Pressed, "#updcopy")
     def _copy(self, ev: Button.Pressed) -> None:
@@ -353,6 +404,115 @@ class UpdateScreen(ModalScreen[None]):
         self.app.api.open_url(self.info["url"])
 
     @on(Button.Pressed, "#updlater")
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class HistoryScreen(ModalScreen[None]):
+    """What Lanterna did: confirmed changes on this computer, newest first, with Undo."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with VerticalScroll(classes="dialog", id="histbox"):
+            yield Label(f"{LOGO} " + t("What Lanterna did", lang), classes="title")
+            yield Static(t("Changes you confirmed on this computer, newest first. Undo puts files back, takes them out of the Recycle Bin or switches a setting back.", lang), classes="muted")
+            yield Vertical(id="histrows")
+            yield Static("", id="histmsg", classes="muted")
+            with Horizontal(classes="row"):
+                yield Button(t("Clear the list", lang), id="histclear")
+                yield Button(t("Close", lang), id="histclose", variant="primary")
+
+    def on_mount(self) -> None:
+        self._fill(self.app.api.history_list())
+
+    def _fill(self, items: list[dict]) -> None:
+        import datetime as _dt
+        lang, box = L(self.app), self.query_one("#histrows", Vertical)
+        box.remove_children()
+        if not items:
+            box.mount(Static(t("Nothing yet. When you confirm a change on a card, it shows up here.", lang), classes="muted"))
+            return
+        for x in items[:100]:
+            when = _dt.datetime.fromtimestamp(x["at"]).strftime("%d.%m %H:%M")
+            text = f"{when}  {x['title']}" + (f"\n   ↩ {x['note'] or t('Undone', lang)}" if x["undone"] else "")
+            row = Horizontal(Static(text, markup=False, classes="histtext"), classes="histrow")
+            box.mount(row)
+            if x["can_undo"]:
+                row.mount(Button(t("Undo", lang), id=f"hu-{x['id']}"))
+
+    @on(Button.Pressed)
+    def _pressed(self, ev: Button.Pressed) -> None:
+        bid = ev.button.id or ""
+        if bid.startswith("hu-"):
+            ev.button.disabled = True
+            self._undo(bid[3:])
+        elif bid == "histclear":
+            self._fill(self.app.api.history_clear())
+        elif bid == "histclose":
+            self.dismiss(None)
+
+    @work(thread=True, exclusive=True, group="undo")
+    def _undo(self, hid: str) -> None:
+        r = self.app.api.history_undo(hid)
+        self.app.call_from_thread(self._after, r)
+
+    def _after(self, r: dict) -> None:
+        self.query_one("#histmsg", Static).update(("↩ " if r["ok"] else "⚠️ ") + r["text"])
+        self._fill(self.app.api.history_list())
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class DoctorScreen(ModalScreen[None]):
+    """Check Lanterna: keys, internet, sync, folders, programs, local models — each with a plain sentence."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+    COLORS = {"ok": "green", "warn": "yellow", "fail": "red", "info": "grey62"}
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with VerticalScroll(classes="dialog", id="docbox"):
+            yield Label(f"{LOGO} " + t("Check Lanterna", lang), classes="title")
+            yield Static(t("Checking Lanterna…", lang), id="docres")
+            with Horizontal(classes="row"):
+                yield Button(t("Copy", lang), id="doccopy")
+                yield Button(t("Report a bug", lang), id="docbug")
+                yield Button(t("Close", lang), id="docclose", variant="primary")
+
+    def on_mount(self) -> None:
+        self._text = ""
+        self._run()
+
+    @work(thread=True, exclusive=True, group="doctor")
+    def _run(self) -> None:
+        res = self.app.api.doctor()
+        self.app.call_from_thread(self._fill, res)
+
+    def _fill(self, res: dict) -> None:
+        from rich.markup import escape
+        from .doctor import MARK
+        lang = L(self.app)
+        lines = [f"[{self.COLORS[c['status']]}]{MARK[c['status']]}[/] [b]{escape(c['title'])}[/]  {escape(c['detail'])}"
+                 for c in res["checks"]]
+        lines += ["", t("Everything works." if res["worst"] == "ok" else "Something needs attention (see the lines above).", lang)]
+        self.query_one("#docres", Static).update("\n".join(lines))
+        self._text = res["text"]
+
+    @on(Button.Pressed, "#doccopy")
+    def _copy(self, ev: Button.Pressed) -> None:
+        if self._text:
+            self.app.copy_to_clipboard(self._text)
+            ev.button.label = t("Copied", L(self.app))
+
+    @on(Button.Pressed, "#docbug")
+    def _bug(self) -> None:
+        self.dismiss(None)
+        self.app.push_screen(BugScreen())
+
+    @on(Button.Pressed, "#docclose")
     def action_close(self) -> None:
         self.dismiss(None)
 
@@ -530,6 +690,7 @@ class LocalScreen(ModalScreen[str]):
             yield Static("", id="hwinfo", markup=False)
             yield Static("", id="ollama")
             with Horizontal(classes="row", id="ollama-btns"):
+                yield Button(t("Install Ollama", lang), id="install-ollama", variant="primary")
                 yield Button(t("Download Ollama", lang), id="get-ollama", variant="primary")
                 yield Button(t("Check again", lang), id="recheck")
             yield Label(t("Recommended for this computer", lang), classes="h")
@@ -537,6 +698,9 @@ class LocalScreen(ModalScreen[str]):
             yield Static(t("Downloads start only when you press the button. Models are stored by Ollama on this computer.", lang),
                          classes="muted")
             yield Vertical(id="picks")
+            yield Checkbox(t("Use a local model when the online limits run out", lang), self.app.api.settings.local_fallback,
+                           id="localfallback")
+            yield Static(t("In Cloud mode, when every free online model is out of its limit or there is no internet, a model downloaded here answers instead. It stays on this computer.", lang), classes="muted")
             with Horizontal(classes="row"):
                 if self._onboarding:
                     yield Button(t("Use the cloud instead", lang), id="to-cloud")
@@ -545,6 +709,28 @@ class LocalScreen(ModalScreen[str]):
     def on_mount(self) -> None:
         self.query_one("#ollama-btns").display = False
         self._load()
+
+    @on(Checkbox.Changed, "#localfallback")
+    def _fallback(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"local_fallback": ev.value})
+
+    @on(Button.Pressed, "#install-ollama")
+    def _install_ollama(self, ev: Button.Pressed) -> None:
+        lang = L(self.app)
+
+        def go(yes: bool) -> None:
+            if yes:
+                ev.button.disabled = True
+                ev.button.label = t("Installing… this can take a few minutes.", lang)
+                self._run_install()
+        self.app.push_screen(ConfirmScreen(t("Install Ollama with winget? Windows may ask for administrator rights.", lang)
+                                           + "\n\nwinget install --id Ollama.Ollama --exact", t("Install", lang)), go)
+
+    @work(thread=True, exclusive=True, group="install")
+    def _run_install(self) -> None:
+        r = self.app.api.install_ollama()
+        self.app.call_from_thread(self.app.notify, r["text"])
+        self.app.call_from_thread(self._load)
 
     @work(thread=True, exclusive=True, group="local")
     def _load(self) -> None:
@@ -562,6 +748,7 @@ class LocalScreen(ModalScreen[str]):
             f"{t('Graphics card', lang)}: {gpu}\n{t('RAM', lang)}: {_gb(H['ram_gb'], lang)}   "
             f"{t('Free disk', lang)}: {_gb(H['disk_free_gb'], lang)}\n\n{t(TIER_TEXT[A['tier']], lang)}")
         self._running, self._disk = st["running"], H["disk_free_gb"]
+        self.query_one("#install-ollama", Button).display = bool(st.get("can_install"))
         self._download_page = st["download_page"]
         self.query_one("#ollama", Static).update(
             f"[green]✓ {t('Ollama {v} is running', lang, v=st['version'])}[/]" if st["running"]
@@ -685,8 +872,14 @@ class AboutScreen(ModalScreen[None]):
             with Horizontal(classes="row"):
                 yield Button(t("How to update", lang), id="howupdate", variant="warning")
                 yield Button(t("Star on GitHub", lang), id="star", variant="primary")
+                yield Button(t("Check Lanterna", lang), id="doctor")
                 yield Button(t("Report a bug", lang), id="aboutbug")
                 yield Button(t("Close", lang), id="close")
+
+    @on(Button.Pressed, "#doctor")
+    def _doctor(self) -> None:
+        self.dismiss(None)
+        self.app.push_screen(DoctorScreen())
 
     def on_mount(self) -> None:
         self.query_one("#howupdate", Button).display = False
@@ -738,9 +931,10 @@ class SettingsScreen(ModalScreen[str]):
         lang = L(self.app)
         with VerticalScroll(classes="dialog"):
             yield Label(t("Language", lang), classes="h")
-            with Horizontal(classes="row"):
-                for code, name in LANGS.items():
-                    yield Button(name, id=f"lang-{code}", variant="primary" if code == lang else "default")
+            for row in lang_rows():
+                with Horizontal(classes="row"):
+                    for code, name in row:
+                        yield Button(name, id=f"lang-{code}", variant="primary" if code == lang else "default")
             yield Label(t("Name", lang), classes="h")
             with Horizontal(classes="keyrow"):
                 yield Input(self.app.api.settings.name, id="name")
@@ -778,6 +972,10 @@ class SettingsScreen(ModalScreen[str]):
             yield Label(t("Computer", lang), classes="h")
             yield Checkbox(t("Let Lanterna help with this computer", lang), self.app.api.settings.pc_access, id="pcaccess")
             yield Static(t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.", lang), classes="muted")
+            yield Checkbox(t("Weekly tidy-up of Downloads", lang), self.app.api.settings.tidy_weekly, id="tidyweekly")
+            yield Static(t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.", lang), classes="muted")
+            yield Checkbox(t("Help free up disk space", lang), self.app.api.settings.space_help, id="spacehelp")
+            yield Static(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -975,6 +1173,14 @@ class SettingsScreen(ModalScreen[str]):
         elif bid == "close":
             self.action_close()
 
+    @on(Checkbox.Changed, "#tidyweekly")
+    def _tidy(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"tidy_weekly": ev.value})
+
+    @on(Checkbox.Changed, "#spacehelp")
+    def _space(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"space_help": ev.value})
+
     @on(Checkbox.Changed, "#pcaccess")
     def _pc_access(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"pc_access": ev.value})
@@ -1158,9 +1364,10 @@ class OnboardScreen(Screen):
                 yield Label(f"{LOGO}  Lanterna", classes="title")
                 if self.step == 0:
                     yield Label("Choose your language · Вибери мову · Scegli la lingua", classes="sub")
-                    with Horizontal(classes="row"):
-                        for code, name in LANGS.items():
-                            yield Button(name, id=f"lang-{code}", variant="primary" if code == lang else "default")
+                    for row in lang_rows():
+                        with Horizontal(classes="row"):
+                            for code, name in row:
+                                yield Button(name, id=f"lang-{code}", variant="primary" if code == lang else "default")
                 elif self.step == 1:
                     yield Label(t("Welcome to Lanterna", lang), classes="sub")
                     yield Static(t("A friendly assistant on free AI models.", lang) + "\n"
@@ -1375,6 +1582,8 @@ class _ChatScreen(Screen):
                 log.mount(Static(m["content"], classes="msg-user", markup=False))
             else:
                 log.mount(Markdown(m["content"], classes="msg-bot"))
+                if m.get("sent"):
+                    log.mount(sent_box(m["sent"], L(self.app)))
         for card in self.app.api.cards(tid):              # changes still waiting for Confirm
             log.mount(ActCard(card))
         log.scroll_end(animate=False)
@@ -1382,7 +1591,24 @@ class _ChatScreen(Screen):
     def _welcome(self) -> None:
         lang, name = L(self.app), self.app.api.settings.name
         text = t("Hi, {name}! Ask me anything.", lang, name=name) if name else t("Hi! Ask me anything.", lang)
-        self.query_one("#log", VerticalScroll).mount(Static(text, classes="welcome", markup=False))
+        log = self.query_one("#log", VerticalScroll)
+        log.mount(Static(text, classes="welcome", markup=False))
+        ideas = (["Sort my Downloads", "Why is my computer slow?", "What's the weather tomorrow?",
+                  "Remind me in 20 minutes to take a break", "Explain something simply", "Help me plan my week"]
+                 if self.app.api.settings.pc_access else
+                 ["What's the weather tomorrow?", "Remind me in 20 minutes to take a break", "Explain something simply",
+                  "Help me plan my week", "Write a short message for me", "Give me an idea for today"])
+        box = Vertical(classes="welcome sugg")
+        log.mount(box)
+        box.mount(Label(t("Try one:", lang), classes="muted"))
+        for i, idea in enumerate(ideas):
+            box.mount(Button(t(idea, lang), id=f"idea{i}", classes="idea"))
+
+    @on(Button.Pressed, ".idea")
+    def _idea(self, ev: Button.Pressed) -> None:
+        box = self.query_one("#composer", Input)          # one press sends it, like typing it and pressing Enter
+        box.value = str(ev.button.label)
+        box.action_submit()
 
     def action_new_chat(self) -> None:
         if self._stream:
@@ -1475,6 +1701,8 @@ class _ChatScreen(Screen):
             self._text, changed = r["final"], True
             if r.get("model"):
                 self._set_model(r["model"])
+            if r.get("sent") and self._bot is not None:
+                await log.mount(sent_box(r["sent"], lang), after=self._bot)
         elif r.get("text"):
             self._text += r["text"]
             self._offset = r["offset"]
@@ -1502,7 +1730,8 @@ class _ChatScreen(Screen):
     def _error_text(self, err: dict) -> str:
         lang, kind = L(self.app), err.get("kind")
         if kind == "rate":
-            return t("All free models are busy or out of limits. Try again in a minute.", lang)
+            return (t("All free models are busy or out of limits. Try again in a minute.", lang) + " "
+                    + t("Tip: a local model (Settings → Local models) answers when the limits run out.", lang))
         if kind == "auth":
             return t("No working key. Add one in Settings (Ctrl+S).", lang)
         local_mode = self.app.api.settings.mode == "local"
@@ -1553,6 +1782,15 @@ class _ChatScreen(Screen):
     def action_about(self) -> None:
         self.app.push_screen(AboutScreen())
 
+    def action_history(self) -> None:
+        self.app.push_screen(HistoryScreen())
+
+
+def sent_box(lines: list[str], lang: str) -> Collapsible:
+    """Folded under a reply: which kinds of data went to the model, and where."""
+    return Collapsible(Static("\n".join("• " + x for x in lines), markup=False, classes="muted"),
+                       title="🔒 " + t("What went to the model", lang), collapsed=True, classes="sent")
+
 
 def make_chat_screen(lang: str) -> Screen:
     """Builds the chat screen with footer key hints in the chosen language."""
@@ -1562,6 +1800,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+s", "settings", t("Settings", lang), priority=True),
         Binding("ctrl+f", "attach", t("Attach", lang), priority=True),
         Binding("ctrl+o", "models", t("Models", lang), priority=True),
+        Binding("ctrl+h", "history", t("What Lanterna did", lang), priority=True),
         Binding("f1", "about", t("About", lang), priority=True),
         Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),
     ]
@@ -1593,9 +1832,19 @@ class LanternaApp(App):
     def _alerts(self) -> None:
         for a in self.api.alerts():
             self.bell()
-            self.notify(a["text"], title="⏰ " + t("Reminder", L(self)), timeout=30)
+            kind = a.get("kind")
+            title = ("🧹 " + t("Weekly tidy-up", L(self)) if kind == "tidy" else "💾 " + t("Disk space", L(self)) if kind == "space"
+                     else "⏰ " + t("Reminder", L(self)))
+            self.notify(a["text"], title=title, timeout=30)
+            if a.get("tid") and hasattr(self.screen, "_fill_threads"):
+                self.screen._fill_threads()
 
 
 def run(force_setup: bool = False) -> int:
-    LanternaApp(force_setup=force_setup).run()
+    result = LanternaApp(force_setup=force_setup).run()
+    if result == "restart":                                  # after Update now (pipx): start the new version
+        import os
+        from .updates import restart_args
+        args = restart_args()
+        os.execv(args[0], args)
     return 0

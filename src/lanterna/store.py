@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY, text TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS deleted (uid TEXT PRIMARY KEY, at REAL NOT NULL);
 """
 # columns added for sync (older databases get them on open)
-_ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT"],
+_ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0"]}
 MAX_FACTS = 60
 
@@ -87,16 +87,16 @@ class Store:
             self._tomb("threads", "id=?", (tid,))
             self._db.execute("DELETE FROM threads WHERE id=?", (tid,))
 
-    def add(self, tid: int, role: str, content: str, model: str = "") -> None:
+    def add(self, tid: int, role: str, content: str, model: str = "", sent: str = "") -> None:
         now = time.time()
         with self._lock, self._db:
             self.changes += 1
-            self._db.execute("INSERT INTO messages(uid, thread, role, content, model, at) VALUES (?,?,?,?,?,?)",
-                             (new_uid(), tid, role, content, model, now))
+            self._db.execute("INSERT INTO messages(uid, thread, role, content, model, at, sent) VALUES (?,?,?,?,?,?,?)",
+                             (new_uid(), tid, role, content, model, now, sent))
             self._db.execute("UPDATE threads SET updated=? WHERE id=?", (now, tid))
 
     def messages(self, tid: int) -> list[dict]:
-        return self._q("SELECT role, content, model, at FROM messages WHERE thread=? ORDER BY id", (tid,))
+        return self._q("SELECT role, content, model, at, sent FROM messages WHERE thread=? ORDER BY id", (tid,))
 
     # memory: short facts about the user, shown to the model in the system prompt
     def add_fact(self, text: str) -> int:

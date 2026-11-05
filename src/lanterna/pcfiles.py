@@ -166,6 +166,154 @@ def to_trash(paths: list[Path]) -> None:
     (_trash_windows if sys.platform == "win32" else _trash_linux)(paths)
 
 
+MB, GB = 1024 ** 2, 1024 ** 3
+INSTALLERS = {".exe", ".msi", ".msix", ".dmg", ".pkg", ".deb", ".rpm", ".appimage", ".iso", ".flatpakref"}
+
+
+def _age(seconds: float) -> str:
+    days = int(seconds // 86400)
+    return "today" if days < 1 else f"{days} days ago" if days < 60 else f"{days // 30} months ago" if days < 730 \
+        else f"{days // 365} years ago"
+
+
+def _tree_size(root: Path, limit: int = 100_000, seconds: float = 6.0) -> int:
+    """Size of a folder tree; stops early (a lower bound) after `limit` files or `seconds`."""
+    total = n = 0
+    t0 = time.time()
+    for dirpath, _dirs, names in os.walk(root):
+        if time.time() - t0 > seconds:
+            return total
+        for name in names:
+            n += 1
+            try:
+                total += os.lstat(os.path.join(dirpath, name)).st_size
+            except OSError:
+                pass
+            if n > limit:
+                return total
+    return total
+
+
+def trash_size() -> int:
+    """How big the user's Recycle Bin / Trash is (only what this user can see)."""
+    if sys.platform == "win32":
+        total = 0
+        for drive in {Path.home().drive or "C:", "C:"}:
+            base = Path(drive + "\\") / "$Recycle.Bin"
+            try:
+                for d in base.iterdir():
+                    try:
+                        total += _tree_size(d)
+                    except OSError:
+                        continue
+            except OSError:
+                continue
+        return total
+    base = Path(os.getenv("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "Trash" / "files"
+    return _tree_size(base) if base.is_dir() else 0
+
+
+def temp_size() -> int:
+    import tempfile
+    try:
+        return _tree_size(Path(tempfile.gettempdir()))
+    except OSError:
+        return 0
+
+
+# ---------------------------------------------------------------- back from the Recycle Bin / Trash
+def restore_from_trash(paths: list[str]) -> tuple[int, int]:
+    """Puts files Lanterna moved to the Recycle Bin back where they were. Returns (restored, not found).
+    A file is skipped when something with that name is there again, or it was emptied from the bin."""
+    back = gone = 0
+    for p in map(Path, paths):
+        if p.exists():
+            gone += 1
+            continue
+        try:
+            ok = (_restore_windows if sys.platform == "win32" else _restore_freedesktop)(p)
+        except OSError:
+            ok = False
+        back, gone = (back + 1, gone) if ok else (back, gone + 1)
+    return back, gone
+
+
+def _restore_freedesktop(p: Path) -> bool:
+    from urllib.parse import unquote
+    base = Path(os.getenv("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "Trash"
+    best, best_date = None, ""
+    for info in (base / "info").glob("*.trashinfo"):
+        try:
+            text = info.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        path = next((unquote(ln[5:].strip()) for ln in text.splitlines() if ln.startswith("Path=")), "")
+        date = next((ln[13:].strip() for ln in text.splitlines() if ln.startswith("DeletionDate=")), "")
+        if path == str(p) and date >= best_date:
+            best, best_date = info, date
+    if best is None:
+        return False
+    item = base / "files" / best.name[: -len(".trashinfo")]
+    if not item.exists():
+        return False
+    p.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(item), str(p))
+    best.unlink(missing_ok=True)
+    return True
+
+
+def _recycle_info(data: bytes) -> tuple[int, str] | None:
+    """A Windows Recycle Bin $I file: (deletion time as FILETIME, original path)."""
+    import struct
+    if len(data) < 24:
+        return None
+    version, _size, when = struct.unpack_from("<qqq", data, 0)
+    if version == 2 and len(data) >= 28:
+        n = struct.unpack_from("<i", data, 24)[0]
+        raw = data[28:28 + n * 2]
+    elif version == 1:
+        raw = data[24:24 + 520]
+    else:
+        return None
+    return when, raw.decode("utf-16-le", errors="replace").split("\0", 1)[0]
+
+
+def _restore_windows(p: Path) -> bool:
+    drive = p.drive or "C:"
+    base = Path(drive + "\\") / "$Recycle.Bin"
+    best, best_when = None, -1
+    try:
+        folders = [d for d in base.iterdir() if d.is_dir()]
+    except OSError:
+        return False
+    try:
+        p = p.parent.resolve() / p.name                       # the bin keeps long names, not 8.3 short ones
+    except OSError:
+        pass
+    want = str(p).lower()
+    for d in folders:
+        try:
+            infos = list(d.glob("$I*"))                      # other users' folders can't be listed: skipped
+        except OSError:
+            continue
+        for i in infos:
+            try:
+                parsed = _recycle_info(i.read_bytes())
+            except OSError:
+                continue
+            if parsed and parsed[1].lower() == want and parsed[0] > best_when:
+                best, best_when = i, parsed[0]
+    if best is None:
+        return False
+    item = best.with_name("$R" + best.name[2:])
+    if not item.exists():
+        return False
+    p.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(item), str(p))
+    best.unlink(missing_ok=True)
+    return True
+
+
 def free_name(p: Path, taken: set | None = None) -> Path:
     """p, or 'name (2).ext' etc. if that exists already."""
     taken = taken or set()
@@ -191,6 +339,16 @@ class Places:
     # -- paths
     def folders(self) -> dict[str, Path]:
         return self._folders()
+
+    def roots(self) -> set[str]:
+        out = set()
+        for p in self.folders().values():
+            out.add(str(p))
+            try:
+                out.add(str(p.resolve()))
+            except OSError:
+                pass
+        return out
 
     def root(self, place: str) -> Path:
         place = str(place or "").strip().lower()
@@ -392,6 +550,89 @@ class Places:
             out.append(p)
         return out
 
+    # -- where the space goes (Settings → Computer → Help free up space)
+    def space_report(self, place: str = "") -> str:
+        """Read-only: free space, the biggest and oldest big files, old installers, the Recycle Bin and temp files."""
+        places = [place] if place else list(self.folders())
+        now, files, walked, t0 = time.time(), [], 0, time.time()
+        for pl in places:
+            root = self.path(pl)
+            for dirpath, dirs, names in os.walk(root):
+                dirs[:] = [x for x in dirs if not x.startswith(".") and not os.path.islink(os.path.join(dirpath, x))]
+                for n in names:
+                    if n.startswith("."):
+                        continue
+                    walked += 1
+                    fp = Path(dirpath) / n
+                    try:
+                        st = fp.lstat()
+                    except OSError:
+                        continue
+                    if st.st_size >= 20 * MB:
+                        files.append((st.st_size, st.st_mtime, pl, self.rel(pl, fp)))
+                if walked > 200_000 or time.time() - t0 > 20:
+                    break
+            if walked > 200_000 or time.time() - t0 > 20:
+                break
+        lines = []
+        seen_dev = set()
+        for pl in places:
+            try:
+                du = shutil.disk_usage(self.root(pl))
+            except OSError:
+                continue
+            key = (du.total, du.free)
+            if key in seen_dev:
+                continue
+            seen_dev.add(key)
+            low = " — almost full" if du.free < du.total * 0.1 or du.free < 10 * GB else ""
+            lines.append(f"Disk with {pl}: {size_text(du.free)} free of {size_text(du.total)}{low}")
+        big = sorted(files, reverse=True)[:15]
+        if big:
+            lines.append("\nBiggest files:")
+            lines += [f"- {pl}/{rel} — {size_text(sz)}, changed {_age(now - mt)}" for sz, mt, pl, rel in big if sz >= 100 * MB] \
+                or ["- none over 100 MB"]
+        old = sorted((f for f in files if now - f[1] > 365 * 86400), reverse=True)[:10]
+        if old:
+            lines.append(f"\nBig files not changed for over a year ({size_text(sum(f[0] for f in old))}):")
+            lines += [f"- {pl}/{rel} — {size_text(sz)}, {_age(now - mt)}" for sz, mt, pl, rel in old]
+        inst = []
+        if "downloads" in self.folders() and (not place or place == "downloads"):
+            for x in self._visible(self.path("downloads")):
+                try:
+                    st = x.stat()
+                except OSError:
+                    continue
+                if x.is_file() and x.suffix.lower() in INSTALLERS and now - st.st_mtime > 30 * 86400:
+                    inst.append((st.st_size, x.name))
+        if inst:
+            lines.append(f"\nOld installers in Downloads (already used, usually safe to remove; {size_text(sum(s for s, _ in inst))}):")
+            lines += [f"- downloads/{n} — {size_text(s)}" for s, n in sorted(inst, reverse=True)[:15]]
+        rb, tmp = trash_size(), temp_size()
+        if rb:
+            lines.append(f"\nRecycle Bin: {size_text(rb)}. Only the user can empty it (Lanterna never deletes for good).")
+        if tmp > 500 * MB:
+            lines.append(f"Temporary files of programs: {size_text(tmp)}. The system's own cleanup removes them safely "
+                         "(Windows: Settings → Storage → Temporary files; open it with pc_settings_page 'storage').")
+        lines.append("\nTo free space: suggest what can go to the Recycle Bin (pc_trash, the user confirms on a card) — "
+                     "old installers and duplicates first. Never suggest deleting documents or photos the user may need "
+                     "without asking which ones.")
+        return "\n".join(lines)
+
+    def loose_count(self, place: str = "downloads") -> int:
+        """Files lying loose in a folder (not in subfolders, not still downloading): for the weekly tidy-up."""
+        now, n = time.time(), 0
+        try:
+            for x in self._visible(self.path(place)):
+                try:
+                    if x.is_file() and x.suffix.lower() not in PARTIAL and now - x.stat().st_mtime >= FRESH:
+                        n += 1
+                except OSError:
+                    continue
+        except (OSError, WorkError):
+            return 0
+        return n
+
     def propose_sort(self, place: str, path: str = "", by: str = "type", older_than_days: int = 0) -> str:
         from .i18n import t
         d = self.path(place, path)
@@ -433,6 +674,7 @@ class Places:
         def run() -> str:
             done = self._move_many(place, [(a, f"{b}/{Path(a).name}") for a, b in plan])
             self.undo[sid] = done
+            self.actions.note_undo({"type": "moves", "moves": done})
             return f"{len(done)} files sorted into {len(groups)} folders|undo:{sid}"
         self.actions.propose("pc_sort", details, run)
         return WAITING + f" Plan: {len(plan)} files into {len(groups)} folders: " + ", ".join(
@@ -454,6 +696,7 @@ class Places:
 
         def run() -> str:
             done = self._move_many(place, plan, to_place)
+            self.actions.note_undo({"type": "moves", "moves": done})
             return f"{len(done)} moved to {to_place}/{details['to']}"
         self.actions.propose("pc_move", details, run)
         return WAITING
@@ -471,7 +714,7 @@ class Places:
         a, b = self.rel(place, p), self.rel(place, q)
 
         def run() -> str:
-            self._move_many(place, [(a, b)])
+            self.actions.note_undo({"type": "moves", "moves": self._move_many(place, [(a, b)])})
             return f"{a} → {b}"
         self.actions.propose("pc_rename", {"place": place, "path": a, "to": b, "dir": str(p.parent)}, run)
         return WAITING
@@ -483,7 +726,9 @@ class Places:
         rel = self.rel(place, p)
 
         def run() -> str:
-            self.path(place, rel).mkdir(parents=True, exist_ok=False)
+            q = self.path(place, rel)
+            q.mkdir(parents=True, exist_ok=False)
+            self.actions.note_undo({"type": "rmdir", "path": str(q)})
             return f"{place}/{rel}"
         self.actions.propose("pc_mkdir", {"place": place, "path": rel}, run)
         return WAITING
@@ -497,7 +742,9 @@ class Places:
         def run() -> str:
             ps = [self.path(place, r) for r in rels]
             missing = [r for r, p in zip(rels, ps) if not p.exists()]
-            self._trash([p for p in ps if p.exists()])
+            there = [p for p in ps if p.exists()]
+            self._trash(there)
+            self.actions.note_undo({"type": "trash", "paths": [str(p) for p in there]})
             return f"{len(ps) - len(missing)} moved to the Recycle Bin" + (f"; already gone: {', '.join(missing[:5])}" if missing else "")
         self.actions.propose("pc_trash", details, run)
         return WAITING + " (They go to the Recycle Bin / Trash and can be restored from there.)"
@@ -518,25 +765,12 @@ class Places:
                 done.append((str(src), str(dst)))
         return done
 
-    def undo_sort(self, sid: str) -> str:
-        moves = self.undo.pop(str(sid), None)
+    def undo_sort(self, sid: str, moves: list | None = None) -> str:
+        moves = self.undo.pop(str(sid), None) if moves is None else moves
         if moves is None:
             raise WorkError("This sort can't be undone any more (Lanterna was restarted or it was undone already).")
-        back, left, roots = 0, 0, set(map(str, self.folders().values()))
-        for src, dst in reversed(moves):
-            s, d = Path(src), Path(dst)
-            if d.exists() and not s.exists():
-                shutil.move(str(d), str(s))
-                back += 1
-                parent = d.parent                          # remove the folders the sort made, if now empty
-                while str(parent) not in roots and parent != s.parent:
-                    try:
-                        parent.rmdir()
-                    except OSError:
-                        break
-                    parent = parent.parent
-            else:
-                left += 1
+        from .history import undo_moves
+        back, left = undo_moves(moves, self.roots())
         self.last_undo = (back, left)
         return f"{back} files are back where they were" + (f"; {left} had been moved or replaced since" if left else "")
 
@@ -562,6 +796,19 @@ def _open_in_file_manager(p: Path) -> None:
 
 
 # ---------------------------------------------------------------- tools
+def space_tools(pl: Places) -> list:
+    """Settings → Computer → Help free up space (off by default)."""
+    from .tools import Tool, _obj
+    places = list(pl.folders())
+    if not places:
+        return []
+    return [Tool("pc_space", "Where the disk space goes: free space, the biggest files in the user's folders, big files "
+                 "not touched for a year, old installers in Downloads, the Recycle Bin and temporary files. Read-only. "
+                 "Call it when the user asks to free up space, why the disk is full, or what takes the most space.",
+                 _obj({"place": {"type": "string", "enum": places, "description": "one folder, or leave empty for all"}}),
+                 lambda place="": pl.space_report(place), "📊")]
+
+
 def place_tools(pl: Places) -> list:
     from .tools import Tool, _obj
     s = {"type": "string"}

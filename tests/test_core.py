@@ -287,3 +287,28 @@ def test_every_cli_string_is_translated():
     used |= {det for _, _, det in __import__("lanterna.cli", fromlist=["x"]).FIRST_CHOICES}
     missing = [s for s in used if s not in i18n._T or set(i18n._T[s]) != {"uk", "it"}]
     assert not missing, missing
+    for lang in i18n.FILE_LANGS:
+        table = i18n.catalog(lang)
+        gaps = [s for s in used if s not in table]
+        assert not gaps, (lang, gaps)
+
+
+def _window_strings():
+    js = Path(__file__).parents[1].joinpath("src/lanterna/ui/app.js").read_text(encoding="utf-8")
+    body = js[js.index("const STR = {"):js.index("let LANG")]
+    return [json.loads(m.group(1)) for m in re.finditer(r'^\s*("(?:[^"\\]|\\.)*")\s*:\s*\{\s*uk:', body, re.M)]
+
+
+def test_new_languages_cover_every_string():
+    ph = re.compile(r"\{[a-z_]+\}")
+    wanted = set(i18n._T) | set(_window_strings())
+    assert len(wanted) > 400
+    for lang in i18n.FILE_LANGS:
+        assert lang in i18n.LANGS
+        table = i18n.catalog(lang)
+        assert not wanted - set(table), (lang, sorted(wanted - set(table))[:10])
+        bad = [k for k, v in table.items() if sorted(ph.findall(k)) != sorted(ph.findall(v)) or not v.strip()]
+        assert not bad, (lang, bad[:5])
+    assert i18n.t("Hi, {n}!", "de", n="Mia") == "Hallo, Mia!"
+    assert i18n.t("Settings", "pl") == "Ustawienia"
+    assert i18n.t("no such text", "fr") == "no such text"

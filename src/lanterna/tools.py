@@ -292,7 +292,8 @@ GROUPS = {
     "pc": re.compile(r"завантаж|скачан|download|робоч\w* стол|desktop|документ|document|зображен|картинк|фотк|pictures|"
                      r"відео|video|музик|music|папк|folder|файл|file|сорт|розклад|розбер|прибер|навед\w* поряд|дублікат|"
                      r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
-                     r"cestino|elimina|sort|organi[sz]e|clean ?up|tidy", re.I),
+                     r"cestino|elimina|sort|organi[sz]e|clean ?up|tidy|місц|space|spazio|диск|disk|storage|звільн|free up|libera|"
+                     r"сміт|junk|займа|takes up|occupa", re.I),
     "apps": re.compile(r"встанов|установ|інстал|install|програм|додат|застосун|\bapp|онов|update|upgrade|uninstall|winget|"
                        r"flatpak|dnf\b|installa|aggiorna|programm|applicazion|software|видали", re.I),
     "sys": re.compile(r"\bпк\b|\bpc\b|комп.ютер|computer|ноутбук|laptop|гальм|лаг|повільн|тормоз|slow|lent|"

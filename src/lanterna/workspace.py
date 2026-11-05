@@ -74,6 +74,8 @@ class Action:
     created: float = field(default_factory=time.time)
     state: str = "pending"                     # pending | done | cancelled | failed | expired
     result: str = ""
+    ttl: float = EXPIRE                        # an unanswered card stops working after this many seconds
+    undo: dict | None = None                   # what Undo needs, set by the change itself (see Actions.note_undo)
 
     def card(self) -> dict:
         return {"id": self.id, "kind": self.kind, "details": self.details, "state": self.state, "result": self.result}
@@ -106,7 +108,7 @@ class Actions:
 
     def get(self, aid: str) -> Action | None:
         a = self.items.get(str(aid))
-        if a and a.state == "pending" and time.time() - a.created > EXPIRE:
+        if a and a.state == "pending" and time.time() - a.created > a.ttl:
             a.state = "expired"
         return a
 
@@ -118,6 +120,7 @@ class Actions:
             a.state = "running"
         before = self.tid()
         self._local.tid = a.tid                      # the change runs in the folder of the chat that proposed it
+        self._local.current = a
         try:
             a.result, a.state = a.run(), "done"
         except (WorkError, FileError, OSError) as e:
@@ -126,7 +129,25 @@ class Actions:
             a.result, a.state = f"{e.__class__.__name__}: {e}", "failed"
         finally:
             self._local.tid = before
+            self._local.current = None
         return a
+
+    def note_undo(self, undo: dict) -> None:
+        """Called by a change while it runs: how to undo it (kept in the history)."""
+        a = getattr(self._local, "current", None)
+        if a is not None:
+            a.undo = undo
+
+    def run_now(self, propose: Callable[[], object]) -> Action | None:
+        """Undo of an earlier change: propose it the usual way (same checks), then run it at once."""
+        before = (getattr(self._local, "sink", None), self.tid())
+        sink: list = []
+        self.bind(sink, 0)
+        try:
+            propose()
+        finally:
+            self.bind(*before)
+        return self.confirm(sink[-1]["id"]) if sink else None
 
     def cancel(self, aid: str) -> Action | None:
         a = self.get(aid)
@@ -271,6 +292,10 @@ class Workspace:
             q.parent.mkdir(parents=True, exist_ok=True)
             with open(q, "a" if mode == "append" else "w", encoding="utf-8", newline="") as f:
                 f.write(("\n" if mode == "append" and q.exists() and q.stat().st_size else "") + text)
+            if mode == "create":
+                self.actions.note_undo({"type": "trash", "paths": [str(q)]})
+            elif backup:
+                self.actions.note_undo({"type": "restore_backup", "path": str(q), "backup": backup})
             return rel + (f" (the old version is saved in {backup})" if backup else "")
 
         self.actions.propose(kind, {"path": rel, "folder": str(self._root()), "preview": text[:1500], "chars": len(text),
@@ -284,7 +309,9 @@ class Workspace:
         rel = self.rel(p)
 
         def run() -> str:
-            self.path(rel).mkdir(parents=True, exist_ok=True)
+            q = self.path(rel)
+            q.mkdir(parents=True, exist_ok=True)
+            self.actions.note_undo({"type": "rmdir", "path": str(q)})
             return rel
         self.actions.propose("mkdir", {"path": rel, "folder": str(self._root())}, run)
         return WAITING
@@ -307,6 +334,7 @@ class Workspace:
                 raise WorkError(f"'{b}' appeared in the meantime; nothing was moved.")
             d.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(s), str(d))
+            self.actions.note_undo({"type": "moves", "moves": [(str(s), str(d))]})
             return f"{a} → {b}"
         self.actions.propose("move", {"path": a, "to": b, "folder": str(self._root())}, run)
         return WAITING

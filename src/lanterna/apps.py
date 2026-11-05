@@ -237,6 +237,9 @@ class Apps:
             tail = "\n".join(line for line in _clean(out) if line.strip())[-600:]
             if code != 0:
                 raise WorkError(f"{m} stopped with code {code}: {tail[-300:]}")
+            if op in ("install", "uninstall"):
+                self.actions.note_undo({"type": "app", "op": "uninstall" if op == "install" else "install",
+                                        "id": d["id"], "source": m})
             return {"install": "Installed", "upgrade": "Updated", "uninstall": "Removed"}[op] + f" {d['name']}"
         self.actions.propose(f"app_{op}", details, run)
         return WAITING + (" Windows may also ask for administrator rights during the install." if m == "winget" and op != "uninstall" else

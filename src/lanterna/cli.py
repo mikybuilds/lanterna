@@ -210,11 +210,26 @@ def local_cmd(s: Settings, action: str, value: str | None) -> int:
     return 0
 
 
-def update_cmd(s: Settings) -> int:
+def doctor_cmd(s: Settings) -> int:
+    from .app import Api
+    lang = s.lang
+    with console.status(t("Checking Lanterna…", lang), spinner="dots"):
+        res = Api(scheduler=False).doctor()
+    color = {"ok": "green", "warn": "yellow", "fail": "red", "info": "dim"}
+    from .doctor import MARK
+    for c in res["checks"]:
+        console.print(f"[{color[c['status']]}]{MARK[c['status']]}[/] [bold]{c['title']}[/]  {c['detail']}", highlight=False)
+    console.print()
+    console.print(t("Everything works." if res["worst"] == "ok" else "Something needs attention (see the lines above).", lang))
+    return 1 if res["worst"] == "fail" else 0
+
+
+def update_cmd(s: Settings, now: bool = False) -> int:
     from .app import Api
     lang = s.lang
     with console.status(t("Checking for updates…", lang), spinner="dots"):
-        u = Api(scheduler=False).check_update()
+        api = Api(scheduler=False)
+        u = api.check_update()
     if not u.get("latest"):
         msg = t("Couldn't check for updates. Are you online?", lang)
         console.print(f"[yellow]{msg}[/]")
@@ -237,6 +252,17 @@ def update_cmd(s: Settings) -> int:
             console.print(f"\n       {u['command']}\n", style=f"bold {AMBER}", markup=False, highlight=False)
     if u.get("download"):
         console.print(f"\n[dim]{u['download']}[/]")
+    if u.get("auto") and u.get("auto_kind") == "pipx":
+        if not now:
+            console.print(f"\n{t('Or let Lanterna do it:', lang)} [bold {AMBER}]lanterna update --now[/]")
+            return 0
+        with console.status(t("Updating with pipx… this can take a minute or two.", lang), spinner="dots"):
+            st = api.updater.start(api._update_asset, lang, wait=True)
+        if st["phase"] != "restart":
+            msg = t("The update didn't work: {error}", lang, error=st["error"])
+            console.print(f"[red]{msg}[/]", highlight=False)
+            return 1
+        console.print(f"[green]✓[/] {t('Lanterna {v} is installed. Start it again to use it.', lang, v=u['latest'])}")
     return 0
 
 
@@ -330,7 +356,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("setup")
     sub.add_parser("chat", help="simple line-by-line chat")
     sub.add_parser("about")
-    sub.add_parser("update", help="is there a new version, and how to install it")
+    up = sub.add_parser("update", help="is there a new version, and how to install it")
+    up.add_argument("--now", action="store_true", help="installed with pipx: update right away")
+    sub.add_parser("doctor", help="check what works: keys, internet, sync, folders, programs, local models")
     sub.add_parser("bug", help="report a bug: see the text, then send it from your mail app or GitHub")
     sy = sub.add_parser("sync", help="sign in with Google and keep the same chats on all your devices")
     sy.add_argument("action", nargs="?", default="status", choices=["status", "in", "now", "out", "out-delete"])
@@ -351,7 +379,9 @@ def main(argv: list[str] | None = None) -> int:
         banner(s.lang)
         return 0
     if a.cmd == "update":
-        return update_cmd(s)
+        return update_cmd(s, a.now)
+    if a.cmd == "doctor":
+        return doctor_cmd(s)
     if a.cmd == "bug":
         return bug_cmd(s)
     if a.cmd == "sync":

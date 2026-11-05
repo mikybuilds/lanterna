@@ -271,6 +271,8 @@ class System:
                                       "prefer-dark" if theme == "dark" else "default"])
                 if code:
                     raise WorkError(out.strip()[:200] or "gsettings failed")
+            if was in ("dark", "light") and was != theme:
+                self.actions.note_undo({"type": "theme", "to": was})
             return f"theme {theme}"
         self.actions.propose("sys_theme", {"theme": theme, "was": was}, go)
         return WAITING
@@ -291,6 +293,8 @@ class System:
                 code, out = self.run(["powerprofilesctl", "set", plan["id"]])
             if code:
                 raise WorkError(out.strip()[:200] or "the system refused")
+            if was and was != plan["name"]:
+                self.actions.note_undo({"type": "power", "to": was})
             return f"power plan {plan['name']}"
         self.actions.propose("sys_power", {"name": plan["name"], "id": plan["id"], "was": was}, go)
         return WAITING
@@ -315,6 +319,7 @@ class System:
                 self.reg.set("HKEY_CURRENT_USER", sub, it["name"], value, "REG_BINARY")
             else:
                 _autostart_switch(self.home, it["name"], bool(on))
+            self.actions.note_undo({"type": "startup", "name": it["name"], "on": not bool(on)})
             return f"{it['name']} {'on' if on else 'off'} at startup"
         self.actions.propose("sys_startup", {"name": it.get("title") or it["name"], "on": bool(on),
                                              "command": it["command"]}, go)

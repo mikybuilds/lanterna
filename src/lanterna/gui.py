@@ -25,7 +25,8 @@ METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "mod
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",
            "cards", "pc_undo", "chat_folder", "set_chat_folder", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",
            "github_status", "github_connect", "github_cancel", "github_disconnect", "drive_status", "drive_connect", "drive_cancel", "drive_disconnect", "bug_report", "open_mail",
-           "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out"}
+           "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out",
+           "doctor", "history_list", "history_undo", "history_clear", "install_ollama"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 

@@ -103,11 +103,11 @@ def _mailto(addr: str, subject: str, body: str) -> str:
     return f"mailto:{addr}?subject={quote(subject)}&body={quote(body)}"
 
 
-def compose(text: str, include_info: bool = True, settings=None, model: str = "") -> dict:
+def compose(text: str, include_info: bool = True, settings=None, model: str = "", extra: list[str] | None = None) -> dict:
     """The report as the user will see it, plus ready links. `cut` means the letter had to be shortened
     (the full text should then be copied and pasted into the mail)."""
     text = str(text or "").strip()[:MAX_TEXT]
-    info = system_info(settings, model) if include_info else []
+    info = (system_info(settings, model) + [scrub(x) for x in (extra or [])]) if include_info else []
     body = text + ("\n\n---\n" + "\n".join(info) if info else "")
     subject = _subject(text)
     addr = email()

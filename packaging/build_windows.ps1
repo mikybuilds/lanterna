@@ -7,6 +7,7 @@ $py = if (Test-Path ".venv\Scripts\python.exe") { ".venv\Scripts\python.exe" } e
 & $py -m PyInstaller --noconfirm --clean --windowed --name Lanterna `
     --icon packaging\lanterna.ico `
     --add-data "src\lanterna\ui;lanterna\ui" `
+    --add-data "src\lanterna\locale;lanterna\locale" `
     --collect-submodules keyring `
     --collect-all webview `
     packaging\lanterna_gui.py

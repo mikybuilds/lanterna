@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 import threading
+import shutil
 import time
 import uuid
 from dataclasses import asdict
@@ -16,7 +17,7 @@ from .chat import Conversation, ToolUse
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
-from .i18n import LANGS, t
+from .i18n import LANGS, catalog, t
 from .providers import PROVIDERS, Client, ProviderError, Thought
 from .router import Router, Switched
 from .notify import notify
@@ -40,6 +41,9 @@ class _Stream:
         self.done = False
         self.final = False                 # pieces now hold the cleaned full reply
         self.error: dict | None = None
+        self.files: list[str] = []         # attached file names
+        self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
+        self.sent = ""
         self.lock = threading.Lock()
 
 
@@ -68,6 +72,9 @@ class Api:
         from . import updates
         self.updater = updates.Updater()
         self._update_asset: dict | None = None
+        self._last_doctor: list | None = None
+        from .history import History
+        self.history = History()
         from .sync import Syncer
         self.syncer = Syncer(self.store, self.settings)
         self.syncer.extra_scope = gdrive.SCOPE_FILE
@@ -85,7 +92,7 @@ class Api:
         s = self.settings
         return {
             "version": __version__, "author": AUTHOR, "homepage": HOMEPAGE,
-            "settings": asdict(s), "langs": LANGS, "first": FIRST_CHOICES,
+            "settings": asdict(s), "langs": LANGS, "first": FIRST_CHOICES, "strings": catalog(s.lang),
             "providers": [{"id": p.id, "name": p.name, "key_url": p.key_url, "local": p.local,
                            "has_key": bool(keys.get_key(p.id)), "masked": keys.mask(keys.get_key(p.id))}
                           for p in PROVIDERS.values()],
@@ -93,10 +100,12 @@ class Api:
         }
 
     def save_settings(self, patch: dict) -> dict:
-        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access"}
+        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
+                   "tidy_weekly", "space_help", "local_fallback"}
         for k, v in (patch or {}).items():
             if k in allowed:
-                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access") else v)
+                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
+                                                                  "space_help", "local_fallback") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -106,7 +115,7 @@ class Api:
         if self.settings.mode not in ("cloud", "local", "auto"):
             self.settings.mode = "cloud"
         self.settings.save()
-        if {"provider", "mode"} & set(patch or {}):
+        if {"provider", "mode", "local_fallback"} & set(patch or {}):
             self._router = None                            # chosen service / mode changes the model list
         return self.state()
 
@@ -142,10 +151,11 @@ class Api:
         if not self.settings.pc_access:
             return []
         from .apps import app_tools
-        from .pcfiles import place_tools
+        from .pcfiles import place_tools, space_tools
         from .pcsys import system_tools
         out = []
-        for group, make in (("pc", lambda: place_tools(self.places)), ("apps", lambda: app_tools(self.apps)),
+        for group, make in (("pc", lambda: place_tools(self.places)), ("pc", lambda: space_tools(self.places) if self.settings.space_help else []),
+                            ("apps", lambda: app_tools(self.apps)),
                             ("sys", lambda: system_tools(self.system))):
             try:
                 tools = make()
@@ -157,18 +167,69 @@ class Api:
         return out
 
     def pc_undo(self, sort_id: str) -> dict:
-        """The Undo button of a finished sort card."""
-        from .workspace import WorkError
+        """The Undo button of a finished sort card (works after a restart too: the history keeps the moves)."""
+        entry = self.history.find_undo("undo", str(sort_id))
+        if entry and not entry["undone"] and entry.get("undo"):
+            self.places.undo.pop(str(sort_id), None)
+            return self.history_undo(entry["id"])
         lang = self.settings.lang
+        return {"ok": False, "text": t("This sort can't be undone any more (Lanterna was restarted or it was undone already).", lang)}
+
+    # ---------------------------------------------------------------- what Lanterna did
+    def history_list(self) -> list[dict]:
+        """Confirmed changes on this computer, newest first, in the interface language."""
+        lang = self.settings.lang
+        return [{"id": x["id"], "kind": x["kind"], "at": x["at"], "undone": x["undone"], "note": x.get("note", ""),
+                 "can_undo": bool(x.get("undo")) and not x["undone"],
+                 "title": action_title(x["kind"], x.get("details", {}), x.get("result", ""), lang, done=True)}
+                for x in self.history.items()]
+
+    def history_clear(self) -> list[dict]:
+        self.history.clear()
+        return []
+
+    def history_undo(self, hid: str) -> dict:
+        """Undo one change from the history. Files come back, settings switch back, a program is removed again."""
+        from . import history as hist
+        from .pcfiles import restore_from_trash
+        lang = self.settings.lang
+        x = self.history.get(str(hid))
+        if not x or x["undone"] or not x.get("undo"):
+            return {"ok": False, "text": t("This change can't be undone.", lang)}
+        u = x["undo"]
         try:
-            self.places.undo_sort(str(sort_id))
-        except WorkError:
-            return {"ok": False, "text": t("This sort can't be undone any more (Lanterna was restarted or it was undone already).", lang)}
-        back, left = self.places.last_undo
-        text = t("{n} files are back where they were.", lang, n=back)
-        if left:
-            text += " " + t("{n} had been moved or changed since and stayed.", lang, n=left)
-        return {"ok": True, "text": text}
+            if u["type"] == "moves":
+                back, left = hist.undo_moves(u["moves"], self.places.roots())
+                text = t("{n} files are back where they were.", lang, n=back)
+                if left:
+                    text += " " + t("{n} had been moved or changed since and stayed.", lang, n=left)
+                ok = back > 0 or not left
+            elif u["type"] == "trash":
+                back, gone = restore_from_trash(u["paths"])
+                text = t("{n} files are back from the Recycle Bin.", lang, n=back)
+                if gone:
+                    text += " " + t("{n} weren't in the Recycle Bin any more (or something with that name is there again).", lang, n=gone)
+                ok = back > 0
+            elif u["type"] == "rmdir":
+                ok = hist.undo_rmdir(u["path"])
+                text = t("The folder was removed." if ok else "The folder isn't empty any more, so it stayed.", lang)
+            elif u["type"] == "restore_backup":
+                ok = hist.undo_restore_backup(u["path"], u["backup"])
+                text = t("The old version is back." if ok else "The saved old version is gone.", lang)
+            else:
+                propose = {"theme": lambda: self.system.propose_theme(u["to"]),
+                           "power": lambda: self.system.propose_power(u["to"]),
+                           "startup": lambda: self.system.propose_startup(u["name"], u["on"]),
+                           "app": lambda: self.apps.propose(u["op"], u["id"], u.get("source", ""))}[u["type"]]
+                a = self.actions.run_now(propose)
+                ok = bool(a and a.state == "done")
+                text = (t("Changed back.", lang) if ok else
+                        t("Couldn't do it: {error}", lang, error=(a.result if a else "") or "?"))
+        except Exception as e:                               # noqa: BLE001  shown to the user, the entry stays
+            return {"ok": False, "text": t("Couldn't do it: {error}", lang, error=str(e)[:200])}
+        if ok:
+            self.history.mark(x["id"], text)
+        return {"ok": ok, "text": text}
 
     def _key_changed(self, provider: str) -> None:
         self.settings.keys_at = {**(self.settings.keys_at or {}), provider: time.time()}
@@ -210,7 +271,26 @@ class Api:
     def bug_report(self, text: str, include_info: bool = True) -> dict:
         """The exact report text the user will send, with ready links (nothing is sent from here)."""
         model = self._router.current.label if self._router and self._router.current else ""
-        return bugreport.compose(text, bool(include_info), self.settings, model)
+        extra = []
+        if include_info:
+            from . import doctor
+            try:                                     # the quick checks (no network): what works on this computer
+                extra = ["Check:"] + ["  " + ln for ln in doctor.summary(self._last_doctor or doctor.run(self, network=False))]
+            except Exception:                        # noqa: BLE001  a report must never fail because of a check
+                extra = []
+        return bugreport.compose(text, bool(include_info), self.settings, model, extra)
+
+    def doctor(self, network: bool = True) -> dict:
+        """Check Lanterna: every part with ok / warn / fail and a plain sentence, plus English text to copy."""
+        from . import doctor
+        checks = doctor.run(self, network=bool(network))
+        if network:
+            self._last_doctor = checks
+        lang = self.settings.lang
+        rows = [{"title": t(c.title, lang), "status": c.status, "detail": t(c.detail, lang, **c.vars) if c.detail else ""}
+                for c in checks]
+        worst = "fail" if any(c.status == "fail" for c in checks) else "warn" if any(c.status == "warn" for c in checks) else "ok"
+        return {"checks": rows, "worst": worst, "text": "\n".join(doctor.summary(checks))}
 
     def open_mail(self, url: str) -> bool:
         """Opens the user's mail app with the ready letter; they press Send themselves."""
@@ -224,7 +304,8 @@ class Api:
         with self._lock:
             if self._router is None or refresh:
                 s = self.settings
-                cands = get_models(s.provider, refresh=refresh, mode=s.mode, picks=s.local_models)
+                cands = get_models(s.provider, refresh=refresh, mode=s.mode, picks=s.local_models,
+                                   fallback=s.local_fallback)
                 if not cands:
                     if s.mode == "local":
                         raise ProviderError("local", "no local models" if local.version() else "ollama not running")
@@ -258,7 +339,10 @@ class Api:
             how = updates.how_to(updates.install_kind(), res["latest"], res.get("assets"))
             res["steps"] = [t(s, lang, file=how["file"]) if "{file}" in s else t(s, lang) for s in how["steps"]]
             res["command"], res["download"] = how["command"], how["download"]
-            self._update_asset = updates.setup_asset(res) if updates.install_kind() == "installer" else None
+            kind = updates.install_kind()
+            self._update_asset = (updates.setup_asset(res) if kind == "installer" else
+                                  updates.pipx_asset(res, kind) if kind == "pipx" else None)
+            res["auto_kind"] = "pipx" if self._update_asset and self._update_asset.get("pipx") else "setup"
             res["auto"] = self._update_asset is not None
         res.pop("assets", None)
         res.pop("digests", None)
@@ -296,7 +380,23 @@ class Api:
         models = [vars(m) for m in local.installed()] if ver else []
         return {"running": bool(ver), "version": ver or "", "models": [m for m in models if m["chat"]],
                 "picks": self.settings.local_models, "download_page": local.DOWNLOAD_PAGE,
-                "pulls": self._downloads.state()}
+                "pulls": self._downloads.state(), "fallback": self.settings.local_fallback,
+                "can_install": not ver and "winget" in self.apps.managers()}
+
+    def install_ollama(self) -> dict:
+        """Settings → Local models → Install Ollama (Windows, winget): after the user confirmed in the dialog."""
+        lang = self.settings.lang
+        if "winget" not in self.apps.managers():
+            return {"ok": False, "text": t("Install it from the Ollama website.", lang)}
+        a = self.actions.run_now(lambda: self.apps.propose("install", "Ollama.Ollama", "winget"))
+        if not a or a.state != "done":
+            return {"ok": False, "text": t("Couldn't do it: {error}", lang, error=(a.result if a else "") or "?")}
+        try:
+            self.history.add(a.kind, a.details, a.result, a.undo)
+        except OSError:
+            pass
+        self._router = None
+        return {"ok": True, "text": t("Ollama is installed. Now download a model below.", lang)}
 
     def set_local_model(self, role: str, name: str) -> dict:
         if role in ("chat", "vision"):
@@ -339,10 +439,12 @@ class Api:
 
     def messages(self, tid: int) -> list[dict]:
         """Messages for display: attached file contents are shown as a short 📎 line."""
-        out = []
+        from . import sent
+        out, lang = [], self.settings.lang
         for m in self.store.messages(int(tid)):
             if m["role"] == "user":
                 m = {**m, "content": _short_files(m["content"])}
+            m["sent"] = sent.view(m.pop("sent", ""), lang) if m["role"] == "assistant" else []
             out.append(m)
         return out
 
@@ -373,6 +475,7 @@ class Api:
         self.store.add(tid, "user", full)
         if not self.store.thread(tid)["title"]:
             self.store.rename(tid, (text or ", ".join(prep.names)).splitlines()[0][:60])
+        st.files = list(prep.names)
         threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images), daemon=True).start()
         return {"ok": True, "stream": sid}
 
@@ -390,12 +493,20 @@ class Api:
                         st.notes.append(p.to.label)
                     elif isinstance(p, ToolUse):
                         st.tools.append(f"{p.label} {p.name}")
+                        st.used.append((p.name, p.arguments))
                         st.steps.tool(p.name, p.arguments)
                     elif isinstance(p, Thought):
                         st.steps.thought(p.text)
                     else:
                         st.pieces.append(p)
-            self.store.add(tid, "assistant", conv.last_reply, router.current.label if router.current else "")
+            from . import sent
+            cur = router.current
+            st.sent = sent.dumps(sent.build(
+                cur.label if cur else "", bool(cur and PROVIDERS[cur.provider].local), len(history),
+                bool(self.settings.name), len(self.store.facts()),
+                [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
+                len(images or []), st.used))
+            self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
             with st.lock:
                 st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
                 st.final = True
@@ -418,7 +529,9 @@ class Api:
             return {"done": True, "error": {"kind": "other", "message": "unknown stream"}}
         with st.lock:
             if st.final:
+                from . import sent
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
+                       "sent": sent.view(st.sent, self.settings.lang),
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}
@@ -456,6 +569,12 @@ class Api:
             return {"id": "", "state": "expired", "result": "", "text": ""}
         lang = self.settings.lang
         what = action_title(a.kind, a.details, a.result if a.state == "done" else "", lang, done=a.state == "done")
+        if a.state == "done" and not getattr(a, "logged", False):
+            a.logged = True                                 # Settings → What Lanterna did
+            try:
+                self.history.add(a.kind, a.details, a.result, a.undo, a.tid)
+            except OSError:
+                pass
         if a.state in ("done", "failed", "cancelled") and a.tid and not getattr(a, "noted", False):
             a.noted = True                              # the chat remembers what happened (and the model sees it)
             note = ("✅ " + what if a.state == "done" else "✖ " + t("Cancelled: {what}", lang, what=what)
@@ -625,10 +744,67 @@ class Api:
                 self._alerts += due
         return due
 
+    # ---------------------------------------------------------------- weekly tidy-up and a full disk (both opt-in)
+    def maintenance(self, now: float | None = None) -> list[dict]:
+        """Settings → Computer: once a week a sort card for Downloads; a note when the disk is almost full."""
+        now = time.time() if now is None else now
+        s, lang, out = self.settings, self.settings.lang, []
+        if not s.pc_access:
+            return out
+        if s.tidy_weekly and now - s.tidy_last >= 7 * 86400:
+            s.tidy_last = now
+            s.save()
+            n = self.places.loose_count("downloads") if "downloads" in self.places.folders() else 0
+            if n >= 5:
+                tid = self.store.new_thread(t("Weekly tidy-up", lang))
+                sink: list = []
+                self.actions.bind(sink, tid)
+                try:
+                    self.places.propose_sort("downloads", "", "type")
+                except Exception:                           # noqa: BLE001  nothing to sort after all
+                    sink = []
+                finally:
+                    self.actions.bind(None, 0)
+                for c in sink:
+                    a = self.actions.get(c["id"])
+                    if a:
+                        a.ttl = 3 * 86400                   # the user may see it days later
+                text = t("A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? "
+                         "Check the card below. (Turn this off in Settings → Computer.)", lang, n=n)
+                self.store.add(tid, "assistant", text)
+                notify("Lanterna 🧹", t("{n} new files in Downloads: sort them?", lang, n=n))
+                out.append({"id": f"tidy-{int(now)}", "text": t("{n} new files in Downloads: sort them?", lang, n=n),
+                            "tid": tid, "kind": "tidy"})
+        if s.space_help and now - s.space_last >= 86400:
+            s.space_last = now
+            s.save()
+            low = []
+            for name, p in self.places.folders().items():
+                try:
+                    du = shutil.disk_usage(p)
+                except OSError:
+                    continue
+                if (du.free < du.total * 0.08 or du.free < 5 * 1024 ** 3) and (du.total, du.free) not in [x[1] for x in low]:
+                    low.append((name, (du.total, du.free)))
+            if low:
+                free = low[0][1][1] / 1024 ** 3
+                msg = t("The disk is almost full: {gb} GB left. Ask me “what takes up space?” and I'll show what can go.",
+                        lang, gb=f"{free:.1f}")
+                notify("Lanterna 💾", msg)
+                out.append({"id": f"space-{int(now)}", "text": msg, "kind": "space"})
+        if out:
+            with self._lock:
+                self._alerts += out
+        return out
+
     def _reminder_loop(self) -> None:
+        last_check = 0.0
         while True:
             try:
                 self.check_reminders()
+                if time.time() - last_check > 3600:
+                    last_check = time.time()
+                    self.maintenance()
             except Exception:                               # noqa: BLE001  keep the scheduler alive
                 pass
             time.sleep(15)

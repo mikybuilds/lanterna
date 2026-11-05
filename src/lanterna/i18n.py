@@ -1,7 +1,14 @@
 """Interface strings. Key = English text; add a row for every new string."""
 from __future__ import annotations
 
-LANGS = {"en": "English", "uk": "Українська", "it": "Italiano"}
+import json
+from functools import cache
+from pathlib import Path
+
+LANGS = {"en": "English", "uk": "Українська", "it": "Italiano",
+         "de": "Deutsch", "es": "Español", "fr": "Français", "pl": "Polski"}
+# uk/it live in _T below; the other languages are one JSON file each in locale/
+FILE_LANGS = ("de", "es", "fr", "pl")
 
 _T: dict[str, dict[str, str]] = {
     "Made by {author}": {"uk": "Створив {author}", "it": "Creato da {author}"},
@@ -128,8 +135,24 @@ _T: dict[str, dict[str, str]] = {
 }
 
 
+@cache
+def catalog(lang: str) -> dict[str, str]:
+    """English text -> translation for a language kept in locale/<lang>.json."""
+    if lang not in FILE_LANGS:
+        return {}
+    try:
+        return json.loads((Path(__file__).with_name("locale") / f"{lang}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
 def t(text: str, lang: str = "en", **kw) -> str:
-    s = text if lang == "en" else _T.get(text, {}).get(lang, text)
+    if lang == "en":
+        s = text
+    elif lang in FILE_LANGS:
+        s = catalog(lang).get(text, text)
+    else:
+        s = _T.get(text, {}).get(lang, text)
     return s.format(**kw) if kw else s
 
 
@@ -474,4 +497,191 @@ _T.update({
     "This sort can't be undone any more (Lanterna was restarted or it was undone already).": {"uk": "Це розкладання вже не можна скасувати (Lanterna перезапускали або його вже скасовано).", "it": "Questo ordinamento non si può più annullare (Lanterna è stata riavviata o è già stato annullato)."},
     "{n} files are back where they were.": {"uk": "Файлів повернуто на місце: {n}.", "it": "File tornati al loro posto: {n}."},
     "{n} had been moved or changed since and stayed.": {"uk": "Ще {n} відтоді перемістили чи змінили — їх не чіпала.", "it": "Altri {n} erano stati spostati o cambiati e sono rimasti lì."},
+})
+
+
+# Check Lanterna, self-update with pipx, What Lanterna did, weekly tidy-up, disk space, what went to the model,
+# ready examples, local model as a fallback
+_T.update({
+    "Check Lanterna": {"uk": "Перевірити Lanterna", "it": "Controlla Lanterna"},
+    "Checking Lanterna…": {"uk": "Перевіряю Lanterna…", "it": "Controllo Lanterna…"},
+    "Everything works.": {"uk": "Усе працює.", "it": "Funziona tutto."},
+    "Something needs attention (see the lines above).": {"uk": "Дещо потребує уваги (див. рядки вище).",
+                                                         "it": "Qualcosa richiede attenzione (vedi le righe sopra)."},
+    "Version": {"uk": "Версія", "it": "Versione"},
+    "Updates": {"uk": "Оновлення", "it": "Aggiornamenti"},
+    "API keys": {"uk": "Ключі API", "it": "Chiavi API"},
+    "Mode": {"uk": "Режим", "it": "Modalità"},
+    "Key vault": {"uk": "Сховище ключів", "it": "Archivio chiavi"},
+    "Sync": {"uk": "Синхронізація", "it": "Sincronizzazione"},
+    "Your folders": {"uk": "Твої папки", "it": "Le tue cartelle"},
+    "Programs": {"uk": "Програми", "it": "Programmi"},
+    "Ollama (local models)": {"uk": "Ollama (локальні моделі)", "it": "Ollama (modelli locali)"},
+    "Data folder": {"uk": "Папка даних", "it": "Cartella dei dati"},
+    "Terminal": {"uk": "Термінал", "it": "Terminale"},
+    "Limits": {"uk": "Ліміти", "it": "Limiti"},
+    "Help with this computer": {"uk": "Допомога з комп'ютером", "it": "Aiuto con questo computer"},
+    "Couldn't reach the release page. Are you online?": {"uk": "Не вдалося відкрити сторінку випусків. Інтернет є?",
+                                                         "it": "Impossibile raggiungere la pagina delle versioni. Sei online?"},
+    "Version {v} is out. Update to get the latest fixes.": {"uk": "Вийшла версія {v}. Онови, щоб отримати свіжі виправлення.",
+                                                            "it": "È uscita la versione {v}. Aggiorna per avere le ultime correzioni."},
+    "This is the latest version.": {"uk": "Це найновіша версія.", "it": "Questa è l'ultima versione."},
+    "Local models only: nothing leaves this computer.": {"uk": "Лише локальні моделі: ніщо не виходить за межі комп'ютера.",
+                                                         "it": "Solo modelli locali: nulla esce da questo computer."},
+    "No key for any online service. Add one in Settings → Services.": {
+        "uk": "Немає ключа жодного онлайн-сервісу. Додай його в Налаштуваннях → Сервіси.",
+        "it": "Nessuna chiave per i servizi online. Aggiungine una in Impostazioni → Servizi."},
+    "Key works, {n} models.": {"uk": "Ключ працює, моделей: {n}.", "it": "La chiave funziona, {n} modelli."},
+    "The key was refused. Paste a new one in Settings.": {"uk": "Ключ не прийнято. Встав новий у Налаштуваннях.",
+                                                          "it": "La chiave è stata rifiutata. Incollane una nuova nelle Impostazioni."},
+    "Can't reach the service. Check the internet connection.": {"uk": "Сервіс недоступний. Перевір інтернет.",
+                                                               "it": "Il servizio non risponde. Controlla la connessione."},
+    "The service didn't answer in time. Check the internet connection.": {
+        "uk": "Сервіс не відповів вчасно. Перевір інтернет.", "it": "Il servizio non ha risposto in tempo. Controlla la connessione."},
+    "The free limit is reached for now; it resets by itself.": {"uk": "Безкоштовний ліміт поки вичерпано; він оновиться сам.",
+                                                               "it": "Il limite gratuito è esaurito per ora; si ripristina da solo."},
+    "Error: {error}": {"uk": "Помилка: {error}", "it": "Errore: {error}"},
+    "No answer in 20 seconds.": {"uk": "Немає відповіді 20 секунд.", "it": "Nessuna risposta in 20 secondi."},
+    "A key is saved.": {"uk": "Ключ збережено.", "it": "Chiave salvata."},
+    "{n} models are resting after a limit; Lanterna uses the others meanwhile.": {
+        "uk": "Моделей на паузі після ліміту: {n}; поки що Lanterna використовує інші.",
+        "it": "{n} modelli sono in pausa dopo un limite; intanto Lanterna usa gli altri."},
+    "No system vault: keys and sign-ins can't be saved. On Linux install gnome-keyring or KWallet.": {
+        "uk": "Немає системного сховища: ключі й входи не зберігаються. На Linux встанови gnome-keyring або KWallet.",
+        "it": "Nessun archivio di sistema: chiavi e accessi non si possono salvare. Su Linux installa gnome-keyring o KWallet."},
+    "Not signed in with Google: chats stay on this device.": {"uk": "Вхід через Google не виконано: чати лишаються на цьому пристрої.",
+                                                              "it": "Accesso con Google non fatto: le chat restano su questo dispositivo."},
+    "Sync error: {error}": {"uk": "Помилка синхронізації: {error}", "it": "Errore di sincronizzazione: {error}"},
+    "Signed in; chats sync between your devices.": {"uk": "Вхід виконано; чати синхронізуються між пристроями.",
+                                                    "it": "Accesso fatto; le chat si sincronizzano tra i dispositivi."},
+    "Signed in, but the sync password is not entered yet.": {"uk": "Вхід виконано, але пароль синхронізації ще не введено.",
+                                                             "it": "Accesso fatto, ma la password di sincronizzazione non è ancora inserita."},
+    "Connected.": {"uk": "Підключено.", "it": "Collegato."},
+    "Problem: {error}": {"uk": "Проблема: {error}", "it": "Problema: {error}"},
+    "Turned off in Settings → Computer.": {"uk": "Вимкнено в Налаштуваннях → Комп'ютер.", "it": "Disattivato in Impostazioni → Computer."},
+    "{n} of 6 standard folders found.": {"uk": "Знайдено стандартних папок: {n} із 6.", "it": "Trovate {n} cartelle standard su 6."},
+    "Installs with {tools}.": {"uk": "Встановлює через {tools}.", "it": "Installa con {tools}."},
+    "No winget, dnf, apt or Flatpak found: Lanterna can't install programs.": {
+        "uk": "Не знайдено winget, dnf, apt чи Flatpak: Lanterna не може встановлювати програми.",
+        "it": "Nessun winget, dnf, apt o Flatpak: Lanterna non può installare programmi."},
+    "Ollama {v}, {n} models.": {"uk": "Ollama {v}, моделей: {n}.", "it": "Ollama {v}, {n} modelli."},
+    "Ollama {v} runs, but no model is downloaded yet.": {"uk": "Ollama {v} працює, але жодної моделі ще не завантажено.",
+                                                         "it": "Ollama {v} è attivo, ma non c'è ancora nessun modello scaricato."},
+    "Not installed or not running. Optional: for chatting without internet.": {
+        "uk": "Не встановлено або не запущено. Необов'язково: для розмов без інтернету.",
+        "it": "Non installato o non avviato. Facoltativo: per chattare senza internet."},
+    "{gb} GB free.": {"uk": "Вільно {gb} ГБ.", "it": "{gb} GB liberi."},
+    "Only {gb} GB free on this disk; chats may stop saving.": {"uk": "На диску лише {gb} ГБ; чати можуть перестати зберігатися.",
+                                                               "it": "Solo {gb} GB liberi su questo disco; le chat potrebbero non salvarsi."},
+    "Can't write: {error}": {"uk": "Не вдається записати: {error}", "it": "Impossibile scrivere: {error}"},
+    "{term}: the full-screen app may look wrong. Use a terminal app like GNOME Terminal or Konsole.": {
+        "uk": "{term}: повноекранна програма може виглядати неправильно. Скористайся GNOME Terminal чи Konsole.",
+        "it": "{term}: l'app a schermo intero potrebbe vedersi male. Usa un terminale come GNOME Terminal o Konsole."},
+    # self-update (pipx)
+    "Or let Lanterna do it:": {"uk": "Або нехай Lanterna зробить це сама:", "it": "Oppure lascia fare a Lanterna:"},
+    "Or press Update now: Lanterna runs it for you and you only start it again.": {
+        "uk": "Або натисни «Оновити зараз»: Lanterna виконає це сама, тобі лишиться тільки запустити її знову.",
+        "it": "Oppure premi «Aggiorna ora»: Lanterna lo fa per te, tu devi solo riavviarla."},
+    "Update now": {"uk": "Оновити зараз", "it": "Aggiorna ora"},
+    "Restart now": {"uk": "Перезапустити", "it": "Riavvia ora"},
+    "Updating with pipx… this can take a minute or two.": {"uk": "Оновлюю через pipx… це може зайняти хвилину-дві.",
+                                                           "it": "Aggiorno con pipx… può richiedere un paio di minuti."},
+    "Lanterna {v} is installed. Start it again to use it.": {"uk": "Lanterna {v} встановлено. Запусти її знову, щоб користуватися.",
+                                                             "it": "Lanterna {v} è installata. Riavviala per usarla."},
+    "The update didn't work: {error}": {"uk": "Оновлення не вдалося: {error}", "it": "L'aggiornamento non è riuscito: {error}"},
+    "This version keeps working. You can update by hand.": {"uk": "Ця версія працює далі. Можна оновити вручну.",
+                                                            "it": "Questa versione continua a funzionare. Puoi aggiornare a mano."},
+    # what Lanterna did
+    "What Lanterna did": {"uk": "Що зробила Lanterna", "it": "Cosa ha fatto Lanterna"},
+    "Changes you confirmed on this computer, newest first. Undo puts files back, takes them out of the Recycle Bin or switches a setting back.": {
+        "uk": "Зміни, які ти підтвердив на цьому комп'ютері, найновіші зверху. «Скасувати» повертає файли на місце, дістає їх із Кошика або повертає налаштування.",
+        "it": "Le modifiche che hai confermato su questo computer, dalle più recenti. «Annulla» rimette i file al loro posto, li recupera dal Cestino o ripristina un'impostazione."},
+    "Nothing yet. When you confirm a change on a card, it shows up here.": {
+        "uk": "Поки нічого. Коли ти підтвердиш зміну на картці, вона з'явиться тут.",
+        "it": "Ancora niente. Quando confermi una modifica su una scheda, compare qui."},
+    "Clear the list": {"uk": "Очистити список", "it": "Svuota l'elenco"},
+    "Undone": {"uk": "Скасовано", "it": "Annullato"},
+    "Undo": {"uk": "Скасувати", "it": "Annulla"},
+    "This change can't be undone.": {"uk": "Цю зміну не можна скасувати.", "it": "Questa modifica non si può annullare."},
+    "Changed back.": {"uk": "Повернуто як було.", "it": "Ripristinato."},
+    "{n} files are back from the Recycle Bin.": {"uk": "Файлів повернуто з Кошика: {n}.", "it": "{n} file sono tornati dal Cestino."},
+    "{n} weren't in the Recycle Bin any more (or something with that name is there again).": {
+        "uk": "Не знайдено в Кошику: {n} (або на тому місці вже є файл із такою назвою).",
+        "it": "{n} non erano più nel Cestino (o lì c'è di nuovo qualcosa con quel nome)."},
+    "The folder was removed.": {"uk": "Папку прибрано.", "it": "La cartella è stata rimossa."},
+    "The folder isn't empty any more, so it stayed.": {"uk": "Папка вже не порожня, тож вона залишилась.",
+                                                       "it": "La cartella non è più vuota, quindi è rimasta."},
+    "The old version is back.": {"uk": "Стару версію повернуто.", "it": "La versione precedente è tornata."},
+    "The saved old version is gone.": {"uk": "Збереженої старої версії вже немає.", "it": "La vecchia versione salvata non c'è più."},
+    # weekly tidy-up and disk space
+    "Weekly tidy-up": {"uk": "Щотижневе прибирання", "it": "Riordino settimanale"},
+    "Weekly tidy-up of Downloads": {"uk": "Щотижневе прибирання Завантажень", "it": "Riordino settimanale dei Download"},
+    "Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.": {
+        "uk": "Раз на тиждень, якщо в Завантаженнях лежать нові файли, Lanterna створює чат із карткою, щоб розкласти їх по папках. Нічого не переміститься, поки ти не підтвердиш.",
+        "it": "Una volta a settimana, se in Download ci sono nuovi file sparsi, Lanterna apre una chat con una scheda per metterli in cartelle. Nulla si sposta finché non confermi."},
+    "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": {
+        "uk": "Минув тиждень: у Завантаженнях лежить нових файлів: {n}. Розкласти їх по папках? Глянь картку нижче. (Вимкнути можна в Налаштуваннях → Комп'ютер.)",
+        "it": "È passata una settimana: in Download ci sono {n} nuovi file sparsi. Li metto in cartelle? Guarda la scheda qui sotto. (Si disattiva in Impostazioni → Computer.)"},
+    "{n} new files in Downloads: sort them?": {"uk": "Нових файлів у Завантаженнях: {n}. Розкласти?",
+                                               "it": "{n} nuovi file in Download: li riordino?"},
+    "Help free up disk space": {"uk": "Допомога зі звільненням місця", "it": "Aiuto a liberare spazio"},
+    "Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.": {
+        "uk": "Lanterna покаже, що займає місце (великі й старі файли, старі інсталятори, Кошик), і попередить, коли диск майже заповнений. Видалення — тільки в Кошик і тільки після підтвердження.",
+        "it": "Lanterna mostra cosa occupa spazio (file grandi e vecchi, vecchi installer, il Cestino) e ti avvisa quando il disco è quasi pieno. Si rimuove solo nel Cestino, dopo la tua conferma."},
+    "Disk space": {"uk": "Місце на диску", "it": "Spazio su disco"},
+    "The disk is almost full: {gb} GB left. Ask me “what takes up space?” and I'll show what can go.": {
+        "uk": "Диск майже заповнений: лишилося {gb} ГБ. Запитай мене «що займає місце?», і я покажу, що можна прибрати.",
+        "it": "Il disco è quasi pieno: restano {gb} GB. Chiedimi «cosa occupa spazio?» e ti mostro cosa si può togliere."},
+    # what went to the model
+    "What went to the model": {"uk": "Що пішло в модель", "it": "Cosa è andato al modello"},
+    "Sent to {model}": {"uk": "Надіслано в {model}", "it": "Inviato a {model}"},
+    "Stayed on this computer ({model})": {"uk": "Залишилось на цьому комп'ютері ({model})", "it": "Rimasto su questo computer ({model})"},
+    "Your message": {"uk": "Твоє повідомлення", "it": "Il tuo messaggio"},
+    "Your message and {n} earlier messages of this chat": {"uk": "Твоє повідомлення і попередні повідомлення цього чату: {n}",
+                                                           "it": "Il tuo messaggio e {n} messaggi precedenti di questa chat"},
+    "Your name": {"uk": "Твоє ім'я", "it": "Il tuo nome"},
+    "What Lanterna remembers about you ({n} facts)": {"uk": "Що Lanterna пам'ятає про тебе (фактів: {n})",
+                                                      "it": "Cosa ricorda Lanterna di te ({n} fatti)"},
+    "Attached files: {names}": {"uk": "Прикріплені файли: {names}", "it": "File allegati: {names}"},
+    "Photos: {n}": {"uk": "Фото: {n}", "it": "Foto: {n}"},
+    "Names and sizes of files in your folders": {"uk": "Назви й розміри файлів у твоїх папках", "it": "Nomi e dimensioni dei file nelle tue cartelle"},
+    "The text of the file {path}": {"uk": "Текст файлу {path}", "it": "Il testo del file {path}"},
+    "Information about this computer (system, memory, disks, running programs)": {
+        "uk": "Відомості про цей комп'ютер (система, пам'ять, диски, запущені програми)",
+        "it": "Informazioni su questo computer (sistema, memoria, dischi, programmi in esecuzione)"},
+    "The list of your installed programs": {"uk": "Список встановлених програм", "it": "L'elenco dei programmi installati"},
+    "Search words to DuckDuckGo: {q}": {"uk": "Пошукові слова в DuckDuckGo: {q}", "it": "Parole di ricerca a DuckDuckGo: {q}"},
+    "A web page was opened: {site}": {"uk": "Відкрито вебсторінку: {site}", "it": "È stata aperta una pagina web: {site}"},
+    "A city name to Open-Meteo (weather): {city}": {"uk": "Назва міста в Open-Meteo (погода): {city}",
+                                                    "it": "Nome della città a Open-Meteo (meteo): {city}"},
+    # ready examples
+    "Try one:": {"uk": "Спробуй:", "it": "Prova:"},
+    "Sort my Downloads": {"uk": "Розклади мої Завантаження", "it": "Riordina i miei Download"},
+    "Why is my computer slow?": {"uk": "Чому мій комп'ютер гальмує?", "it": "Perché il mio computer è lento?"},
+    "What's the weather tomorrow?": {"uk": "Яка погода завтра?", "it": "Che tempo fa domani?"},
+    "Remind me in 20 minutes to take a break": {"uk": "Нагадай через 20 хвилин зробити перерву",
+                                                "it": "Ricordami tra 20 minuti di fare una pausa"},
+    "Explain something simply": {"uk": "Поясни щось простими словами", "it": "Spiegami qualcosa in modo semplice"},
+    "Help me plan my week": {"uk": "Допоможи спланувати тиждень", "it": "Aiutami a pianificare la settimana"},
+    "Write a short message for me": {"uk": "Напиши за мене коротке повідомлення", "it": "Scrivi un breve messaggio per me"},
+    "Give me an idea for today": {"uk": "Дай ідею на сьогодні", "it": "Dammi un'idea per oggi"},
+    # local model as a fallback
+    "Use a local model when the online limits run out": {"uk": "Локальна модель, коли закінчились онлайн-ліміти",
+                                                         "it": "Usa un modello locale quando finiscono i limiti online"},
+    "In Cloud mode, when every free online model is out of its limit or there is no internet, a model downloaded here answers instead. It stays on this computer.": {
+        "uk": "У режимі Хмара, коли всі безкоштовні онлайн-моделі вичерпали ліміт або немає інтернету, відповідає завантажена тут модель. Усе лишається на цьому комп'ютері.",
+        "it": "In modalità Cloud, quando tutti i modelli online gratuiti hanno finito il limite o manca internet, risponde un modello scaricato qui. Resta su questo computer."},
+    "Tip: a local model (Settings → Local models) answers when the limits run out.": {
+        "uk": "Порада: локальна модель (Налаштування → Локальні моделі) відповідає, коли закінчуються ліміти.",
+        "it": "Suggerimento: un modello locale (Impostazioni → Modelli locali) risponde quando finiscono i limiti."},
+    "Install": {"uk": "Встановити", "it": "Installa"},
+    "Install Ollama": {"uk": "Встановити Ollama", "it": "Installa Ollama"},
+    "Install Ollama with winget? Windows may ask for administrator rights.": {
+        "uk": "Встановити Ollama через winget? Windows може попросити права адміністратора.",
+        "it": "Installare Ollama con winget? Windows potrebbe chiedere i permessi di amministratore."},
+    "Install it from the Ollama website.": {"uk": "Встанови її з сайту Ollama.", "it": "Installalo dal sito di Ollama."},
+    "Ollama is installed. Now download a model below.": {"uk": "Ollama встановлено. Тепер завантаж модель нижче.",
+                                                         "it": "Ollama è installato. Ora scarica un modello qui sotto."},
+    "Installing… this can take a few minutes.": {"uk": "Встановлюю… це може зайняти кілька хвилин.",
+                                                 "it": "Installo… può richiedere qualche minuto."},
 })

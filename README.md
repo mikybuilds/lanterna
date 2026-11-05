@@ -19,7 +19,7 @@ Running a good model locally needs a strong graphics card. Lanterna lets anyone 
 - **No telemetry.** Lanterna sends nothing to its author.
 - **Same chats on every device** (optional): sign in with Google and your chats are kept, encrypted, in a hidden folder of your own Google Drive.
 - **Human tone.** Warm, short when you're short, honest when it isn't sure.
-- **English, Українська, Italiano.**
+- **English, Українська, Italiano, Deutsch, Español, Français, Polski.**
 
 ## Install
 
@@ -122,12 +122,17 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - **Programs:** search, install, update and uninstall with `winget` on Windows and `dnf` / Flatpak on Linux. The card shows the program, publisher, version, source and the exact command; the install starts only after Confirm.
 - **Settings:** only a fixed list of safe actions — theme, power plan, apps that start with the computer, opening a Settings page — plus a read-only check-up (free disk space, memory, what is using the processor). Lanterna never runs any other command.
 - File names and the files it opens go to the model in use, like a message (nowhere in Local mode).
+- **What Lanterna did** (sidebar; `Ctrl+H` in the terminal app): every confirmed change on this computer, newest first, with **Undo** where possible — files come back from folders and the Recycle Bin, a setting switches back, an installed program is removed again. Kept on this device only (`history.json`, last 300).
+- **Optional, off by default** (Settings → Computer): a **weekly tidy-up** of Downloads (a chat with a sort card; nothing moves before Confirm) and **help freeing disk space** (what takes space, plus a note when the disk is almost full; things go only to the Recycle Bin, after Confirm).
 
 ## Limits and updates
 
 - The **bar under the message box** shows how much of the free limit of the model in use is left and when it resets; click it for the details.
 - **Settings → Limits** shows, per model, how many requests you made today, what the service says is left (Groq, Cerebras, Mistral and GitHub tell it; Gemini only says it when the limit is reached) and which models are resting after a limit.
-- **Update now** (in the update notice, installed app): Lanterna downloads the new Setup, checks its SHA-256 against the release page, installs it silently over the old version and opens again. Chats, settings and keys stay.
+- **What went to the model:** under each reply a fold-out line lists what this answer sent and where — your message and how many earlier ones, memory facts, file names, a search, a web page. Never contents of files you didn't open. Stored with the reply on this device only.
+- **Out of free limits?** In Cloud mode a downloaded local model answers when every online model is resting or there is no internet (Settings → Local models; on by default, can be turned off). On Windows the same screen can install Ollama with winget after you confirm.
+- **Check Lanterna** (About, or `lanterna doctor`): keys, internet, sync, folders, programs and local models, each with a plain sentence. A bug report includes the quick checks (never keys, chats or your name).
+- **Update now** (in the update notice, installed app): Lanterna downloads the new Setup, checks its SHA-256 against the release page, installs it silently over the old version and opens again. Chats, settings and keys stay. On Linux (pipx) Update now runs the pipx upgrade itself; you only start Lanterna again.
 
 ## Roadmap
 

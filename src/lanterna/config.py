@@ -40,6 +40,11 @@ class Settings:
     keys_at: dict = field(default_factory=dict)   # {"service": when its API key was saved or removed}
     sync_asked: bool = False               # the "sign in with Google" step was shown once
     pc_access: bool = True                 # the assistant may look at the user's folders, programs and PC settings
+    tidy_weekly: bool = False              # once a week: a card to sort the new files in Downloads
+    tidy_last: float = 0
+    space_help: bool = False               # pc_space tool + a note when the disk is almost full
+    local_fallback: bool = True            # cloud mode: a local model answers when online limits run out / offline
+    space_last: float = 0
     onboarded: bool = False
 
     @classmethod

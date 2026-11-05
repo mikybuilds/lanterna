@@ -48,7 +48,7 @@ version = { attr = "lanterna.__version__" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-lanterna = ["ui/*"]
+lanterna = ["ui/*", "locale/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

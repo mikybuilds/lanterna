@@ -1,0 +1,77 @@
+"""“What went to the model” under each reply: which kinds of data this answer sent, and where.
+
+Built from what the reply really used (the message, the chat so far, memory, attachments, the tools that ran and
+their arguments). Stored with the reply on this device only (not synced), as English templates translated on
+display. It names files and searches, never their contents.
+"""
+from __future__ import annotations
+
+import json
+from urllib.parse import urlparse
+
+FILE_NAMES = {"pc_list", "pc_overview", "pc_find", "pc_duplicates", "pc_space", "pc_folders", "folder_list",
+              "folder_search", "drive_list", "github_list", "github_repos"}
+FILE_READ = {"pc_read", "folder_read", "github_read"}
+PC_INFO = {"pc_info", "pc_load", "pc_startup", "pc_power"}
+PROGRAMS = {"app_installed", "app_updates"}
+
+
+def _arg(arguments: str, key: str) -> str:
+    try:
+        v = json.loads(arguments or "{}").get(key, "")
+        return str(v)[:120]
+    except (ValueError, AttributeError):
+        return ""
+
+
+def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
+          tools: list[tuple[str, str]]) -> list[dict]:
+    """[{"t": template, "v": vars}] — the first line says where it went."""
+    out = [{"t": "Stayed on this computer ({model})" if local else "Sent to {model}", "v": {"model": model or "?"}}]
+    out.append({"t": "Your message and {n} earlier messages of this chat" if history else "Your message", "v": {"n": history}})
+    if name:
+        out.append({"t": "Your name", "v": {}})
+    if facts:
+        out.append({"t": "What Lanterna remembers about you ({n} facts)", "v": {"n": facts}})
+    if files:
+        out.append({"t": "Attached files: {names}", "v": {"names": ", ".join(files[:6])}})
+    if photos:
+        out.append({"t": "Photos: {n}", "v": {"n": photos}})
+    seen: set = set()
+
+    def once(t: str, v: dict | None = None) -> None:
+        key = (t, json.dumps(v or {}, sort_keys=True))
+        if key not in seen:
+            seen.add(key)
+            out.append({"t": t, "v": v or {}})
+
+    for tool, args in tools:
+        if tool in FILE_NAMES:
+            once("Names and sizes of files in your folders")
+        elif tool in FILE_READ:
+            once("The text of the file {path}", {"path": _arg(args, "path") or "?"})
+        elif tool in PC_INFO:
+            once("Information about this computer (system, memory, disks, running programs)")
+        elif tool in PROGRAMS:
+            once("The list of your installed programs")
+        elif tool == "web_search":
+            once("Search words to DuckDuckGo: {q}", {"q": _arg(args, "query") or _arg(args, "q")})
+        elif tool == "read_page":
+            once("A web page was opened: {site}", {"site": urlparse(_arg(args, "url")).netloc or "?"})
+        elif tool == "weather":
+            once("A city name to Open-Meteo (weather): {city}", {"city": _arg(args, "city") or _arg(args, "place")})
+    return out
+
+
+def dumps(items: list[dict]) -> str:
+    return json.dumps(items, ensure_ascii=False)
+
+
+def view(raw: str, lang: str) -> list[str]:
+    """Translated lines for display; [] when nothing was recorded (older replies)."""
+    from .i18n import t
+    try:
+        items = json.loads(raw or "[]")
+    except ValueError:
+        return []
+    return [t(x["t"], lang, **x.get("v", {})) for x in items if isinstance(x, dict) and x.get("t")]

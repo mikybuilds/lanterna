@@ -404,7 +404,7 @@ const STR = {
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
-  let out = LANG === "en" ? s : (STR[s] && STR[s][LANG]) || s;
+  let out = LANG === "en" ? s : (STR[s] && STR[s][LANG]) || (S && S.strings && S.strings[s]) || s;
   for (const [k, v] of Object.entries(vars)) out = out.split("{" + k + "}").join(v);
   return out;
 };
@@ -492,7 +492,11 @@ function toast(text, sticky = false) {
 }
 
 async function watchAlerts() {
-  try { (await api.alerts()).forEach(a => toast(`⏰ ${t("Reminder")}: ${a.text}`, true)); } catch (e) { /* app closing */ }
+  try {
+    const list = await api.alerts();
+    list.forEach(a => toast(a.kind ? (a.kind === "tidy" ? "🧹 " : "💾 ") + a.text : `⏰ ${t("Reminder")}: ${a.text}`, true));
+    if (list.some(a => a.tid)) refreshThreads();
+  } catch (e) { /* app closing */ }
   setTimeout(watchAlerts, 10000);
 }
 
@@ -552,7 +556,7 @@ function renderOnboard(step) {
     body = `<div class="step">
       <div class="hero-logo"><img src="logo.svg" alt=""></div>
       <h1>${t("Choose your language")}</h1><p class="lead">${t("You can change it later in Settings.")}</p>
-      <div class="langs">${Object.entries(S.langs).map(([k, v]) => `<button class="lang" data-lang="${k}">${v}<small>${{ en: "Hello", uk: "Привіт", it: "Ciao" }[k]}</small></button>`).join("")}</div>
+      <div class="langs">${Object.entries(S.langs).map(([k, v]) => `<button class="lang" data-lang="${k}">${v}<small>${{ en: "Hello", uk: "Привіт", it: "Ciao", de: "Hallo", es: "Hola", fr: "Salut", pl: "Cześć" }[k]}</small></button>`).join("")}</div>
     </div>`;
   } else if (step === 1) {
     body = `<div class="step">
@@ -688,13 +692,26 @@ async function localPanel(box, onChange) {
     <p class="tier">${t(TIER_TEXT[A.tier])}</p>
     ${st.running ? `<div class="status ok">${icon("check")} ${t("Ollama {v} is running", { v: esc(st.version) })}</div>`
       : `<div class="note">${icon("info")}<span>${t("Local models need Ollama, a free app. Install it, start it, then press Check again.")}</span></div>
-         <div class="row-btns"><button class="btn primary small" data-open="${esc(st.download_page)}">${t("Download Ollama")} ${icon("ext")}</button>
+         <div class="row-btns">${st.can_install ? `<button class="btn primary small" data-install>${t("Install Ollama")}</button>` : ""}
+         <button class="btn ${st.can_install ? "ghost" : "primary"} small" data-open="${esc(st.download_page)}">${t("Download Ollama")} ${icon("ext")}</button>
          <button class="btn ghost small" data-recheck>${icon("refresh")} ${t("Check again")}</button></div>`}
     <h4>${t("Recommended for this computer")}</h4>
     <div class="lmodels">${A.models.map(m => `<div class="lrow" data-m="${esc(m.name)}" data-size="${m.size_gb}">
       <div class="nm"><b>${esc(m.name)}</b><small>${t(ROLE_TEXT[m.role])} · ${gb(m.size_gb)}</small></div><div class="act"></div></div>`).join("")}</div>
-    <p class="faint small-note">${t("Downloads start only when you press the button. Models are stored by Ollama on this computer.")}</p>`;
+    <p class="faint small-note">${t("Downloads start only when you press the button. Models are stored by Ollama on this computer.")}</p>
+    <label class="check"><input type="checkbox" id="local-fallback" ${st.fallback !== false ? "checked" : ""}>
+      <span><b>${t("Use a local model when the online limits run out")}</b><small>${t("In Cloud mode, when every free online model is out of its limit or there is no internet, a model downloaded here answers instead. It stays on this computer.")}</small></span></label>`;
   box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => api.open_url(b.dataset.open));
+  const lf = box.querySelector("#local-fallback");
+  lf.onchange = async () => { S = await api.save_settings({ local_fallback: lf.checked }); };
+  const inst = box.querySelector("[data-install]");
+  if (inst) inst.onclick = async () => {
+    if (!confirm(t("Install Ollama with winget? Windows may ask for administrator rights.") + "\n\nwinget install --id Ollama.Ollama --exact")) return;
+    inst.disabled = true; inst.innerHTML = `<span class="spinner"></span>${t("Installing… this can take a few minutes.")}`;
+    const r = await api.install_ollama();
+    toast(r.text);
+    localPanel(box, onChange);
+  };
   const re = box.querySelector("[data-recheck]");
   if (re) re.onclick = () => localPanel(box, onChange);
 
@@ -773,6 +790,7 @@ function renderMain() {
       <button class="btn ghost newchat" id="new">${icon("plus")} ${t("New chat")}</button>
       <nav class="threads" id="threads"></nav>
       <div class="side-foot">
+        <button id="open-history">${icon("history")} ${t("What Lanterna did")}</button>
         <button id="open-settings">${icon("gear")} ${t("Settings")}</button>
         <button id="open-about">${icon("info")} ${t("About")}</button>
       </div>
@@ -797,6 +815,7 @@ function renderMain() {
   $("#new").onclick = () => openThread(null);
   $("#open-settings").onclick = openSettings;
   $("#open-about").onclick = openAbout;
+  $("#open-history").onclick = openHistory;
   $("#menu").onclick = () => $(".shell").classList.toggle("open");
   const inp = $("#input");
   const fit = () => {
@@ -856,7 +875,7 @@ async function openThread(id) {
   const th = list.find(x => x.id === id);
   $("#title").textContent = (th && th.title) || t("New chat");
   if (!items.length) showEmpty();
-  items.forEach(m => m.role === "user" ? addUser(m.content) : addBot(m.content, m.model));
+  items.forEach(m => m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent));
   const waiting = await api.cards(id);               // changes still waiting for Confirm: not kept in the history
   if (waiting.length && thread === id) {               // at the end: the reply that proposed them may still be coming
     const last = msgs.lastElementChild;
@@ -872,12 +891,18 @@ async function openThread(id) {
 
 function showEmpty() {
   const name = S.settings.name;
-  const sugg = ["Explain something simply", "Help me plan my week", "Write a short message for me", "Give me an idea for today"];
+  const sugg = S.settings.pc_access !== false
+    ? ["Sort my Downloads", "Why is my computer slow?", "What's the weather tomorrow?", "Remind me in 20 minutes to take a break",
+       "Explain something simply", "Help me plan my week"]
+    : ["What's the weather tomorrow?", "Remind me in 20 minutes to take a break", "Explain something simply", "Help me plan my week",
+       "Write a short message for me", "Give me an idea for today"];
   $("#msgs").innerHTML = `<div class="empty" style="min-height:calc(100vh - 230px)">
     <div class="hero-logo"><img src="logo.svg" alt=""></div>
     <h2>${name ? t("Hi, {n}!", { n: esc(name) }) : t("Hi!")}</h2><p>${t("What's on your mind?")}</p>
     <div class="sugg">${sugg.map(s => `<button>${t(s)}</button>`).join("")}</div></div>`;
-  $("#msgs").querySelectorAll(".sugg button").forEach(b => b.onclick = () => { const i = $("#input"); i.value = b.textContent; i.oninput(); i.focus(); });
+  $("#msgs").querySelectorAll(".sugg button").forEach(b => b.onclick = () => {   // one click sends it
+    const i = $("#input"); i.value = b.textContent; i.oninput(); if (!busy) $("#send").click(); else i.focus();
+  });
 }
 
 function addUser(text) {
@@ -885,9 +910,15 @@ function addUser(text) {
   const el = h(`<div class="msg user"></div>`); el.textContent = text; $("#msgs").append(el); return el;
 }
 
-function addBot(text, model) {
+function sentBox(lines) {
+  if (!lines || !lines.length) return "";
+  return `<details class="sent"><summary>${icon("lock")} ${t("What went to the model")}</summary>
+    <ul>${lines.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>`;
+}
+
+function addBot(text, model, sent) {
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot"><img class="av" src="logo.svg" alt=""><div class="body"><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}</div></div>`);
+  const el = h(`<div class="msg bot"><img class="av" src="logo.svg" alt=""><div class="body"><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
   if (text === null) el.querySelector(".md").before(h(`<div class="think"><span class="think-dot"></span><span class="think-tx">${t("Thinking…")}</span></div>`));
   else el.querySelector(".md").innerHTML = md(text);
   $("#msgs").append(el); return el;
@@ -954,12 +985,13 @@ async function send(retryText) {
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
-    if (p.final !== undefined) { text_ = p.final; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); } }
+    if (p.final !== undefined) { text_ = p.final; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
+      if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent)); }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown();
     if (p.error) {
       const k = p.error.kind;
-      const msg = k === "rate" ? t("All free models are busy or out of limits. Try again in a minute.")
+      const msg = k === "rate" ? t("All free models are busy or out of limits. Try again in a minute.") + " " + t("Tip: a local model (Settings → Local models) answers when the limits run out.")
         : k === "network" ? (S.settings.mode === "local" ? t("Ollama isn't running. Start it, or switch to Cloud in Settings.") : t("No connection. Check your internet.")) : k === "auth" ? t("Add a key in Settings to start.")
         : k === "vision" ? (S.settings.mode === "local" ? t("To understand photos, download a photo model in Settings → Local models.") : t("To understand photos, add a free Gemini key in Settings."))
         : k === "local" ? (p.error.message === "no local models" ? t("No local model yet. Download one in Settings → Local models.") : t("Ollama isn't running. Start it, or switch to Cloud in Settings."))
@@ -1027,6 +1059,10 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
         <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="tidy-weekly" ${S.settings.tidy_weekly ? "checked" : ""}>
+        <span><b>${t("Weekly tidy-up of Downloads")}</b><small>${t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="space-help" ${S.settings.space_help ? "checked" : ""}>
+        <span><b>${t("Help free up disk space")}</b><small>${t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Updates")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
         <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
@@ -1055,6 +1091,10 @@ function openSettings() {
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
+    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"]]) {
+      const el = $(id, body);
+      el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
+    }
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();
@@ -1116,8 +1156,11 @@ function openAbout() {
       <button class="btn primary" data-o="1">${icon("star")} ${t("Star on GitHub")}</button>
       <button class="btn ghost" data-o="1">${t("Project page")} ${icon("ext")}</button>
     </div>
-    <button class="btn ghost small" id="about-bug" style="margin-top:14px">${t("Report a bug")}</button></div>`);
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+      <button class="btn ghost small" id="about-doctor">${t("Check Lanterna")}</button>
+      <button class="btn ghost small" id="about-bug">${t("Report a bug")}</button></div></div>`);
   $("#about-bug", v).onclick = () => { v.remove(); openBugReport(); };
+  $("#about-doctor", v).onclick = () => { v.remove(); openDoctor(); };
   v.querySelectorAll("[data-o]").forEach(b => b.onclick = () => api.open_url(S.homepage));
   const box = $("#update", v);
   box.innerHTML = `<span class="spinner"></span>${t("Checking for updates…")}`;
@@ -1129,6 +1172,58 @@ function openAbout() {
     const b = $("#get-update", v);
     if (b) b.onclick = () => { v.remove(); showUpdate(u); };
   }).catch(() => { box.innerHTML = ""; });
+}
+
+// ---------------------------------------------------------------- what Lanterna did
+function openHistory() {
+  const v = dialog(t("What Lanterna did"), `<section class="hist">
+    <p class="muted" style="margin:0 0 12px">${t("Changes you confirmed on this computer, newest first. Undo puts files back, takes them out of the Recycle Bin or switches a setting back.")}</p>
+    <div id="hist-list"><span class="spinner"></span></div>
+    <div class="upd-actions"><button class="btn ghost small" id="hist-clear">${t("Clear the list")}</button>
+      <span style="flex:1"></span><button class="btn primary" id="hist-close">${t("Close")}</button></div></section>`);
+  $("#hist-close", v).onclick = () => v.remove();
+  const when = s => new Date(s * 1000).toLocaleString(LANG, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const fill = list => {
+    const box = $("#hist-list", v);
+    if (!list.length) { box.innerHTML = `<p class="muted">${t("Nothing yet. When you confirm a change on a card, it shows up here.")}</p>`; return; }
+    box.innerHTML = list.map(x => `<div class="hist-row${x.undone ? " undone" : ""}" data-id="${esc(x.id)}">
+      <span class="hist-when">${when(x.at)}</span>
+      <span class="hist-title">${esc(x.title)}${x.undone ? `<small>↩ ${esc(x.note || t("Undone"))}</small>` : ""}</span>
+      ${x.can_undo ? `<button class="btn ghost small" data-undo="1">${t("Undo")}</button>` : "<span></span>"}</div>`).join("");
+    box.querySelectorAll("[data-undo]").forEach(b => b.onclick = async () => {
+      const row = b.closest(".hist-row");
+      b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
+      const r = await api.history_undo(row.dataset.id);
+      if (!r.ok) toast(r.text);
+      fill(await api.history_list());
+    });
+  };
+  $("#hist-clear", v).onclick = async () => fill(await api.history_clear());
+  api.history_list().then(fill);
+}
+
+// ---------------------------------------------------------------- check Lanterna
+function openDoctor() {
+  const v = dialog(t("Check Lanterna"), `<section class="doctor">
+    <div id="doc-list"><span class="spinner"></span>${t("Checking Lanterna…")}</div>
+    <p id="doc-sum" class="muted"></p>
+    <div class="upd-actions">
+      <button class="btn ghost" id="doc-copy" disabled>${t("Copy")}</button>
+      <button class="btn ghost" id="doc-bug">${t("Report a bug")}</button>
+      <span style="flex:1"></span>
+      <button class="btn primary" id="doc-close">${t("Close")}</button>
+    </div></section>`);
+  $("#doc-close", v).onclick = () => v.remove();
+  $("#doc-bug", v).onclick = () => { v.remove(); openBugReport(); };
+  const mark = { ok: "✓", warn: "!", fail: "✗", info: "·" };
+  api.doctor(true).then(res => {
+    $("#doc-list", v).innerHTML = res.checks.map(c => `<div class="doc-row doc-${c.status}">
+      <span class="doc-mark">${mark[c.status]}</span><b>${esc(c.title)}</b><span>${esc(c.detail)}</span></div>`).join("");
+    $("#doc-sum", v).textContent = t(res.worst === "ok" ? "Everything works." : "Something needs attention (see the lines above).");
+    const cp = $("#doc-copy", v);
+    cp.disabled = false;
+    cp.onclick = async () => { try { await navigator.clipboard.writeText(res.text); cp.textContent = t("Copied"); } catch (e) { /* no clipboard */ } };
+  });
 }
 
 // ---------------------------------------------------------------- update notice
@@ -1170,7 +1265,12 @@ function showUpdate(u) {
         box.innerHTML = `<span class="spinner"></span>${t("Downloading the update… {done} of {total} MB", { done: mb(st.done), total: st.total ? mb(st.total) : "?" })}
           <span class="upd-bar"><i style="width:${pct}%"></i></span>`;
       } else if (st.phase === "installing") {
-        box.innerHTML = `<span class="spinner"></span>${t("Installing… Lanterna will close and open again in a moment.")}`;
+        box.innerHTML = `<span class="spinner"></span>${u.auto_kind === "pipx" ? t("Updating with pipx… this can take a minute or two.")
+          : t("Installing… Lanterna will close and open again in a moment.")}`;
+        if (u.auto_kind !== "pipx") return;
+      } else if (st.phase === "restart") {
+        box.innerHTML = `${icon("check")} ${t("Lanterna {v} is installed. Start it again to use it.", { v: esc(u.latest) })}`;
+        now.remove(); if (dl) dl.remove();
         return;
       } else if (st.phase === "error") {
         box.innerHTML = `<span class="sync-err">${esc(t("The update didn't work: {error}", { error: st.error }))}</span> ${t("This version keeps working. You can update by hand.")}`;
