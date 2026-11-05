@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.6 — Gemini answers after a web search again
 
 **Fixed**
 - Gemini sometimes gave no answer at all after searching the web (the reply stayed empty). The last round now tells it to answer instead of taking the tool list away; if a model still sends nothing, it is asked once more, and then a clear message with Retry is shown.
