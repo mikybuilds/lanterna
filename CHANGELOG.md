@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.5 — undo, a check-up and four more languages
 
 **New**
 - **Four more languages:** Deutsch, Español, Français, Polski (window app, terminal app and command line).
