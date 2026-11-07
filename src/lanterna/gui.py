@@ -29,7 +29,8 @@ METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "mod
            "github_status", "github_connect", "github_cancel", "github_disconnect", "drive_status", "drive_connect", "drive_cancel", "drive_disconnect", "bug_report", "open_mail",
            "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out",
            "doctor", "history_list", "history_undo", "history_clear", "install_ollama",
-           "desktop_status", "quick_hide", "open_in_main", "screenshot"}
+           "desktop_status", "quick_hide", "open_in_main", "screenshot",
+           "task_list", "task_add", "task_delete", "task_pause", "task_run"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 

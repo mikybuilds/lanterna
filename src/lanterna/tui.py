@@ -124,7 +124,8 @@ Button:focus { text-style: bold; }
 TOOL_TEXT = {"weather": "Checking the weather", "web_search": "Searching the web", "read_page": "Reading a page",
              "calculate": "Calculating", "date_calc": "Counting dates", "remember": "Saving to memory",
              "forget": "Updating memory", "set_reminder": "Setting a reminder", "list_reminders": "Checking reminders",
-             "cancel_reminder": "Cancelling a reminder"}
+             "cancel_reminder": "Cancelling a reminder", "add_task": "Adding a regular task",
+             "list_tasks": "Checking regular tasks", "delete_task": "Deleting a regular task"}
 
 
 def tool_text(chip: str, lang: str) -> str:
@@ -1015,6 +1016,9 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Add", lang), id="addfact")
             yield Label(t("Reminders", lang), classes="h")
             yield Vertical(id="rems")
+            yield Label(t("Regular tasks", lang), classes="h")
+            yield Static(t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.", lang), classes="muted")
+            yield Vertical(id="tasks")
             yield Label(t("Working folder", lang), classes="h")
             yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
                          + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
@@ -1191,6 +1195,17 @@ class SettingsScreen(ModalScreen[str]):
             row.mount(Button(t("Cancel", lang), id=f"rem-{r['id']}"))
         if not api.reminders():
             rems.mount(Static(t("No reminders. Say “remind me in 20 minutes…” in a chat.", lang), classes="muted"))
+        tasks = self.query_one("#tasks", Vertical)
+        tasks.remove_children()
+        paused = t("paused", lang)
+        for x in api.task_list():
+            row = Horizontal(classes="listrow")
+            tasks.mount(row)
+            row.mount(Label(f"{x['when']}  {x['text']}" + (f"  ({paused})" if x["paused"] else ""), markup=False))
+            row.mount(Button(t("Resume" if x["paused"] else "Pause", lang), id=f"taskpause-{x['id']}-{0 if x['paused'] else 1}"))
+            row.mount(Button(t("Remove", lang), id=f"taskdel-{x['id']}"))
+        if not api.task_list():
+            tasks.mount(Static(t("No regular tasks. Say “every morning at 8 tell me the weather” in a chat, or add one here.", lang), classes="muted"))
 
     def _fill_keys(self) -> None:
         lang = L(self.app)
@@ -1231,6 +1246,13 @@ class SettingsScreen(ModalScreen[str]):
                 self._fill_memory()
         elif bid.startswith("rem-"):
             self.app.api.cancel_reminder(int(bid[4:]))
+            self._fill_memory()
+        elif bid.startswith("taskdel-"):
+            self.app.api.task_delete(int(bid[8:]))
+            self._fill_memory()
+        elif bid.startswith("taskpause-"):
+            _, num, paused = bid.split("-")
+            self.app.api.task_pause(int(num), paused == "1")
             self._fill_memory()
         elif bid == "models":
             self.app.push_screen(ModelsScreen())
@@ -2040,7 +2062,7 @@ class LanternaApp(App):
             self.bell()
             kind = a.get("kind")
             title = ("🧹 " + t("Weekly tidy-up", L(self)) if kind == "tidy" else "💾 " + t("Disk space", L(self)) if kind == "space"
-                     else "⏰ " + t("Reminder", L(self)))
+                     else "🔁 " + t("Regular task", L(self)) if kind == "task" else "⏰ " + t("Reminder", L(self)))
             self.notify(a["text"], title=title, timeout=30)
             if a.get("tid") and hasattr(self.screen, "_fill_threads"):
                 self.screen._fill_threads()

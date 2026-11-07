@@ -179,6 +179,13 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .iconbtn:hover { color: var(--text, #fff); background: var(--surface); }
 .iconbtn svg { width: 18px; height: 18px; }
 #save-chat { margin-left: auto; }
+.task-new { margin-top: 8px; }
+.task-new > summary { list-style: none; display: inline-flex; cursor: pointer; }
+.task-new > summary::-webkit-details-marker { display: none; }
+.task-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.task-when { display: flex; gap: 8px; flex-wrap: wrap; }
+.task-when .field { flex: 1 1 140px; }
+.task-form .btn { align-self: flex-start; }
 /* the quick-question window: just the chat */
 body.quick .shell { grid-template-columns: 1fr; }
 body.quick .side, body.quick .top .menu, body.quick .under .fold-wrap, body.quick .under .hint,

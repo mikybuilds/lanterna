@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS facts (id INTEGER PRIMARY KEY, text TEXT NOT NULL, at
 CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY, text TEXT NOT NULL, due REAL NOT NULL,
     done INTEGER NOT NULL DEFAULT 0, created REAL);
 CREATE TABLE IF NOT EXISTS deleted (uid TEXT PRIMARY KEY, at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, text TEXT NOT NULL, every TEXT NOT NULL DEFAULT 'day',
+    at TEXT NOT NULL DEFAULT '08:00', day INTEGER NOT NULL DEFAULT 0, only_if TEXT NOT NULL DEFAULT '',
+    next REAL NOT NULL, last REAL NOT NULL DEFAULT 0, last_result TEXT NOT NULL DEFAULT '',
+    paused INTEGER NOT NULL DEFAULT 0, thread INTEGER, created REAL);
 """
 # columns added for sync (older databases get them on open)
 _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
@@ -171,6 +175,38 @@ class Store:
             if rows:
                 self.changes += 1
             return rows
+
+    # regular tasks (this device only: not synced, so two computers never run the same task)
+    _TASK_FIELDS = {"text", "every", "at", "day", "only_if", "next", "last", "last_result", "paused", "thread"}
+
+    def add_task(self, text: str, every: str, at: str, day: int, only_if: str, next_at: float) -> int:
+        with self._lock, self._db:
+            return self._db.execute("INSERT INTO tasks(text, every, at, day, only_if, next, created) VALUES (?,?,?,?,?,?,?)",
+                                    (text, every, at, int(day), only_if, next_at, time.time())).lastrowid
+
+    def tasks(self) -> list[dict]:
+        with self._lock:
+            return [dict(r) for r in self._db.execute("SELECT * FROM tasks ORDER BY id")]
+
+    def task(self, task_id: int) -> dict | None:
+        with self._lock:
+            r = self._db.execute("SELECT * FROM tasks WHERE id=?", (int(task_id),)).fetchone()
+            return dict(r) if r else None
+
+    def update_task(self, task_id: int, **fields) -> None:
+        fields = {k: v for k, v in fields.items() if k in self._TASK_FIELDS}
+        if fields:
+            with self._lock, self._db:
+                self._db.execute(f"UPDATE tasks SET {', '.join(f'{k}=?' for k in fields)} WHERE id=?",
+                                 (*fields.values(), int(task_id)))
+
+    def delete_task(self, task_id: int) -> bool:
+        with self._lock, self._db:
+            return self._db.execute("DELETE FROM tasks WHERE id=?", (int(task_id),)).rowcount > 0
+
+    def due_tasks(self, now: float) -> list[dict]:
+        with self._lock:
+            return [dict(r) for r in self._db.execute("SELECT * FROM tasks WHERE paused=0 AND next<=? ORDER BY next", (now,))]
 
     # ---------------------------------------------------------------- sync
     def export_sync(self) -> dict:

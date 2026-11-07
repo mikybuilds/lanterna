@@ -38,7 +38,7 @@ class Tool:
 
     def schema(self) -> dict:
         params = self.parameters
-        if self.group or self.name in INTENT_TOOLS:        # the user sees why it searches or looks at their PC
+        if self.group in INTENT_GROUPS or self.name in INTENT_TOOLS:   # the user sees why it searches or looks at their PC
             params = {**params, "properties": {**params.get("properties", {}), "intent": INTENT}}
         return {"type": "function", "function": {"name": self.name, "description": self.description,
                                                  "parameters": params}}
@@ -46,6 +46,7 @@ class Tool:
 
 # "Why" for the "what I'm doing" line. Only on web and computer tools: every extra word costs tokens on free plans.
 INTENT_TOOLS = {"web_search", "read_page"}
+INTENT_GROUPS = {"pc", "apps", "sys"}
 INTENT = {"type": "string", "description": "optional: why you call it, 3-8 words in the user's language, "
                                            "e.g. 'to find the exact function name' (shown to the user)"}
 
@@ -361,6 +362,16 @@ def parse_when(at: str = "", in_minutes: float = 0, now: dt.datetime | None = No
 
 
 GROUPS = {
+    # regular tasks: only offered when the talk is about doing something on a schedule
+    "tasks": re.compile(r"щодн|щоранк|щовеч|щотижн|щогодин|щопонед|кожн\w* (ранк|ден|дня|веч|тижн|годин|понеділ|вівтор|серед|"
+                        r"четвер|п.ятниц|субот|неділ)|по буднях|регулярн|завдан|розклад|нагад\w* кожн|"
+                        r"every (day|morning|evening|night|week|hour|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|"
+                        r"daily|weekly|hourly|each (day|morning|evening|week)|regular|\btasks?\b|schedul|on weekdays|"
+                        r"ogni (giorno|mattina|sera|settimana|ora|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)|"
+                        r"quotidian|settimanal|attivit|jeden (tag|morgen|abend|montag)|täglich|wöchentlich|stündlich|aufgabe|"
+                        r"cada (día|mañana|noche|semana|hora|lunes)|diari|semanal|tarea|chaque (jour|matin|soir|semaine|heure|lundi)|"
+                        r"quotidien|hebdomadaire|tâche|codzien|co (dzień|rano|wieczór|tydzień|godzin|poniedział)|zadani|"
+                        r"каждый|ежеднев|расписан", re.I),
     "pc": re.compile(r"завантаж|скачан|download|робоч\w* стол|desktop|документ|document|зображен|картинк|фотк|pictures|"
                      r"відео|video|музик|music|папк|folder|файл|file|сорт|розклад|розбер|прибер|навед\w* поряд|дублікат|"
                      r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
@@ -438,6 +449,30 @@ class Toolbox:
         rid = self.store.add_reminder(str(text)[:300], when.timestamp())
         return f"Reminder #{rid} set for {when:%A %Y-%m-%d %H:%M}: {text}"
 
+    # regular tasks ---------------------------------------------------------------------------
+    def _add_task(self, what: str, every: str = "day", at: str = "08:00", day: int = 0, only_if: str = "") -> str:
+        from . import tasks
+        try:
+            tid, when = tasks.add(self.store, what, every, at, day, only_if, self._now())
+        except ValueError as e:
+            return f"Error: {e}."
+        how = tasks.describe(self.store.task(tid), lambda s, **kw: s.format(**kw))
+        return (f"Regular task #{tid} added: {what} — {how}" + (f", only if {only_if}" if only_if else "") +
+                f". First run: {when:%A %Y-%m-%d %H:%M}. It runs while Lanterna is open or in the tray; "
+                "the user can see, pause or delete it in Settings → Regular tasks.")
+
+    def _list_tasks(self) -> str:
+        from . import tasks
+        items = self.store.tasks()
+        if not items:
+            return "No regular tasks."
+        en = lambda s, **kw: s.format(**kw)                          # noqa: E731
+        return "Regular tasks:\n" + "\n".join(
+            f"#{x['id']} {x['text']} — {tasks.describe(x, en)}" + (" (paused)" if x["paused"] else "") for x in items)
+
+    def _delete_task(self, id: int) -> str:                          # noqa: A002  (name the model sees)
+        return f"Regular task #{id} deleted." if self.store.delete_task(int(id)) else f"No regular task #{id}."
+
     def _list_reminders(self) -> str:
         items = self.store.reminders()
         if not items:
@@ -485,6 +520,18 @@ class Toolbox:
                  "text='Call mum', in_minutes=30; 'tomorrow at 8 the bus' → text='Bus', at='<tomorrow's date> 08:00'.",
                  _obj({"text": s, "at": s, "in_minutes": {"type": "number"}}, ["text"]), self._set_reminder, "⏰"),
             Tool("list_reminders", "List upcoming reminders.", _obj({}), self._list_reminders, "⏰"),
+            Tool("add_task", "Schedule a REGULAR task Lanterna does on its own and then notifies the user. "
+                 "every: day | weekday | week (with day 0=Monday..6=Sunday) | hour; at: 'HH:MM' local time. "
+                 "Examples: 'every morning at 8 tell me the weather in Kyiv' → what='Short weather forecast for "
+                 "today in Kyiv', every='day', at='08:00'; 'tell me in the evening if it will rain tomorrow' → "
+                 "what='Check tomorrow's weather in Kyiv', every='day', at='19:00', only_if='it will rain tomorrow'; "
+                 "'every Monday at 9 give me 3 tech news' → every='week', day=0, at='09:00'. For a one-time thing "
+                 "use set_reminder instead. Put the city or details the task needs into `what`.",
+                 _obj({"what": s, "every": {"type": "string", "enum": ["day", "weekday", "week", "hour"]}, "at": s,
+                       "day": {"type": "integer"}, "only_if": s}, ["what", "every"]), self._add_task, "🔁", "tasks"),
+            Tool("list_tasks", "List the regular tasks.", _obj({}), self._list_tasks, "🔁", "tasks"),
+            Tool("delete_task", "Delete a regular task by its number.", _obj({"id": {"type": "integer"}}, ["id"]),
+                 self._delete_task, "🔁", "tasks"),
             Tool("cancel_reminder", "Cancel a reminder by its number.", _obj({"id": {"type": "integer"}}, ["id"]),
                  self._cancel_reminder, "⏰"),
         ]

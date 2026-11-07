@@ -7,6 +7,11 @@
 - **Quick question:** press Ctrl+Shift+Space anywhere to open a small window, ask, and close it with Esc. "Open in Lanterna" continues the chat in the big window. You can pick another hotkey or turn it off in Settings.
 - **Ask about your screen:** the camera button in the quick window, or "Ask about my screen" in the tray menu, attaches a screenshot to your question.
 - **Start with Windows:** off by default. When it's on, Lanterna starts hidden in the tray.
+- **Regular tasks:** say "every morning at 8 tell me the weather in Kyiv" or "in the evening tell me if it will rain tomorrow", or add one in Settings → Regular tasks.
+  - Lanterna does the task on schedule and sends you a notification. Each task keeps its results in its own chat.
+  - With a condition ("only if it rains"), Lanterna stays quiet when it's not true.
+  - Tasks use only safe tools (weather, web search, pages) and run while Lanterna is open or in the tray. They stay on this computer.
+  - In Settings you can run, pause or delete a task.
 
 ## 0.6.0 — edit and retry, save chats, memory that updates itself
 

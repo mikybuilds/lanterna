@@ -449,7 +449,8 @@ function md(text) {
 // ---------------------------------------------------------------- tools, files, reminders
 const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the web", read_page: "Reading a page",
   calculate: "Calculating", date_calc: "Counting dates", remember: "Saving to memory", forget: "Updating memory",
-  set_reminder: "Setting a reminder", list_reminders: "Checking reminders", cancel_reminder: "Cancelling a reminder" };
+  set_reminder: "Setting a reminder", list_reminders: "Checking reminders", cancel_reminder: "Cancelling a reminder",
+  add_task: "Adding a regular task", list_tasks: "Checking regular tasks", delete_task: "Deleting a regular task" };
 const toolChip = s => { const [emo, name] = String(s).split(" "); return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
 
 let pending = [];        // files waiting to be sent: {name, size, data(base64)}
@@ -495,7 +496,7 @@ function toast(text, sticky = false) {
 async function watchAlerts() {
   try {
     const list = await api.alerts();
-    list.forEach(a => toast(a.kind ? (a.kind === "tidy" ? "🧹 " : "💾 ") + a.text : `⏰ ${t("Reminder")}: ${a.text}`, true));
+    list.forEach(a => toast(a.kind ? (a.kind === "tidy" ? "🧹 " : a.kind === "task" ? "🔁 " : "💾 ") + a.text : `⏰ ${t("Reminder")}: ${a.text}`, true));
     if (list.some(a => a.tid)) refreshThreads();
   } catch (e) { /* app closing */ }
   setTimeout(watchAlerts, 10000);
@@ -1186,6 +1187,20 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Reminders")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>
       <div id="rems"></div>
+      <h4 style="margin-top:22px">${t("Regular tasks")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.")}</p>
+      <div id="tasks"></div>
+      <details class="task-new"><summary class="btn ghost small">${icon("plus")} ${t("Add a task")}</summary>
+        <div class="task-form">
+          <input class="field" id="task-text" maxlength="300" placeholder="${esc(t("What should Lanterna do? For example: the weather in Kyiv for today"))}">
+          <div class="task-when">
+            <select class="field" id="task-every"><option value="day">${t("Every day")}</option><option value="weekday">${t("On weekdays")}</option><option value="week">${t("Every week")}</option><option value="hour">${t("Every hour")}</option></select>
+            <select class="field" id="task-day" hidden>${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((d, i) => `<option value="${i}">${t(d)}</option>`).join("")}</select>
+            <input class="field" id="task-at" type="time" value="08:00">
+          </div>
+          <input class="field" id="task-if" maxlength="200" placeholder="${esc(t("Only tell me if… (optional), for example: it will rain"))}">
+          <button class="btn primary small" id="task-add">${t("Add")}</button>
+        </div></details>
       <h4 style="margin-top:22px">${t("Working folder")}</h4>
       <div id="workdir"></div>
       <h4 style="margin-top:22px">${t("Chats")}</h4>
@@ -1274,7 +1289,17 @@ function openSettings() {
     if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
-    paintFacts(); paintRems();
+    paintFacts(); paintRems(); paintTasks();
+    $("#task-every", body).onchange = e => { $("#task-day", body).hidden = e.target.value !== "week"; };
+    $("#task-add", body).onclick = async () => {
+      const text = $("#task-text", body).value.trim();
+      if (!text) return $("#task-text", body).focus();
+      const r = await api.task_add({ text, every: $("#task-every", body).value, day: +$("#task-day", body).value,
+        at: $("#task-at", body).value, only_if: $("#task-if", body).value.trim() });
+      if (!r.ok) return toast(t("You already have 10 regular tasks. Delete one first."));
+      $("#task-text", body).value = ""; $("#task-if", body).value = "";
+      $(".task-new", body).open = false; paintTasks();
+    };
     $("#fact-add", body).onclick = async () => { const i = $("#fact-new", body); if (i.value.trim()) { await api.add_fact(i.value.trim()); i.value = ""; paintFacts(); } };
     $("#fact-new", body).onkeydown = e => { if (e.key === "Enter") $("#fact-add", body).click(); };
   };
@@ -1293,6 +1318,23 @@ function openSettings() {
     box.innerHTML = list.length ? list.map(f => `<div class="row"><div class="grow">${esc(f.text)}</div><button class="btn ghost small" data-f="${f.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
       : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("Nothing yet. Say “remember that…” in a chat.")}</p>`;
     box.querySelectorAll("[data-f]").forEach(b => b.onclick = async () => { await api.delete_fact(+b.dataset.f); paintFacts(); });
+  };
+  const paintTasks = async () => {
+    const list = await api.task_list(), box = $("#tasks", body);
+    box.innerHTML = list.length ? list.map(x => `<div class="row"><div class="grow"><b>${esc(x.text)}</b><small>${esc(x.when)}${x.only_if ? " · " + esc(x.only_if) : ""} · ${x.paused ? esc(t("paused")) : esc(t("next: {time}", { time: x.next_text }))}</small>${x.last_result ? `<small class="faint">${esc(x.last_text)}: ${esc(x.last_result.slice(0, 140))}</small>` : ""}</div>
+      <button class="btn ghost small" data-run="${x.id}" title="${esc(t("Run now"))}">${icon("refresh")}</button>
+      <button class="btn ghost small" data-pause="${x.id}" data-p="${x.paused ? 0 : 1}">${esc(x.paused ? t("Resume") : t("Pause"))}</button>
+      <button class="btn ghost small" data-del="${x.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
+      : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No regular tasks. Say “every morning at 8 tell me the weather” in a chat, or add one here.")}</p>`;
+    box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { await api.task_delete(+b.dataset.del); paintTasks(); });
+    box.querySelectorAll("[data-pause]").forEach(b => b.onclick = async () => { await api.task_pause(+b.dataset.pause, b.dataset.p === "1"); paintTasks(); });
+    box.querySelectorAll("[data-run]").forEach(b => b.onclick = async () => {
+      b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
+      const r = await api.task_run(+b.dataset.run);
+      toast(r.ok ? "🔁 " + (r.text || t("Nothing to tell this time.")) : t("The task didn't work this time. Check the internet and the model keys."), r.ok && !!r.text);
+      if (r.tid) refreshThreads();
+      paintTasks();
+    });
   };
   const paintRems = async () => {
     const list = await api.reminders(), box = $("#rems", body);

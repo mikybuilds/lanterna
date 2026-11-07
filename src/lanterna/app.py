@@ -5,6 +5,7 @@ Every method returns plain JSON-friendly data and never raises into the UI.
 """
 from __future__ import annotations
 
+import datetime as dt
 import re
 import threading
 import shutil
@@ -957,6 +958,94 @@ class Api:
                 self._alerts += due
         return due
 
+    # ---------------------------------------------------------------- regular tasks
+    def check_tasks(self, now: float | None = None) -> int:
+        """Starts the tasks whose time has come (each in its own thread); a run missed by hours is skipped."""
+        from . import tasks as tk
+        now = time.time() if now is None else now
+        started = 0
+        for task in self.store.due_tasks(now):
+            nxt = tk.next_run(task["every"], task["at"], task["day"], dt.datetime.fromtimestamp(now)).timestamp()
+            self.store.update_task(task["id"], next=nxt)   # moved first: a slow run is never started twice
+            if now - task["next"] > tk.LATE_LIMIT:
+                continue
+            threading.Thread(target=self._run_task, args=(task,), daemon=True).start()
+            started += 1
+        return started
+
+    def _run_task(self, task: dict) -> str:
+        """One run: the model does the task with safe tools only; the result goes to the task's chat,
+        a notification and the in-app notice. "" when there is nothing to tell (or it failed)."""
+        from . import tasks as tk
+        lang = self.settings.lang
+        try:
+            conv = Conversation(self._get_router(), self.settings.name, lang=lang,
+                                toolbox=tk.safe_toolbox(self.store, lambda: lang))
+            for _ in conv.ask(tk.TASK_SYSTEM + "\n\n" + tk.prompt(task, dt.datetime.now())):
+                pass
+            reply = (conv.last_reply or "").strip()
+            model = conv.router.current.label if conv.router.current else ""
+        except Exception as e:                              # noqa: BLE001  no internet, no keys…: try next time
+            self.store.update_task(task["id"], last=time.time(), last_result="⚠ " + str(e)[:200])
+            bugreport.remember_error(type(e).__name__, str(e))
+            return ""
+        if not reply or tk.is_skip(reply):
+            self.store.update_task(task["id"], last=time.time(), last_result="")
+            return ""
+        th = task.get("thread")
+        if not th or not self.store.thread(th):
+            th = self.store.new_thread("🔁 " + task["text"][:60])
+        self.store.add(th, "assistant", reply, model)
+        self.store.update_task(task["id"], last=time.time(), last_result=reply[:300], thread=th)
+        notify("Lanterna 🔁", reply[:300])
+        with self._lock:
+            self._alerts.append({"kind": "task", "text": reply[:240], "tid": th})
+        return reply
+
+    def task_list(self) -> list[dict]:
+        from . import tasks as tk
+        lang = self.settings.lang
+        tr = lambda s, **kw: t(s, lang, **kw)              # noqa: E731
+        out = []
+        for x in self.store.tasks():
+            out.append({**x, "when": tk.describe(x, tr),
+                        "next_text": "" if x["paused"] else time.strftime("%d.%m %H:%M", time.localtime(x["next"])),
+                        "last_text": time.strftime("%d.%m %H:%M", time.localtime(x["last"])) if x["last"] else ""})
+        return out
+
+    def task_add(self, item: dict) -> dict:
+        """The Settings form: {text, every, at, day, only_if}."""
+        from . import tasks as tk
+        item = item or {}
+        try:
+            tk.add(self.store, item.get("text", ""), item.get("every", "day"), item.get("at", "08:00"),
+                   int(item.get("day") or 0), item.get("only_if", ""), dt.datetime.now())
+        except ValueError as e:
+            return {"ok": False, "error": str(e), "tasks": self.task_list()}
+        return {"ok": True, "tasks": self.task_list()}
+
+    def task_delete(self, task_id: int) -> list[dict]:
+        self.store.delete_task(int(task_id))
+        return self.task_list()
+
+    def task_pause(self, task_id: int, paused: bool) -> list[dict]:
+        from . import tasks as tk
+        x = self.store.task(int(task_id))
+        if x:
+            nxt = tk.next_run(x["every"], x["at"], x["day"], dt.datetime.now()).timestamp()
+            self.store.update_task(x["id"], paused=int(bool(paused)), next=nxt)
+        return self.task_list()
+
+    def task_run(self, task_id: int) -> dict:
+        """"Run now" in Settings: does the task at once and says what came out."""
+        x = self.store.task(int(task_id))
+        if not x:
+            return {"ok": False, "text": "", "tasks": self.task_list()}
+        text = self._run_task(x)
+        x = self.store.task(int(task_id)) or {}
+        failed = str(x.get("last_result", "")).startswith("⚠")
+        return {"ok": not failed, "text": text or x.get("last_result", ""), "tid": x.get("thread"), "tasks": self.task_list()}
+
     # ---------------------------------------------------------------- weekly tidy-up and a full disk (both opt-in)
     def maintenance(self, now: float | None = None) -> list[dict]:
         """Settings → Computer: once a week a sort card for Downloads; a note when the disk is almost full."""
@@ -1015,6 +1104,7 @@ class Api:
         while True:
             try:
                 self.check_reminders()
+                self.check_tasks()
                 if time.time() - last_check > 3600:
                     last_check = time.time()
                     self.maintenance()
