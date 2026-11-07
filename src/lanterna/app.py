@@ -13,7 +13,7 @@ import uuid
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
-from .chat import Conversation, ToolUse, chat_title
+from .chat import Conversation, ToolUse, chat_title, follow_ups
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
@@ -41,6 +41,7 @@ class _Stream:
         self.done = False
         self.final = False                 # pieces now hold the cleaned full reply
         self.titling = False               # a side model is naming the chat: the UI asks wait_title()
+        self.suggesting = False            # follow-up buttons are coming: the UI asks wait_follow_ups()
         self.error: dict | None = None
         self.files: list[str] = []         # attached file names
         self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
@@ -67,6 +68,7 @@ class Api:
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
+        self._follow: dict[int, tuple[threading.Event, list[str]]] = {}   # follow-up ideas being written
         self._lock = threading.Lock()
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
         self._hw: hardware.Hardware | None = None
@@ -103,11 +105,11 @@ class Api:
 
     def save_settings(self, patch: dict) -> dict:
         allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
-                   "tidy_weekly", "space_help", "local_fallback", "ai_titles"}
+                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups"}
         for k, v in (patch or {}).items():
             if k in allowed:
                 setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
-                                                                  "space_help", "local_fallback", "ai_titles") else v)
+                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -463,6 +465,41 @@ class Api:
         th = self.store.thread(int(tid))
         return th["title"] if th else ""
 
+    def wait_follow_ups(self, tid: int, timeout: float = 15) -> list[str]:
+        """Up to 3 follow-up messages for the last answer of this chat ([] if none came in time)."""
+        item = self._follow.get(int(tid))
+        if not item:
+            return []
+        item[0].wait(timeout)
+        return list(item[1])
+
+    def _suggest(self, tid: int, router: Router, question: str, reply: str, out: list[str], ev: threading.Event) -> None:
+        try:
+            out += follow_ups(router.quick, question, reply)
+        except Exception as e:                              # noqa: BLE001  never worth an error
+            bugreport.remember_error(type(e).__name__, str(e))
+        finally:
+            ev.set()
+
+    def _start_side_jobs(self, st: "_Stream", tid: int, router: Router, question: str, reply: str, first: bool) -> None:
+        """After an answer: the chat's name (first answer) and follow-up buttons, both from a fast side model."""
+        th = self.store.thread(tid)
+        if first and self.settings.ai_titles and th:
+            self._titling[tid] = threading.Event()
+            st.titling = True
+            threading.Thread(target=self._name_chat, args=(tid, router, question, reply, th["title"]),
+                             daemon=True).start()
+        self._follow.pop(tid, None)
+        side = router.quick_order()
+        # follow-ups come after every answer: only from an online model that isn't Gemini (its limit is for
+        # answers), and not while a card waits for the user's Confirm
+        if (self.settings.follow_ups and side and side[0].provider != "gemini" and not PROVIDERS[side[0].provider].local
+                and not st.cards):
+            ev, out = threading.Event(), []
+            self._follow[tid] = (ev, out)
+            st.suggesting = True
+            threading.Thread(target=self._suggest, args=(tid, router, question, reply, out, ev), daemon=True).start()
+
     def _name_chat(self, tid: int, router: Router, question: str, reply: str, auto: str) -> None:
         """Background: a fast side model names the chat, unless the user renamed it meanwhile."""
         try:
@@ -535,12 +572,7 @@ class Api:
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
                 len(images or []), st.used))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
-            th = self.store.thread(tid)
-            if first and self.settings.ai_titles and th:
-                self._titling[tid] = threading.Event()
-                st.titling = True
-                threading.Thread(target=self._name_chat, args=(tid, router, text, conv.last_reply, th["title"]),
-                                 daemon=True).start()
+            self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
             with st.lock:
                 st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
                 st.final = True
@@ -565,7 +597,7 @@ class Api:
             if st.final:
                 from . import sent
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
-                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling,
+                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}

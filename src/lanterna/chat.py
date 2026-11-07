@@ -51,9 +51,12 @@ def same_call(name: str, arguments: str, prev_name: str, prev_arguments: str) ->
 
     def canon(s: str) -> str:
         try:
-            return json.dumps(json.loads(s or "{}"), sort_keys=True, ensure_ascii=False)
+            a = json.loads(s or "{}")
         except ValueError:
             return (s or "").strip()
+        if isinstance(a, dict):
+            a.pop("intent", None)                       # the same call with another "why" is still the same call
+        return json.dumps(a, sort_keys=True, ensure_ascii=False)
     if canon(arguments) == canon(prev_arguments):
         return True
     if name == "web_search":
@@ -171,6 +174,27 @@ def clean_title(raw: str) -> str:
     line = re.sub(r"^\s*(title|назва|titolo)\s*:\s*", "", line, flags=re.I)
     line = line.strip().strip("\"'«»“”„*#` ").rstrip(".")
     return line[:60].strip() if 2 <= len(line) <= 80 else ""
+
+
+FOLLOW_PROMPT = ("Suggest 3 short messages the USER might send next in this chat: natural follow-ups to the "
+                 "answer, written from the user's side, in the user's language, at most 8 words each. One per line, "
+                 "no numbering, no quotes, nothing else.")
+
+
+def clean_follow_ups(raw: str, n: int = 3) -> list[str]:
+    """The model's lines as up to n tidy suggestions."""
+    out = []
+    for line in (raw or "").splitlines():
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip().strip("\"'«»“”„`").strip()
+        if 2 <= len(line) <= 90 and line not in out:
+            out.append(line)
+    return out[:n]
+
+
+def follow_ups(quick, question: str, reply: str) -> list[str]:
+    """Up to 3 follow-up messages the user can send with one click (quick = Router.quick)."""
+    return clean_follow_ups(quick([{"role": "system", "content": FOLLOW_PROMPT},
+                                   {"role": "user", "content": f"User: {question[:600]}\n\nAssistant: {reply[:1500]}"}]))
 
 
 def chat_title(quick, question: str, reply: str) -> str:

@@ -5,6 +5,11 @@
 **New**
 - **Chat names:** after the first answer, a fast model gives a new chat a short name in your language (for example "Феррара за один день") instead of the first line of your message. A name you typed yourself is kept. Settings → Chats → "Name new chats automatically" (on by default; one small extra request).
 - Small side jobs like this go to a fast model with generous limits (not Gemini, whose 5 requests a minute are kept for answers); in Local mode they stay on your computer.
+- **What to ask next:** up to 3 buttons under an answer with natural follow-up questions; one click sends it. Settings → Chats → "Suggest what to ask next". Only from a fast online model that isn't Gemini, so it never eats the answer limit; not in Local mode.
+- **Why it searches:** the "what I'm doing" line now also says why, in the model's own words — "Searching the web: Palazzo dei Diamanti orari — to find the opening hours".
+
+**Fixed**
+- Terminal app: the "Try one:" idea buttons on the start screen filled the box but didn't send.
 
 ## 0.4.0 — more reliable answers with web search
 

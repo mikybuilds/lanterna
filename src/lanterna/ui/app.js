@@ -936,6 +936,7 @@ async function send(retryText) {
   const files = retry ? retryText.files : pending;
   if ((!text && !files.length) || busy) return;
   busy = true; $("#send").disabled = true;
+  document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
     thread = (await api.new_thread()).id;
     if (newChatFolder !== undefined) { await api.set_chat_folder(thread, newChatFolder, false); newChatFolder = undefined; }
@@ -955,7 +956,7 @@ async function send(retryText) {
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`; else bot.remove();
     return;
   }
-  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false;
+  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false, suggesting = false;
   const sentTo = thread;
   const chips = h(`<div class="tools"></div>`);
   bot.querySelector(".body").prepend(chips);
@@ -985,7 +986,7 @@ async function send(retryText) {
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
-    if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
+    if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
       if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent)); }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown();
@@ -1005,6 +1006,12 @@ async function send(retryText) {
       if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
       if (titling) api.wait_title(sentTo).then(tt => {    // a fast model is naming the new chat
         refreshThreads(); if (tt && thread === sentTo) $("#title").textContent = tt; });
+      if (suggesting) api.wait_follow_ups(sentTo).then(list => {   // follow-up buttons under the answer
+        if (!list || !list.length || !bot.isConnected || busy || thread !== sentTo) return;
+        const row = h(`<div class="follow">${list.map(x => `<button class="btn ghost small">${esc(x)}</button>`).join("")}</div>`);
+        row.querySelectorAll("button").forEach((b, i) => b.onclick = () => { if (busy) return; $("#input").value = list[i]; send(); });
+        bot.querySelector(".body").append(row); scrollDown();
+      });
       return;
     }
     setTimeout(step, 60);
@@ -1062,6 +1069,8 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Chats")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="ai-titles" ${S.settings.ai_titles !== false ? "checked" : ""}>
         <span><b>${t("Name new chats automatically")}</b><small>${t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="follow-ups" ${S.settings.follow_ups !== false ? "checked" : ""}>
+        <span><b>${t("Suggest what to ask next")}</b><small>${t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
         <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
@@ -1097,7 +1106,7 @@ function openSettings() {
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
-    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"]]) {
+    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"]]) {
       const el = $(id, body);
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }

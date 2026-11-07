@@ -160,6 +160,8 @@ def t(text: str, lang: str = "en", **kw) -> str:
 # Chat names written by a fast side model (0.5.0)
 _T.update({
     "Chats": {"uk": "Розмови", "it": "Chat"},
+    "Suggest what to ask next": {"uk": "Підказувати, що спитати далі", "it": "Suggerisci cosa chiedere dopo"},
+    "Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.": {"uk": "До 3 кнопок під відповіддю з наступними питаннями. Їх пише швидка онлайн-модель (не Gemini і не в локальному режимі). Один маленький додатковий запит на відповідь.", "it": "Fino a 3 pulsanti sotto la risposta con le domande successive, scritti da un modello online veloce (non Gemini, e non in modalità Locale). Una piccola richiesta in più per risposta."},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

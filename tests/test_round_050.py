@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from lanterna import keys
-from lanterna.chat import TITLE_PROMPT, chat_title, clean_title
+from lanterna.chat import FOLLOW_PROMPT, TITLE_PROMPT, chat_title, clean_follow_ups, clean_title, same_call
 from lanterna.discovery import Candidate
 from lanterna.providers import PROVIDERS, Client, ProviderError
 from lanterna.router import Router
@@ -77,7 +77,7 @@ def _sse(text):
     return f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\ndata: [DONE]\n\n".encode()
 
 
-def _api(tmp_path, monkeypatch, titles=True):
+def _api(tmp_path, monkeypatch, titles=True, follow=False):
     import time
 
     from lanterna.app import Api
@@ -85,7 +85,7 @@ def _api(tmp_path, monkeypatch, titles=True):
     monkeypatch.setattr(keys, "get_key", lambda n: None)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path.anchor) + "no-such-appdata")
     a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
-    a.settings.ai_titles = titles
+    a.settings.ai_titles, a.settings.follow_ups = titles, follow
     bodies = []
 
     def h(req):
@@ -93,6 +93,8 @@ def _api(tmp_path, monkeypatch, titles=True):
         bodies.append(body)
         if body["messages"][0]["content"] == TITLE_PROMPT:
             return httpx.Response(200, content=_sse("Борщ на вечерю"))
+        if body["messages"][0]["content"] == FOLLOW_PROMPT:
+            return httpx.Response(200, content=_sse("1. А без м'яса?\n- Скільки варити?\n«Що подати до борщу?»\nзайве"))
         return httpx.Response(200, content=_sse("Ось рецепт борщу."))
     a._router = Router([Candidate("groq", "m", 70)],
                        client_for=lambda pid: Client(PROVIDERS["groq"], "k", transport=httpx.MockTransport(h)))
@@ -138,3 +140,44 @@ def test_a_name_the_user_typed_meanwhile_is_kept(tmp_path, monkeypatch):
 def test_ai_titles_setting_is_saved_and_synced():
     from lanterna.sync import PREFS
     assert "ai_titles" in PREFS
+
+
+# ---------------------------------------------------------------- follow-up buttons
+def test_clean_follow_ups():
+    assert clean_follow_ups("1. Як?\n2) А чому?\n- Ще\n\n• Далі\nP") == ["Як?", "А чому?", "Ще"]
+    assert clean_follow_ups("") == []
+
+
+def test_follow_ups_after_an_answer(tmp_path, monkeypatch):
+    a, bodies, wait = _api(tmp_path, monkeypatch, titles=False, follow=True)
+    tid = a.new_thread()["id"]
+    p = wait(a.send(tid, "як зварити борщ?")["stream"])
+    assert p["suggesting"] is True
+    assert a.wait_follow_ups(tid) == ["А без м'яса?", "Скільки варити?", "Що подати до борщу?"]
+    assert len(bodies) == 2
+
+
+def test_no_follow_ups_when_only_gemini_or_local_is_left(tmp_path, monkeypatch):
+    for provider in ("gemini", "ollama"):
+        a, bodies, wait = _api(tmp_path, monkeypatch, titles=False, follow=True)
+        a._router.candidates = [Candidate(provider, "m", 70)]
+        a._router.current = a._router.candidates[0]
+        tid = a.new_thread()["id"]
+        p = wait(a.send(tid, "привіт")["stream"])
+        assert not p["suggesting"] and a.wait_follow_ups(tid) == []
+
+
+# ---------------------------------------------------------------- "why" in the "what I'm doing" line
+def test_intent_is_offered_on_web_tools_shown_and_never_passed_to_the_tool():
+    from lanterna.thinking import tool_step
+    from lanterna.tools import Tool, Toolbox, _obj
+
+    got = []
+    tb = Toolbox(store=None)
+    tb._extra = lambda: [Tool("echo", "", _obj({"x": {"type": "string"}}), lambda x: got.append(x) or "ok", "e")]
+    schemas = {s["function"]["name"]: s["function"]["parameters"]["properties"] for s in tb.schemas()}
+    assert "intent" in schemas["web_search"] and "intent" not in schemas["calculate"]
+    assert tb.run("echo", '{"x": "1", "intent": "щоб перевірити"}') == "ok" and got == ["1"]
+    line = tool_step("web_search", '{"query": "Flowgorithm ToUpper", "intent": "щоб знайти точну назву"}', "uk")
+    assert line.endswith("— щоб знайти точну назву") and "Flowgorithm ToUpper" in line
+    assert same_call("web_search", '{"query": "a b c", "intent": "x"}', "web_search", '{"query": "a b c", "intent": "y"}')

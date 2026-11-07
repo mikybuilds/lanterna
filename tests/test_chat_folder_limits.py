@@ -14,7 +14,7 @@ def _api(tmp_path, monkeypatch):
     monkeypatch.setattr(keys, "get_key", lambda n: None)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path.anchor) + "no-such-appdata")
     a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
-    a.settings.ai_titles = False          # these tests count the requests to the model one by one
+    a.settings.ai_titles = a.settings.follow_ups = False   # these tests count the requests to the model one by one
     return a
 
 

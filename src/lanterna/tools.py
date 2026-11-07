@@ -37,8 +37,17 @@ class Tool:
     group: str = ""                  # "" = always offered; otherwise only when the talk is about it (see GROUPS)
 
     def schema(self) -> dict:
+        params = self.parameters
+        if self.group or self.name in INTENT_TOOLS:        # the user sees why it searches or looks at their PC
+            params = {**params, "properties": {**params.get("properties", {}), "intent": INTENT}}
         return {"type": "function", "function": {"name": self.name, "description": self.description,
-                                                 "parameters": self.parameters}}
+                                                 "parameters": params}}
+
+
+# "Why" for the "what I'm doing" line. Only on web and computer tools: every extra word costs tokens on free plans.
+INTENT_TOOLS = {"web_search", "read_page"}
+INTENT = {"type": "string", "description": "optional: why you call it, 3-8 words in the user's language, "
+                                           "e.g. 'to find the exact function name' (shown to the user)"}
 
 
 def _obj(props: dict, required: list[str] | None = None) -> dict:
@@ -398,6 +407,7 @@ class Toolbox:
                 raise ValueError
         except ValueError:
             return "Error: arguments must be a JSON object."
+        args.pop("intent", None)                                     # only for the "what I'm doing" line
         try:
             return tool.run(**args)
         except TypeError as e:

@@ -70,6 +70,8 @@ Screen { background: $background; }
 .msg-bot { margin: 1 8 0 0; padding: 0; }
 .msg-note { color: $text-muted; text-style: italic; margin: 1 0 0 0; }
 .msg-err { color: $error; margin: 1 0 0 0; }
+.follow { height: auto; margin: 1 8 0 0; }
+.followbtn { width: auto; min-width: 4; height: 1; border: none; margin: 0 0 0 0; padding: 0 1; background: $panel; }
 .welcome { color: $text-muted; margin: 2 0; content-align: center middle; width: 100%; }
 #composer { margin: 0 2 1 2; border: round $panel-lighten-2; }
 #attached { margin: 0 3; color: $primary; height: auto; }
@@ -979,6 +981,8 @@ class SettingsScreen(ModalScreen[str]):
             yield Label(t("Chats", lang), classes="h")
             yield Checkbox(t("Name new chats automatically", lang), self.app.api.settings.ai_titles, id="aititles")
             yield Static(t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.", lang), classes="muted")
+            yield Checkbox(t("Suggest what to ask next", lang), self.app.api.settings.follow_ups, id="followups")
+            yield Static(t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -1187,6 +1191,10 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#pcaccess")
     def _pc_access(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"pc_access": ev.value})
+
+    @on(Checkbox.Changed, "#followups")
+    def _follow_ups(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"follow_ups": ev.value})
 
     @on(Checkbox.Changed, "#aititles")
     def _ai_titles(self, ev: Checkbox.Changed) -> None:
@@ -1615,7 +1623,7 @@ class _ChatScreen(Screen):
     def _idea(self, ev: Button.Pressed) -> None:
         box = self.query_one("#composer", Input)          # one press sends it, like typing it and pressing Enter
         box.value = str(ev.button.label)
-        box.action_submit()
+        box.post_message(Input.Submitted(box, box.value))
 
     def action_new_chat(self) -> None:
         if self._stream:
@@ -1660,6 +1668,7 @@ class _ChatScreen(Screen):
             return
         ev.input.value = ""
         log = self.query_one("#log", VerticalScroll)
+        log.query(".follow").remove()                     # old follow-up ideas go when you write
         if self.tid is None:
             self.tid = self.app.api.new_thread()["id"]
             log.remove_children()
@@ -1707,6 +1716,7 @@ class _ChatScreen(Screen):
         if "final" in r:
             self._text, changed = r["final"], True
             self._naming = bool(r.get("titling"))       # a fast model is naming this new chat
+            self._suggesting = bool(r.get("suggesting"))   # follow-up buttons are coming
             if r.get("model"):
                 self._set_model(r["model"])
             if r.get("sent") and self._bot is not None:
@@ -1736,7 +1746,30 @@ class _ChatScreen(Screen):
             if getattr(self, "_naming", False):
                 self._naming = False
                 self._wait_name(self.tid)
+            if getattr(self, "_suggesting", False):
+                self._suggesting = False
+                self._wait_follow(self.tid)
             self._timer.stop()      # last: stopping cancels this very callback at its next await
+
+    @work(thread=True, group="follow")
+    def _wait_follow(self, tid: int) -> None:
+        ideas = self.app.api.wait_follow_ups(tid)
+        self.app.call_from_thread(self._show_follow, tid, ideas)
+
+    def _show_follow(self, tid: int, ideas: list[str]) -> None:
+        if not ideas or tid != self.tid or self._stream:
+            return
+        log = self.query_one("#log", VerticalScroll)
+        log.mount(Vertical(*(Button("→ " + x, classes="followbtn", name=x) for x in ideas), classes="follow"))
+        log.scroll_end(animate=False)
+
+    @on(Button.Pressed, ".followbtn")
+    def _follow_pressed(self, ev: Button.Pressed) -> None:
+        if self._stream:
+            return
+        box = self.query_one("#composer", Input)
+        box.value = ev.button.name or ""
+        box.post_message(Input.Submitted(box, box.value))
 
     @work(thread=True, group="title")
     def _wait_name(self, tid: int) -> None:

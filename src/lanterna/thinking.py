@@ -66,7 +66,9 @@ def tool_step(name: str, arguments: str, lang: str = "en") -> str:
     x = _short(x or "")
     if "{x}" in text and not x:                   # no argument: say it without the colon / name
         text = text.replace(": {x}", "").replace(" {x}", "")
-    return t(text, lang, x=x) if "{x}" in text else t(text, lang)
+    line = t(text, lang, x=x) if "{x}" in text else t(text, lang)
+    why = _short(args.get("intent") or "", 70) if isinstance(args.get("intent"), str) else ""
+    return f"{line} — {why}" if why else line                # the model's own "why", in the user's language
 
 
 def _last_line(text: str) -> str:
