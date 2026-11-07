@@ -85,3 +85,46 @@ def test_edit_last_gives_the_question_back(tmp_path, monkeypatch):
     assert a.edit_last(tid) == {"ok": True, "text": "скільки буде 2+2?"}
     assert _roles(a, tid) == [("user", "привіт"), ("assistant", "Відповідь 1")]
     assert a.edit_last(a.new_thread()["id"]) == {"ok": True, "text": ""}   # an empty chat: nothing to take back
+
+
+# ---------------------------------------------------------------- export
+def test_export_chat_writes_markdown_to_downloads(tmp_path, monkeypatch):
+    a, _, wait = _api(tmp_path, monkeypatch)
+    down = tmp_path / "Downloads"
+    down.mkdir()
+    monkeypatch.setattr(a.places, "folders", lambda: {"downloads": down})
+    tid = a.new_thread()["id"]
+    a.store.rename(tid, "План: подорож / Львів?")
+    wait(a.send(tid, "привіт")["stream"])
+    r = a.export_chat(tid)
+    assert r["ok"] and r["name"] == "План подорож Львів.md"
+    text = (down / r["name"]).read_text(encoding="utf-8")
+    assert text.startswith("# План: подорож / Львів?") and "привіт" in text and "Відповідь 1" in text
+    assert a.export_chat(tid)["name"] == "План подорож Львів (2).md"     # never overwrites
+    assert a.export_chat(99999) == {"ok": False}
+    assert a.export_chat(a.new_thread()["id"]) == {"ok": False}            # an empty chat: nothing to save
+
+
+def test_backup_has_chats_memory_and_reminders(tmp_path, monkeypatch):
+    a, _, _ = _api(tmp_path, monkeypatch)
+    monkeypatch.setattr(a.places, "folders", lambda: {"downloads": tmp_path})
+    tid = a.new_thread()["id"]
+    a.store.add(tid, "user", "питання")
+    a.store.add_fact("любить каву")
+    a.store.add_reminder("подзвонити", time.time() + 3600)
+    r = a.export_all()
+    data = json.loads((tmp_path / r["name"]).read_text(encoding="utf-8"))
+    assert data["app"] == "Lanterna" and data["memory"] == ["любить каву"]
+    assert data["threads"][0]["messages"][0]["content"] == "питання"
+    assert data["reminders"][0]["text"] == "подзвонити"
+
+
+def test_show_saved_opens_only_files_it_saved(tmp_path, monkeypatch):
+    from lanterna import pcfiles
+    a, _, _ = _api(tmp_path, monkeypatch)
+    monkeypatch.setattr(a.places, "folders", lambda: {"downloads": tmp_path})
+    opened = []
+    monkeypatch.setattr(pcfiles, "_open_in_file_manager", lambda p: opened.append(p))
+    assert a.show_saved(r"C:\Windows\System32\cmd.exe") is False
+    r = a.export_all()
+    assert a.show_saved(r["path"]) is True and str(opened[0]) == r["path"]

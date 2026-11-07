@@ -4,6 +4,8 @@
 
 **New**
 - **Edit and Retry:** under your last message there is Edit (the question comes back to the box, its answer goes), under the last answer Retry (a new answer replaces it). Terminal: Ctrl+E and Ctrl+R.
+- **Save a chat:** the save button at the top writes the chat as a Markdown file to Downloads (click the notice to see it in the folder). Terminal: Ctrl+X.
+- **Backup:** Settings → Chats → "Save a backup of all chats" puts all chats, memory and reminders in one JSON file. It's plain text, so keep it somewhere safe.
 
 **Fixed**
 - Retry after an error no longer saves your question twice.

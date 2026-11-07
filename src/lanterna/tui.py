@@ -1039,6 +1039,8 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.", lang), classes="muted")
             yield Checkbox(t("Ask before big tasks", lang), self.app.api.settings.ask_first, id="askfirst")
             yield Static(t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.", lang), classes="muted")
+            yield Button(t("Save a backup of all chats", lang), id="backupall")
+            yield Static(t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -1247,6 +1249,11 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#pcaccess")
     def _pc_access(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"pc_access": ev.value})
+
+    @on(Button.Pressed, "#backupall")
+    def _backup_all(self) -> None:
+        r = self.app.api.export_all()
+        self.app.notify(t("Saved to {name}", L(self.app), name=r["path"]))
 
     @on(Checkbox.Changed, "#askfirst")
     def _ask_first(self, ev: Checkbox.Changed) -> None:
@@ -1714,6 +1721,12 @@ class _ChatScreen(Screen):
         self.open_thread(self.tid)
         self._watch(res["stream"])
 
+    def action_save_chat(self) -> None:
+        """Ctrl+X: the chat as a Markdown file in Downloads."""
+        lang = L(self.app)
+        r = self.app.api.export_chat(self.tid) if self.tid is not None else {"ok": False}
+        self.app.notify(t("Saved to {name}", lang, name=r["path"]) if r.get("ok") else t("Nothing to save yet.", lang))
+
     def action_edit_last(self) -> None:
         """Ctrl+E: the last question and its answer go; the question comes back to the box to change it."""
         if self.tid is None or self._stream:
@@ -1955,6 +1968,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+o", "models", t("Models", lang), priority=True),
         Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
         Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
+        Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
         Binding("ctrl+h", "history", t("What Lanterna did", lang), priority=True),
         Binding("f1", "about", t("About", lang), priority=True),
         Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),

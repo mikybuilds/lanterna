@@ -796,7 +796,7 @@ function renderMain() {
       </div>
     </aside>
     <main class="main">
-      <div class="top"><button class="menu" id="menu">${icon("menu")}</button><div class="title" id="title">Lanterna</div><div class="chip" id="model" hidden><i></i><span></span></div></div>
+      <div class="top"><button class="menu" id="menu">${icon("menu")}</button><div class="title" id="title">Lanterna</div><div class="chip" id="model" hidden><i></i><span></span></div><button class="iconbtn" id="save-chat" title="${esc(t("Save chat"))}" hidden>${icon("save")}</button></div>
       <div class="scroll" id="scroll"><div class="msgs" id="msgs"></div></div>
       <div class="composer">
         <div class="files" id="files" hidden></div>
@@ -892,8 +892,17 @@ async function refreshThreads() {
   return list;
 }
 
+async function savedToast(r) {
+  if (!r || !r.ok) return toast(t("Nothing to save yet."));
+  toast(t("Saved to {name}", { name: r.name }) + " · " + t("Show in folder"));
+  const all = document.querySelectorAll(".toast"), last = all[all.length - 1];
+  if (last) { last.style.cursor = "pointer"; last.onclick = () => api.show_saved(r.path); }
+}
+
 async function openThread(id) {
   thread = id;
+  const sv = $("#save-chat");
+  if (sv) { sv.hidden = !id; sv.onclick = async () => { if (thread) savedToast(await api.export_chat(thread)); }; }
   newChatFolder = undefined;
   paintFolder();
   const msgs = $("#msgs");
@@ -1132,6 +1141,8 @@ function openSettings() {
         <span><b>${t("Remember long chats")}</b><small>${t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.")}</small></span></label>
       <label class="check"><input type="checkbox" id="ask-first" ${S.settings.ask_first !== false ? "checked" : ""}>
         <span><b>${t("Ask before big tasks")}</b><small>${t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.")}</small></span></label>
+      <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
+      <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
         <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
@@ -1171,6 +1182,7 @@ function openSettings() {
       const el = $(id, body);
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }
+    $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();

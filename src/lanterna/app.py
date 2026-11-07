@@ -69,6 +69,7 @@ class Api:
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
+        self._saved: set[str] = set()                         # files saved by export (show_saved may open these)
         self._follow: dict[int, tuple[threading.Event, list[str]]] = {}   # follow-up ideas being written
         self._lock = threading.Lock()
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
@@ -545,6 +546,42 @@ class Api:
             self.store.trim_tail(tid, 1)
             return msgs[-1]["content"]
         return ""
+
+    # ---------------------------------------------------------------- saving chats (export)
+    def _save_folder(self):
+        from pathlib import Path
+        d = self.places.folders().get("downloads")
+        return d if d and d.is_dir() else Path.home()
+
+    def export_chat(self, tid: int) -> dict:
+        """The chat as a Markdown file in Downloads."""
+        from . import export
+        th = self.store.thread(int(tid))
+        if not th:
+            return {"ok": False}
+        msgs = [{**m, "content": _short_files(m["content"])} for m in self.store.messages(int(tid))]
+        if not msgs:
+            return {"ok": False}
+        p = export.free_path(self._save_folder(), export.safe_name(th["title"]), ".md")
+        p.write_text(export.chat_markdown(th["title"], msgs, self.settings.lang, self.settings.name), encoding="utf-8")
+        self._saved.add(str(p))
+        return {"ok": True, "path": str(p), "name": p.name}
+
+    def export_all(self) -> dict:
+        """A backup of all chats, memory and reminders as one JSON file in Downloads."""
+        from . import export
+        p = export.write_backup(self.store, self._save_folder())
+        self._saved.add(str(p))
+        return {"ok": True, "path": str(p), "name": p.name}
+
+    def show_saved(self, path: str) -> bool:
+        """Opens the folder of a file Lanterna has just saved (only those: the window can't open any path)."""
+        from pathlib import Path
+        if str(path) not in self._saved:
+            return False
+        from . import pcfiles
+        pcfiles._open_in_file_manager(Path(path))
+        return True
 
     def edit_last(self, tid: int) -> dict:
         """"Edit": the last question and its answer go; the question comes back to the message box."""
