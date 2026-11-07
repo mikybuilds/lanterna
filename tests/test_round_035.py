@@ -273,3 +273,55 @@ def test_final_round_body_keeps_tools_only_for_gemini():
         list(Client(PROVIDERS[pid], "k", transport=httpx.MockTransport(h)).stream_chat("m", [], tools=tools, tool_choice="none"))
     assert bodies[0]["tool_choice"] == "none" and bodies[0]["tools"] == tools
     assert "tools" not in bodies[1] and "tool_choice" not in bodies[1]
+
+
+# ---------------------------------------------------------------- 0.4.0: tool budget and repeated calls
+def test_same_call_catches_repeats_and_near_same_searches():
+    from lanterna.chat import same_call
+    assert same_call("weather", '{"city": "Kyiv"}', "weather", '{ "city":"Kyiv" }')
+    assert not same_call("weather", '{"city": "Kyiv"}', "weather", '{"city": "Lviv"}')
+    assert not same_call("web_search", '{"query": "a b c"}', "read_page", '{"query": "a b c"}')
+    a = '{"query": "site:flowgorithm.org intrinsic functions ToUpper ToLower"}'
+    b = '{"query": "Flowgorithm intrinsic functions ToUpper ToTitle ToLower ToUpper(s)"}'
+    assert same_call("web_search", b, "web_search", a)            # one is a part of the other
+    assert same_call("web_search", '{"query": "погода Київ завтра"}', "web_search", '{"query": "Погода, Київ, завтра?"}')
+    assert not same_call("web_search", '{"query": "погода"}', "web_search", '{"query": "погода Київ"}')   # a real refinement
+    assert not same_call("web_search", '{"query": "Flowgorithm string functions"}', "web_search", '{"query": "python upper"}')
+
+
+def test_budget_note_counts_down():
+    from lanterna.chat import budget_note
+    assert budget_note(3) == ""
+    assert "2 more tool rounds" in budget_note(2) and "1 more tool round" in budget_note(1)
+    assert "no more tool calls" in budget_note(0)
+
+
+def test_repeated_search_is_not_run_and_the_model_is_warned():
+    from types import SimpleNamespace
+
+    from lanterna.chat import MAX_TOOL_ROUNDS, Conversation
+    from lanterna.providers import ToolCall, ToolCalls
+
+    seen, ran = [], []
+
+    class FakeRouter:
+        current = SimpleNamespace(label="test")
+
+        def stream(self, msgs, **kw):
+            seen.append([dict(m) for m in msgs])
+            n = len(seen)
+            if n <= MAX_TOOL_ROUNDS:                       # keeps searching the same thing
+                yield ToolCalls([ToolCall(f"c{n}", "web_search", '{"query": "flowgorithm upper case"}')])
+            else:
+                yield "Answer."
+
+    box = SimpleNamespace(tools={}, store=SimpleNamespace(facts=lambda: []),
+                          schemas=lambda ctx: [{"type": "function", "function": {"name": "web_search"}}],
+                          run=lambda name, args: ran.append(args) or "results")
+    conv = Conversation(router=FakeRouter(), toolbox=box)
+    assert "".join(p for p in conv.ask("how?") if isinstance(p, str)) == "Answer."
+    assert len(ran) == 1                                    # only the first search really ran
+    tool_msgs = [m for m in seen[-1] if m["role"] == "tool"]
+    assert "Not run" in tool_msgs[1]["content"]
+    assert "no more tool calls" in tool_msgs[-1]["content"]
+    assert "more tool round" in tool_msgs[-2]["content"]

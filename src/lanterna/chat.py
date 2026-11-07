@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Iterator
@@ -14,6 +15,53 @@ MAX_HISTORY = 30          # messages kept in context (older ones are dropped)
 MAX_TOOL_ROUNDS = 4       # tool calls per answer, then the model must reply
 EMPTY_NUDGE = ("(Your last turn had no text for me. Answer my question above now, in plain words, using what you "
                "already found. Do not search again.)")
+REPEAT_NOTE = ("Not run: you already made this (or an almost identical) {name} call in this answer, and its result "
+               "is above. Use that result, try something really different, or answer now.")
+BUDGET_WARN_AT = 2        # tool rounds left when the model is told to start converging
+
+
+def budget_note(left: int) -> str:
+    """Added to the last tool result near the end of the tool budget (idea from LibreChat's step budget)."""
+    if left > BUDGET_WARN_AT:
+        return ""
+    if left <= 0:
+        return ("[Lanterna: no more tool calls are possible in this answer. Write your final answer now from what "
+                "you already have, in the user's language, and say briefly what is still unclear.]")
+    rounds = "1 more tool round" if left == 1 else f"{left} more tool rounds"
+    return (f"[Lanterna: only {rounds} left in this answer. Stop broadening the search: use what you already "
+            "have and call a tool only if you cannot answer without it.]")
+
+
+_SITE = re.compile(r"\bsite:\S+|[\"'«»“”„()\[\]?!.,:;]")
+
+
+def _query_words(arguments: str) -> set[str]:
+    try:
+        args = json.loads(arguments or "{}")
+    except ValueError:
+        return set()
+    q = str(args.get("query") or args.get("q") or "") if isinstance(args, dict) else ""
+    return {w for w in _SITE.sub(" ", q.lower()).split() if len(w) > 1}
+
+
+def same_call(name: str, arguments: str, prev_name: str, prev_arguments: str) -> bool:
+    """The same tool with the same arguments; for web searches, also a query with almost the same words."""
+    if name != prev_name:
+        return False
+
+    def canon(s: str) -> str:
+        try:
+            return json.dumps(json.loads(s or "{}"), sort_keys=True, ensure_ascii=False)
+        except ValueError:
+            return (s or "").strip()
+    if canon(arguments) == canon(prev_arguments):
+        return True
+    if name == "web_search":
+        a, b = _query_words(arguments), _query_words(prev_arguments)
+        if a and b:
+            # nearly the same words, or one query is just a part of the other (3+ words)
+            return len(a & b) / len(a | b) >= 0.75 or (min(len(a), len(b)) >= 3 and (a <= b or b <= a))
+    return False
 
 
 @dataclass
@@ -146,6 +194,7 @@ class Conversation:
         # photos are token-heavy on free tiers: answer them without the tool list
         schemas = self.toolbox.schemas(self._context(text)) if self.toolbox and not images else None
         pieces: list[str] = []
+        done: list[tuple[str, str]] = []      # tool calls already run in this answer
         cloud_first = self.auto_cloud and is_hard(text)
         for rnd in range(MAX_TOOL_ROUNDS + 1):
             calls: ToolCalls | None = None
@@ -170,10 +219,19 @@ class Conversation:
             msgs.append({"role": "assistant", "content": "".join(round_text) or None,
                          "tool_calls": [c.message() for c in calls.calls]})
             for c in calls.calls:
-                tool = self.toolbox.tools.get(c.name)
-                yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)
-                result = self.toolbox.run(c.name, c.arguments)
-                msgs.append({"role": "tool", "tool_call_id": c.id, "content": result[:12000]})
+                if any(same_call(c.name, c.arguments, n, a) for n, a in done):
+                    # the same (or nearly the same) call again: models repeat searches and burn the free limits
+                    result = REPEAT_NOTE.format(name=c.name)
+                else:
+                    tool = self.toolbox.tools.get(c.name)
+                    yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)
+                    result = self.toolbox.run(c.name, c.arguments)[:12000]
+                    done.append((c.name, c.arguments))
+                msgs.append({"role": "tool", "tool_call_id": c.id, "content": result})
+            # models lose count of their tool rounds: near the end, tell them to stop searching and answer
+            note = budget_note(MAX_TOOL_ROUNDS - rnd - 1)
+            if note:
+                msgs[-1]["content"] += "\n\n" + note
         if not "".join(pieces).strip():
             # some models (Gemini 3 after a search) end with only thoughts and no text: ask once more, no calls
             msgs.append({"role": "user", "content": EMPTY_NUDGE})
