@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — edit and retry, save chats, memory that updates itself
 
 **New**
 - **Edit and Retry:** under your last message there is Edit (the question comes back to the box, its answer goes), under the last answer Retry (a new answer replaces it). Terminal: Ctrl+E and Ctrl+R.
