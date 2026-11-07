@@ -33,6 +33,7 @@ class Settings:
     local_models: dict = field(default_factory=dict)   # Ollama picks: {"chat": name, "vision": name}
     auto_cloud: bool = True                # auto mode: send hard questions to online models
     update_check: bool = True              # look for a new version when the app starts
+    ai_titles: bool = True                 # a fast model names each new chat (one small extra request)
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     profile_at: float = 0                  # when name or language last changed (newest wins when syncing)

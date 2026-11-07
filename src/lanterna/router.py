@@ -10,6 +10,7 @@ from .discovery import Candidate
 from .providers import PROVIDERS, Client, ProviderError, ToolCalls
 
 # How long to skip a model (or a whole provider) after each kind of failure, in seconds.
+QUICK_SCORE = 70         # side jobs: a model near this score (good enough, fast), not the best one
 MAX_WAIT = 12            # seconds worth waiting for a rate limit instead of failing
 COOLDOWN = {"rate": 60, "network": 30, "timeout": 15 * 60, "dropped": 30, "other": 60, "bad_request": 24 * 3600,
             "auth": 3600}
@@ -155,6 +156,24 @@ class Router:
     def supports_tools(self) -> bool:
         c = self.current
         return bool(c) and (c.provider, c.model) not in self.no_tools
+
+    def quick_order(self) -> list[Candidate]:
+        """Models for small side jobs (a chat title, follow-up ideas): fast and with generous limits.
+        Online: not Gemini (5 requests a minute, kept for answers), a mid-size model rather than the best one.
+        Local only: the local models. The answering model is never changed."""
+        order = self.available()
+        cloud = [c for c in order if not PROVIDERS[c.provider].local]
+        pool = cloud or order
+        return sorted(pool, key=lambda c: (c.provider == "gemini", abs(c.score - QUICK_SCORE), c.latency or 99))
+
+    def quick(self, messages: list[dict], tries: int = 2) -> str:
+        """One short non-streamed answer for a side job; "" when nothing answers (side jobs never break the chat)."""
+        for c in self.quick_order()[:tries]:
+            try:
+                return self.client(c.provider).chat(c.model, messages, temperature=0.3)
+            except ProviderError as e:
+                self._cool(c, e)
+        return ""
 
     def lacks_tools(self) -> bool:
         """True when the model that will answer next is known not to call tools (the current one, or the first free)."""

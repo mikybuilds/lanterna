@@ -160,6 +160,25 @@ def needs_search(text: str) -> bool:
     return bool(_FRESH.search(text or ""))
 
 
+TITLE_PROMPT = ("You name chats. Write a short title (3-6 words) for this chat, in the same language as the user's "
+                "message, with ordinary correct words of that language (never mix in words from a neighbouring language). "
+                "Reply with the title only: no quotes, no full stop, no emoji.")
+
+
+def clean_title(raw: str) -> str:
+    """The model's title as one tidy line, or "" if it is unusable."""
+    line = next((ln for ln in (raw or "").splitlines() if ln.strip()), "")
+    line = re.sub(r"^\s*(title|назва|titolo)\s*:\s*", "", line, flags=re.I)
+    line = line.strip().strip("\"'«»“”„*#` ").rstrip(".")
+    return line[:60].strip() if 2 <= len(line) <= 80 else ""
+
+
+def chat_title(quick, question: str, reply: str) -> str:
+    """A 3-6 word chat name from a fast side model (quick = Router.quick); "" if none came."""
+    return clean_title(quick([{"role": "system", "content": TITLE_PROMPT},
+                              {"role": "user", "content": f"User: {question[:800]}\n\nAssistant: {reply[:400]}"}]))
+
+
 # Questions a small local model often gets wrong; in auto mode they go to a bigger online model.
 _HARD = re.compile(r"\b(prove|proof|derive|analy[sz]e|step by step|in detail|compare|essay|algorithm|debug|refactor|"
                    r"optimi[sz]e|integral|derivative|equation|theorem|translate this)\b|"

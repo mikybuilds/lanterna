@@ -13,7 +13,9 @@ def _api(tmp_path, monkeypatch):
     from lanterna.store import Store
     monkeypatch.setattr(keys, "get_key", lambda n: None)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path.anchor) + "no-such-appdata")
-    return Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    a.settings.ai_titles = False          # these tests count the requests to the model one by one
+    return a
 
 
 def _sse_tool(name, args):

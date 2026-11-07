@@ -976,6 +976,9 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.", lang), classes="muted")
             yield Checkbox(t("Help free up disk space", lang), self.app.api.settings.space_help, id="spacehelp")
             yield Static(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.", lang), classes="muted")
+            yield Label(t("Chats", lang), classes="h")
+            yield Checkbox(t("Name new chats automatically", lang), self.app.api.settings.ai_titles, id="aititles")
+            yield Static(t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -1184,6 +1187,10 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#pcaccess")
     def _pc_access(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"pc_access": ev.value})
+
+    @on(Checkbox.Changed, "#aititles")
+    def _ai_titles(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"ai_titles": ev.value})
 
     @on(Checkbox.Changed, "#updcheck")
     def _update_check(self, ev: Checkbox.Changed) -> None:
@@ -1699,6 +1706,7 @@ class _ChatScreen(Screen):
         changed = False
         if "final" in r:
             self._text, changed = r["final"], True
+            self._naming = bool(r.get("titling"))       # a fast model is naming this new chat
             if r.get("model"):
                 self._set_model(r["model"])
             if r.get("sent") and self._bot is not None:
@@ -1725,7 +1733,20 @@ class _ChatScreen(Screen):
             th = next((x for x in self.app.api.threads() if x["id"] == self.tid), None)
             if th:
                 self.query_one("#chattitle", Label).update(th["title"])
+            if getattr(self, "_naming", False):
+                self._naming = False
+                self._wait_name(self.tid)
             self._timer.stop()      # last: stopping cancels this very callback at its next await
+
+    @work(thread=True, group="title")
+    def _wait_name(self, tid: int) -> None:
+        title = self.app.api.wait_title(tid)
+        self.app.call_from_thread(self._named, tid, title)
+
+    def _named(self, tid: int, title: str) -> None:
+        self._fill_threads()
+        if title and tid == self.tid:
+            self.query_one("#chattitle", Label).update(title)
 
     def _error_text(self, err: dict) -> str:
         lang, kind = L(self.app), err.get("kind")

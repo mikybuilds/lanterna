@@ -13,7 +13,7 @@ import uuid
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
-from .chat import Conversation, ToolUse
+from .chat import Conversation, ToolUse, chat_title
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
@@ -40,6 +40,7 @@ class _Stream:
         self.steps = Steps(lang)           # "what I'm doing" line: thought summaries and tool steps
         self.done = False
         self.final = False                 # pieces now hold the cleaned full reply
+        self.titling = False               # a side model is naming the chat: the UI asks wait_title()
         self.error: dict | None = None
         self.files: list[str] = []         # attached file names
         self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
@@ -65,6 +66,7 @@ class Api:
                                + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools())
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
+        self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
         self._lock = threading.Lock()
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
         self._hw: hardware.Hardware | None = None
@@ -101,11 +103,11 @@ class Api:
 
     def save_settings(self, patch: dict) -> dict:
         allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
-                   "tidy_weekly", "space_help", "local_fallback"}
+                   "tidy_weekly", "space_help", "local_fallback", "ai_titles"}
         for k, v in (patch or {}).items():
             if k in allowed:
                 setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
-                                                                  "space_help", "local_fallback") else v)
+                                                                  "space_help", "local_fallback", "ai_titles") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -452,6 +454,29 @@ class Api:
         self.store.rename(int(tid), title)
         return True
 
+    def wait_title(self, tid: int, timeout: float = 10) -> str:
+        """After the first answer: waits (a few seconds at most) for the model-written chat name, then returns
+        the chat's title. The window and the terminal call it so the list shows the new name."""
+        ev = self._titling.get(int(tid))
+        if ev:
+            ev.wait(timeout)
+        th = self.store.thread(int(tid))
+        return th["title"] if th else ""
+
+    def _name_chat(self, tid: int, router: Router, question: str, reply: str, auto: str) -> None:
+        """Background: a fast side model names the chat, unless the user renamed it meanwhile."""
+        try:
+            title = chat_title(router.quick, question, reply)
+            th = self.store.thread(tid)
+            if title and th and th["title"] == auto:
+                self.store.rename(tid, title)
+        except Exception as e:                              # noqa: BLE001  a name is never worth an error
+            bugreport.remember_error(type(e).__name__, str(e))
+        finally:
+            ev = self._titling.pop(tid, None)
+            if ev:
+                ev.set()
+
     def delete_thread(self, tid: int) -> bool:
         self.store.delete_thread(int(tid))
         if self.settings.chat_dirs.pop(str(int(tid)), None) is not None:
@@ -481,6 +506,7 @@ class Api:
 
     def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None) -> None:
         st = self._streams[sid]
+        first = not history                                 # the chat's first answer (ask() extends history)
         self.actions.bind(st.cards, tid)
         try:
             router = self._get_router()
@@ -509,6 +535,12 @@ class Api:
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
                 len(images or []), st.used))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
+            th = self.store.thread(tid)
+            if first and self.settings.ai_titles and th:
+                self._titling[tid] = threading.Event()
+                st.titling = True
+                threading.Thread(target=self._name_chat, args=(tid, router, text, conv.last_reply, th["title"]),
+                                 daemon=True).start()
             with st.lock:
                 st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
                 st.final = True
@@ -533,7 +565,7 @@ class Api:
             if st.final:
                 from . import sent
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
-                       "sent": sent.view(st.sent, self.settings.lang),
+                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}

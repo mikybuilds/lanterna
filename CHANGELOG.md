@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **Chat names:** after the first answer, a fast model gives a new chat a short name in your language (for example "Феррара за один день") instead of the first line of your message. A name you typed yourself is kept. Settings → Chats → "Name new chats automatically" (on by default; one small extra request).
+- Small side jobs like this go to a fast model with generous limits (not Gemini, whose 5 requests a minute are kept for answers); in Local mode they stay on your computer.
+
 ## 0.4.0 — more reliable answers with web search
 
 **Changed**

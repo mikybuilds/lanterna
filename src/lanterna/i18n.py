@@ -157,6 +157,13 @@ def t(text: str, lang: str = "en", **kw) -> str:
     return s.format(**kw) if kw else s
 
 
+# Chat names written by a fast side model (0.5.0)
+_T.update({
+    "Chats": {"uk": "Розмови", "it": "Chat"},
+    "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
+    "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
+})
+
 # Local models (stage 5) — same wording as the window app
 _T.update({
     "Auto": {"uk": "Авто", "it": "Auto"},
