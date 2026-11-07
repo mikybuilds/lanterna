@@ -843,7 +843,9 @@ def place_tools(pl: Places) -> list:
         Tool("pc_sort", "Sort / tidy up the loose files of one of the user's folders into subfolders — call it directly "
              "when the user asks to sort or tidy a folder. by: type (Documents, "
              "Images, Installers…), date (one folder per month) or type_date. older_than_days: only older files. "
-             "Files still downloading are left alone. " + card + " It can be undone.",
+             "Files still downloading are left alone. " + card + " It can be undone. Examples: 'sort my downloads' → "
+             "place='downloads', by='type'; 'tidy the desktop by month, only old stuff' → place='desktop', "
+             "by='date', older_than_days=30.",
              _obj({"place": place, "path": s, "by": {"type": "string", "enum": ["type", "date", "type_date"]},
                    "older_than_days": {"type": "integer"}}, ["place"]),
              lambda place, path="", by="type", older_than_days=0: pl.propose_sort(place, path, by, older_than_days), "🗂"),

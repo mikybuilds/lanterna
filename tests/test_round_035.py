@@ -228,7 +228,8 @@ def test_empty_answer_after_a_search_is_asked_again():
     seen = []
 
     class FakeRouter:
-        current = SimpleNamespace(label="Gemini · test")
+        current = SimpleNamespace(label="Gemini · test", provider="gemini")
+        lacks_tools = staticmethod(lambda: False)
 
         def stream(self, msgs, **kw):
             seen.append((list(msgs), kw.get("tool_choice")))
@@ -305,7 +306,8 @@ def test_repeated_search_is_not_run_and_the_model_is_warned():
     seen, ran = [], []
 
     class FakeRouter:
-        current = SimpleNamespace(label="test")
+        current = SimpleNamespace(label="test", provider="groq")
+        lacks_tools = staticmethod(lambda: False)
 
         def stream(self, msgs, **kw):
             seen.append([dict(m) for m in msgs])

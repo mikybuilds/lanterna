@@ -156,6 +156,12 @@ class Router:
         c = self.current
         return bool(c) and (c.provider, c.model) not in self.no_tools
 
+    def lacks_tools(self) -> bool:
+        """True when the model that will answer next is known not to call tools (the current one, or the first free)."""
+        order = self.available()
+        c = self.current if self.current in order else (order[0] if order else None)
+        return bool(c) and (c.provider, c.model) in self.no_tools
+
     def close(self) -> None:
         for c in self._clients.values():
             c.close()

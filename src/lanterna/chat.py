@@ -74,7 +74,9 @@ class ToolUse:
 
 TOOLS_GUIDE = (
     "Tools: you can call tools. Use them instead of guessing: weather for weather and air quality, web_search "
-    "(then read_page if needed) for fresh facts, news, prices or anything you are not sure about, calculate for every "
+    "(then read_page if needed) for fresh facts, news, prices or anything you are not sure about — including exact "
+    "names of functions, commands, menus or settings in a specific program or library (e.g. Flowgorithm, Excel): look "
+    "them up, never invent names that only look plausible. Calculate for every "
     "calculation, date_calc for date math, set_reminder / list_reminders / cancel_reminder for reminders. When the "
     "user shares a lasting fact about themselves (name of a pet, allergy, job, preferences) or asks you to remember "
     "something, call remember; when asked to forget, call forget. Mention sources (site names) for facts from the web. "
@@ -131,6 +133,31 @@ _ACTION = re.compile(r"нагадай|нагадування|напомни|remi
 
 def must_use_tool(text: str) -> bool:
     return bool(_ACTION.search(text or ""))
+
+
+# Characters of one tool result per provider. Groq's free plan counts 6-8K tokens a minute for the whole request,
+# small local models have a short context; Gemini takes far more.
+RESULT_LIMITS = {"groq": 4000, "ollama": 4000, "gemini": 12000}
+RESULT_LIMIT = 6000
+
+
+def result_limit(provider: str | None) -> int:
+    return RESULT_LIMITS.get(provider or "", RESULT_LIMIT)
+
+
+# Questions that need fresh facts from the internet: for models that can't call tools, Lanterna searches first.
+_FRESH = re.compile(r"новин|сьогодні|зараз|цього (тижня|місяця|року)|останн\w* (верс|новин|подій)|"
+                    r"скільки коштує|ціна|ціни|курс (валют|долар|євро)|розклад (матч|поїзд)|хто виграв|результат матч|"
+                    r"пошукай|знайди в (інтернеті|мережі)|загугли|що нового|"
+                    r"новост|сегодня|сколько стоит|"
+                    r"\bnews\b|today|tonight|this (week|month|year)|latest|current (price|version)|how much (is|does)|"
+                    r"\bprice\b|who won|score of|search (the web|online|for)|look (it )?up|what'?s new|"
+                    r"notizi|oggi|stasera|ultim[aoei] (versione|notizie)|quanto costa|prezz|chi ha vinto|cerca (online|su internet)|"
+                    r"\b20[2-9]\d\b", re.I)
+
+
+def needs_search(text: str) -> bool:
+    return bool(_FRESH.search(text or ""))
 
 
 # Questions a small local model often gets wrong; in auto mode they go to a bigger online model.
@@ -196,6 +223,13 @@ class Conversation:
         pieces: list[str] = []
         done: list[tuple[str, str]] = []      # tool calls already run in this answer
         cloud_first = self.auto_cloud and is_hard(text)
+        if schemas and self.router.lacks_tools() and needs_search(text) and isinstance(msgs[-1]["content"], str):
+            # this model can't call tools: search for it, so it doesn't make up fresh facts
+            args = json.dumps({"query": " ".join(text.split())[:200]}, ensure_ascii=False)
+            yield ToolUse("web_search", self.toolbox.tools["web_search"].label, args)
+            found = self.toolbox.run("web_search", args)[:RESULT_LIMITS["ollama"]]
+            msgs[-1]["content"] += ("\n\n[Lanterna searched the web for this message. Use these results if they help, "
+                                    "name the sources, and say so if they don't answer it:]\n" + found)
         for rnd in range(MAX_TOOL_ROUNDS + 1):
             calls: ToolCalls | None = None
             round_text: list[str] = []
@@ -218,14 +252,19 @@ class Conversation:
                 break
             msgs.append({"role": "assistant", "content": "".join(round_text) or None,
                          "tool_calls": [c.message() for c in calls.calls]})
+            cur = self.router.current
+            limit = result_limit(cur.provider if cur else None)
             for c in calls.calls:
+                # read_page keeps the parts of a long page that fit the question and the searches made so far
+                self.toolbox.focus = " ".join([text, *(a for n, a in done if n == "web_search"), c.arguments])
+                self.toolbox.page_limit = limit - 200
                 if any(same_call(c.name, c.arguments, n, a) for n, a in done):
                     # the same (or nearly the same) call again: models repeat searches and burn the free limits
                     result = REPEAT_NOTE.format(name=c.name)
                 else:
                     tool = self.toolbox.tools.get(c.name)
                     yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)
-                    result = self.toolbox.run(c.name, c.arguments)[:12000]
+                    result = self.toolbox.run(c.name, c.arguments)[:limit]
                     done.append((c.name, c.arguments))
                 msgs.append({"role": "tool", "tool_call_id": c.id, "content": result})
             # models lose count of their tool rounds: near the end, tell them to stop searching and answer

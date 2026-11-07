@@ -4,6 +4,12 @@
 
 **Changed**
 - Fewer wasted searches: the same (or almost the same) web search or tool call is not run twice in one answer, and near the end of its tool rounds the model is told to stop searching and answer. Saves free-limit requests (Gemini allows only 5 a minute).
+- **Long web pages:** instead of the first 4000 characters, the model gets the parts of the page that fit the question (found locally, no extra model request). Gemini gets more of the page, Groq and local models less, so they stay within their limits.
+- **Models that can't use tools** (some small local models): for questions about news, prices, "today" and so on, Lanterna searches the web first and gives the results to the model, so it doesn't make up fresh facts.
+- Clearer tool descriptions with examples (search queries, reminders, memory, sorting folders); the model is told to look up exact function and menu names in programs instead of guessing.
+
+**Fixed**
+- Wikipedia pages could not be opened (HTTP 403): Lanterna now tells sites where it comes from, as Wikipedia asks.
 
 ## 0.3.6 — Gemini answers after a web search again
 

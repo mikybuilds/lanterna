@@ -20,9 +20,9 @@ from typing import Callable
 
 import httpx
 
-from . import __version__
+from . import HOMEPAGE, __version__
 
-UA = f"Lanterna/{__version__} (open-source assistant)"
+UA = f"Lanterna/{__version__} (+{HOMEPAGE}; open-source assistant)"  # sites like Wikipedia want a contact link
 TIMEOUT = 15.0
 PAGE_LIMIT = 4000                   # characters of a page given to the model (free tiers count tokens)
 
@@ -236,7 +236,70 @@ def page_text(raw: str) -> str:
     return "\n".join(ln for ln in lines if ln)
 
 
-def read_page(url: str, http: httpx.Client | None = None, check_host: Callable[[str], bool] = _public_host) -> str:
+_WORD = re.compile(r"\w{3,}", re.U)
+HEAD_KEEP = 300                     # the start of a page (title, intro) is always kept
+HEADING = 80                        # a shorter line is probably a heading: the lines after it come along
+LONG_LINE = 500                     # longer paragraphs are split into sentences, so a part of one can be picked
+_SENT_END = re.compile(r"(?<=[.!?])\s+")
+
+
+def _sentences(line: str) -> list[str]:
+    if len(line) <= LONG_LINE:
+        return [line]
+    out, cur = [], ""
+    for s in _SENT_END.split(line):                     # pieces of about 250-500 characters
+        if cur and len(cur) + len(s) > LONG_LINE // 2:
+            out.append(cur)
+            cur = s
+        else:
+            cur = f"{cur} {s}" if cur else s
+    return [*out, cur] if cur else out
+
+
+def _stems(text: str) -> set[str]:
+    """Rough word stems: the first 5 letters, so "flowgorithm"/"Flowgorithm's", "великої"/"великою" match."""
+    return {w[:5] for w in _WORD.findall(text.lower()) if not w.isdigit()}
+
+
+def focus_excerpt(text: str, focus: str, limit: int = PAGE_LIMIT) -> tuple[str, bool]:
+    """The parts of a long page that fit the question, in page order, within `limit` characters.
+    No model call: lines are scored by the question's words (rare words count more). Returns (text, was_cut)."""
+    if len(text) <= limit:
+        return text, False
+    want = _stems(focus)
+    lines = [part for ln in text.split("\n") for part in _sentences(ln)]
+    stems = [_stems(ln) for ln in lines]
+    df = {w: sum(w in s for s in stems) for w in want}
+    # rare question words count more; short lines (headings) that match count more than long ones that touch a word
+    score = [sum(math.log(1 + len(lines) / df[w]) for w in want & s if df[w]) / math.log(3 + len(s)) for s in stems]
+    if not want or max(score, default=0) == 0:
+        return text[:limit], True                       # nothing matches: the start of the page, as before
+    keep, used = set(), 0
+    for i, ln in enumerate(lines):                      # the head of the page
+        if used >= HEAD_KEEP:
+            break
+        keep.add(i)
+        used += len(ln) + 1
+    for i in sorted(range(len(lines)), key=lambda i: -score[i]):
+        if score[i] == 0 or used >= limit:
+            break
+        # the line with its neighbours; under a heading, the text that follows it
+        near = (i, i + 1, i + 2, i + 3) if len(lines[i]) < HEADING else (i, i - 1, i + 1)
+        for j in near:
+            if 0 <= j < len(lines) and j not in keep and used + len(lines[j]) + 1 <= limit:
+                keep.add(j)
+                used += len(lines[j]) + 1
+    out, prev = [], -1
+    for i in sorted(keep):
+        if i != prev + 1:
+            out.append("[…]")
+        out.append(lines[i])
+        prev = i
+    return "\n".join(out)[:limit], True
+
+
+def read_page(url: str, http: httpx.Client | None = None, check_host: Callable[[str], bool] = _public_host,
+              focus: str = "", limit: int = PAGE_LIMIT) -> str:
     c = http or _http()
     try:
         for _ in range(4):                                        # follow up to 3 redirects, checking each host
@@ -258,8 +321,8 @@ def read_page(url: str, http: httpx.Client | None = None, check_host: Callable[[
         if "html" not in ctype and "text" not in ctype and "json" not in ctype:
             return f"Error: not a text page ({ctype or 'unknown type'})."
         text = page_text(r.text) if "html" in ctype else r.text
-        cut = len(text) > PAGE_LIMIT
-        return f"Page {url}:\n{text[:PAGE_LIMIT]}" + ("\n[…page cut]" if cut else "")
+        text, cut = focus_excerpt(text, focus, limit)
+        return f"Page {url}:\n{text}" + ("\n[…page cut: only the parts that fit the question are shown]" if cut else "")
     except httpx.HTTPError as e:
         return f"Error: could not open the page ({e.__class__.__name__})."
     finally:
@@ -312,6 +375,8 @@ class Toolbox:
         self.store, self._lang, self._now = store, lang, now
         self._base: dict[str, Tool] = {t.name: t for t in self._make()}
         self._extra = extra or (lambda: [])          # tools that come and go (working folder, Google Drive)
+        self.focus = ""                              # the question being answered: read_page keeps the parts that fit it
+        self.page_limit = PAGE_LIMIT                 # page characters for the current model (set by the chat)
 
     @property
     def tools(self) -> dict[str, Tool]:
@@ -388,18 +453,26 @@ class Toolbox:
                  _obj({"place": {**s, "description": "city name, e.g. Ferrara"},
                        "days": {"type": "integer", "description": "1-7"}}, ["place"]),
                  lambda place, days=1: weather(place, days, self._lang()), "🌤"),
-            Tool("web_search", "Search the internet for fresh facts, news, prices, opening hours and so on.",
-                 _obj({"query": s}, ["query"]), lambda query: web_search(query), "🔎"),
-            Tool("read_page", "Read the text of a web page (for example a link from web_search or from the user).",
-                 _obj({"url": s}, ["url"]), lambda url: read_page(url), "📄"),
-            Tool("remember", "Save a lasting fact about the user when they share one or ask you to remember something.",
+            Tool("web_search", "Search the internet for fresh facts, news, prices, opening hours and so on. "
+                 "One short query of key words, not a whole sentence; search again only with really different words.",
+                 _obj({"query": {**s, "description": "e.g. 'Flowgorithm uppercase string function' or "
+                                                     "'Ferrara museum opening hours'"}}, ["query"]),
+                 lambda query: web_search(query), "🔎"),
+            Tool("read_page", "Read the text of a web page (for example a link from web_search or from the user). "
+                 "Long pages come back as the parts that fit the question.",
+                 _obj({"url": s}, ["url"]),
+                 lambda url: read_page(url, focus=self.focus, limit=self.page_limit), "📄"),
+            Tool("remember", "Save a lasting fact about the user when they share one or ask you to remember something. "
+                 "Not for one-time things (today's plans, a single question) — those don't need saving.",
                  _obj({"fact": {**s, "description": "short fact in the language the user writes in, "
-                                                    "e.g. 'Is allergic to peanuts'"}}, ["fact"]),
+                                                    "e.g. 'Is allergic to peanuts' or 'Studies at ITI in Ferrara'"}},
+                      ["fact"]),
                  self._remember, "🧠"),
             Tool("forget", "Remove facts from memory that contain this text.", _obj({"fact": s}, ["fact"]),
                  self._forget, "🧠"),
             Tool("set_reminder", "Set a reminder. Use `in_minutes` for 'in 20 minutes' or `at` as local "
-                 "'YYYY-MM-DD HH:MM' for a time.",
+                 "'YYYY-MM-DD HH:MM' for a time. Examples: 'remind me in half an hour to call mum' → "
+                 "text='Call mum', in_minutes=30; 'tomorrow at 8 the bus' → text='Bus', at='<tomorrow's date> 08:00'.",
                  _obj({"text": s, "at": s, "in_minutes": {"type": "number"}}, ["text"]), self._set_reminder, "⏰"),
             Tool("list_reminders", "List upcoming reminders.", _obj({}), self._list_reminders, "⏰"),
             Tool("cancel_reminder", "Cancel a reminder by its number.", _obj({"id": {"type": "integer"}}, ["id"]),
