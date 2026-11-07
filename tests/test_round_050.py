@@ -181,3 +181,73 @@ def test_intent_is_offered_on_web_tools_shown_and_never_passed_to_the_tool():
     line = tool_step("web_search", '{"query": "Flowgorithm ToUpper", "intent": "щоб знайти точну назву"}', "uk")
     assert line.endswith("— щоб знайти точну назву") and "Flowgorithm ToUpper" in line
     assert same_call("web_search", '{"query": "a b c", "intent": "x"}', "web_search", '{"query": "a b c", "intent": "y"}')
+
+
+# ---------------------------------------------------------------- long chats get a summary
+def test_summary_is_due_every_ten_messages_past_the_recent_twenty():
+    from lanterna.chat import summary_due
+    assert not summary_due(29, 0) and summary_due(30, 0)
+    assert not summary_due(39, 10) and summary_due(40, 10)
+
+
+def test_summarize_sends_the_old_summary_and_the_messages():
+    from lanterna.chat import SUMMARY_PROMPT, summarize
+    seen = []
+    out = summarize(lambda m: seen.append(m) or "  Новий підсумок ", "Старий підсумок",
+                    [{"role": "user", "content": "Мене звати Міша"}, {"role": "assistant", "content": "Привіт!"}])
+    assert out == "Новий підсумок"
+    assert seen[0][0]["content"] == SUMMARY_PROMPT
+    assert "Старий підсумок" in seen[0][1]["content"] and "user: Мене звати Міша" in seen[0][1]["content"]
+
+
+def test_the_summary_stays_on_this_device(tmp_path):
+    from lanterna.store import Store
+    s = Store(tmp_path / "s.db")
+    tid = s.new_thread()
+    before = s.changes
+    s.set_summary(tid, "підсумок", 10)
+    assert s.summary(tid) == ("підсумок", 10) and s.changes == before    # no sync upload for it
+
+
+def test_a_long_chat_is_summarized_and_the_summary_goes_to_the_model(tmp_path, monkeypatch):
+    import time
+
+    from lanterna.chat import SUMMARY_PROMPT
+    a, bodies, wait = _api(tmp_path, monkeypatch, titles=False)
+    tid = a.new_thread()["id"]
+    for i in range(14):
+        a.store.add(tid, "user", f"питання {i}")
+        a.store.add(tid, "assistant", f"відповідь {i}")
+    real = a._router._client_for
+
+    def client_for(pid):                                   # the summary request gets its own answer
+        c = real(pid)
+        orig = c.chat
+        c.chat = lambda model, msgs, temperature=0.7: ("Міша вчить Flowgorithm." if msgs[0]["content"] == SUMMARY_PROMPT
+                                                        else orig(model, msgs, temperature))
+        return c
+    a._router._client_for, a._router._clients = client_for, {}
+    p = wait(a.send(tid, "питання 14")["stream"])            # 28 + 2 = 30 messages: the first 10 get summarized
+    for _ in range(200):
+        if a.store.summary(tid)[1]:
+            break
+        time.sleep(0.02)
+    assert a.store.summary(tid) == ("Міша вчить Flowgorithm.", 10)
+    assert p["sent"]                                        # (the first answer had no summary yet)
+
+    wait(a.send(tid, "питання 15")["stream"])
+    body = bodies[-1]
+    assert "Міша вчить Flowgorithm." in body["messages"][0]["content"]
+    texts = [m["content"] for m in body["messages"][1:]]
+    assert "питання 4" not in texts and "питання 5" in texts   # messages 0-9 are in the summary, not sent again
+    shown = a.messages(tid)
+    assert shown[10].get("after_summary") and not any(m.get("after_summary") for m in shown[:10] + shown[11:])
+
+
+def test_what_went_to_the_model_counts_only_earlier_messages(tmp_path, monkeypatch):
+    a, _, wait = _api(tmp_path, monkeypatch, titles=False)
+    tid = a.new_thread()["id"]
+    first = wait(a.send(tid, "привіт")["stream"])["sent"]
+    second = wait(a.send(tid, "як справи?")["stream"])["sent"]
+    assert not any("earlier" in str(x) or "поперед" in str(x) for x in first)
+    assert any("2" in str(x) for x in second)

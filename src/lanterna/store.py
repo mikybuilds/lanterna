@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY, text TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS deleted (uid TEXT PRIMARY KEY, at REAL NOT NULL);
 """
 # columns added for sync (older databases get them on open)
-_ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
+_ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
+                      "summary_upto INTEGER NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0"]}
 MAX_FACTS = 60
 
@@ -81,6 +82,16 @@ class Store:
 
     def rename(self, tid: int, title: str) -> None:
         self._q("UPDATE threads SET title=?, title_at=? WHERE id=?", (title.strip()[:80], time.time(), tid))
+
+    def summary(self, tid: int) -> tuple[str, int]:
+        """A long chat's summary of its older part and how many of its first messages it covers."""
+        r = self._q("SELECT summary, summary_upto FROM threads WHERE id=?", (tid,))
+        return (r[0]["summary"], r[0]["summary_upto"]) if r else ("", 0)
+
+    def set_summary(self, tid: int, text: str, upto: int) -> None:
+        # not counted as a change: the summary stays on this device (each device makes its own), no sync upload
+        with self._lock, self._db:
+            self._db.execute("UPDATE threads SET summary=?, summary_upto=? WHERE id=?", (text, int(upto), tid))
 
     def delete_thread(self, tid: int) -> None:
         with self._lock, self._db:

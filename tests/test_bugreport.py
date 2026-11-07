@@ -1,5 +1,6 @@
 """Bug reports: exact text the user sees, nothing private added, links that open safely."""
 import asyncio
+import time
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -78,9 +79,10 @@ def test_failed_reply_is_remembered(api, monkeypatch):
     monkeypatch.setattr(api, "_get_router", boom)
     tid = api.new_thread()["id"]
     sid = api.send(tid, "hi")["stream"]
-    for _ in range(100):
+    for _ in range(250):
         if api.poll(sid)["done"]:
             break
+        time.sleep(0.02)
     assert any("rate: limit reached" in e for e in bugreport.recent_errors())
 
 

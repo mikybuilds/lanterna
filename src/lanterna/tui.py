@@ -983,6 +983,8 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.", lang), classes="muted")
             yield Checkbox(t("Suggest what to ask next", lang), self.app.api.settings.follow_ups, id="followups")
             yield Static(t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.", lang), classes="muted")
+            yield Checkbox(t("Remember long chats", lang), self.app.api.settings.compact_chats, id="compactchats")
+            yield Static(t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -1191,6 +1193,10 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#pcaccess")
     def _pc_access(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"pc_access": ev.value})
+
+    @on(Checkbox.Changed, "#compactchats")
+    def _compact_chats(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"compact_chats": ev.value})
 
     @on(Checkbox.Changed, "#followups")
     def _follow_ups(self, ev: Checkbox.Changed) -> None:
@@ -1593,6 +1599,8 @@ class _ChatScreen(Screen):
         if not msgs:
             self._welcome()
         for m in msgs:
+            if m.get("after_summary"):
+                log.mount(Static("↑ " + t("Older messages are summarized for the model", L(self.app)), classes="msg-note", markup=False))
             if m["role"] == "user":
                 log.mount(Static(m["content"], classes="msg-user", markup=False))
             else:

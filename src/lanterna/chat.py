@@ -11,7 +11,9 @@ from . import AUTHOR, HOMEPAGE, soul
 from .providers import ToolCalls
 from .router import Router, Switched
 
-MAX_HISTORY = 30          # messages kept in context (older ones are dropped)
+MAX_HISTORY = 30          # messages kept in context (older ones are dropped, or summarized: see summarize)
+KEEP_RECENT = 20          # a long chat: the newest messages go to the model as they are…
+SUMMARY_EVERY = 10        # …and the older part is summarized again once this many more have piled up
 MAX_TOOL_ROUNDS = 4       # tool calls per answer, then the model must reply
 EMPTY_NUDGE = ("(Your last turn had no text for me. Answer my question above now, in plain words, using what you "
                "already found. Do not search again.)")
@@ -176,6 +178,25 @@ def clean_title(raw: str) -> str:
     return line[:60].strip() if 2 <= len(line) <= 80 else ""
 
 
+SUMMARY_PROMPT = ("You keep notes on a long chat so it can go on without the old messages. Update the summary: "
+                  "keep names, facts about the user, decisions, numbers, file and function names, code that matters, "
+                  "open questions and what the user wants. Drop greetings and repeats. Write in the user's language, "
+                  "plain sentences or short points, at most 250 words. Reply with the summary only.")
+
+
+def summary_due(total: int, upto: int) -> bool:
+    """True when enough messages lie between the summary and the newest KEEP_RECENT to summarize them."""
+    return total - upto >= KEEP_RECENT + SUMMARY_EVERY
+
+
+def summarize(quick, old: str, msgs: list[dict]) -> str:
+    """The new summary: the old one plus these messages, written by a fast side model; "" if none answered."""
+    lines = [f"{m.get('role')}: {' '.join(str(m.get('content') or '').split())[:1000]}" for m in msgs]
+    body = (f"Summary so far:\n{old}\n\n" if old else "") + "Messages to add:\n" + "\n\n".join(lines)
+    out = quick([{"role": "system", "content": SUMMARY_PROMPT}, {"role": "user", "content": body[-12000:]}])
+    return (out or "").strip()[:3000]
+
+
 FOLLOW_PROMPT = ("Suggest 3 short messages the USER might send next in this chat: natural follow-ups to the "
                  "answer, written from the user's side, in the user's language, at most 8 words each. One per line, "
                  "no numbering, no quotes, nothing else.")
@@ -235,6 +256,7 @@ class Conversation:
     toolbox: object | None = None          # tools.Toolbox; None = plain chat
     lang: str = "en"                       # app language, a hint for which language to reply in
     auto_cloud: bool = False               # auto mode: hard questions go to online models first
+    summary: str = ""                      # a long chat: the summary of its older part (not in history)
 
     def _system(self, text: str) -> dict:
         cur = self.router.current
@@ -244,7 +266,11 @@ class Conversation:
                                               (s["function"]["name"] for s in self.toolbox.schemas(ctx)))
         return {"role": "system", "content": system_prompt(self.user_name, extra=" ".join(x for x in (soul.mood_hint(text), soul.lang_hint(text, self.lang)) if x),
                                                            model=cur.label if cur else "", facts=facts,
-                                                           tools=self.toolbox is not None, pc=pc)}
+                                                           tools=self.toolbox is not None, pc=pc) + self._summary_note()}
+
+    def _summary_note(self) -> str:
+        return ("\n\nEarlier in this chat (a summary; those older messages are not shown to you):\n" + self.summary
+                if self.summary else "")
 
     def _context(self, text: str) -> str:
         """The new message and the last few turns: what decides which tool groups are offered."""

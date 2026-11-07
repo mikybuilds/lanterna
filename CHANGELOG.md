@@ -8,8 +8,11 @@
 - **What to ask next:** up to 3 buttons under an answer with natural follow-up questions; one click sends it. Settings → Chats → "Suggest what to ask next". Only from a fast online model that isn't Gemini, so it never eats the answer limit; not in Local mode.
 - **Why it searches:** the "what I'm doing" line now also says why, in the model's own words — "Searching the web: Palazzo dei Diamanti orari — to find the opening hours".
 
+- **Long chats are remembered:** past 30 messages the older part used to be simply dropped. Now a fast model writes a short summary of it (names, facts, decisions, code names), and the model gets the summary plus the newest 20 messages. The chat shows where the summary begins; the summary stays on this device. Settings → Chats → "Remember long chats".
+
 **Fixed**
 - Terminal app: the "Try one:" idea buttons on the start screen filled the box but didn't send.
+- "What went to the model" counted two messages too many (the first message already said "and 2 earlier messages").
 
 ## 0.4.0 — more reliable answers with web search
 

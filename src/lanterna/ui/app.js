@@ -875,7 +875,10 @@ async function openThread(id) {
   const th = list.find(x => x.id === id);
   $("#title").textContent = (th && th.title) || t("New chat");
   if (!items.length) showEmpty();
-  items.forEach(m => m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent));
+  items.forEach(m => {
+    if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
+    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent);
+  });
   const waiting = await api.cards(id);               // changes still waiting for Confirm: not kept in the history
   if (waiting.length && thread === id) {               // at the end: the reply that proposed them may still be coming
     const last = msgs.lastElementChild;
@@ -1071,6 +1074,8 @@ function openSettings() {
         <span><b>${t("Name new chats automatically")}</b><small>${t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.")}</small></span></label>
       <label class="check"><input type="checkbox" id="follow-ups" ${S.settings.follow_ups !== false ? "checked" : ""}>
         <span><b>${t("Suggest what to ask next")}</b><small>${t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="compact-chats" ${S.settings.compact_chats !== false ? "checked" : ""}>
+        <span><b>${t("Remember long chats")}</b><small>${t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
         <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
@@ -1106,7 +1111,7 @@ function openSettings() {
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
-    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"]]) {
+    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"]]) {
       const el = $(id, body);
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }

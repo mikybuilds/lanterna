@@ -13,7 +13,7 @@ import uuid
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
-from .chat import Conversation, ToolUse, chat_title, follow_ups
+from .chat import MAX_HISTORY, KEEP_RECENT, Conversation, ToolUse, chat_title, follow_ups, summarize, summary_due
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
@@ -105,11 +105,11 @@ class Api:
 
     def save_settings(self, patch: dict) -> dict:
         allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
-                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups"}
+                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats"}
         for k, v in (patch or {}).items():
             if k in allowed:
                 setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
-                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups") else v)
+                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -445,7 +445,10 @@ class Api:
         """Messages for display: attached file contents are shown as a short 📎 line."""
         from . import sent
         out, lang = [], self.settings.lang
-        for m in self.store.messages(int(tid)):
+        upto = self.store.summary(int(tid))[1] if self.settings.compact_chats else 0
+        for i, m in enumerate(self.store.messages(int(tid))):
+            if upto and i == upto:
+                m["after_summary"] = True                   # the window draws "older messages are summarized" here
             if m["role"] == "user":
                 m = {**m, "content": _short_files(m["content"])}
             m["sent"] = sent.view(m.pop("sent", ""), lang) if m["role"] == "assistant" else []
@@ -464,6 +467,17 @@ class Api:
             ev.wait(timeout)
         th = self.store.thread(int(tid))
         return th["title"] if th else ""
+
+    def _compact(self, tid: int, router: Router, old: str, upto: int, total: int) -> None:
+        """Background: the older part of a long chat becomes a summary; the newest KEEP_RECENT stay as they are."""
+        try:
+            msgs = self.store.messages(tid)
+            new_upto = min(total, len(msgs)) - KEEP_RECENT
+            text = summarize(router.quick, old, msgs[upto:new_upto]) if new_upto > upto else ""
+            if text and self.store.summary(tid)[1] == upto:   # nobody else summarized it meanwhile
+                self.store.set_summary(tid, text, new_upto)
+        except Exception as e:                              # noqa: BLE001  the chat goes on without it
+            bugreport.remember_error(type(e).__name__, str(e))
 
     def wait_follow_ups(self, tid: int, timeout: float = 15) -> list[str]:
         """Up to 3 follow-up messages for the last answer of this chat ([] if none came in time)."""
@@ -544,10 +558,15 @@ class Api:
     def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None) -> None:
         st = self._streams[sid]
         first = not history                                 # the chat's first answer (ask() extends history)
+        summary, upto = self.store.summary(tid) if self.settings.compact_chats else ("", 0)
+        if upto > len(history):                             # messages were removed: the summary no longer fits
+            summary, upto = "", 0
+        total = len(history) + 2                            # with this question and its answer
+        earlier = min(len(history) - upto, MAX_HISTORY)     # earlier messages that really go to the model
         self.actions.bind(st.cards, tid)
         try:
             router = self._get_router()
-            conv = Conversation(router, self.settings.name, history=history, toolbox=self.toolbox,
+            conv = Conversation(router, self.settings.name, history=history[upto:], toolbox=self.toolbox, summary=summary,
                                 lang=self.settings.lang,
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
             for p in conv.ask(text, images or None):
@@ -567,12 +586,14 @@ class Api:
             from . import sent
             cur = router.current
             st.sent = sent.dumps(sent.build(
-                cur.label if cur else "", bool(cur and PROVIDERS[cur.provider].local), len(history),
+                cur.label if cur else "", bool(cur and PROVIDERS[cur.provider].local), earlier,
                 bool(self.settings.name), len(self.store.facts()),
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
-                len(images or []), st.used))
+                len(images or []), st.used, summary=bool(summary)))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
             self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
+            if self.settings.compact_chats and summary_due(total, upto):
+                threading.Thread(target=self._compact, args=(tid, router, summary, upto, total), daemon=True).start()
             with st.lock:
                 st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
                 st.final = True

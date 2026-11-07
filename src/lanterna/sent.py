@@ -25,10 +25,12 @@ def _arg(arguments: str, key: str) -> str:
 
 
 def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
-          tools: list[tuple[str, str]]) -> list[dict]:
+          tools: list[tuple[str, str]], summary: bool = False) -> list[dict]:
     """[{"t": template, "v": vars}] — the first line says where it went."""
     out = [{"t": "Stayed on this computer ({model})" if local else "Sent to {model}", "v": {"model": model or "?"}}]
     out.append({"t": "Your message and {n} earlier messages of this chat" if history else "Your message", "v": {"n": history}})
+    if summary:
+        out.append({"t": "A short summary of the older part of this chat", "v": {}})
     if name:
         out.append({"t": "Your name", "v": {}})
     if facts:
