@@ -1,6 +1,7 @@
 """Answers with the best available free model and moves to the next one when a limit is hit."""
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from typing import Callable, Iterator
@@ -27,6 +28,12 @@ class AllFailed(ProviderError):
     pass
 
 
+def used_model(r) -> Candidate | None:
+    """The model that answered in this thread (any router-like object; older ones only have .current)."""
+    f = getattr(r, "used", None)
+    return f() if callable(f) else getattr(r, "current", None)
+
+
 class Router:
     def __init__(self, candidates: list[Candidate], client_for: Callable[[str], Client] | None = None,
                  clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):
@@ -39,6 +46,7 @@ class Router:
         self._sleep = sleep
         self._short_wait: float | None = None
         self.current: Candidate | None = self.candidates[0] if self.candidates else None
+        self._here = threading.local()                       # the model answering in this thread (answers run side by side)
 
     @staticmethod
     def _default_client(pid: str) -> Client:
@@ -125,7 +133,7 @@ class Router:
                 continue
             if c is not first:
                 yield Switched(c, last.kind if last else "")
-            self.current = c
+            self.current = self._here.c = c
             started = False
             use_tools = tools if tools and (c.provider, c.model) not in self.no_tools else None
             try:
@@ -162,6 +170,10 @@ class Router:
                     self._short_wait = e.retry_after if self._short_wait is None else min(self._short_wait, e.retry_after)
                 last, first = e, None
         raise AllFailed(last.kind if last else "rate", str(last) if last else "No free model is available right now")
+
+    def used(self) -> Candidate | None:
+        """The model that answered in this thread; other answers running at the same time don't change it."""
+        return getattr(self._here, "c", None) or self.current
 
     def supports_tools(self) -> bool:
         c = self.current

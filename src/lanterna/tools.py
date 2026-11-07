@@ -217,7 +217,13 @@ def web_search(query: str, max_results: int = 5, http: httpx.Client | None = Non
             out.append(f"{len(out) + 1}. {_clean(m.group(2))}\n   {url}\n   {(_clean(sn.group(1)) if sn else '')[:240]}")
             if len(out) >= max_results:
                 break
-        return "Web results (DuckDuckGo):\n" + "\n".join(out) if out else "No results found."
+        if out:
+            return "Web results (DuckDuckGo):\n" + "\n".join(out)
+        if "no-results" in r.text or "No results" in r.text:
+            return "No results found."
+        # not a results page: a "are you a robot" check, or the page changed — not the same as "nothing found"
+        return ("Error: web search isn't working right now (the search page asked for a check or changed). "
+                "Tell the user that search failed; don't present guesses as fresh facts.")
     except httpx.HTTPError as e:
         return f"Error: search unavailable ({e.__class__.__name__})."
     finally:
@@ -431,7 +437,12 @@ class Toolbox:
         fact = " ".join(str(fact).split())[:300]
         if not fact:
             return "Error: empty fact."
-        self.store.add_fact(fact)
+        got = self.store.add_fact(fact)
+        if got == 0:
+            return f"Already in memory: {fact}"
+        if got < 0:
+            return ("Memory is full, so nothing was saved. Tell the user, and ask which old things to forget "
+                    "(they can also remove them in Settings → Memory).")
         return f"Saved to memory: {fact}"
 
     def _forget(self, fact: str) -> str:

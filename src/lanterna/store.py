@@ -43,6 +43,8 @@ class Store:
         self.path = path or data_dir() / "lanterna.db"
         self._db = sqlite3.connect(self.path, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
+        # SQLite's own lower() changes only Latin letters: lc() lowers any language ("Алергія" = "алергія")
+        self._db.create_function("lc", 1, lambda s: (s or "").lower(), deterministic=True)
         self._lock = threading.Lock()
         with self._lock:
             self._db.execute("PRAGMA foreign_keys = ON")
@@ -130,7 +132,6 @@ class Store:
             return []
         like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         with self._lock:
-            self._db.create_function("lc", 1, lambda s: (s or "").lower(), deterministic=True)   # SQLite's lower() is ASCII only
             rows = self._db.execute(
                 "SELECT t.id, t.title, t.updated, (SELECT COUNT(*) FROM messages m WHERE m.thread=t.id AND lc(m.content) LIKE ? ESCAPE '\\') AS hits,"
                 " (SELECT m.content FROM messages m WHERE m.thread=t.id AND lc(m.content) LIKE ? ESCAPE '\\' ORDER BY m.id LIMIT 1) AS first"
@@ -148,16 +149,16 @@ class Store:
         return out
 
     # memory: short facts about the user, shown to the model in the system prompt
-    def add_fact(self, text: str) -> int:
+    def add_fact(self, text: str, force: bool = False) -> int:
+        """The new fact's id; 0 if it is already there; -1 if memory is full (nothing old is dropped behind the
+        user's back: they choose what to forget). force: the user added it by hand, so it goes in anyway."""
         with self._lock, self._db:
-            if self._db.execute("SELECT 1 FROM facts WHERE lower(text)=lower(?)", (text,)).fetchone():
+            if self._db.execute("SELECT 1 FROM facts WHERE lc(text)=lc(?)", (text,)).fetchone():
                 return 0
+            if not force and self._db.execute("SELECT COUNT(*) FROM facts").fetchone()[0] >= MAX_FACTS:
+                return -1
             self.changes += 1
-            rid = self._db.execute("INSERT INTO facts(uid, text, at) VALUES (?,?,?)", (new_uid(), text, time.time())).lastrowid
-            old = "id NOT IN (SELECT id FROM facts ORDER BY id DESC LIMIT ?)"
-            self._tomb("facts", old, (MAX_FACTS,))
-            self._db.execute(f"DELETE FROM facts WHERE {old}", (MAX_FACTS,))
-            return rid
+            return self._db.execute("INSERT INTO facts(uid, text, at) VALUES (?,?,?)", (new_uid(), text, time.time())).lastrowid
 
     def facts(self) -> list[dict]:
         return self._q("SELECT id, text, at FROM facts ORDER BY id")
@@ -172,8 +173,8 @@ class Store:
         if not text:
             return 0
         with self._lock, self._db:
-            self._tomb("facts", "instr(lower(text), lower(?)) > 0", (text,))
-            return self._db.execute("DELETE FROM facts WHERE instr(lower(text), lower(?)) > 0", (text,)).rowcount
+            self._tomb("facts", "instr(lc(text), lc(?)) > 0", (text,))
+            return self._db.execute("DELETE FROM facts WHERE instr(lc(text), lc(?)) > 0", (text,)).rowcount
 
     # reminders
     def add_reminder(self, text: str, due: float) -> int:
@@ -260,7 +261,8 @@ class Store:
             db = self._db
             gone = snap.get("deleted", {})
             db.executemany("INSERT OR REPLACE INTO deleted(uid, at) VALUES (?,?)", list(gone.items()))
-            for table in ("threads", "facts", "reminders"):
+            gone = {r[0] for r in db.execute("SELECT uid FROM deleted")}     # deleted here or there: never brought back
+            for table in ("threads", "messages", "facts", "reminders"):
                 for (uid,) in db.execute(f"SELECT uid FROM {table}").fetchall():
                     if uid in gone:
                         db.execute(f"DELETE FROM {table} WHERE uid=?", (uid,))
@@ -270,20 +272,20 @@ class Store:
                 if uid in ids:
                     n += db.execute("UPDATE threads SET title=?, title_at=? WHERE uid=? AND title_at<?",
                                     (t["title"], t["title_at"], uid, t["title_at"])).rowcount
-                else:
+                elif uid not in gone:
                     ids[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated) VALUES (?,?,?,?,?)",
                                           (uid, t["title"], t["title_at"], t["created"], t["created"])).lastrowid
                     n += 1
             have = {r[0] for r in db.execute("SELECT uid FROM messages")}
             for uid, m in sorted(snap.get("messages", {}).items(), key=lambda kv: kv[1]["at"] or 0):
-                if uid not in have and m["thread"] in ids:
+                if uid not in have and uid not in gone and m["thread"] in ids:
                     db.execute("INSERT INTO messages(uid, thread, role, content, model, at) VALUES (?,?,?,?,?,?)",
                                (uid, ids[m["thread"]], m["role"], m["content"], m["model"], m["at"]))
                     db.execute("UPDATE threads SET updated=max(coalesce(updated,0), ?) WHERE id=?", (m["at"] or 0, ids[m["thread"]]))
                     n += 1
             have = {r[0] for r in db.execute("SELECT uid FROM facts")}
             for uid, f in snap.get("facts", {}).items():
-                if uid not in have:
+                if uid not in have and uid not in gone:
                     db.execute("INSERT INTO facts(uid, text, at) VALUES (?,?,?)", (uid, f["text"], f["at"]))
                     n += 1
             have = {r[0] for r in db.execute("SELECT uid FROM reminders")}
@@ -291,7 +293,7 @@ class Store:
                 if uid in have:
                     n += db.execute("UPDATE reminders SET text=?, due=?, done=?, changed=? WHERE uid=? AND changed<?",
                                     (r["text"], r["due"], r["done"], r["changed"], uid, r["changed"])).rowcount
-                else:
+                elif uid not in gone:
                     db.execute("INSERT INTO reminders(uid, text, due, done, created, changed) VALUES (?,?,?,?,?,?)",
                                (uid, r["text"], r["due"], r["done"], r["created"], r["changed"]))
                     n += 1

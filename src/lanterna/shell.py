@@ -17,7 +17,8 @@ from typing import Callable
 
 CLASS = "LanternaShellWindow"
 WM_APP = 0x8000
-WM_TRAY, WM_SHOW_ME, WM_REHOOK = WM_APP + 1, WM_APP + 2, WM_APP + 3
+WM_TRAY, WM_SHOW_ME, WM_REHOOK, WM_BALLOON = WM_APP + 1, WM_APP + 2, WM_APP + 3, WM_APP + 4
+NIN_BALLOONUSERCLICK = 0x0405
 WM_CLOSE, WM_DESTROY, WM_COMMAND, WM_HOTKEY = 0x0010, 0x0002, 0x0111, 0x0312
 WM_LBUTTONUP, WM_RBUTTONUP, WM_CONTEXTMENU = 0x0202, 0x0205, 0x007B
 WM_CLIPBOARDUPDATE = 0x031D
@@ -116,6 +117,8 @@ class Shell:
         self.hotkey = hotkey
         self.hotkey_ok = False            # the hotkey is registered (another app may hold it)
         self.copied_at = 0.0              # when something was last copied anywhere (only the time, never what)
+        self._balloons: list[tuple[str, str]] = []
+        self._balloon_lock = threading.Lock()
         self.hwnd = None
         self._ready = threading.Event()
         self._thread: threading.Thread | None = None
@@ -137,6 +140,15 @@ class Shell:
             self._rehook_done = done
             self._post(WM_REHOOK)
             done.wait(2)
+
+    def balloon(self, title: str, message: str) -> bool:
+        """A Windows notification from Lanterna's own tray icon (a click on it opens Lanterna)."""
+        if not self.hwnd:
+            return False
+        with self._balloon_lock:
+            self._balloons.append((title[:63], message[:255]))
+        self._post(WM_BALLOON)
+        return True
 
     def stop(self) -> None:
         if self.hwnd:
@@ -241,13 +253,23 @@ class Shell:
 
         def proc(hwnd, msg, wp, lp):
             if msg == WM_TRAY:
-                if lp == WM_LBUTTONUP:
+                if lp in (WM_LBUTTONUP, NIN_BALLOONUSERCLICK):
                     self._fire(self.on_click)
                 elif lp in (WM_RBUTTONUP, WM_CONTEXTMENU):
                     show_menu(hwnd)
                 return 0
             if msg == WM_HOTKEY and wp == HOTKEY_ID:
                 self._fire(self.on_hotkey)
+                return 0
+            if msg == WM_BALLOON:
+                with self._balloon_lock:
+                    todo, self._balloons = self._balloons, []
+                for title, text in todo:
+                    nid.uFlags = 0x10                                           # NIF_INFO: just the notification
+                    nid.szInfoTitle, nid.szInfo = title, text
+                    nid.dwInfoFlags, nid.hBalloonIcon = 0x4 | 0x20, hicon       # NIIF_USER | NIIF_LARGE_ICON: our icon
+                    sh.Shell_NotifyIconW(1, ctypes.byref(nid))                  # NIM_MODIFY
+                nid.uFlags = 0x1 | 0x2 | 0x4
                 return 0
             if msg == WM_CLIPBOARDUPDATE:
                 self.copied_at = time.time()

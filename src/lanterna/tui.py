@@ -1973,7 +1973,7 @@ class _ChatScreen(Screen):
         """Shows "Thinking…" and follows the answer's stream."""
         log = self.query_one("#log", VerticalScroll)
         self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = sid, 0, "", 0, 0
-        self._cards_seen, self._live = 0, ""
+        self._cards_seen, self._live, self._dirty, self._drawn_at = 0, "", False, 0.0
         self._bot = Markdown("_" + t("Thinking…", L(self.app)) + "_", classes="msg-bot")
         log.mount(self._bot)
         log.scroll_end(animate=False)
@@ -2022,9 +2022,14 @@ class _ChatScreen(Screen):
         if not self._text and r.get("live") and self._bot is not None and r["live"] != getattr(self, "_live", ""):
             self._live = r["live"]                       # what it is doing now, instead of a bare "Thinking…"
             await self._bot.update("_" + re.sub(r"([_*`\[\]])", r"\\\1", r["live"]) + "_")
-        if changed and self._bot is not None:
+        # a long answer is parsed again on every redraw: draw it less often (up to once a second), never skip the end
+        self._dirty = getattr(self, "_dirty", False) or changed
+        gap = min(1.0, len(self._text) / 4000)
+        if self._dirty and self._bot is not None and ("final" in r or r.get("done")
+                                                      or time.monotonic() - getattr(self, "_drawn_at", 0.0) >= gap):
             await self._bot.update(self._text)
             log.scroll_end(animate=False)
+            self._dirty, self._drawn_at = False, time.monotonic()
         if r.get("done"):
             self._stream = None
             err = r.get("error")
@@ -2106,8 +2111,14 @@ class _ChatScreen(Screen):
     def _error_text(self, err: dict) -> str:
         lang, kind = L(self.app), err.get("kind")
         if kind == "rate":
-            return (t("All free models are busy or out of limits. Try again in a minute.", lang) + " "
-                    + t("Tip: a local model (Settings → Local models) answers when the limits run out.", lang))
+            back = int(err.get("back_in") or 0)
+            h, m = back // 3600, max(1, round(back % 3600 / 60))
+            when = t("{h} h {m} min", lang, h=h, m=m) if h else t("{m} min", lang, m=m)
+            first = (t("All free models are out of limits for now. The first one is back in about {time}.", lang, time=when)
+                     if back > 120 else t("All free models are busy or out of limits. Try again in a minute.", lang))
+            tip = ("Tip: add a key for one more free service (Settings → Keys) to get more answers a day."
+                   if err.get("more_keys") else "Tip: a local model (Settings → Local models) answers when the limits run out.")
+            return first + " " + t(tip, lang)
         if kind == "auth":
             return t("No working key. Add one in Settings (Ctrl+S).", lang)
         if kind == "empty":

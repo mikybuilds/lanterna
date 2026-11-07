@@ -21,7 +21,7 @@ from .config import Settings
 from .discovery import get_models
 from .i18n import LANGS, catalog, t
 from .providers import PROVIDERS, Client, ProviderError, Thought
-from .router import Router, Switched
+from .router import Router, Switched, used_model
 from .notify import notify
 from .store import Store
 from .sync import PREFS as SYNC_PREFS
@@ -33,6 +33,23 @@ FIRST_CHOICES = ["groq", "gemini"]
 _MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)?(:[a-z0-9._-]+)?$", re.I)
 
 
+def _rest_left(r: Router) -> list[float]:
+    from .limits import TRACKER
+    now, rest = time.time(), r.resting()
+    return [max(rest.get(f"{c.provider}/{c.model}", 0), TRACKER.rest_until(c.provider, c.model) - now, 0)
+            for c in r.candidates if not PROVIDERS[c.provider].local]
+
+
+def _files_in(messages: list[dict]) -> list[str]:
+    """Names of the files whose text is inside these messages (attached earlier in the chat)."""
+    names: list[str] = []
+    for m in messages:
+        for n in re.findall(r"^\[File: (.+?)\]$", str(m.get("content") or ""), flags=re.M):
+            if n not in names:
+                names.append(n)
+    return names
+
+
 class _Stream:
     def __init__(self, lang: str = "en"):
         self.pieces: list[str] = []
@@ -41,6 +58,7 @@ class _Stream:
         self.cards: list[dict] = []        # changes waiting for the user's OK (working folder, Google Drive)
         self.steps = Steps(lang)           # "what I'm doing" line: thought summaries and tool steps
         self.done = False
+        self.model = ""                    # the model that wrote this answer
         self.final = False                 # pieces now hold the cleaned full reply
         self.titling = False               # a side model is naming the chat: the UI asks wait_title()
         self.suggesting = False            # follow-up buttons are coming: the UI asks wait_follow_ups()
@@ -480,6 +498,12 @@ class Api:
         return self._downloads.state()
 
     # ---------------------------------------------------------------- chats
+    @staticmethod
+    def _back_in(r: Router) -> int:
+        """Seconds until the first online model may answer again (0: unknown or right away)."""
+        left = _rest_left(r)
+        return int(min(left)) if left else 0
+
     def threads(self) -> list[dict]:
         return self.store.threads()
 
@@ -585,7 +609,7 @@ class Api:
         try:
             for text in learn_facts(router.quick, question, reply, [f["text"] for f in self.store.facts()]):
                 fid = self.store.add_fact(text)
-                if fid:
+                if fid > 0:
                     out.append({"id": fid, "text": text})
         except Exception as e:                              # noqa: BLE001  memory is never worth an error
             bugreport.remember_error(type(e).__name__, str(e))
@@ -855,12 +879,13 @@ class Api:
             if not conv.last_reply.strip():
                 raise ProviderError("empty", "the model sent no answer")
             from . import sent
-            cur = router.current
+            cur = used_model(router)
+            st.model = cur.label if cur else ""
             st.sent = sent.dumps(sent.build(
                 cur.label if cur else "", bool(cur and PROVIDERS[cur.provider].local), earlier,
                 bool(self.settings.name), len(self.store.facts()),
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
-                len(images or []), st.used, summary=bool(summary)))
+                len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else [])))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
             self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
             if self.settings.compact_chats and summary_due(total, upto):
@@ -872,6 +897,9 @@ class Api:
             bugreport.remember_error(e.kind, str(e))
             with st.lock:
                 st.error = {"kind": e.kind, "message": str(e)[:300]}
+                if e.kind == "rate" and self._router:          # out of limits: say when the first model is back
+                    st.error.update(back_in=self._back_in(self._router),
+                                    more_keys=any(not p.local and not keys.get_key(p.id) for p in PROVIDERS.values()))
         except Exception as e:                              # never leave the UI waiting
             bugreport.remember_error(type(e).__name__, str(e))
             with st.lock:
@@ -892,7 +920,7 @@ class Api:
                        "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
-                       "model": self._router.current.label if self._router and self._router.current else ""}
+                       "model": st.model}
             else:
                 text = "".join(st.pieces)
                 out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
@@ -1071,7 +1099,7 @@ class Api:
     def add_fact(self, text: str) -> list[dict]:
         text = " ".join(str(text or "").split())[:300]
         if text:
-            self.store.add_fact(text)
+            self.store.add_fact(text, force=True)            # typed by the user: always kept
         return self.store.facts()
 
     def delete_fact(self, fid: int) -> list[dict]:
@@ -1128,10 +1156,17 @@ class Api:
             for _ in conv.ask(tk.TASK_SYSTEM + "\n\n" + tk.prompt(task, dt.datetime.now())):
                 pass
             reply = (conv.last_reply or "").strip()
-            model = conv.router.current.label if conv.router.current else ""
+            used = used_model(conv.router)
+            model = used.label if used else ""
         except Exception as e:                              # noqa: BLE001  no internet, no keys…: try next time
             self.store.update_task(task["id"], last=time.time(), last_result="⚠ " + str(e)[:200])
             bugreport.remember_error(type(e).__name__, str(e))
+            if not str(task.get("last_result") or "").startswith("⚠"):     # say it once, not on every failed run
+                msg = t("Couldn't do the regular task “{task}” this time. Lanterna will try again next time.",
+                        lang, task=task["text"][:80])
+                notify("Lanterna 🔁", msg)
+                with self._lock:
+                    self._alerts.append({"kind": "task", "text": msg, "tid": task.get("thread") or 0})
             return ""
         if not reply or tk.is_skip(reply):
             self.store.update_task(task["id"], last=time.time(), last_result="")

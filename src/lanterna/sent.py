@@ -25,7 +25,7 @@ def _arg(arguments: str, key: str) -> str:
 
 
 def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
-          tools: list[tuple[str, str]], summary: bool = False) -> list[dict]:
+          tools: list[tuple[str, str]], summary: bool = False, old_files: list[str] | None = None) -> list[dict]:
     """[{"t": template, "v": vars}] — the first line says where it went."""
     out = [{"t": "Stayed on this computer ({model})" if local else "Sent to {model}", "v": {"model": model or "?"}}]
     out.append({"t": "Your message and {n} earlier messages of this chat" if history else "Your message", "v": {"n": history}})
@@ -39,6 +39,8 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
         out.append({"t": "Attached files: {names}", "v": {"names": ", ".join(files[:6])}})
     if photos:
         out.append({"t": "Photos: {n}", "v": {"n": photos}})
+    if old_files:                                      # attached earlier: their text goes along with the chat again
+        out.append({"t": "Files attached earlier in this chat (again): {names}", "v": {"names": ", ".join(old_files[:6])}})
     seen: set = set()
 
     def once(t: str, v: dict | None = None) -> None:

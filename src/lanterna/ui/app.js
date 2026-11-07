@@ -482,6 +482,11 @@ function paintFiles() {
   $("#input").oninput();
 }
 
+function backIn(s) {                       // "about 3 h 20 min" / "about 15 min"
+  const h_ = Math.floor(s / 3600), m = Math.max(1, Math.round((s % 3600) / 60));
+  return h_ ? t("{h} h {m} min", { h: h_, m }) : t("{m} min", { m });
+}
+
 function toast(text, sticky = false) {
   // short notices fade out; reminders stay until closed
   const el = h(`<div class="toast${sticky ? " sticky" : ""}"><span></span><button title="${t("Close")}">${icon("x")}</button></div>`);
@@ -1229,7 +1234,10 @@ async function send(retryText) {
     scrollDown();
     if (p.error) {
       const k = p.error.kind;
-      const msg = k === "rate" ? t("All free models are busy or out of limits. Try again in a minute.") + " " + t("Tip: a local model (Settings → Local models) answers when the limits run out.")
+      const back = p.error.back_in || 0;
+      const msg = k === "rate" ? (back > 120 ? t("All free models are out of limits for now. The first one is back in about {time}.", { time: backIn(back) })
+          : t("All free models are busy or out of limits. Try again in a minute.")) + " "
+          + (p.error.more_keys ? t("Tip: add a key for one more free service (Settings → Keys) to get more answers a day.") : t("Tip: a local model (Settings → Local models) answers when the limits run out."))
         : k === "network" ? (S.settings.mode === "local" ? t("Ollama isn't running. Start it, or switch to Cloud in Settings.") : t("No connection. Check your internet.")) : k === "auth" ? t("Add a key in Settings to start.")
         : k === "vision" ? (S.settings.mode === "local" ? t("To understand photos, download a photo model in Settings → Local models.") : t("To understand photos, add a free Gemini key in Settings."))
         : k === "local" ? (p.error.message === "no local models" ? t("No local model yet. Download one in Settings → Local models.") : t("Ollama isn't running. Start it, or switch to Cloud in Settings."))

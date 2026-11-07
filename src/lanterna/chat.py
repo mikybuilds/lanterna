@@ -9,7 +9,7 @@ from typing import Iterator
 
 from . import AUTHOR, HOMEPAGE, soul
 from .providers import ToolCalls
-from .router import Router, Switched
+from .router import Router, Switched, used_model
 
 MAX_HISTORY = 30          # messages kept in context (older ones are dropped, or summarized: see summarize)
 KEEP_RECENT = 20          # a long chat: the newest messages go to the model as they are…
@@ -371,7 +371,7 @@ class Conversation:
     ask_header: str = "Questions for you:"  # how a questionnaire starts in the saved chat (in the app's language)
 
     def _system(self, text: str) -> dict:
-        cur = self.router.current
+        cur = used_model(self.router)
         facts = [f["text"] for f in self.toolbox.store.facts()] if self.toolbox else None
         ctx = self._context(text)
         pc = self.toolbox is not None and any(n.startswith(("pc_", "app_")) for n in
@@ -442,7 +442,7 @@ class Conversation:
             if asked:                                   # the form takes over: the answer stops here
                 yield Questions(asked)
                 break
-            cur = self.router.current
+            cur = used_model(self.router)
             limit = result_limit(cur.provider if cur else None)
             for c in calls.calls:
                 if c.name == "ask_user":                # questions that couldn't be read: let the model go on

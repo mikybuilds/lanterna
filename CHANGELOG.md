@@ -9,6 +9,13 @@
 - **Models check themselves:** once a day Lanterna quietly sends one tiny request to the first untested models in its queue (6 at most), so a question never waits on a model that doesn't answer. A model that hung or is gone rests for longer each time (1 hour, 6 hours, a day, three days), even after a restart, and comes back by itself once it answers again.
 
 **Fixed**
+- **Sync:** a message removed on one device (Retry, Edit) now goes on the others too, and an older copy from another device no longer brings back anything you deleted.
+- **Memory in any language:** "forget my allergy" now finds "Allergy to peanuts" in Ukrainian and other languages, and the same fact in another case isn't saved twice. When memory is full, nothing old is dropped behind your back: Lanterna says so and asks what to forget.
+- **The window can call only its own list of actions**, not the rest of Lanterna (the database, MCP, Confirm cards).
+- **Honest notes:** "What went to the model" names files attached earlier that go along with the chat again; a regular task that fails tells you once; when every free model is out of limits, Lanterna says when the first one is back and suggests adding another free service.
+- **Notifications come from Lanterna's own tray icon** (a click opens Lanterna), not from PowerShell, so they also work where PowerShell is locked.
+- **Screenshots take the screen under the mouse**, not always the main one.
+- **The right model's name** under each answer when two answers run at the same time; a broken search page is reported as "search failed", not "nothing found"; the terminal app redraws long answers less often.
 - **A question could look stuck for minutes.** Some new online models (for example gemini-3.7-flash) accept a question and then say nothing. Lanterna now gives an online model 30 seconds to start answering, then moves on to the next one and leaves the silent one alone. A slow answer that has already started is not cut off.
 - **"Thinking…" disappeared** when the chat was redrawn while an answer was still coming (opening the window from the tray, clicking the chat in the list). Now the live answer stays in place, and Retry / Edit show up only when it's done.
 

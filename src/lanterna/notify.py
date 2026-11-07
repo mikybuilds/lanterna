@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Callable
 
 # The message travels in an environment variable, so nothing in it is ever run as code.
 _PS_TOAST = r"""
@@ -18,9 +19,16 @@ $app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell
 """
 
 
+# The Windows window app sets this to its tray icon's notification: it shows as Lanterna (not PowerShell),
+# a click opens Lanterna, and it works where PowerShell is locked (school and office PCs).
+TRAY: Callable[[str, str], bool] | None = None
+
+
 def notify(title: str, message: str) -> bool:
     title, message = title[:80], message[:300]
     try:
+        if sys.platform == "win32" and TRAY is not None and TRAY(title, message):
+            return True
         if sys.platform == "win32":
             env = {**os.environ, "LANTERNA_TITLE": title, "LANTERNA_MSG": message}
             r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", _PS_TOAST], env=env,

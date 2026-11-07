@@ -56,6 +56,9 @@ class Desk:
                                  on_hotkey=self.toggle_quick, hotkey=self.api.settings.hotkey)
         if not self.shell.start():
             self.shell = None
+        else:
+            from . import notify
+            notify.TRAY = self.shell.balloon                  # notifications come from Lanterna's own icon
         self.free_hotkey()
         self.api.updater.quit_app = self.quit_now        # an update closes Lanterna: take the tray icon away first
 
@@ -118,6 +121,8 @@ class Desk:
 
     def _end(self) -> None:
         """The main window is going: close the quick window and the tray too, so the app really ends."""
+        from . import notify
+        notify.TRAY = None
         if self.shell:
             self.shell.stop()
         self.api.mcp.stop_all()                         # MCP programs end with Lanterna
@@ -189,7 +194,14 @@ class Desk:
 
         from PIL import ImageGrab
         try:
-            img = ImageGrab.grab()
+            box = _cursor_monitor()                         # the screen you are looking at, not always the main one
+            img = ImageGrab.grab(all_screens=True) if box else ImageGrab.grab()
+            if box:
+                l_, t_, r_, b_ = box
+                if 0 <= l_ < r_ <= img.width and 0 <= t_ < b_ <= img.height:
+                    img = img.crop(box)
+                else:                                       # scaling we can't map: the main screen as before
+                    img = ImageGrab.grab()
         except OSError:
             return {}
         buf = io.BytesIO()
@@ -216,6 +228,43 @@ class Desk:
             self.toggle_quick(file)
 
 
+def _cursor_monitor() -> tuple[int, int, int, int] | None:
+    """The monitor under the mouse, as a box inside the picture of all screens; None with one screen or off Windows."""
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    from ctypes import wintypes as W
+    u = ctypes.windll.user32
+    if u.GetSystemMetrics(80) < 2:                          # SM_CMONITORS: one screen, nothing to choose
+        return None
+
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [("cbSize", W.DWORD), ("rcMonitor", W.RECT), ("rcWork", W.RECT), ("dwFlags", W.DWORD)]
+    pt = W.POINT()
+    u.GetCursorPos(ctypes.byref(pt))
+    u.MonitorFromPoint.restype = ctypes.c_void_p
+    u.MonitorFromPoint.argtypes = [W.POINT, W.DWORD]
+    u.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    mon = u.MonitorFromPoint(pt, 2)                         # MONITOR_DEFAULTTONEAREST
+    info = MONITORINFO()
+    info.cbSize = ctypes.sizeof(MONITORINFO)
+    if not mon or not u.GetMonitorInfoW(mon, ctypes.byref(info)):
+        return None
+    vx, vy = u.GetSystemMetrics(76), u.GetSystemMetrics(77)   # where the picture of all screens starts
+    r = info.rcMonitor
+    return r.left - vx, r.top - vy, r.right - vx, r.bottom - vy
+
+
+class WindowApi:
+    """What the page may call: only the methods in METHODS, as plain bound methods.
+    pywebview hands the page every public attribute of js_api and walks into them, so passing the whole Api
+    would also expose the store, MCP, the Confirm cards and more. This keeps the page to its own list."""
+
+    def __init__(self, api: Api):
+        for name in sorted(METHODS):
+            setattr(self, name, getattr(api, name))
+
+
 def run_window(start_hidden: bool = False) -> int:
     import webview
 
@@ -225,9 +274,10 @@ def run_window(start_hidden: bool = False) -> int:
             return 0
     api = Api()
     fresh_ui_cache(api.store.path.parent / "webview")
+    page = WindowApi(api)
     desk_ok = sys.platform == "win32"
     hidden = start_hidden and desk_ok and api.settings.tray
-    main = webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=api, width=1120, height=780,
+    main = webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=page, width=1120, height=780,
                                  min_size=(720, 540), background_color="#0B0E17", text_select=True, hidden=hidden)
     storage = str(api.store.path.parent / "webview")
     if not desk_ok:
@@ -238,7 +288,7 @@ def run_window(start_hidden: bool = False) -> int:
         x, y = max(0, (scr.width - 640) // 2), max(0, scr.height // 5)
     except Exception:                                       # noqa: BLE001
         x = y = None
-    quick = webview.create_window("Lanterna", url=str(UI / "index.html") + "#quick", js_api=api, width=640,
+    quick = webview.create_window("Lanterna", url=str(UI / "index.html") + "#quick", js_api=page, width=640,
                                   height=470, x=x, y=y, min_size=(420, 320), background_color="#0B0E17",
                                   text_select=True, hidden=True, on_top=True)
     desk = Desk(api, main, quick)
