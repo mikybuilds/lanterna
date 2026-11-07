@@ -311,7 +311,7 @@ class ActCard(Vertical):
         d = c.get("details", {})
         k = c["kind"]
         icon = ("☁️ " if k.startswith("drive_") else "🐙 " if k.startswith("github_") else "🗑 " if k == "pc_trash" else
-                "🗂 " if k.startswith("pc_") else "📦 " if k.startswith("app_") else "⚙️ " if k.startswith("sys_") else "📁 ")
+                "🗂 " if k.startswith("pc_") else "📦 " if k.startswith("app_") else "⚙️ " if k.startswith("sys_") else "🧩 " if k == "mcp_call" else "📁 ")
         yield Static(icon + action_title(k, d, "", lang), markup=False)
         body = card_text(k, d, lang)
         if body:
@@ -1022,6 +1022,14 @@ class SettingsScreen(ModalScreen[str]):
             yield Label(t("Regular tasks", lang), classes="h")
             yield Static(t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.", lang), classes="muted")
             yield Vertical(id="tasks")
+            yield Label(t("MCP servers", lang), classes="h")
+            yield Static(t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.", lang), classes="muted")
+            yield Button("", id="mcptoggle")
+            yield Vertical(id="mcplist")
+            with Horizontal(classes="keyrow", id="mcpaddrow"):
+                yield Input(placeholder=t("Command or https:// address", lang), id="mcpwhere")
+                yield Input(placeholder=t("Name (optional)", lang), id="mcpname")
+                yield Button(t("Add", lang), id="mcpadd")
             yield Label(t("Working folder", lang), classes="h")
             yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
                          + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
@@ -1085,6 +1093,7 @@ class SettingsScreen(ModalScreen[str]):
         self._fill_memory()
         self._paint_wd()
         self._paint_voice()
+        self._paint_mcp()
         self._paint_limits()
         self._paint_drive()
         self.set_interval(1.0, self._paint_drive)
@@ -1187,6 +1196,58 @@ class SettingsScreen(ModalScreen[str]):
         self.app.api.github_disconnect()
         self._paint_github()
 
+    def _paint_mcp(self) -> None:
+        """Settings → MCP servers: on/off (after the risk question), the servers, add one by command or address."""
+        lang, st = L(self.app), self.app.api.mcp_status()
+        self.query_one("#mcptoggle", Button).label = t("Turn off" if st["enabled"] else "Use MCP servers", lang)
+        self.query_one("#mcpaddrow").display = st["enabled"]
+        box = self.query_one("#mcplist", Vertical)
+        box.remove_children()
+        box.display = st["enabled"]
+        for s in st["servers"]:
+            state = (t("Off", lang) if not s["on"] else t("{n} tools", lang, n=len(s["tools"])) if s["state"] == "ready"
+                     else t("Didn't start: {error}", lang, error=s["error"]) if s["state"] == "error" else t("Starting…", lang))
+            box.mount(Horizontal(Label(f"🧩 {s['name']}  ({state})  {s['where'][:60]}", markup=False),
+                                 Button(t("Pause" if s["on"] else "Resume", lang), id=f"mcpon-{s['id']}-{0 if s['on'] else 1}"),
+                                 Button(t("Remove", lang), id=f"mcpdel-{s['id']}"), classes="listrow"))
+        if st["enabled"] and not st["servers"]:
+            box.mount(Static(t("No servers yet.", lang), classes="muted"))
+        if any(s["on"] and s["state"] == "starting" for s in st["servers"]):
+            self.set_timer(1.0, self._paint_mcp)
+
+    def _mcp_toggle(self) -> None:
+        lang = L(self.app)
+        if self.app.api.mcp_status()["enabled"]:
+            self.app.api.mcp_enable(False)
+            self._paint_mcp()
+            return
+
+        def done(yes: bool) -> None:
+            if yes:
+                self.app.api.mcp_enable(True)
+                self._paint_mcp()
+        self.app.push_screen(ConfirmScreen(t("MCP servers are made by other people. A program server runs with your rights (files, internet); what a tool is asked goes to that server; a server can send text that tries to trick the assistant. Lanterna asks before every call. Turn on?", lang), t("Turn on", lang)), done)
+
+    def _mcp_add(self) -> None:
+        lang = L(self.app)
+        where = self.query_one("#mcpwhere", Input).value.strip()
+        if not where:
+            return
+        kind = "http" if where.lower().startswith(("http://", "https://")) else "stdio"
+        ask = t("Lanterna will send tool requests to this address:" if kind == "http" else "Lanterna will start this program with your rights each time it opens:", lang) + f"\n{where}\n" + t("Add it only if you trust where it comes from.", lang)
+
+        def done(yes: bool) -> None:
+            if not yes:
+                return
+            r = self.app.api.mcp_add({"name": self.query_one("#mcpname", Input).value.strip(), "kind": kind, "where": where})
+            if not r.get("ok"):
+                self.app.notify(t(r.get("error", ""), lang), severity="warning")
+                return
+            self.query_one("#mcpwhere", Input).value = ""
+            self.query_one("#mcpname", Input).value = ""
+            self._paint_mcp()
+        self.app.push_screen(ConfirmScreen(ask, t("Add", lang)), done)
+
     def _paint_voice(self) -> None:
         """Settings → Voice input: what the local engine needs, or that it is ready / downloading."""
         lang, v = L(self.app), self.app.api.voice_status()
@@ -1287,6 +1348,17 @@ class SettingsScreen(ModalScreen[str]):
         elif bid == "voiceget":
             self.app.api.voice_setup()
             self._paint_voice()
+        elif bid == "mcptoggle":
+            self._mcp_toggle()
+        elif bid == "mcpadd":
+            self._mcp_add()
+        elif bid.startswith("mcpdel-"):
+            self.app.api.mcp_remove(bid[7:])
+            self._paint_mcp()
+        elif bid.startswith("mcpon-"):
+            sid, on = bid[6:].rsplit("-", 1)
+            self.app.api.mcp_update(sid, {"on": on == "1"})
+            self._paint_mcp()
         elif bid.startswith("taskdel-"):
             self.app.api.task_delete(int(bid[8:]))
             self._fill_memory()

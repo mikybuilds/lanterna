@@ -186,6 +186,15 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .task-when { display: flex; gap: 8px; flex-wrap: wrap; }
 .task-when .field { flex: 1 1 140px; }
 .task-form .btn { align-self: flex-start; }
+.mcp-row { align-items: flex-start; }
+.mcp-row small { overflow-wrap: anywhere; }
+.mcp-tools { margin-top: 6px; }
+.mcp-tools > summary { cursor: pointer; font-size: 13px; }
+.mcp-tools .check small { font-family: inherit; font-size: 12.5px; }
+.mcp-risk ul { margin: 8px 0 4px; padding-left: 20px; line-height: 1.5; }
+.mcp-risk li { margin: 6px 0; }
+.mcp-risk pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dlg-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 /* the quick-question window: just the chat */
 body.quick .shell { grid-template-columns: 1fr; }
 body.quick .side, body.quick .top .menu, body.quick .under .fold-wrap, body.quick .under .hint,

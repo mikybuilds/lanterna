@@ -1269,6 +1269,25 @@ function openSettings() {
         <div id="voice-dl" style="margin-top:10px"></div>
       </div>
       </div>
+      <div id="mcp-set">
+      <h4 style="margin-top:22px">${t("MCP servers")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.")}</p>
+      <label class="check" style="margin-top:0"><input type="checkbox" id="mcp-on"><span><b>${t("Use MCP servers")}</b><small>${t("Off by default. Turning it on first shows what can go wrong.")}</small></span></label>
+      <div id="mcp-body" hidden>
+        <div id="mcp-list"></div>
+        <details class="task-new" id="mcp-new"><summary class="btn ghost small">${icon("plus")} ${t("Add a server")}</summary>
+          <div class="task-form">
+            <select class="field" id="mcp-kind"><option value="stdio">${t("A program on this computer")}</option><option value="http">${t("A web address")}</option></select>
+            <input class="field" id="mcp-name" maxlength="40" placeholder="${esc(t("Name, for example: Memory"))}">
+            <input class="field" id="mcp-where" maxlength="600" spellcheck="false" placeholder="${esc(t("Command, for example: npx -y @modelcontextprotocol/server-memory"))}">
+            <input class="field" id="mcp-sname" maxlength="60" spellcheck="false" placeholder="${esc(t("Key variable (optional), for example: GITHUB_TOKEN"))}">
+            <input class="field" id="mcp-secret" type="password" autocomplete="off" spellcheck="false" placeholder="${esc(t("Key or token (optional)"))}">
+            <button class="btn primary small" id="mcp-add">${t("Add")}</button>
+            <textarea class="field" id="mcp-json" rows="3" spellcheck="false" placeholder="${esc(t("Or paste the JSON from the server's page ({\"mcpServers\": …})"))}"></textarea>
+            <button class="btn ghost small" id="mcp-add-json">${t("Add from JSON")}</button>
+          </div></details>
+      </div>
+      </div>
       <div id="desk-set" hidden>
       <h4 style="margin-top:22px">${t("Always at hand")}</h4>
       <label class="check"><input type="checkbox" id="tray" ${S.settings.tray !== false ? "checked" : ""}>
@@ -1319,6 +1338,46 @@ function openSettings() {
     }
     $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
     paintVoice();
+    paintMcp();
+    $("#mcp-on", body).onchange = async e => {
+      if (!e.target.checked) { await api.mcp_enable(false); return paintMcp(); }
+      e.target.checked = false;
+      mcpRisks(async () => { await api.mcp_enable(true); paintMcp(); });
+    };
+    $("#mcp-kind", body).onchange = e => {
+      const web = e.target.value === "http";
+      $("#mcp-where", body).placeholder = web ? "https:// …" : t("Command, for example: npx -y @modelcontextprotocol/server-memory");
+      $("#mcp-sname", body).hidden = web;
+    };
+    const mcpErr = r => toast(t(r.error || "Couldn't do it: {error}", { error: "" }));
+    $("#mcp-add", body).onclick = () => {
+      const item = { name: $("#mcp-name", body).value.trim(), kind: $("#mcp-kind", body).value, where: $("#mcp-where", body).value.trim(),
+        secret_name: $("#mcp-sname", body).value.trim(), secret: $("#mcp-secret", body).value };
+      if (!item.where) return $("#mcp-where", body).focus();
+      mcpConfirm([{ kind: item.kind, where: item.where }], async () => {
+        const r = await api.mcp_add(item);
+        if (!r.ok) return mcpErr(r);
+        ["#mcp-name", "#mcp-where", "#mcp-sname", "#mcp-secret"].forEach(s => { $(s, body).value = ""; });
+        $("#mcp-new", body).open = false; paintMcp();
+      });
+    };
+    $("#mcp-add-json", body).onclick = () => {
+      const text = $("#mcp-json", body).value.trim();
+      if (!text) return $("#mcp-json", body).focus();
+      let list = [];
+      try {
+        const d = JSON.parse(text), servers = d.mcpServers || d.servers || d;
+        list = Object.values(servers).filter(s => s && typeof s === "object")
+          .map(s => s.url || s.serverUrl ? { kind: "http", where: s.url || s.serverUrl } : { kind: "stdio", where: [s.command, ...(s.args || [])].join(" ") });
+      } catch (e) { return toast(t("That isn't valid JSON.")); }
+      if (!list.length) return toast(t("No servers found in that JSON."));
+      mcpConfirm(list, async () => {
+        const r = await api.mcp_import(text);
+        if (!r.ok) return mcpErr(r);
+        $("#mcp-json", body).value = ""; $("#mcp-new", body).open = false;
+        toast(t("Added: {n}", { n: r.added })); paintMcp();
+      });
+    };
     body.querySelectorAll('input[name="voice"]').forEach(r => r.onchange = async () => { S = await api.save_settings({ voice: r.value }); paintVoice(); });
     $("#voice-model", body).onchange = async e => { S = await api.save_settings({ voice_model: e.target.value }); paintVoice(); };
     api.desktop_status().then(d => {             // Windows window app: tray, Start with Windows, hotkey
@@ -1374,6 +1433,34 @@ function openSettings() {
     box.innerHTML = list.length ? list.map(f => `<div class="row"><div class="grow">${esc(f.text)}</div><button class="btn ghost small" data-f="${f.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
       : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("Nothing yet. Say “remember that…” in a chat.")}</p>`;
     box.querySelectorAll("[data-f]").forEach(b => b.onclick = async () => { await api.delete_fact(+b.dataset.f); paintFacts(); });
+  };
+  const paintMcp = async () => {
+    const st = await api.mcp_status();
+    if (!$("#mcp-on", body)) return;
+    $("#mcp-on", body).checked = st.enabled;
+    $("#mcp-body", body).hidden = !st.enabled;
+    const box = $("#mcp-list", body);
+    box.innerHTML = st.servers.length ? st.servers.map(s => {
+      const state = !s.on ? t("Off") : s.state === "ready" ? t("{n} tools", { n: s.tools.length })
+        : s.state === "error" ? t("Didn't start: {error}", { error: s.error }) : t("Starting…");
+      const tools = s.on && s.tools.length ? `<details class="mcp-tools"><summary class="faint">${esc(t("Tools: tick the ones that may run without asking"))}</summary>
+        ${s.tools.map(x => `<label class="check"><input type="checkbox" data-allow="${esc(s.id)}" value="${esc(x.name)}" ${s.allow.includes(x.name) ? "checked" : ""}>
+          <span><b>${esc(x.name)}</b>${x.description ? `<small>${esc(x.description)}</small>` : ""}</span></label>`).join("")}</details>` : "";
+      return `<div class="row mcp-row"><div class="grow"><b>🧩 ${esc(s.name)}</b><small>${esc(s.where)}</small>
+          <small class="plain ${s.state === "error" && s.on ? "sync-err" : "faint"}">${esc(state)}</small>${tools}</div>
+        <button class="btn ghost small" data-restart="${esc(s.id)}" title="${esc(t("Restart"))}" ${s.on ? "" : "hidden"}>${icon("refresh")}</button>
+        <button class="btn ghost small" data-on="${esc(s.id)}" data-v="${s.on ? 0 : 1}">${esc(s.on ? t("Pause") : t("Resume"))}</button>
+        <button class="btn ghost small" data-del="${esc(s.id)}" title="${t("Remove")}">${icon("trash")}</button></div>`;
+    }).join("") : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No servers yet.")}</p>`;
+    box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { await api.mcp_remove(b.dataset.del); paintMcp(); });
+    box.querySelectorAll("[data-on]").forEach(b => b.onclick = async () => { await api.mcp_update(b.dataset.on, { on: b.dataset.v === "1" }); paintMcp(); });
+    box.querySelectorAll("[data-restart]").forEach(b => b.onclick = async () => { b.disabled = true; b.innerHTML = `<span class="spinner"></span>`; await api.mcp_restart(b.dataset.restart); paintMcp(); });
+    box.querySelectorAll("[data-allow]").forEach(c => c.onchange = async () => {
+      const sid = c.dataset.allow;
+      const allow = [...box.querySelectorAll("[data-allow]")].filter(x => x.dataset.allow === sid && x.checked).map(x => x.value);
+      await api.mcp_update(sid, { allow });
+    });
+    if (st.servers.some(s => s.on && s.state === "starting")) setTimeout(() => { if (box.isConnected) paintMcp(); }, 1000);
   };
   const paintVoice = async () => {
     const v = await api.voice_status();
@@ -1433,6 +1520,29 @@ function openSettings() {
     setModel(r.current);
   };
   paint();
+}
+
+// ---------------------------------------------------------------- MCP: the risk window and the "add this?" check
+function mcpRisks(onYes) {
+  const v = dialog(t("Before you turn on MCP servers"), `<section class="mcp-risk">
+    <p>${esc(t("MCP servers are made by other people, not by Lanterna. Add only servers you trust: from the official MCP list or from a company you already use."))}</p>
+    <ul>${["A program server runs on your computer with your rights: it can read and change your files and use the internet.", "What a tool is asked goes to that server. A web address gets it over the internet.", "A server can send back text that tries to trick the assistant. Lanterna marks it as outside data, but read each card before you confirm.", "Before every tool call Lanterna shows a card and waits for your Confirm, unless you let that tool run without asking.", "Keys and tokens for servers are kept in the system's secure store, not in files."].map(x => `<li>${esc(t(x))}</li>`).join("")}</ul>
+    <label class="check"><input type="checkbox" id="risk-ok"><span><b>${esc(t("I understand the risks"))}</b></span></label>
+    <div class="dlg-btns"><button class="btn ghost small" id="risk-no">${t("Cancel")}</button>
+      <button class="btn primary small" id="risk-yes" disabled>${esc(t("Turn on"))}</button></div></section>`);
+  v.querySelector("#risk-ok").onchange = e => { v.querySelector("#risk-yes").disabled = !e.target.checked; };
+  v.querySelector("#risk-no").onclick = () => v.remove();
+  v.querySelector("#risk-yes").onclick = () => { v.remove(); onYes(); };
+}
+
+function mcpConfirm(list, onYes) {
+  const v = dialog(t("Add this server?"), `<section class="mcp-risk">
+    ${list.map(s => `<p>${esc(t(s.kind === "http" ? "Lanterna will send tool requests to this address:" : "Lanterna will start this program with your rights each time it opens:"))}</p><pre class="cc-prev">${esc(s.where)}</pre>`).join("")}
+    <p class="muted">${esc(t("Add it only if you trust where it comes from."))}</p>
+    <div class="dlg-btns"><button class="btn ghost small" id="add-no">${t("Cancel")}</button>
+      <button class="btn primary small" id="add-yes">${t("Add")}</button></div></section>`);
+  v.querySelector("#add-no").onclick = () => v.remove();
+  v.querySelector("#add-yes").onclick = () => { v.remove(); onYes(); };
 }
 
 function openAbout() {
@@ -1686,7 +1796,7 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
   pc_mkdir: "Create the folder {path}", pc_trash: "Move {count} items to the Recycle Bin",
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}",
-  sys_power: "Switch the power plan to {name}" };
+  sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
@@ -1694,7 +1804,7 @@ function actKey(c) {
   if (c.kind === "sys_startup") return d.on ? "Start {name} with the computer" : "Don't start {name} with the computer";
   return ACT_KEYS[c.kind] || "Change";
 }
-const cardIcon = k => k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
+const cardIcon = k => k === "mcp_call" ? "🧩" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
   k.startsWith("pc_") ? "🗂" : k.startsWith("app_") ? "📦" : k.startsWith("sys_") ? "⚙️" : "📁";
 
 function actCard(c) {
@@ -1737,6 +1847,9 @@ function actCard(c) {
       ${d.admin ? `<div class="cc-meta">${esc(t(d.source === "winget" ? "Windows may ask for administrator rights." : "The system will ask for your password."))}</div>` : ""}`;
   } else if (c.kind === "sys_startup") {
     extra = `<pre class="cc-prev">${esc(d.command || "")}</pre><div class="cc-meta">${esc(t("It can be turned back on the same way."))}</div>`;
+  } else if (c.kind === "mcp_call") {
+    meta.push(t("MCP server: {s}", { s: d.server || "" }), t(d.kind === "http" ? "a web address" : "a program on this computer"));
+    meta.push(t("What goes to the server:"));
   } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
     if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
   } else if (c.kind.startsWith("drive_")) {

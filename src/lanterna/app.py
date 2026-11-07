@@ -66,9 +66,15 @@ class Api:
         self.places = pcfiles.Places(self.actions, lang=lambda: self.settings.lang)
         self.apps = apps.Apps(self.actions)
         self.system = pcsys.System(self.actions)
+        from . import mcp
+        self.mcp = mcp.Hub(self.actions)                      # outside tools the user added (off until they turn it on)
+        self.mcp.start()
+        import atexit
+        atexit.register(self.mcp.stop_all)
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
-                               + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools())
+                               + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools()
+                               + self.mcp.tools())
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
@@ -656,6 +662,66 @@ class Api:
     def voice_setup_cancel(self) -> None:
         self._whisper.cancel()
 
+    # ---------------------------------------------------------------- MCP servers (Settings → MCP servers)
+    def mcp_status(self) -> dict:
+        return self.mcp.status()
+
+    def mcp_enable(self, on: bool) -> dict:
+        """Called only after the risk window (the UI shows it; "I understand" is required)."""
+        self.mcp.set_enabled(bool(on))
+        return self.mcp.status()
+
+    def mcp_add(self, item: dict) -> dict:
+        """item: {name, kind: stdio|http, where: command line or URL, secret_name, secret}. Secrets go to the
+        system's secure store: an env variable for a program, a header (Authorization: Bearer …) for a web address."""
+        from . import mcp
+        if not self.mcp.cfg["enabled"]:
+            return {"ok": False, "error": "MCP servers are off."}
+        item = item if isinstance(item, dict) else {}
+        kind = "http" if item.get("kind") == "http" else "stdio"
+        secret, sname = str(item.get("secret") or "").strip(), str(item.get("secret_name") or "").strip()
+        env, headers = {}, {}
+        if secret:
+            if kind == "http":
+                headers[sname or "Authorization"] = secret if sname or secret.lower().startswith("bearer ") else "Bearer " + secret
+            elif re.match(r"^[A-Za-z_][A-Za-z0-9_]{0,60}$", sname):
+                env[sname] = secret
+            else:
+                return {"ok": False, "error": "Name the variable for the key, for example GITHUB_TOKEN."}
+        try:
+            sid = self.mcp.add(str(item.get("name") or ""), kind, str(item.get("where") or ""), env, headers)
+        except mcp.McpError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:                                # noqa: BLE001  (secure store unavailable)
+            return {"ok": False, "error": f"{e.__class__.__name__}: {e}"}
+        return {"ok": True, "id": sid, **self.mcp.status()}
+
+    def mcp_import(self, text: str) -> dict:
+        """Settings → MCP servers → Paste JSON: the {"mcpServers": {...}} block many server pages show."""
+        from . import mcp
+        if not self.mcp.cfg["enabled"]:
+            return {"ok": False, "error": "MCP servers are off."}
+        try:
+            found = mcp.parse_import(str(text or ""))
+            for s in found:
+                self.mcp.add(s["name"], s["kind"], s.get("url") or s.get("command"), s.get("env"), s.get("headers"))
+        except mcp.McpError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, "added": len(found), **self.mcp.status()}
+
+    def mcp_update(self, sid: str, fields: dict) -> dict:
+        fields = {k: v for k, v in (fields or {}).items() if k in ("on", "allow")}
+        self.mcp.update(str(sid), **fields)
+        return self.mcp.status()
+
+    def mcp_remove(self, sid: str) -> dict:
+        self.mcp.remove(str(sid))
+        return self.mcp.status()
+
+    def mcp_restart(self, sid: str) -> dict:
+        self.mcp.restart(str(sid))
+        return self.mcp.status()
+
     # ---------------------------------------------------------------- always at hand (Windows window app)
     def desktop_status(self) -> dict:
         """For Settings: is the tray there, did Windows give us the hotkey, does Lanterna start with Windows."""
@@ -1193,6 +1259,7 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "app_uninstall": ("Remove {name}", "Removed {name}"),
             "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
             "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
+            "mcp_call": ("Use {name}", "Used {name}"),
             "sys_startup": (("Start {name} with the computer", "{name} starts with the computer") if d.get("on") else
                             ("Don't start {name} with the computer", "{name} no longer starts with the computer"))}
     place = t(str(d.get("place", "")).title(), lang) if d.get("place") else ""
@@ -1237,6 +1304,10 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         lines.append(t("It can be turned back on the same way.", lang))
     elif kind in ("sys_theme", "sys_power") and d.get("was"):
         lines.append(t("Now: {x}", lang, x=t(d["was"], lang)))
+    elif kind == "mcp_call":
+        lines.append(t("MCP server: {s}", lang, s=d.get("server", "")) + " · " +
+                     t("a web address" if d.get("kind") == "http" else "a program on this computer", lang))
+        lines.append(t("What goes to the server:", lang))
     return "\n".join(x for x in lines if x)
 
 

@@ -31,7 +31,8 @@ METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "mod
            "doctor", "history_list", "history_undo", "history_clear", "install_ollama",
            "desktop_status", "quick_hide", "open_in_main", "screenshot",
            "task_list", "task_add", "task_delete", "task_pause", "task_run",
-           "voice_status", "voice_start", "voice_stop", "voice_cancel", "voice_setup", "voice_setup_cancel"}
+           "voice_status", "voice_start", "voice_stop", "voice_cancel", "voice_setup", "voice_setup_cancel",
+           "mcp_status", "mcp_enable", "mcp_add", "mcp_import", "mcp_update", "mcp_remove", "mcp_restart"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 
@@ -96,6 +97,7 @@ class Desk:
         """The main window is going: close the quick window and the tray too, so the app really ends."""
         if self.shell:
             self.shell.stop()
+        self.api.mcp.stop_all()                         # MCP programs end with Lanterna
         try:
             self.quick.destroy()
         except Exception:                                   # noqa: BLE001  already gone
@@ -113,6 +115,7 @@ class Desk:
         """For the updater: the icon goes away before the process ends."""
         if self.shell:
             self.shell.stop()
+        self.api.mcp.stop_all()
         import os
         os._exit(0)
 

@@ -16,6 +16,12 @@
   - Choose how in Settings → Voice input: off (the default), online with Groq Whisper (fast, needs the Groq key), or on this computer with whisper.cpp (nothing leaves your PC).
   - On this computer: a one-time download of the speech engine and a model (Quick 60 MB, Better 190 MB or Best 574 MB). Every file is checked before it's used.
   - A recording stops by itself after 2 minutes. Esc cancels it.
+- **MCP servers (advanced):** connect outside tools made by other people: a program on this computer (for example `npx -y @modelcontextprotocol/server-memory`) or an https:// address. Settings → MCP servers, also in the terminal.
+  - Off by default. Turning it on first shows a window about the risks, and you have to tick "I understand the risks".
+  - Before adding a server, Lanterna shows the exact command or address it will use.
+  - Before every tool call there is a card with what goes to the server. It runs only after Confirm, unless you let that tool run without asking (window app: tick it in Settings).
+  - Keys and tokens for servers go to the system's secure store. You can paste the usual `{"mcpServers": …}` JSON from a server's page.
+  - Server answers go to the model marked as outside data, not instructions. Programs started for MCP end when Lanterna ends.
 
 ## 0.6.0 — edit and retry, save chats, memory that updates itself
 
