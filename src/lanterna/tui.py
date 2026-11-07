@@ -1890,6 +1890,8 @@ class _ChatScreen(Screen):
             if m["role"] == "user":
                 log.mount(Static(m["content"], classes="msg-user", markup=False))
             else:
+                if m.get("second"):
+                    log.mount(Static("👥 " + t("Second opinion", L(self.app)), classes="msg-note", markup=False))
                 log.mount(Markdown(m["content"], classes="msg-bot"))
                 if m.get("sent"):
                     log.mount(sent_box(m["sent"], L(self.app)))
@@ -1938,6 +1940,19 @@ class _ChatScreen(Screen):
             return
         res = self.app.api.send(self.tid, "", [], again=True)
         if not res.get("ok"):
+            return
+        self.open_thread(self.tid)
+        self._watch(res["stream"])
+
+    def action_second_opinion(self) -> None:
+        """F4: the last question to another model; its answer comes under the first one."""
+        if self.tid is None or self._stream:
+            return
+        res = self.app.api.second_opinion(self.tid)
+        if not res.get("ok"):
+            if res.get("error") in ("no_other", "enough"):
+                self.app.notify(t("No other model is free right now. Add a key for one more free service in Settings → Keys, or try later.", L(self.app))
+                                if res["error"] == "no_other" else t("Two second opinions are enough for one question.", L(self.app)), timeout=6)
             return
         self.open_thread(self.tid)
         self._watch(res["stream"])
@@ -2284,6 +2299,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+f", "attach", t("Attach", lang), priority=True),
         Binding("ctrl+o", "models", t("Models", lang), priority=True),
         Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
+        Binding("f4", "second_opinion", t("Second opinion", lang), priority=True),
         Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
         Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
         Binding("f2", "voice", t("Voice input", lang), priority=True),

@@ -350,6 +350,21 @@ def is_hard(text: str) -> bool:
     return len(text) > HARD_LENGTH or bool(_HARD.search(text))
 
 
+SECOND_NOTE = "(A second opinion from another model:)"
+
+
+def join_answers(history: list[dict]) -> list[dict]:
+    """A question with a second opinion has two answers in a row: some services refuse that, so they go as one."""
+    out: list[dict] = []
+    for m in history:
+        if (out and m.get("role") == "assistant" == out[-1].get("role") and isinstance(m.get("content"), str)
+                and isinstance(out[-1].get("content"), str) and not out[-1].get("tool_calls")):
+            out[-1] = {**out[-1], "content": f"{out[-1]['content']}\n\n{SECOND_NOTE}\n{m['content']}"}
+        else:
+            out.append(m)
+    return out
+
+
 def user_content(text: str, images: list[str] | None = None) -> str | list[dict]:
     """Plain text, or text + images (data URLs) in the OpenAI multi-part format."""
     if not images:
@@ -394,7 +409,7 @@ class Conversation:
         hint = soul.lang_hint(text, self.lang)
         if images and hint:                 # photo models listen to the user turn more than to the system prompt
             ask = f"{text}\n\n({hint})"
-        return [self._system(text), *self.history[-MAX_HISTORY:], {"role": "user", "content": user_content(ask, images)}]
+        return [self._system(text), *join_answers(self.history[-MAX_HISTORY:]), {"role": "user", "content": user_content(ask, images)}]
 
     def ask(self, text: str, images: list[str] | None = None) -> Iterator[str | Switched | ToolUse]:
         """Streams the reply, Switched notices and ToolUse chips; the cleaned reply goes to history and last_reply."""

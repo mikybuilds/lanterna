@@ -528,3 +528,8 @@ details.sent summary .i { width: 13px; height: 13px; }
 details.sent[open] summary { opacity: 1; }
 details.sent ul { margin: 6px 0 0; padding-left: 18px; }
 details.sent li { margin: 2px 0; }
+
+/* a second opinion: the same question, another model, right under the first answer */
+.msg.bot.second .body { border-left: 3px solid var(--accent, #e8a33d); padding-left: 12px; }
+.second-tag { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted, #888); margin-bottom: 6px; }
+.second-tag svg { width: 14px; height: 14px; }

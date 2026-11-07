@@ -1126,20 +1126,28 @@ function clearLastActions() { document.querySelectorAll(".last-act").forEach(x =
 function paintLastActions() {
   clearLastActions();
   const all = [...document.querySelectorAll("#msgs > .msg")];
-  const bot = all[all.length - 1], user = all[all.length - 2];
+  const bot = all[all.length - 1];
+  let ui = all.length - 1;
+  while (ui >= 0 && all[ui].classList.contains("bot")) ui--;     // a second opinion: the answers after the question
+  const user = all[ui], bots = all.slice(ui + 1);
   if (!bot || !user || !bot.classList.contains("bot") || !user.classList.contains("user") || bot.querySelector(".ask")) return;
   const edit = h(`<div class="last-act user-act"><button class="btn ghost small">${icon("edit")} ${esc(t("Edit"))}</button></div>`);
   edit.querySelector("button").onclick = async () => {
     if (busy) return;
     const r = await api.edit_last(thread);
     if (!r.ok) return;
-    bot.remove(); user.remove(); clearLastActions();
+    bots.forEach(b => b.remove()); user.remove(); clearLastActions();
     const inp = $("#input"); inp.value = r.text; inp.oninput(); inp.focus();
   };
   user.after(edit);
   const again = h(`<button class="btn ghost small last-act">${icon("refresh")} ${esc(t("Retry"))}</button>`);
-  again.onclick = () => { if (busy) return; bot.remove(); clearLastActions(); send({ retry: true, text: "", files: [], again: true }); };
+  again.onclick = () => { if (busy) return; bots.forEach(b => b.remove()); clearLastActions(); send({ retry: true, text: "", files: [], again: true }); };
   bot.querySelector(".body").append(again);
+  if (bots.length < 3) {
+    const two = h(`<button class="btn ghost small last-act" title="${esc(t("The same question to another model, to compare. The first answer stays."))}">${icon("users")} ${esc(t("Second opinion"))}</button>`);
+    two.onclick = () => { if (busy) return; clearLastActions(); send({ retry: true, text: "", files: [], second: true }); };
+    bot.querySelector(".body").append(two);
+  }
 }
 
 function showEmpty() {
@@ -1171,7 +1179,9 @@ function sentBox(lines) {
 
 function addBot(text, model, sent) {
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot"><img class="av" src="logo.svg" alt=""><div class="body"><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
+  const prev = [...document.querySelectorAll("#msgs > .msg")].pop();
+  const second = !!(prev && prev.classList.contains("bot") && text !== "");     // an answer right after an answer
+  const el = h(`<div class="msg bot${second ? " second" : ""}"><img class="av" src="logo.svg" alt=""><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
   if (text === null) el.querySelector(".md").before(h(`<div class="think"><span class="think-dot"></span><span class="think-tx">${t("Thinking…")}</span></div>`));
   else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); }
   $("#msgs").append(el); return el;
@@ -1257,7 +1267,8 @@ async function send(retryText) {
   const text = retry ? retryText.text : inp.value.trim();
   const files = retry ? retryText.files : pending;
   const again = retry && retryText.again === true;     // answer the last question again: the server replaces it
-  if ((!text && !files.length && !again) || busy) return;
+  const second = retry && retryText.second === true;   // the same question to another model, under the first answer
+  if ((!text && !files.length && !again && !second) || busy) return;
   busy = true; $("#send").disabled = true;
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
@@ -1274,11 +1285,13 @@ async function send(retryText) {
   live = { tid: thread, el: bot, sw: null };
   scrollDown(true);
   clearLastActions();
-  const r = await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
+  const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
   refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th) $("#title").textContent = th.title; });
   if (!r.ok) {
     busy = false; live = null; inp.oninput();
-    if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`; else bot.remove();
+    if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`;
+    else if (second && r.error === "no_other") box.innerHTML = `<div class="err-box">${esc(t("No other model is free right now. Add a key for one more free service in Settings → Keys, or try later."))}</div>`;
+    else { bot.remove(); if (second) paintLastActions(); }
     return;
   }
   let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false, suggesting = false, learning = false;
@@ -1332,7 +1345,7 @@ async function send(retryText) {
         : k === "file" ? p.error.message
         : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
-      box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files, again: true }); };
+      box.querySelector("button").onclick = () => { bot.remove(); send(second ? { retry: true, text: "", files: [], second: true } : { retry: true, text, files, again: true }); };
     }
     if (p.done) {
       if (live && live.el === bot) live = null;

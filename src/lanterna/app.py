@@ -68,6 +68,7 @@ class _Stream:
         self.files: list[str] = []         # attached file names
         self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
         self.parts: list[str] = []         # long files of which only the parts that fit the question went
+        self.second = False                # a second opinion: another model, lookups only, no side jobs
         self.sent = ""
         self.lock = threading.Lock()
 
@@ -534,6 +535,8 @@ class Api:
                 m["after_summary"] = True                   # the window draws "older messages are summarized" here
             if m["role"] == "user":
                 m = {**m, "content": _short_files(m["content"])}
+            elif out and out[-1]["role"] == "assistant":
+                m["second"] = True                          # a second opinion: drawn with its own small title
             m["sent"] = sent.view(m.pop("sent", ""), lang) if m["role"] == "assistant" else []
             out.append(m)
         return out
@@ -646,11 +649,14 @@ class Api:
         return True
 
     def _undo_last(self, tid: int) -> str:
-        """Takes back the last question (and its answer, if there is one); returns the question as it was saved."""
+        """Takes back the last question (and its answers: a second opinion too); returns the question as saved."""
         msgs = self.store.messages(tid)
-        if msgs and msgs[-1]["role"] == "assistant" and len(msgs) > 1 and msgs[-2]["role"] == "user":
-            self.store.trim_tail(tid, 2)
-            return msgs[-2]["content"]
+        n = 0
+        while n < len(msgs) and msgs[-1 - n]["role"] == "assistant":
+            n += 1
+        if n and n < len(msgs) and msgs[-1 - n]["role"] == "user":
+            self.store.trim_tail(tid, n + 1)
+            return msgs[-1 - n]["content"]
         if msgs and msgs[-1]["role"] == "user":                 # a question left without an answer (an error)
             self.store.trim_tail(tid, 1)
             return msgs[-1]["content"]
@@ -926,6 +932,40 @@ class Api:
         threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images, audio), daemon=True).start()
         return {"ok": True, "stream": sid}
 
+    def second_opinion(self, tid: int) -> dict:
+        """The last question again, to another model (another service first), shown under the first answer.
+        It sees the chat before the question, not the first answer, and may only look things up."""
+        tid = int(tid)
+        if any(not s.done for s in self._streams.values()):
+            return {"ok": False, "error": "busy"}
+        msgs = self.store.messages(tid) if self.store.thread(tid) else []
+        n = 0
+        while n < len(msgs) and msgs[-1 - n]["role"] == "assistant":
+            n += 1
+        if not n or n >= len(msgs) or msgs[-1 - n]["role"] != "user":
+            return {"ok": False, "error": "empty"}
+        if n >= 3:                                          # two second opinions are enough
+            return {"ok": False, "error": "enough"}
+        try:
+            router = self._get_router()
+        except ProviderError as e:
+            return {"ok": False, "error": e.kind}
+        answered = [m["model"] for m in msgs[-n:] if m.get("model")]
+        firsts = {c.provider for c in router.candidates if c.label in answered}
+        others = [c for c in router.candidates if c.label not in answered]
+        others.sort(key=lambda c: c.provider in firsts)     # another service first: a really different view
+        if not others:
+            return {"ok": False, "error": "no_other"}
+        question = msgs[-1 - n]["content"]
+        history = [{"role": m["role"], "content": m["content"]} for m in msgs[:-1 - n]]
+        sid = uuid.uuid4().hex
+        st = _Stream(self.settings.lang)
+        st.second = True
+        self._streams[sid] = st
+        threading.Thread(target=self._run, args=(sid, tid, question, history), kwargs={"router": Router(others, client_for=router._client_for)},
+                         daemon=True).start()
+        return {"ok": True, "stream": sid}
+
     # ---------------------------------------------------------------- audio files: turned into text first
     def _audio_problem(self, names: list[str]) -> str:
         """Why these audio files can't be turned into text now ("" = they can)."""
@@ -955,7 +995,7 @@ class Api:
             "(no speech found)", lang)
 
     def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None,
-             audio: list[tuple[str, bytes]] | None = None) -> None:
+             audio: list[tuple[str, bytes]] | None = None, router: Router | None = None) -> None:
         st = self._streams[sid]
         if audio:                                           # audio files: their words go with the question
             from . import voice
@@ -984,8 +1024,10 @@ class Api:
         earlier = min(len(history) - upto, MAX_HISTORY)     # earlier messages that really go to the model
         self.actions.bind(st.cards, tid)
         try:
-            router = self._get_router()
-            conv = Conversation(router, self.settings.name, history=history[upto:], toolbox=self.toolbox, summary=summary,
+            router = router or self._get_router()
+            from .tools import LookupOnly
+            conv = Conversation(router, self.settings.name, history=history[upto:],
+                                toolbox=LookupOnly(self.toolbox) if st.second else self.toolbox, summary=summary,
                                 lang=self.settings.lang, ask_first=self.settings.ask_first,
                                 ask_header=t("Questions for you:", self.settings.lang),
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
@@ -1013,10 +1055,11 @@ class Api:
                 bool(self.settings.name), len(self.store.facts()),
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
                 len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else []),
-                parts=st.parts))
+                parts=st.parts, second=st.second))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
-            self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
-            if self.settings.compact_chats and summary_due(total, upto):
+            if not st.second:                               # the first answer already named the chat, etc.
+                self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
+            if self.settings.compact_chats and summary_due(total, upto) and not st.second:
                 threading.Thread(target=self._compact, args=(tid, router, summary, upto, total), daemon=True).start()
             with st.lock:
                 st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
@@ -1048,7 +1091,7 @@ class Api:
                        "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
-                       "model": st.model}
+                       "model": st.model, "second": st.second}
             else:
                 text = "".join(st.pieces)
                 out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,

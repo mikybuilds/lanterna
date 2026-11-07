@@ -3,6 +3,7 @@
 ## Unreleased
 
 **New**
+- **Second opinion:** a button under the last answer (F4 in the terminal app) asks the same question to another model — from another service when you have one — and shows its answer right under the first one, to compare. The second model doesn't see the first answer and can only look things up (search, weather, rates, math): it never changes memory, reminders, files or your PC. Retry and Edit take both answers back.
 - **Long files: only the parts that fit your question.** A long attachment (a manual, a contract, a book) no longer sends just its start: Lanterna picks the parts that fit what you asked and says so in “What went to the model”. Press “Whole file” on the file before sending to send all of it.
 - **Scanned PDFs and more file types:** a PDF with no text layer (a scan, a photo of a document) goes to the model as pictures of its first 4 pages, so a model that sees pictures can read it. Excel (XLSX), PowerPoint (PPTX), OpenDocument (ODT, ODS, ODP) and e-books (EPUB) are read too, in chats and in folders you share.
 - **Answers read aloud:** press 🔊 under an answer (F3 in the terminal app), or let every new answer be read by itself. Choose in Settings → Voice → Reading aloud: the voices Windows already has (nothing to download), or Piper with natural voices in 7 languages. Piper is a separate free program with its own license (GPL), so it is not part of Lanterna: it is downloaded on request from its own page as pinned files checked by SHA-256, and works offline. Code and links are skipped.

@@ -393,6 +393,33 @@ GROUPS = {
 }
 
 
+LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page")
+
+
+class LookupOnly:
+    """The same toolbox, but only tools that look things up: a second opinion changes nothing (no memory,
+    reminders, files, PC or outside tools)."""
+
+    def __init__(self, box: "Toolbox"):
+        self._box = box
+        self.store = box.store
+        self.focus = ""
+        self.page_limit = PAGE_LIMIT
+
+    @property
+    def tools(self) -> dict:
+        return {k: v for k, v in self._box.tools.items() if k in LOOKUP_TOOLS}
+
+    def schemas(self, context: str | None = None) -> list[dict]:
+        return [t.schema() for t in self.tools.values()]
+
+    def run(self, name: str, arguments: str) -> str:
+        if name not in LOOKUP_TOOLS:
+            return f"Error: there is no tool called {name}."
+        self._box.focus, self._box.page_limit = self.focus, self.page_limit
+        return self._box.run(name, arguments)
+
+
 class Toolbox:
     """The tools for one app session. Memory and reminders live in the local database (store)."""
 
