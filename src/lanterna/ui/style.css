@@ -179,6 +179,16 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .iconbtn:hover { color: var(--text, #fff); background: var(--surface); }
 .iconbtn svg { width: 18px; height: 18px; }
 #save-chat { margin-left: auto; }
+/* the quick-question window: just the chat */
+body.quick .shell { grid-template-columns: 1fr; }
+body.quick .side, body.quick .top .menu, body.quick .under .fold-wrap, body.quick .under .hint,
+body.quick .empty .hero-logo, body.quick .empty .sugg { display: none; }
+body.quick .empty { min-height: 0 !important; padding-top: 40px; }
+body.quick #q-shot { margin-left: auto; }
+body.quick .chip:not([hidden]) + #q-shot { margin-left: 6px; }
+.quick-note { display: grid; place-items: center; height: 100vh; padding: 24px; text-align: center; color: var(--muted); }
+.row-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.row-field select { max-width: 220px; }
 .chip:not([hidden]) + #save-chat { margin-left: 6px; }
 .follow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .follow .btn { white-space: normal; text-align: left; height: auto; min-height: 30px; padding: 5px 12px; }

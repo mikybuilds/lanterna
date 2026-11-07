@@ -72,6 +72,7 @@ class Api:
         self._streams: dict[str, _Stream] = {}
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
         self._saved: set[str] = set()                         # files saved by export (show_saved may open these)
+        self._desk = None                                      # Windows window app: tray, hotkey, quick window (gui.Desk)
         self._follow: dict[int, tuple[threading.Event, list[str]]] = {}   # follow-up ideas being written
         self._learned: dict[int, tuple[threading.Event, list[dict]]] = {}  # facts the side model added after an answer
         self._lock = threading.Lock()
@@ -108,13 +109,23 @@ class Api:
             "model": self._router.current.label if self._router and self._router.current else "",
         }
 
+    _BOOLS = {"onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly", "space_help",
+              "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told"}
+
     def save_settings(self, patch: dict) -> dict:
-        allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
-                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory"}
-        for k, v in (patch or {}).items():
+        from . import shell
+        allowed = {"lang", "name", "mode", "provider", "hotkey"} | self._BOOLS
+        patch = dict(patch or {})
+        if "autostart" in patch:                           # lives in Windows (the Run key), not in our settings
+            from . import autostart
+            autostart.set_enabled(bool(patch.pop("autostart")))
+        if "hotkey" in patch and patch["hotkey"] not in shell.HOTKEYS:
+            patch.pop("hotkey")
+        for k, v in patch.items():
             if k in allowed:
-                setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
-                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory") else v)
+                setattr(self.settings, k, bool(v) if k in self._BOOLS else v.strip()[:40] if isinstance(v, str) else v)
+        if "hotkey" in patch and self._desk and self._desk.shell:
+            self._desk.shell.set_hotkey(self.settings.hotkey)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -583,6 +594,27 @@ class Api:
         from pathlib import Path
         d = self.places.folders().get("downloads")
         return d if d and d.is_dir() else Path.home()
+
+    # ---------------------------------------------------------------- always at hand (Windows window app)
+    def desktop_status(self) -> dict:
+        """For Settings: is the tray there, did Windows give us the hotkey, does Lanterna start with Windows."""
+        from . import autostart, shell
+        sh = self._desk.shell if self._desk else None
+        return {"available": bool(sh and sh.hwnd), "hotkey": self.settings.hotkey, "hotkey_ok": bool(sh and sh.hotkey_ok),
+                "hotkeys": [{"id": h, "label": shell.pretty_hotkey(h)} for h in shell.HOTKEYS],
+                "autostart": autostart.enabled(), "quick": False}
+
+    def quick_hide(self) -> None:
+        if self._desk:
+            self._desk.hide_quick()
+
+    def open_in_main(self, tid: int | None = None) -> None:
+        if self._desk:
+            threading.Thread(target=self._desk.open_in_main, args=(int(tid) if tid else None,), daemon=True).start()
+
+    def screenshot(self) -> dict:
+        """The screen as an attachment for the quick window ({} when there is no window app)."""
+        return self._desk.screenshot() if self._desk else {}
 
     def export_chat(self, tid: int) -> dict:
         """The chat as a Markdown file in Downloads."""

@@ -53,6 +53,10 @@ Type: filesandordirs; Name: "{app}\_internal"
 [Files]
 Source: "..\dist\Lanterna\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[Registry]
+; "Start with Windows" is written by Lanterna itself (only when the user turns it on); the uninstaller removes it.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "Lanterna"; Flags: dontcreatekey uninsdeletevalue
+
 [Icons]
 Name: "{group}\Lanterna"; Filename: "{app}\Lanterna.exe"
 Name: "{group}\{cm:UninstallProgram,Lanterna}"; Filename: "{uninstallexe}"

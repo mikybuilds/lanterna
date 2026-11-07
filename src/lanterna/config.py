@@ -38,6 +38,9 @@ class Settings:
     compact_chats: bool = True             # long chats: a side model summarizes the older part
     ask_first: bool = True                 # big tasks: the model may ask 1-4 questions with options first
     auto_memory: bool = False              # a side model adds lasting facts about the user to Memory (shown, undoable)
+    tray: bool = True                      # Windows: closing the window keeps Lanterna in the tray
+    tray_told: bool = False                # the "still running in the tray" notice was shown once
+    hotkey: str = "ctrl+shift+space"       # Windows: opens the quick-question window ("" = off)
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     profile_at: float = 0                  # when name or language last changed (newest wins when syncing)

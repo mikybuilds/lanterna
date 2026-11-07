@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **Always at hand (Windows):** Lanterna lives next to the clock. Closing the window keeps it running in the tray (Settings → Always at hand). Quit it from the tray icon's menu.
+- **Quick question:** press Ctrl+Shift+Space anywhere to open a small window, ask, and close it with Esc. "Open in Lanterna" continues the chat in the big window. You can pick another hotkey or turn it off in Settings.
+- **Ask about your screen:** the camera button in the quick window, or "Ask about my screen" in the tray menu, attaches a screenshot to your question.
+- **Start with Windows:** off by default. When it's on, Lanterna starts hidden in the tray.
+
 ## 0.6.0 — edit and retry, save chats, memory that updates itself
 
 **New**

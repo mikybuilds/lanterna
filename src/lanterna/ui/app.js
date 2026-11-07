@@ -2,6 +2,7 @@
 // Lanterna window UI. Talks to the Python backend through pywebview (window) or HTTP (dev mode, ?token=…).
 
 const TOKEN = new URLSearchParams(location.search).get("token");
+const QUICK = location.hash === "#quick";      // the small quick-question window (Windows, hotkey / tray)
 const api = new Proxy({}, {
   get: (_, name) => (...args) => window.pywebview && window.pywebview.api
     ? window.pywebview.api[name](...args)
@@ -510,6 +511,13 @@ async function boot() {
   S = await api.state();
   LANG = S.settings.lang || "en";
   document.documentElement.lang = LANG;
+  if (QUICK) {
+    const ready = S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local");
+    if (ready) return renderQuick();
+    $("#app").className = "";
+    $("#app").innerHTML = `<div class="quick-note">${esc(t("Finish setting up Lanterna in the main window first."))}</div>`;
+    return;
+  }
   // dev mode only (browser + token): open one screen directly, used to take the README screenshots
   const view = TOKEN && new URLSearchParams(location.search).get("view");
   if (view === "local") return renderOnboard("L");
@@ -837,10 +845,47 @@ function renderMain() {
   $("#lim").onclick = () => { openSettings(); setTimeout(() => { const l = $("#limits"); if (l) l.scrollIntoView({ block: "center" }); }, 300); };
   $("#fold").onclick = e => { e.stopPropagation(); folderMenu(); };
   paintLimit();
-  refreshThreads().then(list => openThread(list.length ? list[0].id : null));
+  refreshThreads().then(list => openThread(!QUICK && list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
-  if (!window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
+  if (!QUICK && !window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
 }
+
+// ---------------------------------------------------------------- the quick-question window (Windows)
+let quickAt = 0;
+function renderQuick() {
+  renderMain();
+  document.body.classList.add("quick");
+  $(".top").innerHTML = `<div class="title" id="title">${esc(t("Quick question"))}</div><div class="chip" id="model" hidden><i></i><span></span></div>
+    <button class="iconbtn" id="q-shot" title="${esc(t("Attach a screenshot"))}">${icon("camera")}</button>
+    <button class="iconbtn" id="q-open" title="${esc(t("Open in Lanterna"))}">${icon("ext")}</button>
+    <button class="iconbtn" id="q-close" title="${esc(t("Close"))}">${icon("x")}</button>`;
+  api.models(false).then(r => setModel(r.current));
+  $("#q-shot").onclick = async () => {
+    const f = await api.screenshot();
+    if (f && f.data) { pending.push(f); paintFiles(); $("#input").oninput(); }
+    $("#input").focus();
+  };
+  $("#q-open").onclick = () => api.open_in_main(thread);
+  $("#q-close").onclick = () => api.quick_hide();
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.querySelector(".veil")) api.quick_hide(); });
+}
+
+// called by the app when the hotkey (or the tray) opens the quick window; file = a screenshot to attach
+window.quickOpen = file => {
+  if (!$("#input")) return;
+  const stale = Date.now() - quickAt > 10 * 60 * 1000;          // back within 10 minutes: the same quick chat
+  quickAt = Date.now();
+  if (stale && !busy) openThread(null);
+  if (file && file.data) { pending.push(file); paintFiles(); $("#input").oninput(); }
+  setTimeout(() => $("#input").focus(), 60);
+};
+
+// the main window comes back from the tray (maybe with a quick chat to go on with)
+window.onShown = tid => {
+  if (!$("#threads")) return;
+  refreshThreads();
+  if (tid) openThread(tid);
+};
 
 function setModel(label) {
   const c = $("#model");
@@ -917,7 +962,7 @@ async function openThread(id) {
   paintFolder();
   const msgs = $("#msgs");
   msgs.innerHTML = "";
-  if (!id) { $("#title").textContent = "Lanterna"; showEmpty(); refreshThreads(); $("#input").focus(); return; }
+  if (!id) { $("#title").textContent = QUICK ? t("Quick question") : "Lanterna"; showEmpty(); refreshThreads(); $("#input").focus(); return; }
   const [list, items] = await Promise.all([api.threads(), api.messages(id)]);
   const th = list.find(x => x.id === id);
   $("#title").textContent = (th && th.title) || t("New chat");
@@ -1156,6 +1201,15 @@ function openSettings() {
         <span><b>${t("Learn about me from chats")}</b><small>${t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.")}</small></span></label>
       <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
       <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
+      <div id="desk-set" hidden>
+      <h4 style="margin-top:22px">${t("Always at hand")}</h4>
+      <label class="check"><input type="checkbox" id="tray" ${S.settings.tray !== false ? "checked" : ""}>
+        <span><b>${t("Keep Lanterna in the tray")}</b><small>${t("Closing the window keeps Lanterna running next to the clock: reminders and regular tasks still work, and the hotkey opens a quick question. Quit from the tray icon's menu.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="autostart">
+        <span><b>${t("Start with Windows")}</b><small>${t("Lanterna starts hidden in the tray when you sign in to Windows.")}</small></span></label>
+      <div class="row-field"><span>${t("Quick question hotkey")}</span><select class="field" id="hotkey"></select></div>
+      <small class="muted" id="hotkey-warn" hidden style="display:block;margin-top:6px">${t("Another app already uses this hotkey. Pick another one.")}</small>
+      </div>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
         <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
@@ -1196,6 +1250,19 @@ function openSettings() {
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }
     $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
+    api.desktop_status().then(d => {             // Windows window app: tray, Start with Windows, hotkey
+      const box = $("#desk-set", body);
+      if (!box || !d.available) return;
+      box.hidden = false;
+      const tr = $("#tray", body), au = $("#autostart", body), hk = $("#hotkey", body), warn = $("#hotkey-warn", body);
+      au.checked = d.autostart;
+      hk.innerHTML = d.hotkeys.map(x => `<option value="${esc(x.id)}">${esc(x.id ? x.label : t("Off"))}</option>`).join("");
+      hk.value = d.hotkey;
+      warn.hidden = !d.hotkey || d.hotkey_ok;
+      tr.onchange = async () => { S = await api.save_settings({ tray: tr.checked }); };
+      au.onchange = async () => { await api.save_settings({ autostart: au.checked }); au.checked = (await api.desktop_status()).autostart; };
+      hk.onchange = async () => { S = await api.save_settings({ hotkey: hk.value }); const n = await api.desktop_status(); warn.hidden = !n.hotkey || n.hotkey_ok; };
+    });
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();

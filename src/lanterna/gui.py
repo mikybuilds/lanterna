@@ -1,6 +1,7 @@
 """The window app.
 
   lanterna-gui              native window (Windows: Edge WebView2)
+  lanterna-gui --tray       Windows: start hidden in the tray (used by "Start with Windows")
   lanterna-gui --browser    same UI in your browser on 127.0.0.1 (for development and testing)
 """
 from __future__ import annotations
@@ -13,6 +14,7 @@ import secrets
 import shutil
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -26,18 +28,183 @@ METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "mod
            "cards", "pc_undo", "chat_folder", "set_chat_folder", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",
            "github_status", "github_connect", "github_cancel", "github_disconnect", "drive_status", "drive_connect", "drive_cancel", "drive_disconnect", "bug_report", "open_mail",
            "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out",
-           "doctor", "history_list", "history_undo", "history_clear", "install_ollama"}
+           "doctor", "history_list", "history_undo", "history_clear", "install_ollama",
+           "desktop_status", "quick_hide", "open_in_main", "screenshot"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 
-def run_window() -> int:
+class Desk:
+    """Windows: the tray icon, the hotkey, the small quick-question window and screenshots.
+
+    Closing the main window hides it while "Keep Lanterna in the tray" is on; Quit in the tray menu ends the app.
+    """
+
+    def __init__(self, api: Api, main, quick):
+        self.api, self.main, self.quick = api, main, quick
+        self.shell = None
+        self.quitting = False
+        self.quick_shown = False
+        self.main_shown = True
+
+    def start(self) -> None:
+        """Runs once the windows exist: puts the icon in the tray and takes the hotkey."""
+        from . import shell
+        self.shell = shell.Shell("Lanterna", UI / "lanterna.ico", self._menu, on_click=self.show_main,
+                                 on_hotkey=self.toggle_quick, hotkey=self.api.settings.hotkey)
+        if not self.shell.start():
+            self.shell = None
+        self.api.updater.quit_app = self.quit_now        # an update closes Lanterna: take the tray icon away first
+
+    def _menu(self) -> list:
+        from .i18n import t
+        from .shell import pretty_hotkey
+        lang, hk = self.api.settings.lang, self.api.settings.hotkey
+        quick = t("Quick question", lang) + (f"\t{pretty_hotkey(hk)}" if hk and self.shell and self.shell.hotkey_ok else "")
+        return [(t("Open Lanterna", lang), self.show_main), (quick, self.toggle_quick),
+                (t("Ask about my screen", lang), self.ask_screen), None, (t("Quit", lang), self.quit)]
+
+    @property
+    def in_tray(self) -> bool:
+        return bool(self.shell and self.shell.hwnd and self.api.settings.tray)
+
+    # ---------------------------------------------------------------- closing
+    def main_closing(self) -> bool:
+        """The main window's X: hide to the tray (False = don't close) or end the app."""
+        if self.quitting or not self.in_tray:
+            self.quitting = True
+            threading.Thread(target=self._end, daemon=True).start()
+            return True
+        self.main.hide()
+        self.main_shown = False
+        if not self.api.settings.tray_told:
+            from . import notify
+            from .i18n import t
+            msg = t("Lanterna keeps running in the tray. To quit, right-click its icon and choose Quit.", self.api.settings.lang)
+            threading.Thread(target=notify.notify, args=("Lanterna", msg), daemon=True).start()
+            self.api.save_settings({"tray_told": True})
+        return False
+
+    def quick_closing(self) -> bool:
+        if self.quitting:
+            return True
+        self.hide_quick()
+        return False
+
+    def _end(self) -> None:
+        """The main window is going: close the quick window and the tray too, so the app really ends."""
+        if self.shell:
+            self.shell.stop()
+        try:
+            self.quick.destroy()
+        except Exception:                                   # noqa: BLE001  already gone
+            pass
+
+    def quit(self) -> None:
+        self.quitting = True
+        self._end()
+        try:
+            self.main.destroy()
+        except Exception:                                   # noqa: BLE001
+            pass
+
+    def quit_now(self) -> None:
+        """For the updater: the icon goes away before the process ends."""
+        if self.shell:
+            self.shell.stop()
+        import os
+        os._exit(0)
+
+    # ---------------------------------------------------------------- windows
+    def show_main(self, tid: int | None = None) -> None:
+        self.main.show()
+        self.main.restore()
+        self.main_shown = True
+        self.main.evaluate_js(f"window.onShown && onShown({json.dumps(tid)})")
+
+    def hide_quick(self) -> None:
+        self.quick.hide()
+        self.quick_shown = False
+
+    def toggle_quick(self, file: dict | None = None) -> None:
+        if self.quick_shown and not file:
+            return self.hide_quick()
+        self.quick.evaluate_js(f"window.quickOpen && quickOpen({json.dumps(file)})")
+        self.quick.show()
+        self.quick.restore()
+        self.quick_shown = True
+
+    def open_in_main(self, tid: int | None) -> None:
+        """"Open in Lanterna": the quick chat goes on in the big window."""
+        self.hide_quick()
+        self.show_main(tid)
+
+    # ---------------------------------------------------------------- screenshots
+    @staticmethod
+    def grab() -> dict:
+        """The screen as a PNG attachment ({name, size, data}); {} if it can't be taken."""
+        import base64
+        import io
+
+        from PIL import ImageGrab
+        try:
+            img = ImageGrab.grab()
+        except OSError:
+            return {}
+        buf = io.BytesIO()
+        img.save(buf, "PNG", optimize=True)
+        data = buf.getvalue()
+        return {"name": time.strftime("screen-%H%M%S.png"), "size": len(data), "data": base64.b64encode(data).decode()}
+
+    def screenshot(self) -> dict:
+        """The quick window's camera button: hide it for a moment, take the screen, come back."""
+        was = self.quick_shown
+        if was:
+            self.quick.hide()
+            time.sleep(0.35)                               # let the window really disappear first
+        try:
+            return self.grab()
+        finally:
+            if was:
+                self.quick.show()
+
+    def ask_screen(self) -> None:
+        """Tray: take the screen as it is now and open a quick question with it attached."""
+        file = self.grab()
+        if file:
+            self.toggle_quick(file)
+
+
+def run_window(start_hidden: bool = False) -> int:
     import webview
 
+    if sys.platform == "win32":
+        from . import shell
+        if shell.tell_running_copy():                       # Lanterna already runs: it shows its window instead
+            return 0
     api = Api()
     fresh_ui_cache(api.store.path.parent / "webview")
-    webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=api, width=1120, height=780,
-                          min_size=(720, 540), background_color="#0B0E17", text_select=True)
-    webview.start(private_mode=False, storage_path=str(api.store.path.parent / "webview"))
+    desk_ok = sys.platform == "win32"
+    hidden = start_hidden and desk_ok and api.settings.tray
+    main = webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=api, width=1120, height=780,
+                                 min_size=(720, 540), background_color="#0B0E17", text_select=True, hidden=hidden)
+    storage = str(api.store.path.parent / "webview")
+    if not desk_ok:
+        webview.start(private_mode=False, storage_path=storage)
+        return 0
+    try:                                                    # the quick window opens in the upper middle of the screen
+        scr = webview.screens[0]
+        x, y = max(0, (scr.width - 640) // 2), max(0, scr.height // 5)
+    except Exception:                                       # noqa: BLE001
+        x = y = None
+    quick = webview.create_window("Lanterna", url=str(UI / "index.html") + "#quick", js_api=api, width=640,
+                                  height=470, x=x, y=y, min_size=(420, 320), background_color="#0B0E17",
+                                  text_select=True, hidden=True, on_top=True)
+    desk = Desk(api, main, quick)
+    desk.main_shown = not hidden
+    api._desk = desk
+    main.events.closing += desk.main_closing
+    quick.events.closing += desk.quick_closing
+    webview.start(desk.start, private_mode=False, storage_path=storage)
     return 0
 
 
@@ -147,11 +314,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--browser", action="store_true", help="open the UI in a browser instead of a window")
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--no-open", action="store_true")
+    ap.add_argument("--tray", action="store_true", help="Windows: start hidden in the tray")
     ap.add_argument("--selfcheck", metavar="REPORT.json", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
     if a.selfcheck:
         return selfcheck(a.selfcheck)
-    return run_browser(a.port, not a.no_open) if a.browser else run_window()
+    return run_browser(a.port, not a.no_open) if a.browser else run_window(start_hidden=a.tray)
 
 
 if __name__ == "__main__":
