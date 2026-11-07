@@ -95,6 +95,11 @@ def _error(resp: httpx.Response) -> ProviderError:
     return ProviderError(kind, msg or f"HTTP {s}", s, wait)
 
 
+# An online model that hasn't started answering by now is stuck (some new Gemini models hang for minutes):
+# the router moves on to the next one. Once the answer flows, the usual timeout applies between pieces.
+FIRST_WAIT = 30.0
+
+
 class Client:
     def __init__(self, provider: Provider, key: str | None = None, *, transport: httpx.BaseTransport | None = None,
                  timeout: float = 60.0):
@@ -103,6 +108,7 @@ class Client:
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         headers["User-Agent"] = "Lanterna"
         self.provider = provider
+        self._timeout = timeout
         self._http = httpx.Client(base_url=provider.base_url, headers=headers, timeout=timeout, transport=transport)
 
     def close(self) -> None:
@@ -168,8 +174,13 @@ class Client:
             body["extra_body"] = {"google": {"thinking_config": {"include_thoughts": True}}}
         think = _ThinkFilter()
         calls: dict[int, dict] = {}
+        # online services send the headers together with the first piece: a short wait for them, then the usual one
+        first = {} if self.provider.local else {"timeout": httpx.Timeout(self._timeout, read=min(FIRST_WAIT, self._timeout))}
         try:
-            with self._http.stream("POST", "chat/completions", json=body) as r:
+            with self._http.stream("POST", "chat/completions", json=body, **first) as r:
+                limits = r.request.extensions.get("timeout")
+                if first and isinstance(limits, dict):       # read before the body starts, so the body gets the usual wait
+                    limits["read"] = self._timeout
                 if r.status_code != 200:
                     r.read()
                     err = _error(r)

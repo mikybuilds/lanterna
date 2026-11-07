@@ -506,6 +506,7 @@ async function watchAlerts() {
 let S = null;          // backend state
 let thread = null;     // current thread id
 let busy = false;
+let live = null;              // the answer being written: {tid, el, sw}, so a redrawn chat can show it again
 
 async function boot() {
   document.body.prepend($("#tpl-icons").content.cloneNode(true));
@@ -1012,7 +1013,10 @@ async function openThread(id) {
     if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
     m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent);
   });
-  const waiting = await api.cards(id);               // changes still waiting for Confirm: not kept in the history
+  // an answer still coming in this chat: put its live bubble ("Thinking…", switch note, cards) back at the end
+  const back = busy && live && live.tid === id && thread === id && items.length && items[items.length - 1].role === "user";
+  if (back) { if (live.sw) msgs.append(live.sw); msgs.append(live.el); }
+  const waiting = back ? [] : await api.cards(id);    // changes still waiting for Confirm: not kept in the history
   if (waiting.length && thread === id) {               // at the end: the reply that proposed them may still be coming
     const last = msgs.lastElementChild;
     const host = last && last.classList.contains("bot") ? last : addBot("");
@@ -1020,7 +1024,7 @@ async function openThread(id) {
     waiting.forEach(c => box.append(actCard(c)));
     host.querySelector(".md").after(box);
   }
-  paintLastActions();
+  if (!back) paintLastActions();                       // Retry / Edit come when the live answer is done
   refreshThreads();
   scrollDown(true);
   $("#input").focus();
@@ -1107,12 +1111,13 @@ async function send(retryText) {
   }
   const bot = addBot(null);
   const box = bot.querySelector(".md");
+  live = { tid: thread, el: bot, sw: null };
   scrollDown(true);
   clearLastActions();
   const r = await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
   refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th) $("#title").textContent = th.title; });
   if (!r.ok) {
-    busy = false; inp.oninput();
+    busy = false; live = null; inp.oninput();
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`; else bot.remove();
     return;
   }
@@ -1135,7 +1140,8 @@ async function send(retryText) {
     try { p = await api.poll(r.stream, offset); } catch (e) { p = { done: true, error: { kind: "network", message: String(e) } }; }
     (p.notes || []).slice(notes).forEach((m, i) => {   // one line, updated: not a ladder of "switched to" notes
       let sw = bot.previousElementSibling;
-      if (!sw || !sw.classList.contains("switch")) { sw = h(`<div class="switch"></div>`); bot.before(sw); }
+      if (!sw || !sw.classList.contains("switch")) { sw = h(`<div class="switch"></div>`); if (bot.isConnected) bot.before(sw); }
+      if (live && live.el === bot) live.sw = sw;
       const tried = notes + i + 2;                        // the first model plus every switch so far
       sw.textContent = "↪ " + t("switched to {m}", { m }) + (tried > 2 ? " " + t("(tried {n} models)", { n: tried }) : "");
       setModel(m);
@@ -1163,6 +1169,7 @@ async function send(retryText) {
       box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files, again: true }); };
     }
     if (p.done) {
+      if (live && live.el === bot) live = null;
       thinkDone(p.error ? [] : p.steps); busy = false; inp.oninput(); paintLimit();
       if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
       else if (!p.error && thread === sentTo) paintLastActions();

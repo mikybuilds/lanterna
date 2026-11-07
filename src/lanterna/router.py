@@ -12,7 +12,7 @@ from .providers import PROVIDERS, Client, ProviderError, ToolCalls
 # How long to skip a model (or a whole provider) after each kind of failure, in seconds.
 QUICK_SCORE = 70         # side jobs: a model near this score (good enough, fast), not the best one
 MAX_WAIT = 12            # seconds worth waiting for a rate limit instead of failing
-COOLDOWN = {"rate": 60, "network": 30, "timeout": 15 * 60, "dropped": 30, "other": 60, "bad_request": 24 * 3600,
+COOLDOWN = {"rate": 60, "network": 30, "timeout": 60 * 60, "dropped": 30, "other": 60, "bad_request": 24 * 3600,
             "auth": 3600}
 
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- **A question could look stuck for minutes.** Some new online models (for example gemini-3.7-flash) accept a question and then say nothing. Lanterna now gives an online model 30 seconds to start answering, then moves on to the next one and leaves the silent one alone for an hour. A slow answer that has already started is not cut off.
+- **"Thinking…" disappeared** when the chat was redrawn while an answer was still coming (opening the window from the tray, clicking the chat in the list). Now the live answer stays in place, and Retry / Edit show up only when it's done.
+
 ## 1.0.0 — always at hand, regular tasks, voice and MCP
 
 **New**
