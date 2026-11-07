@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — a smarter chat: questions first, chat names, follow-ups, long chats
 
 **New**
 - **Chat names:** after the first answer, a fast model gives a new chat a short name in your language (for example "Феррара за один день") instead of the first line of your message. A name you typed yourself is kept. Settings → Chats → "Name new chats automatically" (on by default; one small extra request).
