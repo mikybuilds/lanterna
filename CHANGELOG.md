@@ -3,6 +3,7 @@
 ## Unreleased
 
 **New**
+- **Morning summary** (Settings → Reminders, off by default): once a day at the time you pick, a short note for the day — the weather in your city, today's reminders and regular tasks. It is made on your computer without a model; only the weather comes from Open-Meteo, and only if you set a city. “Show it now” previews it.
 - **Repeating reminders:** “remind me every day at 9 to take my pills” makes a reminder that comes back every day, on weekdays, every week or every month. It needs no model and no internet: just the reminder at its time. Missed times (the PC was off) are skipped, not shown one by one. Settings → Reminders marks them with 🔁.
 - **Snooze 10 min:** a reminder in the window has a “Snooze 10 min” button (F8 in the terminal app). A repeating reminder keeps its own time.
 - **Search your chats:** the box above the chat list finds words in chat names and messages (any case, any language). Click a result: the chat opens at the first message with those words. In the terminal app too.

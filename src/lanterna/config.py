@@ -57,6 +57,11 @@ class Settings:
     space_help: bool = False               # pc_space tool + a note when the disk is almost full
     local_fallback: bool = True            # cloud mode: a local model answers when online limits run out / offline
     space_last: float = 0
+    morning: bool = False                  # a short note for the day at morning_at (weather, reminders, tasks)
+    morning_at: str = "08:00"
+    morning_city: str = ""                 # the weather line; "" = no weather
+    morning_last: str = ""                 # the day (YYYY-MM-DD) the last note was shown
+    morning_thread: int = 0                # the chat the notes go to
     onboarded: bool = False
 
     @classmethod

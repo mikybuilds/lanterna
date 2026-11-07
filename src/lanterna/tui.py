@@ -1020,6 +1020,14 @@ class SettingsScreen(ModalScreen[str]):
                 yield Button(t("Add", lang), id="addfact")
             yield Label(t("Reminders", lang), classes="h")
             yield Vertical(id="rems")
+            st = self.app.api.settings
+            yield Checkbox(t("Morning summary", lang), st.morning, id="morning")
+            yield Static(t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.", lang), classes="muted")
+            with Horizontal(classes="keyrow"):
+                yield Input(st.morning_at, placeholder="08:00", id="morningat")
+                yield Input(st.morning_city, placeholder=t("City for the weather (optional)", lang), id="morningcity")
+                yield Button(t("Save", lang), id="morningsave")
+                yield Button(t("Show it now", lang), id="morningshow")
             yield Label(t("Regular tasks", lang), classes="h")
             yield Static(t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.", lang), classes="muted")
             yield Vertical(id="tasks")
@@ -1342,6 +1350,14 @@ class SettingsScreen(ModalScreen[str]):
                 self.app.api.add_fact(box.value)
                 box.value = ""
                 self._fill_memory()
+        elif bid == "morningsave":
+            self.app.api.save_settings({"morning_at": self.query_one("#morningat", Input).value,
+                                        "morning_city": self.query_one("#morningcity", Input).value})
+            self.query_one("#morningat", Input).value = self.app.api.settings.morning_at
+            self.app.notify(t("Saved", L(self.app)), timeout=3)
+        elif bid == "morningshow":
+            self.app.notify(self.app.api.morning_preview(), title="☀️ " + t("Morning summary", L(self.app)),
+                            timeout=20, markup=False)
         elif bid.startswith("rem-"):
             self.app.api.cancel_reminder(int(bid[4:]))
             self._fill_memory()
@@ -1378,6 +1394,10 @@ class SettingsScreen(ModalScreen[str]):
             self.app.push_screen(LocalScreen())
         elif bid == "close":
             self.action_close()
+
+    @on(Checkbox.Changed, "#morning")
+    def _morning(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"morning": ev.value})
 
     @on(Checkbox.Changed, "#tidyweekly")
     def _tidy(self, ev: Checkbox.Changed) -> None:
@@ -2238,6 +2258,7 @@ class LanternaApp(App):
             self.bell()
             kind = a.get("kind")
             title = ("🧹 " + t("Weekly tidy-up", L(self)) if kind == "tidy" else "💾 " + t("Disk space", L(self)) if kind == "space"
+                     else "☀️ " + t("Morning summary", L(self)) if kind == "morning"
                      else "🔁 " + t("Regular task", L(self)) if kind == "task" else "⏰ " + t("Reminder", L(self)))
             text = a["text"]
             if not kind and a.get("id"):

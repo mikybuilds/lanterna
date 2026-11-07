@@ -508,7 +508,7 @@ async function watchAlerts() {
   try {
     const list = await api.alerts();
     list.forEach(a => a.kind
-      ? toast((a.kind === "tidy" ? "🧹 " : a.kind === "task" ? "🔁 " : "💾 ") + a.text, true)
+      ? toast((a.kind === "tidy" ? "🧹 " : a.kind === "task" ? "🔁 " : a.kind === "morning" ? "☀️ " : "💾 ") + a.text, true)
       : toast(`⏰ ${t("Reminder")}: ${a.text}`, true, a.id ? {
           label: t("Snooze 10 min"),
           run: async () => { if (await api.snooze_reminder(a.id, 10)) toast(t("I'll remind you again in 10 minutes.")); },
@@ -1323,6 +1323,13 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Reminders")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>
       <div id="rems"></div>
+      <label class="check"><input type="checkbox" id="morning" ${S.settings.morning ? "checked" : ""}>
+        <span><b>${t("Morning summary")}</b><small>${t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.")}</small></span></label>
+      <div class="morning-set" ${S.settings.morning ? "" : "hidden"}>
+        <input class="field" id="morning-at" type="time" value="${esc(S.settings.morning_at || "08:00")}">
+        <input class="field" id="morning-city" maxlength="40" placeholder="${esc(t("City for the weather (optional)"))}" value="${esc(S.settings.morning_city || "")}">
+        <button class="btn ghost small" id="morning-show">${t("Show it now")}</button>
+      </div>
       <h4 style="margin-top:22px">${t("Regular tasks")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.")}</p>
       <div id="tasks"></div>
@@ -1435,6 +1442,14 @@ function openSettings() {
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }
     $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
+    const mo = $("#morning", body);
+    mo.onchange = async () => { S = await api.save_settings({ morning: mo.checked }); $(".morning-set", body).hidden = !mo.checked; };
+    $("#morning-at", body).onchange = async e => { S = await api.save_settings({ morning_at: e.target.value }); };
+    $("#morning-city", body).onchange = async e => { S = await api.save_settings({ morning_city: e.target.value.trim() }); };
+    $("#morning-show", body).onclick = async e => {
+      e.target.disabled = true;
+      try { toast("☀️ " + await api.morning_preview(), true); } finally { e.target.disabled = false; }
+    };
     paintVoice();
     paintMcp();
     $("#mcp-on", body).onchange = async e => {

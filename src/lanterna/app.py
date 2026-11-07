@@ -153,12 +153,15 @@ class Api:
 
     _BOOLS = {"onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly", "space_help",
               "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told",
-              "hotkey_moved", "copied_text"}
+              "hotkey_moved", "copied_text", "morning"}
 
     def save_settings(self, patch: dict) -> dict:
         from . import shell
         from . import voice
-        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model"} | self._BOOLS
+        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model", "morning_city"} | self._BOOLS
+        if "morning_at" in (patch or {}):
+            from .tasks import clean_time
+            self.settings.morning_at = clean_time(str(patch.get("morning_at") or ""), self.settings.morning_at)
         if patch.get("voice", "off") not in voice.ENGINES:
             patch.pop("voice")
         if patch.get("voice_model", "small") not in voice.MODELS:
@@ -1134,6 +1137,35 @@ class Api:
                 self._alerts += due
         return due
 
+    # ---------------------------------------------------------------- the morning summary
+    def check_morning(self, now: dt.datetime | None = None) -> str:
+        """Once a day after Settings → Morning summary time: the note goes to its chat, a notification and the
+        in-app notice. "" when it isn't time."""
+        from . import morning
+        now = now or dt.datetime.now()
+        s = self.settings
+        if not morning.due(s.morning, s.morning_at, s.morning_last, now):
+            return ""
+        s.morning_last = now.strftime("%Y-%m-%d")       # marked first: never twice, even if the weather is slow
+        s.save()
+        text = morning.build(self.store, s.name, s.morning_city, s.lang, now)
+        th = s.morning_thread
+        if not th or not self.store.thread(th):
+            th = self.store.new_thread("☀️ " + t("Morning summary", s.lang))
+            s.morning_thread = th
+            s.save()
+        self.store.add(th, "assistant", text)
+        notify("Lanterna ☀️", text[:300])
+        with self._lock:
+            self._alerts.append({"kind": "morning", "text": text.split("\n", 1)[-1][:240], "tid": th})
+        return text
+
+    def morning_preview(self) -> str:
+        """Settings → "Show it now": today's note, without saving it anywhere."""
+        from . import morning
+        s = self.settings
+        return morning.build(self.store, s.name, s.morning_city, s.lang, dt.datetime.now())
+
     # ---------------------------------------------------------------- regular tasks
     def check_tasks(self, now: float | None = None) -> int:
         """Starts the tasks whose time has come (each in its own thread); a run missed by hours is skipped."""
@@ -1288,6 +1320,7 @@ class Api:
             try:
                 self.check_reminders()
                 self.check_tasks()
+                self.check_morning()
                 if time.time() - last_check > 3600:
                     last_check = time.time()
                     self.maintenance()
