@@ -77,6 +77,78 @@ class ToolUse:
     arguments: str = ""
 
 
+@dataclass
+class Questions:
+    """Yielded when the model asks the user a few questions before a big task (the UI shows a small form).
+    items: [{"question": str, "options": [str], "multi": bool}]."""
+    items: list[dict]
+
+
+# ------------------------------------------------------------------ the mini-questionnaire before a big task
+ASK_MARK = "❓"            # starts the saved text of a questionnaire: the next answer must not ask again
+ASK_TOOL = {"type": "function", "function": {
+    "name": "ask_user",
+    "description": "Before a big task (writing a program or app, a plan, a project, a long text) whose result depends "
+                   "on choices you can't know — language, level, length, style, what exactly it must do — ask the "
+                   "user 1-4 short questions with 2-4 options each instead of guessing. Don't use it for simple "
+                   "questions or when the message already says enough. After calling it, stop: the answers come in "
+                   "the user's next message.",
+    "parameters": {"type": "object", "required": ["questions"], "properties": {"questions": {
+        "type": "array", "minItems": 1, "maxItems": 4, "items": {
+            "type": "object", "required": ["question", "options"], "properties": {
+                "question": {"type": "string", "description": "short, in the user's language"},
+                "options": {"type": "array", "items": {"type": "string"}, "description": "2-4 short choices"},
+                "multi": {"type": "boolean", "description": "true if several options can be chosen"}}}}}}}}
+_BIG = re.compile(r"(напиш|створ|зроб|розроб|склад|придума|допоможи (з|зробити|написати))\w*\s+(\w+\s+){0,3}?"
+                  r"(програм|додат|застосун|гр[уи]\b|сайт|скрипт|бот|план|проєкт|проект|презентац|твір|реферат|"
+                  r"есе|курсов|розклад|резюме|калькулятор|функці|алгоритм)|"
+                  r"(write|create|build|make|develop|design|plan)\s+(me\s+)?(\w+\s+){0,3}?"
+                  r"(program|app|game|website|site|script|bot|plan|project|presentation|essay|report|resume|cv|"
+                  r"calculator|function|algorithm)|"
+                  r"(scriv|crea|fa[im]|svilupp|prepar|progett)\w*\s+(\w+\s+){0,3}?"
+                  r"(programm|app|gioc|sito|script|bot|piano|progett|presentazion|tema|saggio|relazion|curricul)", re.I)
+
+
+ASK_HINT = ("\n\nThis message asks for something big. If the result depends on choices you can't know, call ask_user "
+            "once with 1-4 short questions and options (the user gets buttons) and stop — never ask such questions in "
+            "plain text. If the message already says enough, just do the task.")
+
+
+def big_task(text: str) -> bool:
+    """A request to make something sizeable: worth a few questions first."""
+    return bool(_BIG.search(text or ""))
+
+
+def clean_questions(arguments: str) -> list[dict]:
+    """The model's questions, checked and trimmed: 1-4 questions, up to 4 short options each."""
+    try:
+        raw = json.loads(arguments or "{}").get("questions") or []
+    except (ValueError, AttributeError):
+        return []
+    out = []
+    for q in raw if isinstance(raw, list) else []:
+        if not isinstance(q, dict) or not str(q.get("question") or "").strip():
+            continue
+        opts = [" ".join(str(o).split())[:80] for o in (q.get("options") or []) if str(o).strip()]
+        out.append({"question": " ".join(str(q["question"]).split())[:200], "options": opts[:4],
+                    "multi": bool(q.get("multi"))})
+    return out[:4]
+
+
+def questions_text(items: list[dict], header: str) -> str:
+    """How a questionnaire is kept in the chat history (and shown when the chat is opened again)."""
+    lines = [f"{ASK_MARK} {header}"]
+    for i, q in enumerate(items, 1):
+        lines.append(f"{i}. {q['question']}" + (f" ({' / '.join(q['options'])})" if q["options"] else ""))
+    return "\n".join(lines)
+
+
+def asked_just_now(history: list[dict]) -> bool:
+    """The last answer was a questionnaire: this message answers it, so don't ask again."""
+    last = next((m for m in reversed(history) if m.get("role") == "assistant"), None)
+    return bool(last) and str(last.get("content") or "").startswith(ASK_MARK)
+
+
 TOOLS_GUIDE = (
     "Tools: you can call tools. Use them instead of guessing: weather for weather and air quality, web_search "
     "(then read_page if needed) for fresh facts, news, prices or anything you are not sure about — including exact "
@@ -257,6 +329,8 @@ class Conversation:
     lang: str = "en"                       # app language, a hint for which language to reply in
     auto_cloud: bool = False               # auto mode: hard questions go to online models first
     summary: str = ""                      # a long chat: the summary of its older part (not in history)
+    ask_first: bool = False                # big tasks: the model may ask 1-4 questions first (ask_user)
+    ask_header: str = "Questions for you:"  # how a questionnaire starts in the saved chat (in the app's language)
 
     def _system(self, text: str) -> dict:
         cur = self.router.current
@@ -292,6 +366,10 @@ class Conversation:
         pieces: list[str] = []
         done: list[tuple[str, str]] = []      # tool calls already run in this answer
         cloud_first = self.auto_cloud and is_hard(text)
+        if schemas is not None and self.ask_first and big_task(text) and not asked_just_now(self.history):
+            schemas = [*schemas, ASK_TOOL]
+            msgs[0]["content"] += ASK_HINT
+        asked: list[dict] = []
         if schemas and self.router.lacks_tools() and needs_search(text) and isinstance(msgs[-1]["content"], str):
             # this model can't call tools: search for it, so it doesn't make up fresh facts
             args = json.dumps({"query": " ".join(text.split())[:200]}, ensure_ascii=False)
@@ -321,9 +399,18 @@ class Conversation:
                 break
             msgs.append({"role": "assistant", "content": "".join(round_text) or None,
                          "tool_calls": [c.message() for c in calls.calls]})
+            ask = next((c for c in calls.calls if c.name == "ask_user"), None)
+            asked = clean_questions(ask.arguments) if ask else []
+            if asked:                                   # the form takes over: the answer stops here
+                yield Questions(asked)
+                break
             cur = self.router.current
             limit = result_limit(cur.provider if cur else None)
             for c in calls.calls:
+                if c.name == "ask_user":                # questions that couldn't be read: let the model go on
+                    msgs.append({"role": "tool", "tool_call_id": c.id,
+                                 "content": "Error: no readable questions. Go on without asking."})
+                    continue
                 # read_page keeps the parts of a long page that fit the question and the searches made so far
                 self.toolbox.focus = " ".join([text, *(a for n, a in done if n == "web_search"), c.arguments])
                 self.toolbox.page_limit = limit - 200
@@ -340,7 +427,7 @@ class Conversation:
             note = budget_note(MAX_TOOL_ROUNDS - rnd - 1)
             if note:
                 msgs[-1]["content"] += "\n\n" + note
-        if not "".join(pieces).strip():
+        if not asked and not "".join(pieces).strip():
             # some models (Gemini 3 after a search) end with only thoughts and no text: ask once more, no calls
             msgs.append({"role": "user", "content": EMPTY_NUDGE})
             for p in self.router.stream(msgs, need_vision=bool(images), tools=schemas,
@@ -351,7 +438,8 @@ class Conversation:
                     yield p
                 elif not isinstance(p, ToolCalls):
                     yield p
-        reply = soul.humanize("".join(pieces).strip(), self.last_reply)
+        reply = (questions_text(asked, self.ask_header) if asked
+                 else soul.humanize("".join(pieces).strip(), self.last_reply))
         note = f"{text}\n[attached {len(images)} image(s)]" if images else text
         self.history += [{"role": "user", "content": note}, {"role": "assistant", "content": reply}]
         self.last_reply = reply

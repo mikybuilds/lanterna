@@ -36,6 +36,7 @@ class Settings:
     ai_titles: bool = True                 # a fast model names each new chat (one small extra request)
     follow_ups: bool = True                # 3 follow-up buttons under an answer (online side model only)
     compact_chats: bool = True             # long chats: a side model summarizes the older part
+    ask_first: bool = True                 # big tasks: the model may ask 1-4 questions with options first
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     profile_at: float = 0                  # when name or language last changed (newest wins when syncing)

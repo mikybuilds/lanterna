@@ -13,7 +13,7 @@ import uuid
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
-from .chat import MAX_HISTORY, KEEP_RECENT, Conversation, ToolUse, chat_title, follow_ups, summarize, summary_due
+from .chat import MAX_HISTORY, KEEP_RECENT, Conversation, Questions, ToolUse, chat_title, follow_ups, summarize, summary_due
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
@@ -42,6 +42,7 @@ class _Stream:
         self.final = False                 # pieces now hold the cleaned full reply
         self.titling = False               # a side model is naming the chat: the UI asks wait_title()
         self.suggesting = False            # follow-up buttons are coming: the UI asks wait_follow_ups()
+        self.questions: list[dict] = []    # the model asked these before a big task (the UI shows a form)
         self.error: dict | None = None
         self.files: list[str] = []         # attached file names
         self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
@@ -105,11 +106,11 @@ class Api:
 
     def save_settings(self, patch: dict) -> dict:
         allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
-                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats"}
+                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first"}
         for k, v in (patch or {}).items():
             if k in allowed:
                 setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
-                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats") else v)
+                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -508,7 +509,7 @@ class Api:
         # follow-ups come after every answer: only from an online model that isn't Gemini (its limit is for
         # answers), and not while a card waits for the user's Confirm
         if (self.settings.follow_ups and side and side[0].provider != "gemini" and not PROVIDERS[side[0].provider].local
-                and not st.cards):
+                and not st.cards and not st.questions):
             ev, out = threading.Event(), []
             self._follow[tid] = (ev, out)
             st.suggesting = True
@@ -567,7 +568,8 @@ class Api:
         try:
             router = self._get_router()
             conv = Conversation(router, self.settings.name, history=history[upto:], toolbox=self.toolbox, summary=summary,
-                                lang=self.settings.lang,
+                                lang=self.settings.lang, ask_first=self.settings.ask_first,
+                                ask_header=t("Questions for you:", self.settings.lang),
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
             for p in conv.ask(text, images or None):
                 with st.lock:
@@ -577,6 +579,8 @@ class Api:
                         st.tools.append(f"{p.label} {p.name}")
                         st.used.append((p.name, p.arguments))
                         st.steps.tool(p.name, p.arguments)
+                    elif isinstance(p, Questions):
+                        st.questions = p.items
                     elif isinstance(p, Thought):
                         st.steps.thought(p.text)
                     else:
@@ -618,7 +622,7 @@ class Api:
             if st.final:
                 from . import sent
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
-                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting,
+                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}

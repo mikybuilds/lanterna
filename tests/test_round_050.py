@@ -251,3 +251,96 @@ def test_what_went_to_the_model_counts_only_earlier_messages(tmp_path, monkeypat
     second = wait(a.send(tid, "як справи?")["stream"])["sent"]
     assert not any("earlier" in str(x) or "поперед" in str(x) for x in first)
     assert any("2" in str(x) for x in second)
+
+
+# ---------------------------------------------------------------- the mini-questionnaire before a big task
+def test_big_task():
+    from lanterna.chat import big_task
+    for q in ("напиши мені програму калькулятор на python", "Зроби план підготовки до контрольної",
+              "write me a small game in javascript", "crea un sito per la pizzeria", "допоможи написати есе"):
+        assert big_task(q), q
+    for q in ("привіт", "яка погода завтра?", "що таке рекурсія?", "write the word hello"):
+        assert not big_task(q), q
+
+
+def test_clean_questions():
+    from lanterna.chat import clean_questions
+    raw = json.dumps({"questions": [{"question": "  Яка мова? ", "options": ["Python", "JS", "", "C", "Go", "Rust"]},
+                                    {"question": ""}, {"question": "Для кого?", "multi": True},
+                                    {"question": "3"}, {"question": "4"}, {"question": "5"}]})
+    qs = clean_questions(raw)
+    assert len(qs) == 4 and qs[0] == {"question": "Яка мова?", "options": ["Python", "JS", "C", "Go"], "multi": False}
+    assert qs[1]["multi"] and qs[1]["options"] == []
+    assert clean_questions("not json") == [] and clean_questions('{"questions": "x"}') == []
+
+
+def _ask_conv(answers, ask_first=True):
+    from types import SimpleNamespace
+
+    from lanterna.chat import Conversation
+    from lanterna.providers import ToolCall, ToolCalls
+    seen = []
+
+    class FakeRouter:
+        current = SimpleNamespace(label="test", provider="groq")
+
+        def lacks_tools(self):
+            return False
+
+        def stream(self, msgs, **kw):
+            seen.append((msgs, kw.get("tools") or []))
+            a = answers[len(seen) - 1]
+            yield ToolCalls([ToolCall("c1", "ask_user", a)]) if a.startswith("{") else a
+
+    box = SimpleNamespace(tools={}, store=SimpleNamespace(facts=lambda: []), schemas=lambda ctx: [],
+                          run=lambda n, a: "r")
+    return Conversation(router=FakeRouter(), toolbox=box, ask_first=ask_first, ask_header="Питання:"), seen
+
+
+QS = json.dumps({"questions": [{"question": "Яка мова?", "options": ["Python", "JavaScript"]}]})
+
+
+def test_the_model_asks_first_and_the_answer_stops_there():
+    from lanterna.chat import ASK_MARK, Questions
+    conv, seen = _ask_conv([QS, "Ось програма."])
+    parts = list(conv.ask("напиши програму калькулятор"))
+    qs = [p for p in parts if isinstance(p, Questions)]
+    assert qs and qs[0].items[0]["options"] == ["Python", "JavaScript"]
+    assert len(seen) == 1 and any(t["function"]["name"] == "ask_user" for t in seen[0][1])
+    assert conv.last_reply.startswith(ASK_MARK) and "Яка мова? (Python / JavaScript)" in conv.last_reply
+
+    list(conv.ask("Мої відповіді на твої питання:\n1. Яка мова? — Python"))   # the answers: no second questionnaire
+    assert not any(t["function"]["name"] == "ask_user" for t in seen[1][1])
+    assert conv.last_reply == "Ось програма."
+
+
+def test_no_questionnaire_for_small_talk_or_when_switched_off():
+    conv, seen = _ask_conv(["Привіт!"])
+    list(conv.ask("привіт"))
+    assert seen[0][1] == []
+    conv, seen = _ask_conv(["Ось."], ask_first=False)
+    list(conv.ask("напиши програму калькулятор"))
+    assert seen[0][1] == []
+
+
+def test_unreadable_questions_let_the_model_go_on():
+    conv, seen = _ask_conv(['{"questions": []}', "Зроблю на свій розсуд."])
+    list(conv.ask("напиши програму калькулятор"))
+    assert conv.last_reply == "Зроблю на свій розсуд." and seen[1][0][-1]["role"] == "tool"
+
+
+def test_the_window_gets_the_questions_and_no_follow_ups(tmp_path, monkeypatch):
+    a, bodies, wait = _api(tmp_path, monkeypatch, titles=False, follow=True)
+
+    def h(req):
+        body = json.loads(req.content)
+        bodies.append(body)
+        tc = {"index": 0, "id": "c1", "type": "function", "function": {"name": "ask_user", "arguments": QS}}
+        return httpx.Response(200, content=f"data: {json.dumps({'choices': [{'delta': {'tool_calls': [tc]}}]})}\n\n"
+                                           "data: [DONE]\n\n".encode())
+    a._router = Router([Candidate("groq", "m", 70)],
+                       client_for=lambda pid: Client(PROVIDERS["groq"], "k", transport=httpx.MockTransport(h)))
+    tid = a.new_thread()["id"]
+    p = wait(a.send(tid, "напиши програму калькулятор")["stream"])
+    assert p["questions"][0]["question"] == "Яка мова?" and not p["suggesting"] and not p["error"]
+    assert len(bodies) == 1

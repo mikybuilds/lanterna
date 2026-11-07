@@ -849,6 +849,34 @@ function setModel(label) {
   c.querySelector("span").textContent = label || "";
 }
 
+// the mini-questionnaire before a big task: options as buttons, "Other" as text; the answers go as my next message
+function askForm(qs) {
+  const f = h(`<div class="ask"><b>${esc(t("Questions for you:"))}</b>${qs.map((q, i) => `<div class="ask-q" data-i="${i}">
+      <div>${i + 1}. ${esc(q.question)}</div>
+      <div class="ask-opts">${(q.options || []).map((o, j) => `<button class="btn ghost small" data-j="${j}">${esc(o)}</button>`).join("")}</div>
+      <input class="field ask-other" placeholder="${esc(t("Other"))}…"></div>`).join("")}
+    <div class="ask-act"><button class="btn primary small ask-send">${esc(t("Send answers"))}</button>
+      <button class="btn ghost small ask-skip">${esc(t("Skip"))}</button></div></div>`);
+  f.querySelectorAll(".ask-q").forEach(row => {
+    const q = qs[+row.dataset.i], other = row.querySelector(".ask-other");
+    row.querySelectorAll("[data-j]").forEach(b => b.onclick = () => {
+      if (!q.multi) row.querySelectorAll("[data-j]").forEach(x => x !== b && x.classList.remove("on"));
+      b.classList.toggle("on"); if (!q.multi) other.value = "";
+    });
+    other.oninput = () => { if (!q.multi && other.value) row.querySelectorAll("[data-j]").forEach(x => x.classList.remove("on")); };
+  });
+  const go = text => { if (busy) return; f.remove(); $("#input").value = text; send(); };
+  f.querySelector(".ask-send").onclick = () => go(t("My answers to your questions:") + "\n" + qs.map((q, i) => {
+    const row = f.querySelector(`.ask-q[data-i="${i}"]`);
+    const picked = [...row.querySelectorAll("[data-j].on")].map(b => q.options[+b.dataset.j]);
+    const own = row.querySelector(".ask-other").value.trim();
+    const ans = [...picked, ...(own ? [own] : [])].join(", ");
+    return `${i + 1}. ${q.question} — ${ans || t("(skipped)")}`;
+  }).join("\n"));
+  f.querySelector(".ask-skip").onclick = () => go(t("Skip the questions: do it your way and tell me what you assumed."));
+  return f;
+}
+
 async function refreshThreads() {
   const list = await api.threads();
   const now = Date.now() / 1000, dayStart = new Date().setHours(0, 0, 0, 0) / 1000;
@@ -990,7 +1018,8 @@ async function send(retryText) {
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
     if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
-      if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent)); }
+      if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));
+      if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown();
     if (p.error) {
@@ -1076,6 +1105,8 @@ function openSettings() {
         <span><b>${t("Suggest what to ask next")}</b><small>${t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.")}</small></span></label>
       <label class="check"><input type="checkbox" id="compact-chats" ${S.settings.compact_chats !== false ? "checked" : ""}>
         <span><b>${t("Remember long chats")}</b><small>${t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="ask-first" ${S.settings.ask_first !== false ? "checked" : ""}>
+        <span><b>${t("Ask before big tasks")}</b><small>${t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
         <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
@@ -1111,7 +1142,7 @@ function openSettings() {
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
-    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"]]) {
+    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"], ["#ask-first", "ask_first"]]) {
       const el = $(id, body);
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }

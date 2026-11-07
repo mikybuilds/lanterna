@@ -300,3 +300,50 @@ def test_update_notice_at_start_and_settings_switch(api):
             assert await wait_for(pilot, lambda: api.settings.update_check is False)
 
     asyncio.run(go())
+
+
+def test_questionnaire_form_sends_the_answers(api, monkeypatch):
+    """The model asks before a big task: the terminal shows a form, and its answers go as the next message."""
+    from textual.widgets import Checkbox
+
+    from lanterna.tui import AskForm
+    api.save_settings({"onboarded": True, "name": "Bo", "lang": "en", "provider": "groq"})
+    api.settings.ai_titles = api.settings.follow_ups = False
+    qs = {"questions": [{"question": "Which language?", "options": ["Python", "JavaScript"]},
+                        {"question": "For whom?", "options": ["Me", "My class"]}]}
+    asked = []
+
+    def h(req):
+        body = json.loads(req.content)
+        asked.append(body)
+        if len(asked) == 1:
+            tc = {"index": 0, "id": "c1", "type": "function", "function": {"name": "ask_user", "arguments": json.dumps(qs)}}
+            return httpx.Response(200, content=f"data: {json.dumps({'choices': [{'delta': {'tool_calls': [tc]}}]})}\n\n"
+                                               "data: [DONE]\n\n".encode())
+        return httpx.Response(200, content=sse("Here is your calculator."))
+    router = Router([Candidate("groq", "fake-model", 50)],
+                    client_for=lambda pid: Client(PROVIDERS["groq"], "k", transport=httpx.MockTransport(h)))
+    monkeypatch.setattr(api, "_get_router", lambda refresh=False: router)
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 50)) as pilot:
+            assert await wait_for(pilot, lambda: chat_ready(app))
+            box = app.screen.query_one("#composer", Input)
+            box.value = "write me a calculator program"
+            await pilot.press("enter")
+            assert await wait_for(pilot, lambda: bool(app.screen.query(AskForm)))
+            form = app.screen.query_one(AskForm)
+            form.query_one("#ask0_1", Checkbox).value = True
+            await pilot.pause(0.1)
+            form.query_one("#ask0_0", Checkbox).value = True        # one answer only: JavaScript unticks
+            await pilot.pause(0.1)
+            assert not form.query_one("#ask0_1", Checkbox).value
+            form.query_one("#ask1_other", Input).value = "my little brother"
+            form.query_one("#asksend").press()
+            assert await wait_for(pilot, lambda: len(asked) == 2 and not app.screen.query(AskForm))
+            sent = asked[1]["messages"][-1]["content"]
+            assert sent.startswith("My answers to your questions:")
+            assert "1. Which language? — Python" in sent and "2. For whom? — my little brother" in sent
+            assert not any(t["function"]["name"] == "ask_user" for t in asked[1].get("tools", []))
+    asyncio.run(go())

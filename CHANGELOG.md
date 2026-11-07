@@ -10,6 +10,8 @@
 
 - **Long chats are remembered:** past 30 messages the older part used to be simply dropped. Now a fast model writes a short summary of it (names, facts, decisions, code names), and the model gets the summary plus the newest 20 messages. The chat shows where the summary begins; the summary stays on this device. Settings → Chats → "Remember long chats".
 
+- **Questions before a big task:** when you ask for something big ("write me a calculator program", "help me write an essay"), the model can first ask 1–4 short questions with option buttons, a field for your own answer and Skip. Your answers go to it as instructions; it asks only once per task. Window and terminal. Settings → Chats → "Ask before big tasks".
+
 **Fixed**
 - Terminal app: the "Try one:" idea buttons on the start screen filled the box but didn't send.
 - "What went to the model" counted two messages too many (the first message already said "and 2 earlier messages").

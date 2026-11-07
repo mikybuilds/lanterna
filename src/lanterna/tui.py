@@ -70,6 +70,10 @@ Screen { background: $background; }
 .msg-bot { margin: 1 8 0 0; padding: 0; }
 .msg-note { color: $text-muted; text-style: italic; margin: 1 0 0 0; }
 .msg-err { color: $error; margin: 1 0 0 0; }
+AskForm { height: auto; margin: 1 8 0 0; padding: 0 1; border: round $panel-lighten-2; }
+AskForm .askq { margin-top: 1; }
+AskForm Input { margin: 0; }
+AskForm Horizontal { height: auto; margin-top: 1; }
 .follow { height: auto; margin: 1 8 0 0; }
 .followbtn { width: auto; min-width: 4; height: 1; border: none; margin: 0 0 0 0; padding: 0 1; background: $panel; }
 .welcome { color: $text-muted; margin: 2 0; content-align: center middle; width: 100%; }
@@ -131,6 +135,54 @@ def L(app) -> str:
 
 
 # ---------------------------------------------------------------------------------------------- dialogs
+
+class AskForm(Vertical):
+    """The mini-questionnaire before a big task: options to tick, "Other" to type; the answers go as a message."""
+
+    def __init__(self, questions: list[dict]):
+        super().__init__()
+        self.questions = questions
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        yield Label(t("Questions for you:", lang), classes="h")
+        for i, q in enumerate(self.questions):
+            yield Label(f"{i + 1}. {q['question']}", classes="askq")
+            for j, o in enumerate(q.get("options") or []):
+                yield Checkbox(o, False, id=f"ask{i}_{j}")
+            yield Input(placeholder=t("Other", lang) + "…", id=f"ask{i}_other")
+        with Horizontal():
+            yield Button(t("Send answers", lang), variant="primary", id="asksend")
+            yield Button(t("Skip", lang), id="askskip")
+
+    @on(Checkbox.Changed)
+    def _one_choice(self, ev: Checkbox.Changed) -> None:
+        i, j = ev.checkbox.id[3:].split("_")
+        if ev.value and not self.questions[int(i)].get("multi"):     # one answer: the other options untick
+            for k in range(len(self.questions[int(i)].get("options") or [])):
+                if str(k) != j:
+                    self.query_one(f"#ask{i}_{k}", Checkbox).value = False
+
+    def _send(self, text: str) -> None:
+        box = self.app.screen.query_one("#composer", Input)
+        box.value = text
+        box.post_message(Input.Submitted(box, text))
+
+    @on(Button.Pressed, "#asksend")
+    def _answers(self) -> None:
+        lang = L(self.app)
+        lines, skipped = [t("My answers to your questions:", lang)], t("(skipped)", lang)
+        for i, q in enumerate(self.questions):
+            picked = [o for j, o in enumerate(q.get("options") or []) if self.query_one(f"#ask{i}_{j}", Checkbox).value]
+            own = self.query_one(f"#ask{i}_other", Input).value.strip()
+            ans = ", ".join(picked + ([own] if own else []))
+            lines.append(f"{i + 1}. {q['question']} — {ans or skipped}")
+        self._send("\n".join(lines))
+
+    @on(Button.Pressed, "#askskip")
+    def _skip(self) -> None:
+        self._send(t("Skip the questions: do it your way and tell me what you assumed.", L(self.app)))
+
 class KeyScreen(ModalScreen[bool]):
     """Asks for a provider key, checks it with the provider and stores it in the system vault."""
 
@@ -985,6 +1037,8 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.", lang), classes="muted")
             yield Checkbox(t("Remember long chats", lang), self.app.api.settings.compact_chats, id="compactchats")
             yield Static(t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.", lang), classes="muted")
+            yield Checkbox(t("Ask before big tasks", lang), self.app.api.settings.ask_first, id="askfirst")
+            yield Static(t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
             yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
             yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
@@ -1193,6 +1247,10 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#pcaccess")
     def _pc_access(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"pc_access": ev.value})
+
+    @on(Checkbox.Changed, "#askfirst")
+    def _ask_first(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"ask_first": ev.value})
 
     @on(Checkbox.Changed, "#compactchats")
     def _compact_chats(self, ev: Checkbox.Changed) -> None:
@@ -1677,6 +1735,8 @@ class _ChatScreen(Screen):
         ev.input.value = ""
         log = self.query_one("#log", VerticalScroll)
         log.query(".follow").remove()                     # old follow-up ideas go when you write
+        log.query(AskForm).remove()
+        self._asked = None
         if self.tid is None:
             self.tid = self.app.api.new_thread()["id"]
             log.remove_children()
@@ -1725,6 +1785,9 @@ class _ChatScreen(Screen):
             self._text, changed = r["final"], True
             self._naming = bool(r.get("titling"))       # a fast model is naming this new chat
             self._suggesting = bool(r.get("suggesting"))   # follow-up buttons are coming
+            if r.get("questions") and not getattr(self, "_asked", None):
+                self._asked = r["questions"]
+                await log.mount(AskForm(r["questions"]), after=self._bot)
             if r.get("model"):
                 self._set_model(r["model"])
             if r.get("sent") and self._bot is not None:
