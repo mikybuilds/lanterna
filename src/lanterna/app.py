@@ -1113,6 +1113,10 @@ class Api:
         self.store.cancel_reminder(int(rid))
         return self.reminders()
 
+    def snooze_reminder(self, rid: int, minutes: float = 10) -> bool:
+        """"Snooze 10 min" on a reminder that just came: it comes back in `minutes` (a repeating one keeps its own time)."""
+        return self.store.snooze_reminder(int(rid), minutes) > 0
+
     def alerts(self) -> list[dict]:
         """Reminders that fired since the last call (the UI shows them inside the app too)."""
         with self._lock:

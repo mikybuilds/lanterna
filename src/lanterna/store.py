@@ -30,8 +30,34 @@ CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, text TEXT NOT NULL, ev
 # columns added for sync (older databases get them on open)
 _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
                       "summary_upto INTEGER NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
-          "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0"]}
+          "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0",
+                                                   "repeat TEXT NOT NULL DEFAULT ''"]}
 MAX_FACTS = 60
+REPEATS = ("day", "weekday", "week", "month")      # a reminder that comes back; "" = once
+
+
+def next_due(due: float, repeat: str, now: float) -> float:
+    """The next time a repeating reminder comes back after `now`, at the same wall-clock time (local time, so a
+    clock change doesn't shift it). Missed times (the PC was off) are skipped, not shown one by one.
+    month: the same day of the month (the 31st becomes the last day in shorter months)."""
+    import calendar
+    import datetime as dt
+    first = dt.datetime.fromtimestamp(due)
+    t = first
+    for n in range(1, 5000):
+        if repeat == "month":
+            y, m = divmod(first.month - 1 + n, 12)
+            y, m = first.year + y, m + 1
+            t = first.replace(year=y, month=m, day=min(first.day, calendar.monthrange(y, m)[1]))
+        elif repeat == "week":
+            t += dt.timedelta(days=7)
+        else:
+            t += dt.timedelta(days=1)
+            while repeat == "weekday" and t.weekday() >= 5:
+                t += dt.timedelta(days=1)
+        if t.timestamp() > now:
+            return t.timestamp()
+    return now + 86400
 
 
 def new_uid() -> str:
@@ -177,15 +203,16 @@ class Store:
             return self._db.execute("DELETE FROM facts WHERE instr(lc(text), lc(?)) > 0", (text,)).rowcount
 
     # reminders
-    def add_reminder(self, text: str, due: float) -> int:
+    def add_reminder(self, text: str, due: float, repeat: str = "") -> int:
+        repeat = repeat if repeat in REPEATS else ""
         with self._lock, self._db:
             self.changes += 1
             now = time.time()
-            return self._db.execute("INSERT INTO reminders(uid, text, due, created, changed) VALUES (?,?,?,?,?)",
-                                    (new_uid(), text, due, now, now)).lastrowid
+            return self._db.execute("INSERT INTO reminders(uid, text, due, created, changed, repeat) VALUES (?,?,?,?,?,?)",
+                                    (new_uid(), text, due, now, now, repeat)).lastrowid
 
     def reminders(self) -> list[dict]:
-        return self._q("SELECT id, text, due FROM reminders WHERE done=0 ORDER BY due")
+        return self._q("SELECT id, text, due, repeat FROM reminders WHERE done=0 ORDER BY due")
 
     def cancel_reminder(self, rid: int) -> bool:
         with self._lock, self._db:
@@ -193,14 +220,38 @@ class Store:
             return self._db.execute("UPDATE reminders SET done=2, changed=? WHERE id=? AND done=0", (time.time(), rid)).rowcount > 0
 
     def take_due(self, now: float | None = None) -> list[dict]:
-        """Reminders whose time has come; each is returned once (marked done)."""
+        """Reminders whose time has come; each is returned once. A one-time one is marked done; a repeating one
+        moves on to its next time."""
         now = time.time() if now is None else now
         with self._lock, self._db:
-            rows = [dict(r) for r in self._db.execute("SELECT id, text, due FROM reminders WHERE done=0 AND due<=? ORDER BY due", (now,))]
-            self._db.executemany("UPDATE reminders SET done=1, changed=? WHERE id=?", [(now, r["id"]) for r in rows])
+            rows = [dict(r) for r in self._db.execute(
+                "SELECT id, text, due, repeat FROM reminders WHERE done=0 AND due<=? ORDER BY due", (now,))]
+            for r in rows:
+                if r["repeat"] in REPEATS:
+                    self._db.execute("UPDATE reminders SET due=?, changed=? WHERE id=?",
+                                     (next_due(r["due"], r["repeat"], now), now, r["id"]))
+                else:
+                    self._db.execute("UPDATE reminders SET done=1, changed=? WHERE id=?", (now, r["id"]))
             if rows:
                 self.changes += 1
             return rows
+
+    def snooze_reminder(self, rid: int, minutes: float = 10, now: float | None = None) -> int:
+        """Shows the reminder again in `minutes`. A one-time one comes back itself; for a repeating one a one-time
+        copy is made (its regular time stays). The id of the reminder that will come back, 0 if there is none
+        (unknown, or cancelled in the meantime)."""
+        now = time.time() if now is None else now
+        minutes = max(1.0, min(float(minutes), 24 * 60))
+        with self._lock, self._db:
+            r = self._db.execute("SELECT id, text, repeat, done FROM reminders WHERE id=?", (int(rid),)).fetchone()
+            if not r or r["done"] == 2:
+                return 0
+            self.changes += 1
+            if r["repeat"] in REPEATS:
+                return self._db.execute("INSERT INTO reminders(uid, text, due, created, changed) VALUES (?,?,?,?,?)",
+                                        (new_uid(), r["text"], now + minutes * 60, now, now)).lastrowid
+            self._db.execute("UPDATE reminders SET due=?, done=0, changed=? WHERE id=?", (now + minutes * 60, now, r["id"]))
+            return r["id"]
 
     # regular tasks (this device only: not synced, so two computers never run the same task)
     _TASK_FIELDS = {"text", "every", "at", "day", "only_if", "next", "last", "last_result", "paused", "thread"}
@@ -248,8 +299,8 @@ class Store:
                              for r in q("SELECT uid, thread, role, content, model, at FROM messages") if r["thread"] in tuid},
                 "facts": {r["uid"]: {"text": r["text"], "at": r["at"]} for r in q("SELECT uid, text, at FROM facts")},
                 "reminders": {r["uid"]: {"text": r["text"], "due": r["due"], "done": r["done"], "created": r["created"],
-                                         "changed": r["changed"]}
-                              for r in q("SELECT uid, text, due, done, created, changed FROM reminders")},
+                                         "changed": r["changed"], "repeat": r["repeat"]}
+                              for r in q("SELECT uid, text, due, done, created, changed, repeat FROM reminders")},
                 "deleted": {r["uid"]: r["at"] for r in q("SELECT uid, at FROM deleted")},
             }
 
@@ -291,12 +342,17 @@ class Store:
             have = {r[0] for r in db.execute("SELECT uid FROM reminders")}
             for uid, r in snap.get("reminders", {}).items():
                 if uid in have:
-                    n += db.execute("UPDATE reminders SET text=?, due=?, done=?, changed=? WHERE uid=? AND changed<?",
-                                    (r["text"], r["due"], r["done"], r["changed"], uid, r["changed"])).rowcount
+                    # an older Lanterna sends no "repeat": the reminder keeps the one it has here
+                    n += db.execute("UPDATE reminders SET text=?, due=?, done=?, changed=?, repeat=COALESCE(?, repeat)"
+                                    " WHERE uid=? AND changed<?", (r["text"], r["due"], r["done"], r["changed"],
+                                                                    r.get("repeat"), uid, r["changed"])).rowcount
                 elif uid not in gone:
-                    db.execute("INSERT INTO reminders(uid, text, due, done, created, changed) VALUES (?,?,?,?,?,?)",
-                               (uid, r["text"], r["due"], r["done"], r["created"], r["changed"]))
+                    db.execute("INSERT INTO reminders(uid, text, due, done, created, changed, repeat) VALUES (?,?,?,?,?,?,?)",
+                               (uid, r["text"], r["due"], r["done"], r["created"], r["changed"], r.get("repeat") or ""))
                     n += 1
+            # a repeating reminder that an older Lanterna marked "shown" keeps coming back
+            for row in db.execute("SELECT id, due, repeat FROM reminders WHERE done=1 AND repeat!=''").fetchall():
+                db.execute("UPDATE reminders SET done=0, due=? WHERE id=?", (next_due(row[1], row[2], time.time()), row[0]))
         return n
 
     def close(self) -> None:

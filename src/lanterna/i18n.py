@@ -333,6 +333,10 @@ _T.update({
     "Tip: add a key for one more free service (Settings → Keys) to get more answers a day.": {"uk": "Порада: додай ключ ще одного безкоштовного сервісу (Налаштування → Ключі), і відповідей на день стане більше.", "it": "Consiglio: aggiungi la chiave di un altro servizio gratuito (Impostazioni → Chiavi) per avere più risposte al giorno."},
     "{h} h {m} min": {"uk": "{h} год {m} хв", "it": "{h} h {m} min"},
     "{m} min": {"uk": "{m} хв", "it": "{m} min"},
+    "Every month": {"uk": "Щомісяця", "it": "Ogni mese"},
+    "Snooze 10 min": {"uk": "Відкласти на 10 хв", "it": "Rimanda di 10 min"},
+    "I'll remind you again in 10 minutes.": {"uk": "Нагадаю ще раз за 10 хвилин.", "it": "Te lo ricordo di nuovo tra 10 minuti."},
+    "F8: snooze 10 min": {"uk": "F8 — відкласти на 10 хв", "it": "F8: rimanda di 10 min"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

@@ -151,7 +151,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 ## What it can do
 
 - **Remember** things you tell it ("remember that I'm allergic to peanuts"). You can see and edit the list in Settings.
-- **Reminders** ("remind me in 20 minutes to stretch"): a system notification while Lanterna is open. Missed ones show up the next time you open it.
+- **Reminders** ("remind me in 20 minutes to stretch", "every weekday at 8 the bus"): a system notification while Lanterna is open, with "Snooze 10 min". They can repeat every day, on weekdays, every week or every month without using a model. Missed ones show up the next time you open it.
 - **Search the web** (DuckDuckGo, no key) and read pages, with the site name as the source.
 - **Weather and air quality** for any city (Open-Meteo, no key).
 - **Files and photos**: PDF, Word, text and code files, and photos (📎 button, drag and drop, or Ctrl+F / `/file path` in the terminal).

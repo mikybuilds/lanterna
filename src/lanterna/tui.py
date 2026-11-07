@@ -1287,7 +1287,9 @@ class SettingsScreen(ModalScreen[str]):
         for r in api.reminders():
             row = Horizontal(classes="listrow")
             rems.mount(row)
-            row.mount(Label(f"{r['when']}  {r['text']}", markup=False))
+            again = {"day": "Every day", "weekday": "On weekdays", "week": "Every week", "month": "Every month"}
+            rep = f"  🔁 {t(again[r['repeat']], lang)}" if r.get("repeat") in again else ""
+            row.mount(Label(f"{r['when']}  {r['text']}{rep}", markup=False))
             row.mount(Button(t("Cancel", lang), id=f"rem-{r['id']}"))
         if not api.reminders():
             rems.mount(Static(t("No reminders. Say “remind me in 20 minutes…” in a chat.", lang), classes="muted"))
@@ -2205,6 +2207,7 @@ class LanternaApp(App):
     CSS = CSS
     TITLE = "Lanterna"
     ENABLE_COMMAND_PALETTE = False
+    BINDINGS = [Binding("f8", "snooze", show=False, priority=True)]   # "snooze 10 min" on the last reminder
 
     def __init__(self, api: Api | None = None, force_setup: bool = False):
         super().__init__()
@@ -2222,13 +2225,25 @@ class LanternaApp(App):
             self.push_screen(make_chat_screen(L(self)))
         self.set_interval(10, self._alerts)
 
+    _snooze: tuple[int, float] = (0, 0.0)                   # the last reminder that came, for F8
+
+    def action_snooze(self) -> None:
+        rid, at = self._snooze
+        if rid and time.time() - at < 30 * 60 and self.api.snooze_reminder(rid, 10):
+            self._snooze = (0, 0.0)
+            self.notify(t("I'll remind you again in 10 minutes.", L(self)), timeout=6)
+
     def _alerts(self) -> None:
         for a in self.api.alerts():
             self.bell()
             kind = a.get("kind")
             title = ("🧹 " + t("Weekly tidy-up", L(self)) if kind == "tidy" else "💾 " + t("Disk space", L(self)) if kind == "space"
                      else "🔁 " + t("Regular task", L(self)) if kind == "task" else "⏰ " + t("Reminder", L(self)))
-            self.notify(a["text"], title=title, timeout=30)
+            text = a["text"]
+            if not kind and a.get("id"):
+                self._snooze = (int(a["id"]), time.time())
+                text += "\n" + t("F8: snooze 10 min", L(self))
+            self.notify(text, title=title, timeout=30, markup=False)
             if a.get("tid") and hasattr(self.screen, "_fill_threads"):
                 self.screen._fill_threads()
 

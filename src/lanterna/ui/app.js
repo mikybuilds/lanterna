@@ -487,12 +487,18 @@ function backIn(s) {                       // "about 3 h 20 min" / "about 15 min
   return h_ ? t("{h} h {m} min", { h: h_, m }) : t("{m} min", { m });
 }
 
-function toast(text, sticky = false) {
-  // short notices fade out; reminders stay until closed
-  const el = h(`<div class="toast${sticky ? " sticky" : ""}"><span></span><button title="${t("Close")}">${icon("x")}</button></div>`);
+function toast(text, sticky = false, action = null) {
+  // short notices fade out; reminders stay until closed. action: {label, run} adds one button (e.g. snooze)
+  const el = h(`<div class="toast${sticky ? " sticky" : ""}"><span></span><button class="x" title="${t("Close")}">${icon("x")}</button></div>`);
   el.querySelector("span").textContent = text;
   const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 600); };
-  el.querySelector("button").onclick = close;
+  el.querySelector("button.x").onclick = close;
+  if (action) {
+    const b = h(`<button class="btn ghost small t-act"></button>`);
+    b.textContent = action.label;
+    b.onclick = async () => { b.disabled = true; try { await action.run(); } finally { close(); } };
+    el.querySelector("span").after(b);
+  }
   const stack = $("#toasts") || document.body.appendChild(h(`<div id="toasts"></div>`));
   stack.append(el);
   if (!sticky) setTimeout(close, 6000);
@@ -501,7 +507,12 @@ function toast(text, sticky = false) {
 async function watchAlerts() {
   try {
     const list = await api.alerts();
-    list.forEach(a => toast(a.kind ? (a.kind === "tidy" ? "🧹 " : a.kind === "task" ? "🔁 " : "💾 ") + a.text : `⏰ ${t("Reminder")}: ${a.text}`, true));
+    list.forEach(a => a.kind
+      ? toast((a.kind === "tidy" ? "🧹 " : a.kind === "task" ? "🔁 " : "💾 ") + a.text, true)
+      : toast(`⏰ ${t("Reminder")}: ${a.text}`, true, a.id ? {
+          label: t("Snooze 10 min"),
+          run: async () => { if (await api.snooze_reminder(a.id, 10)) toast(t("I'll remind you again in 10 minutes.")); },
+        } : null));
     if (list.some(a => a.tid)) refreshThreads();
   } catch (e) { /* app closing */ }
   setTimeout(watchAlerts, 10000);
@@ -1594,7 +1605,8 @@ function openSettings() {
   };
   const paintRems = async () => {
     const list = await api.reminders(), box = $("#rems", body);
-    box.innerHTML = list.length ? list.map(r => `<div class="row"><div class="grow"><b>${esc(r.text)}</b><small>${esc(r.when)}</small></div><button class="btn ghost small" data-r="${r.id}">${t("Cancel")}</button></div>`).join("")
+    const again = { day: "Every day", weekday: "On weekdays", week: "Every week", month: "Every month" };
+    box.innerHTML = list.length ? list.map(r => `<div class="row"><div class="grow"><b>${esc(r.text)}</b><small>${esc(r.when)}${r.repeat && again[r.repeat] ? " · 🔁 " + esc(t(again[r.repeat])) : ""}</small></div><button class="btn ghost small" data-r="${r.id}">${t("Cancel")}</button></div>`).join("")
       : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No reminders. Say “remind me in 20 minutes…” in a chat.")}</p>`;
     box.querySelectorAll("[data-r]").forEach(b => b.onclick = async () => { await api.cancel_reminder(+b.dataset.r); paintRems(); });
   };

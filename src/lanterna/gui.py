@@ -21,7 +21,7 @@ from pathlib import Path
 from .app import Api
 
 UI = Path(__file__).with_name("ui")
-METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "search_chats", "new_thread",
+METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "search_chats", "snooze_reminder", "new_thread",
            "messages", "rename_thread", "wait_title", "wait_follow_ups", "edit_last", "export_chat", "wait_memory", "export_all", "show_saved", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",

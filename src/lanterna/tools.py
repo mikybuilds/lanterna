@@ -450,15 +450,26 @@ class Toolbox:
         return f"Removed {n} matching memory item(s)." if n else "Nothing matching was found in memory."
 
     # reminders -----------------------------------------------------------------------------
-    def _set_reminder(self, text: str, at: str = "", in_minutes: float = 0) -> str:
+    def _set_reminder(self, text: str, at: str = "", in_minutes: float = 0, repeat: str = "") -> str:
+        from .store import REPEATS
         now = self._now()
         when = parse_when(at, in_minutes, now)
         if when is None:
             return "Error: give `at` as 'YYYY-MM-DD HH:MM' (local time) or `in_minutes`."
         if when <= now:
             return f"Error: {when:%Y-%m-%d %H:%M} is in the past (now is {now:%Y-%m-%d %H:%M})."
-        rid = self.store.add_reminder(str(text)[:300], when.timestamp())
-        return f"Reminder #{rid} set for {when:%A %Y-%m-%d %H:%M}: {text}"
+        repeat = str(repeat or "").strip().lower()
+        if repeat in ("none", "once", "no"):
+            repeat = ""
+        if repeat and repeat not in REPEATS:
+            return "Error: repeat must be day, weekday, week or month (or empty for once)."
+        while repeat == "weekday" and when.weekday() >= 5:
+            when += dt.timedelta(days=1)
+        rid = self.store.add_reminder(str(text)[:300], when.timestamp(), repeat)
+        again = {"day": "every day", "weekday": "on weekdays (Mon-Fri)", "week": "every week",
+                 "month": "every month"}.get(repeat)
+        return (f"Reminder #{rid} set for {when:%A %Y-%m-%d %H:%M}: {text}" +
+                (f". It repeats {again} at {when:%H:%M}; the user can cancel it in Settings → Reminders." if again else ""))
 
     # regular tasks ---------------------------------------------------------------------------
     def _add_task(self, what: str, every: str = "day", at: str = "08:00", day: int = 0, only_if: str = "") -> str:
@@ -489,7 +500,8 @@ class Toolbox:
         if not items:
             return "No upcoming reminders."
         return "Upcoming reminders:\n" + "\n".join(
-            f"#{r['id']} {dt.datetime.fromtimestamp(r['due']):%a %Y-%m-%d %H:%M} — {r['text']}" for r in items)
+            f"#{r['id']} {dt.datetime.fromtimestamp(r['due']):%a %Y-%m-%d %H:%M} — {r['text']}" +
+            (f" (repeats: {r['repeat']})" if r.get("repeat") else "") for r in items)
 
     def _cancel_reminder(self, id: int) -> str:                       # noqa: A002  (name the model sees)
         return f"Reminder #{id} cancelled." if self.store.cancel_reminder(int(id)) else f"No reminder #{id}."
@@ -527,9 +539,14 @@ class Toolbox:
             Tool("forget", "Remove facts from memory that contain this text.", _obj({"fact": s}, ["fact"]),
                  self._forget, "🧠"),
             Tool("set_reminder", "Set a reminder. Use `in_minutes` for 'in 20 minutes' or `at` as local "
-                 "'YYYY-MM-DD HH:MM' for a time. Examples: 'remind me in half an hour to call mum' → "
-                 "text='Call mum', in_minutes=30; 'tomorrow at 8 the bus' → text='Bus', at='<tomorrow's date> 08:00'.",
-                 _obj({"text": s, "at": s, "in_minutes": {"type": "number"}}, ["text"]), self._set_reminder, "⏰"),
+                 "'YYYY-MM-DD HH:MM' for a time (the first time, for a repeating one). Examples: 'remind me in half an "
+                 "hour to call mum' → text='Call mum', in_minutes=30; 'tomorrow at 8 the bus' → text='Bus', "
+                 "at='<tomorrow's date> 08:00'; 'remind me every day at 9 to take my pills' → text='Take the pills', "
+                 "at='<the next 09:00>', repeat='day'. repeat: day | weekday (Mon-Fri) | week | month; leave it out "
+                 "for once.",
+                 _obj({"text": s, "at": s, "in_minutes": {"type": "number"},
+                       "repeat": {"type": "string", "enum": ["day", "weekday", "week", "month"]}}, ["text"]),
+                 self._set_reminder, "⏰"),
             Tool("list_reminders", "List upcoming reminders.", _obj({}), self._list_reminders, "⏰"),
             Tool("add_task", "Schedule a REGULAR task Lanterna does on its own and then notifies the user. "
                  "every: day | weekday | week (with day 0=Monday..6=Sunday) | hour; at: 'HH:MM' local time. "
@@ -537,7 +554,9 @@ class Toolbox:
                  "today in Kyiv', every='day', at='08:00'; 'tell me in the evening if it will rain tomorrow' → "
                  "what='Check tomorrow's weather in Kyiv', every='day', at='19:00', only_if='it will rain tomorrow'; "
                  "'every Monday at 9 give me 3 tech news' → every='week', day=0, at='09:00'. For a one-time thing "
-                 "use set_reminder instead. Put the city or details the task needs into `what`.",
+                 "use set_reminder instead, and for the same fixed words each time ('every day at 9 remind me to take "
+                 "my pills') use set_reminder with repeat: it needs no model. Put the city or details the task needs "
+                 "into `what`.",
                  _obj({"what": s, "every": {"type": "string", "enum": ["day", "weekday", "week", "hour"]}, "at": s,
                        "day": {"type": "integer"}, "only_if": s}, ["what", "every"]), self._add_task, "🔁", "tasks"),
             Tool("list_tasks", "List the regular tasks.", _obj({}), self._list_tasks, "🔁", "tasks"),
