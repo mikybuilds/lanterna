@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — more reliable answers with web search
 
 **Changed**
 - Fewer wasted searches: the same (or almost the same) web search or tool call is not run twice in one answer, and near the end of its tool rounds the model is told to stop searching and answer. Saves free-limit requests (Gemini allows only 5 a minute).
