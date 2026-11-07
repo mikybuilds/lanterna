@@ -242,8 +242,8 @@ def test_onboarding_auto_mode_with_local_download(api, monkeypatch, tmp_path):
             assert await wait_for(pilot, lambda: bool(app.screen.query("#pull-1")))
             assert "RTX 5060" in str(app.screen.query_one("#hwinfo").render())
             from textual.widgets import Button
-            assert "Встановлено" in str(app.screen.query_one("#pull-0", Button).label)
-            assert "5.2" in str(app.screen.query_one("#pull-1", Button).label)
+            assert await wait_for(pilot, lambda: "Встановлено" in str(app.screen.query_one("#pull-0", Button).label))
+            assert await wait_for(pilot, lambda: "5.2" in str(app.screen.query_one("#pull-1", Button).label))
             app.save_screenshot("local_screen.svg", path=str(tmp_path))
             app.screen.query_one("#pull-1", Button).press()
             assert await wait_for(pilot, lambda: state["pulls"] and state["pulls"][0]["status"] == "done", 6)
@@ -332,7 +332,7 @@ def test_questionnaire_form_sends_the_answers(api, monkeypatch):
             box = app.screen.query_one("#composer", Input)
             box.value = "write me a calculator program"
             await pilot.press("enter")
-            assert await wait_for(pilot, lambda: bool(app.screen.query(AskForm)))
+            assert await wait_for(pilot, lambda: bool(app.screen.query("#ask1_other")))   # the form is fully built
             form = app.screen.query_one(AskForm)
             form.query_one("#ask0_1", Checkbox).value = True
             await pilot.pause(0.1)

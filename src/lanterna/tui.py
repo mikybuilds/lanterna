@@ -1679,11 +1679,10 @@ class _ChatScreen(Screen):
                  if self.app.api.settings.pc_access else
                  ["What's the weather tomorrow?", "Remind me in 20 minutes to take a break", "Explain something simply",
                   "Help me plan my week", "Write a short message for me", "Give me an idea for today"])
-        box = Vertical(classes="welcome sugg")
-        log.mount(box)
-        box.mount(Label(t("Try one:", lang), classes="muted"))
-        for i, idea in enumerate(ideas):
-            box.mount(Button(t(idea, lang), id=f"idea{i}", classes="idea"))
+        # built whole, then mounted: adding children to a box that isn't mounted yet fails on slow machines
+        log.mount(Vertical(Label(t("Try one:", lang), classes="muted"),
+                           *(Button(t(idea, lang), id=f"idea{i}", classes="idea") for i, idea in enumerate(ideas)),
+                           classes="welcome sugg"))
 
     @on(Button.Pressed, ".idea")
     def _idea(self, ev: Button.Pressed) -> None:
