@@ -67,6 +67,10 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
             once("Search words to DuckDuckGo: {q}", {"q": _arg(args, "query") or _arg(args, "q")})
         elif tool == "read_page":
             once("A web page was opened: {site}", {"site": urlparse(_arg(args, "url")).netloc or "?"})
+        elif tool == "search_chats":
+            once("Words looked up in your earlier chats on this computer: {q}", {"q": _arg(args, "words")})
+        elif tool == "read_chat":
+            once("The text of your earlier chat #{id}", {"id": _arg(args, "id") or "?"})
         elif tool == "currency":
             once("Exchange rates from the National Bank of Ukraine (nothing about you)")
         elif tool == "weather":

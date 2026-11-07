@@ -3,6 +3,7 @@
 ## Unreleased
 
 **New**
+- **Lanterna remembers your earlier chats:** ask “what did you suggest last time about my bike?” and the model looks through your saved chats on this computer (by words, then reads the one it found). It happens only when you talk about something said before, and “What went to the model” shows which words and which chat. Private chats are never looked at.
 - **Second opinion:** a button under the last answer (F4 in the terminal app) asks the same question to another model — from another service when you have one — and shows its answer right under the first one, to compare. The second model doesn't see the first answer and can only look things up (search, weather, rates, math): it never changes memory, reminders, files or your PC. Retry and Edit take both answers back.
 - **Long files: only the parts that fit your question.** A long attachment (a manual, a contract, a book) no longer sends just its start: Lanterna picks the parts that fit what you asked and says so in “What went to the model”. Press “Whole file” on the file before sending to send all of it.
 - **Scanned PDFs and more file types:** a PDF with no text layer (a scan, a photo of a document) goes to the model as pictures of its first 4 pages, so a model that sees pictures can read it. Excel (XLSX), PowerPoint (PPTX), OpenDocument (ODT, ODS, ODP) and e-books (EPUB) are read too, in chats and in folders you share.

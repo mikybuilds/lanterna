@@ -32,6 +32,8 @@ TOOL_TEXT = {
     "list_tasks": ("Looking at the regular tasks", ""),
     "delete_task": ("Deleting a regular task", ""),
     "currency": ("Converting currency", ""),
+    "search_chats": ("Looking through earlier chats: {x}", "words"),
+    "read_chat": ("Reading an earlier chat", ""),
     "convert_units": ("Converting units", ""),
     "transcribe_audio": ("Turning audio into text", ""),
     "folder_list": ("Looking at the files in the folder", ""),

@@ -378,6 +378,14 @@ GROUPS = {
                         r"cada (día|mañana|noche|semana|hora|lunes)|diari|semanal|tarea|chaque (jour|matin|soir|semaine|heure|lundi)|"
                         r"quotidien|hebdomadaire|tâche|codzien|co (dzień|rano|wieczór|tydzień|godzin|poniedział)|zadani|"
                         r"каждый|ежеднев|расписан", re.I),
+    # earlier chats: only when the user talks about something said before
+    "chats": re.compile(r"раніше|минул\w* раз|того разу|говорил|обговорюв|розмовля|казав|казала|писав|писала|питав|питала|"
+                        r"\bчат|розмов|переписк|ти (мені )?(радив|казав|писав)|we (talked|discussed|spoke|chatted)|"
+                        r"you (told|said|wrote|suggested)|last time|earlier|previous|\bchats?\b|conversation|"
+                        r"remember when|l.altra volta|abbiamo parlato|mi hai detto|\bchat\b|conversazion|letztes mal|"
+                        r"haben wir|du hast mir|gespräch|la última vez|hablamos|me dijiste|conversaci|la dernière fois|"
+                        r"on a parlé|tu m.as dit|conversation|ostatnio|rozmawiali|mówiłeś|rozmow|раньше|говорили|"
+                        r"прошл\w* раз", re.I),
     "pc": re.compile(r"завантаж|скачан|download|робоч\w* стол|desktop|документ|document|зображен|картинк|фотк|pictures|"
                      r"відео|video|музик|music|папк|folder|файл|file|сорт|розклад|розбер|прибер|навед\w* поряд|дублікат|"
                      r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
@@ -393,6 +401,7 @@ GROUPS = {
 }
 
 
+_CHAT_FILE = re.compile(r"\[File: ([^\]\n]+)\]\n```.*?```", re.S)
 LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page")
 
 
@@ -475,6 +484,37 @@ class Toolbox:
     def _forget(self, fact: str) -> str:
         n = self.store.forget_facts(str(fact))
         return f"Removed {n} matching memory item(s)." if n else "Nothing matching was found in memory."
+
+    # earlier chats -------------------------------------------------------------------------
+    CHAT_LIMIT = 6000
+
+    def _search_chats(self, words: str) -> str:
+        words = " ".join(str(words).split())[:80]
+        found = []
+        for w in [words, *sorted(words.split(), key=len, reverse=True)[:3]] if words else []:
+            for r in self.store.search(w, limit=8):          # the whole phrase first, then its longest words
+                if r["id"] not in {f["id"] for f in found} and not r.get("private"):
+                    found.append(r)
+            if len(found) >= 8:
+                break
+        if not found:
+            return f"No earlier chat has the words: {words}"
+        lines = [f"#{r['id']} «{r['title'] or '…'}» ({dt.datetime.fromtimestamp(r['updated'] or 0):%Y-%m-%d}): "
+                 f"{r['snippet']}" for r in found[:8]]
+        return "Earlier chats (use read_chat with a number for more):\n" + "\n".join(lines)
+
+    def _read_chat(self, id: int) -> str:
+        th = self.store.thread(int(id))
+        if not th or th.get("private"):
+            return f"Error: there is no chat #{id}."
+        parts = []
+        for m in self.store.messages(int(id)):
+            text = _CHAT_FILE.sub(r"[file \1]", m["content"] or "")
+            parts.append(("User: " if m["role"] == "user" else "You: ") + " ".join(text.split()))
+        body = "\n".join(parts)
+        if len(body) > self.CHAT_LIMIT:                         # long chat: the end matters most
+            body = "…" + body[-self.CHAT_LIMIT:]
+        return f"Chat #{id} «{th['title'] or '…'}»:\n{body}"
 
     # reminders -----------------------------------------------------------------------------
     def _set_reminder(self, text: str, at: str = "", in_minutes: float = 0, repeat: str = "") -> str:
@@ -603,4 +643,10 @@ class Toolbox:
                  self._delete_task, "🔁", "tasks"),
             Tool("cancel_reminder", "Cancel a reminder by its number.", _obj({"id": {"type": "integer"}}, ["id"]),
                  self._cancel_reminder, "⏰"),
+            Tool("search_chats", "Search the user's earlier chats with you (saved on this computer) for words, when "
+                 "they refer to something talked about before ('what did you suggest last week about my bike?'). "
+                 "Use one or two key words in the language of that chat; then read_chat for the details.",
+                 _obj({"words": s}, ["words"]), self._search_chats, "💬", "chats"),
+            Tool("read_chat", "Read an earlier chat found with search_chats (its number), most recent part first if long.",
+                 _obj({"id": {"type": "integer"}}, ["id"]), self._read_chat, "💬", "chats"),
         ]

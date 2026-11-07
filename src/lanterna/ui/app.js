@@ -451,7 +451,8 @@ const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the 
   calculate: "Calculating", date_calc: "Counting dates", remember: "Saving to memory", forget: "Updating memory",
   set_reminder: "Setting a reminder", list_reminders: "Checking reminders", cancel_reminder: "Cancelling a reminder",
   add_task: "Adding a regular task", list_tasks: "Checking regular tasks", delete_task: "Deleting a regular task",
-  currency: "Converting currency", convert_units: "Converting units", transcribe_audio: "Turning audio into text" };
+  currency: "Converting currency", convert_units: "Converting units", transcribe_audio: "Turning audio into text",
+  search_chats: "Looking through earlier chats", read_chat: "Reading an earlier chat" };
 const toolChip = s => { const [emo, name] = String(s).split(" "); return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
 
 let pending = [];        // files waiting to be sent: {name, size, data(base64)}

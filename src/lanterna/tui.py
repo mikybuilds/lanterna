@@ -131,7 +131,8 @@ TOOL_TEXT = {"weather": "Checking the weather", "web_search": "Searching the web
              "cancel_reminder": "Cancelling a reminder", "add_task": "Adding a regular task",
              "list_tasks": "Checking regular tasks", "delete_task": "Deleting a regular task",
              "currency": "Converting currency", "convert_units": "Converting units",
-             "transcribe_audio": "Turning audio into text"}
+             "transcribe_audio": "Turning audio into text", "search_chats": "Looking through earlier chats",
+             "read_chat": "Reading an earlier chat"}
 
 
 def tool_text(chip: str, lang: str) -> str:

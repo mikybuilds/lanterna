@@ -393,6 +393,11 @@ _T.update({
     "No other model is free right now. Add a key for one more free service in Settings → Keys, or try later.": {"uk": "Зараз немає іншої вільної моделі. Додай ключ ще одного безкоштовного сервісу в Налаштуваннях → Ключі або спробуй пізніше.", "it": "Ora non c'è un altro modello libero. Aggiungi una chiave di un altro servizio gratuito in Impostazioni → Chiavi, o riprova più tardi."},
     "Two second opinions are enough for one question.": {"uk": "Двох других думок для одного питання досить.", "it": "Due secondi pareri bastano per una domanda."},
     "A second opinion: the same question to another model, without the first answer": {"uk": "Друга думка: те саме питання іншій моделі, без першої відповіді", "it": "Secondo parere: la stessa domanda a un altro modello, senza la prima risposta"},
+    "Looking through earlier chats: {x}": {"uk": "Шукаю в минулих чатах: {x}", "it": "Cerco nelle chat precedenti: {x}"},
+    "Looking through earlier chats": {"uk": "Шукаю в минулих чатах", "it": "Cerco nelle chat precedenti"},
+    "Reading an earlier chat": {"uk": "Читаю минулий чат", "it": "Leggo una chat precedente"},
+    "Words looked up in your earlier chats on this computer: {q}": {"uk": "Слова, які шукали в твоїх минулих чатах на цьому комп'ютері: {q}", "it": "Parole cercate nelle tue chat precedenti su questo computer: {q}"},
+    "The text of your earlier chat #{id}": {"uk": "Текст твого минулого чату №{id}", "it": "Il testo della tua chat precedente n. {id}"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })
