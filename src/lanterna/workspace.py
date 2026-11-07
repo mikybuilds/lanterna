@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Callable
 
 from .config import data_dir
-from .files import IMAGE_EXT, FileError, prepare_one
+from .files import DOC_EXT, IMAGE_EXT, FileError, prepare_one
 
 READ_LIMIT = 12000                 # characters of a file given to the model at once
 WRITE_LIMIT = 200_000              # characters the assistant may write in one file
@@ -230,7 +230,7 @@ class Workspace:
                 try:
                     if p.suffix.lower() in IMAGE_EXT or p.stat().st_size > SEARCH_BYTES:
                         continue
-                    if p.suffix.lower() in (".pdf", ".docx"):
+                    if p.suffix.lower() in DOC_EXT:
                         body = prepare_one(name, p.read_bytes())[0]
                     else:
                         body = p.read_text(encoding="utf-8", errors="ignore")
@@ -248,7 +248,7 @@ class Workspace:
             raise WorkError(f"There is no file '{path}' in the working folder.")
         if p.suffix.lower() in IMAGE_EXT:
             return f"'{self.rel(p)}' is a picture. Ask the user to attach it to the chat to look at it."
-        if p.suffix.lower() in (".pdf", ".docx"):
+        if p.suffix.lower() in DOC_EXT:
             body = prepare_one(p.name, p.read_bytes())[0]
         else:
             body = p.read_bytes()[:WRITE_LIMIT * 4].decode("utf-8", "replace")

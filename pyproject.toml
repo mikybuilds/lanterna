@@ -18,6 +18,7 @@ dependencies = [
     "textual>=3",
     "pillow>=10",
     "pypdf>=4",
+    "pypdfium2>=4",                     # scanned PDFs as pictures (BSD-3 / Apache-2.0)
     "cryptography>=42",
 ]
 classifiers = [

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import quiet
-from .files import IMAGE_EXT, FileError, prepare_one
+from .files import DOC_EXT, IMAGE_EXT, FileError, prepare_one
 from .workspace import NEVER_WRITE, WAITING, WorkError
 
 PLACES = ("downloads", "desktop", "documents", "pictures", "videos", "music")
@@ -480,7 +480,7 @@ class Places:
             return (f"'{p.name}' looks like it holds a password, key or token, so Lanterna doesn't read it "
                     "(it would go to the model). The user can open it themselves.")
         try:
-            body = prepare_one(p.name, data)[0] if p.suffix.lower() in (".pdf", ".docx") else \
+            body = prepare_one(p.name, data)[0] if p.suffix.lower() in DOC_EXT else \
                 data[:800_000].decode("utf-8", "replace")
         except FileError as e:
             raise WorkError(str(e)) from e

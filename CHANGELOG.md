@@ -3,6 +3,8 @@
 ## Unreleased
 
 **New**
+- **Long files: only the parts that fit your question.** A long attachment (a manual, a contract, a book) no longer sends just its start: Lanterna picks the parts that fit what you asked and says so in “What went to the model”. Press “Whole file” on the file before sending to send all of it.
+- **Scanned PDFs and more file types:** a PDF with no text layer (a scan, a photo of a document) goes to the model as pictures of its first 4 pages, so a model that sees pictures can read it. Excel (XLSX), PowerPoint (PPTX), OpenDocument (ODT, ODS, ODP) and e-books (EPUB) are read too, in chats and in folders you share.
 - **Answers read aloud:** press 🔊 under an answer (F3 in the terminal app), or let every new answer be read by itself. Choose in Settings → Voice → Reading aloud: the voices Windows already has (nothing to download), or Piper with natural voices in 7 languages. Piper is a separate free program with its own license (GPL), so it is not part of Lanterna: it is downloaded on request from its own page as pinned files checked by SHA-256, and works offline. Code and links are skipped.
 - **Easier Settings:** tabs by topic at the top (General, Models, Memory and reminders, Chats, Voice, Computer and tools, Account) and a box that finds a setting by its words. The last tab is remembered.
 - **Exchange rates and units:** “how much is 100 dollars in hryvnias?” uses today's official National Bank of Ukraine rate (about 60 currencies, any pair), and “5 miles in km”, “6 sotkas in hectares”, “350 °F in °C” are converted exactly, not guessed. Units work offline.

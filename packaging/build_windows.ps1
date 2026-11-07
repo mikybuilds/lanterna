@@ -10,6 +10,8 @@ $py = if (Test-Path ".venv\Scripts\python.exe") { ".venv\Scripts\python.exe" } e
     --add-data "src\lanterna\locale;lanterna\locale" `
     --collect-submodules keyring `
     --collect-all webview `
+    --collect-all pypdfium2 `
+    --collect-all pypdfium2_raw `
     packaging\lanterna_gui.py
 Write-Host "Built: dist\Lanterna\Lanterna.exe"
 

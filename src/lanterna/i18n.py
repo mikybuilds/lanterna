@@ -384,6 +384,10 @@ _T.update({
     "Computer and tools": {"uk": "Комп'ютер та інструменти", "it": "Computer e strumenti"},
     "Find a setting": {"uk": "Знайти налаштування", "it": "Trova un'impostazione"},
     "No setting with these words.": {"uk": "Немає налаштування з такими словами.", "it": "Nessuna impostazione con queste parole."},
+    "Whole file": {"uk": "Весь файл", "it": "File intero"},
+    "Long files: only the parts that fit your question go to the model. Press to send the whole file.": {"uk": "Довгі файли: моделі йдуть лише частини, що стосуються питання. Натисни, щоб надіслати весь файл.", "it": "File lunghi: al modello vanno solo le parti utili alla domanda. Premi per inviare il file intero."},
+    "Only the parts of {names} that fit your question": {"uk": "Лише частини {names}, що стосуються питання", "it": "Solo le parti di {names} utili alla domanda"},
+    "Exchange rates from the National Bank of Ukraine (nothing about you)": {"uk": "Курси валют від Національного банку України (нічого про тебе)", "it": "Tassi di cambio dalla Banca nazionale dell'Ucraina (niente su di te)"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

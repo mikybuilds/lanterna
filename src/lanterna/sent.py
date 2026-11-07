@@ -25,7 +25,8 @@ def _arg(arguments: str, key: str) -> str:
 
 
 def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
-          tools: list[tuple[str, str]], summary: bool = False, old_files: list[str] | None = None) -> list[dict]:
+          tools: list[tuple[str, str]], summary: bool = False, old_files: list[str] | None = None,
+          parts: list[str] | None = None) -> list[dict]:
     """[{"t": template, "v": vars}] — the first line says where it went."""
     out = [{"t": "Stayed on this computer ({model})" if local else "Sent to {model}", "v": {"model": model or "?"}}]
     out.append({"t": "Your message and {n} earlier messages of this chat" if history else "Your message", "v": {"n": history}})
@@ -37,6 +38,8 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
         out.append({"t": "What Lanterna remembers about you ({n} facts)", "v": {"n": facts}})
     if files:
         out.append({"t": "Attached files: {names}", "v": {"names": ", ".join(files[:6])}})
+    if parts:
+        out.append({"t": "Only the parts of {names} that fit your question", "v": {"names": ", ".join(parts[:6])}})
     if photos:
         out.append({"t": "Photos: {n}", "v": {"n": photos}})
     if old_files:                                      # attached earlier: their text goes along with the chat again
@@ -62,6 +65,8 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
             once("Search words to DuckDuckGo: {q}", {"q": _arg(args, "query") or _arg(args, "q")})
         elif tool == "read_page":
             once("A web page was opened: {site}", {"site": urlparse(_arg(args, "url")).netloc or "?"})
+        elif tool == "currency":
+            once("Exchange rates from the National Bank of Ukraine (nothing about you)")
         elif tool == "weather":
             once("A city name to Open-Meteo (weather): {city}", {"city": _arg(args, "city") or _arg(args, "place")})
     return out

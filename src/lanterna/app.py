@@ -67,6 +67,7 @@ class _Stream:
         self.error: dict | None = None
         self.files: list[str] = []         # attached file names
         self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
+        self.parts: list[str] = []         # long files of which only the parts that fit the question went
         self.sent = ""
         self.lock = threading.Lock()
 
@@ -904,7 +905,7 @@ class Api:
             for f in files or []:
                 (audio if is_audio(str(f.get("name") or f.get("path") or "")) else other).append(f)
             audio = [read_upload(f) for f in audio]
-            prep = prepare(other)
+            prep = prepare(other, focus=text)
         except FileError as e:
             return {"ok": False, "error": "file", "message": str(e)}
         if audio:
@@ -921,6 +922,7 @@ class Api:
         if not self.store.thread(tid)["title"]:
             self.store.rename(tid, (text or ", ".join(prep.names + [n for n, _ in audio])).splitlines()[0][:60])
         st.files = list(prep.names) + [n for n, _ in audio]
+        st.parts = list(prep.parts)
         threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images, audio), daemon=True).start()
         return {"ok": True, "stream": sid}
 
@@ -1010,7 +1012,8 @@ class Api:
                 cur.label if cur else "", bool(cur and PROVIDERS[cur.provider].local), earlier,
                 bool(self.settings.name), len(self.store.facts()),
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
-                len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else [])))
+                len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else []),
+                parts=st.parts))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
             self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
             if self.settings.compact_chats and summary_due(total, upto):

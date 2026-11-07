@@ -478,8 +478,12 @@ function paintFiles() {
   const box = $("#files");
   if (!box) return;
   box.hidden = !pending.length;
-  box.innerHTML = pending.map((f, i) => `<span class="file">${icon("clip")}<span>${esc(f.name)}</span><button data-i="${i}" title="${t("Remove")}">${icon("x")}</button></span>`).join("");
-  box.querySelectorAll("button").forEach(b => b.onclick = () => { pending.splice(+b.dataset.i, 1); paintFiles(); });
+  // a long document sends only the parts that fit the question; "Whole file" sends all of it (up to 100 000 characters)
+  const longDoc = f => !/\.(png|jpe?g|webp|gif|bmp|mp3|wav|m4a|ogg|oga|opus|flac|webm|aac)$/i.test(f.name) && (f.size || 0) > 12000;
+  box.innerHTML = pending.map((f, i) => `<span class="file">${icon("clip")}<span>${esc(f.name)}</span>${longDoc(f)
+    ? `<button class="whole${f.whole ? " on" : ""}" data-w="${i}" title="${esc(t("Long files: only the parts that fit your question go to the model. Press to send the whole file."))}">${esc(t("Whole file"))}</button>` : ""}<button data-i="${i}" title="${t("Remove")}">${icon("x")}</button></span>`).join("");
+  box.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { pending.splice(+b.dataset.i, 1); paintFiles(); });
+  box.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { const f = pending[+b.dataset.w]; f.whole = !f.whole; paintFiles(); });
   $("#input").oninput();
 }
 
