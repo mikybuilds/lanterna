@@ -309,7 +309,7 @@ body.quick .chip:not([hidden]) + #q-shot { margin-left: 6px; }
 .lim.unknown .lim-track { background: repeating-linear-gradient(-45deg, var(--surface-2) 0 6px, var(--line) 6px 12px); }
 .lim.local .lim-track i { background: linear-gradient(90deg, #3FAF72, var(--green)); box-shadow: 0 0 10px rgba(91, 208, 138, .35); }
 .lim-tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.fold-wrap { position: relative; justify-self: center; }
+.fold-wrap { position: relative; justify-self: center; display: flex; gap: 6px; min-width: 0; }
 .fold { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; height: 28px; padding: 0 8px 0 10px; border-radius: 99px;
   border: 1px solid var(--line-2); background: var(--surface); color: var(--text); font-size: 12.5px; transition: border-color .15s, background .15s; }
 .fold:hover { border-color: var(--amber-line); }
@@ -533,3 +533,12 @@ details.sent li { margin: 2px 0; }
 .msg.bot.second .body { border-left: 3px solid var(--accent, #e8a33d); padding-left: 12px; }
 .second-tag { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted, #888); margin-bottom: 6px; }
 .second-tag svg { width: 14px; height: 14px; }
+
+/* the role of a chat: a chip next to the folder */
+.role-btn .role-ic { font-weight: 400; font-size: 13px; line-height: 1; }
+.role-btn.none .role-ic { filter: grayscale(1); opacity: .7; }
+.role-menu button[data-a] { align-items: flex-start; }
+.role-menu button[data-a] .r-ic { width: 20px; flex: none; text-align: center; }
+.role-menu button[data-a] small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+.role-menu button[data-a].on { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--amber-line); }
+#instructions { width: 100%; resize: vertical; min-height: 84px; padding: 10px 12px; font: inherit; line-height: 1.45; }

@@ -384,6 +384,7 @@ class Conversation:
     summary: str = ""                      # a long chat: the summary of its older part (not in history)
     ask_first: bool = False                # big tasks: the model may ask 1-4 questions first (ask_user)
     ask_header: str = "Questions for you:"  # how a questionnaire starts in the saved chat (in the app's language)
+    instructions: str = ""                 # the chat's role and the user's own instructions (roles.system_note)
 
     def _system(self, text: str) -> dict:
         cur = used_model(self.router)
@@ -393,7 +394,8 @@ class Conversation:
                                               (s["function"]["name"] for s in self.toolbox.schemas(ctx)))
         return {"role": "system", "content": system_prompt(self.user_name, extra=" ".join(x for x in (soul.mood_hint(text), soul.lang_hint(text, self.lang)) if x),
                                                            model=cur.label if cur else "", facts=facts,
-                                                           tools=self.toolbox is not None, pc=pc) + self._summary_note()}
+                                                           tools=self.toolbox is not None, pc=pc) + self._summary_note()
+                + (f"\n\n{self.instructions}" if self.instructions else "")}
 
     def _summary_note(self) -> str:
         return ("\n\nEarlier in this chat (a summary; those older messages are not shown to you):\n" + self.summary

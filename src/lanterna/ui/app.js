@@ -841,7 +841,7 @@ function renderMain() {
           <button class="send" id="send" disabled title="Send">${icon("send")}</button></div>
         <div class="under">
           <button class="lim" id="lim" hidden><span class="lim-track"><i></i></span><span class="lim-tx"></span></button>
-          <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button></div>
+          <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button><button class="fold role-btn none" id="role-btn" title="${esc(t("Role of this chat"))}"><b class="role-ic">🎭</b><span></span>${icon("down", "i caret")}</button></div>
           <span class="hint">${t("Lanterna can make mistakes. Check important facts.")}</span>
         </div>
       </div>
@@ -882,6 +882,7 @@ function renderMain() {
   pending = []; paintFiles();
   $("#lim").onclick = () => { openSettings(); setTimeout(() => { const l = $("#limits"); if (l) l.scrollIntoView({ block: "center" }); }, 300); };
   $("#fold").onclick = e => { e.stopPropagation(); folderMenu(); };
+  $("#role-btn").onclick = e => { e.stopPropagation(); roleMenu(); };
   paintLimit();
   refreshThreads().then(list => openThread(!QUICK && list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
@@ -1093,7 +1094,9 @@ async function openThread(id) {
   const sv = $("#save-chat");
   if (sv) { sv.hidden = !id; sv.onclick = async () => { if (thread) savedToast(await api.export_chat(thread)); }; }
   newChatFolder = undefined;
+  newChatRole = "";
   paintFolder();
+  paintRole();
   const msgs = $("#msgs");
   msgs.innerHTML = "";
   if (!id) { $("#title").textContent = QUICK ? t("Quick question") : "Lanterna"; showEmpty(); refreshThreads(); $("#input").focus(); return; }
@@ -1275,6 +1278,7 @@ async function send(retryText) {
   if (!thread) {
     thread = (await api.new_thread()).id;
     if (newChatFolder !== undefined) { await api.set_chat_folder(thread, newChatFolder, false); newChatFolder = undefined; }
+    if (newChatRole) { await api.set_chat_role(thread, newChatRole); newChatRole = ""; }
   }
   if (!retry) {
     pending = []; inp.value = ""; paintFiles();
@@ -1505,6 +1509,11 @@ function openSettings() {
         <span><b>${t("Ask before big tasks")}</b><small>${t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.")}</small></span></label>
       <label class="check"><input type="checkbox" id="auto-memory" ${S.settings.auto_memory ? "checked" : ""}>
         <span><b>${t("Learn about me from chats")}</b><small>${t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.")}</small></span></label>
+      <h4 style="margin-top:22px">${t("Instructions and roles")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”")}</p>
+      <textarea class="field" id="instructions" rows="4" maxlength="1500" placeholder="${esc(t("Your instructions (optional)"))}">${esc(S.settings.instructions || "")}</textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><button class="btn ghost small" id="instr-save">${icon("check")} ${t("Save")}</button><small class="muted" id="instr-left"></small></div>
+      <p class="muted" style="margin:10px 0 0;font-size:13.5px">${t("A role changes how Lanterna answers in one chat: Tutor, Translator or Proofreader. Pick it with the 🎭 button under the message box.")}</p>
       <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
       <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
       <div id="voice-set">
@@ -1602,6 +1611,9 @@ function openSettings() {
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }
     $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
+    const ins = $("#instructions", body), left = () => { $("#instr-left", body).textContent = `${ins.value.length} / 1500`; };
+    ins.oninput = left; left();
+    $("#instr-save", body).onclick = async () => { S = await api.save_settings({ instructions: ins.value }); ins.value = S.settings.instructions; left(); toast(t("Saved")); };
     const mo = $("#morning", body);
     mo.onchange = async () => { S = await api.save_settings({ morning: mo.checked }); $(".morning-set", body).hidden = !mo.checked; };
     $("#morning-at", body).onchange = async e => { S = await api.save_settings({ morning_at: e.target.value }); };
@@ -2037,6 +2049,38 @@ async function paintLimit() {
 }
 
 let newChatFolder;      // a folder picked for a chat that has no messages yet (applied when it is created)
+// a role for one chat (Tutor, Translator, Proofreader); the user's own instructions for all are in Settings → Chats
+const ROLES = [["", "No role", "🎭", "Lanterna as usual."],
+  ["tutor", "Tutor", "🎓", "Explains step by step and asks you questions instead of giving the answer straight away."],
+  ["translator", "Translator", "🌐", "Translates every message: from your language into English, from any other into yours."],
+  ["proofreader", "Proofreader", "✍️", "Corrects spelling, grammar and punctuation and lists the changes."]];
+let newChatRole = "";
+async function paintRole() {
+  const b = $("#role-btn");
+  if (!b) return;
+  const role = thread ? (await api.chat_role(thread)).role : newChatRole;
+  const r = ROLES.find(x => x[0] === role) || ROLES[0];
+  b.dataset.role = r[0];
+  b.querySelector(".role-ic").textContent = r[2];
+  b.querySelector("span").textContent = r[0] ? t(r[1]) : t("Role");
+  b.classList.toggle("none", !r[0]);
+}
+function roleMenu() {
+  const old = $(".role-menu");
+  if (old) { old.remove(); return; }
+  const b = $("#role-btn"), cur = b.dataset.role || "";
+  const m = h(`<div class="fold-menu role-menu" role="menu">
+    <div class="fm-head"><b>${esc(t("Role of this chat"))}</b><p>${esc(t("Your own instructions for every chat are in Settings → Chats."))}</p></div>
+    ${ROLES.map(r => `<button data-a="${r[0]}" class="${r[0] === cur ? "on" : ""}"><span class="r-ic">${r[2]}</span><span><b>${esc(t(r[1]))}</b><small>${esc(t(r[3]))}</small></span></button>`).join("")}</div>`);
+  b.parentElement.append(m);
+  const close = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("mousedown", close); } };
+  setTimeout(() => document.addEventListener("mousedown", close), 0);
+  m.querySelectorAll("button[data-a]").forEach(x => x.onclick = async () => {
+    if (thread) await api.set_chat_role(thread, x.dataset.a); else newChatRole = x.dataset.a;
+    m.remove(); document.removeEventListener("mousedown", close); paintRole();
+  });
+}
+
 async function paintFolder() {
   const b = $("#fold");
   if (!b) return;

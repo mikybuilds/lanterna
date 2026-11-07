@@ -1042,6 +1042,11 @@ class SettingsScreen(ModalScreen[str]):
                 yield Input(placeholder=t("Command or https:// address", lang), id="mcpwhere")
                 yield Input(placeholder=t("Name (optional)", lang), id="mcpname")
                 yield Button(t("Add", lang), id="mcpadd")
+            yield Label(t("Instructions and roles", lang), classes="h")
+            yield Static(t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”", lang), classes="muted")
+            yield TextArea(self.app.api.settings.instructions, id="instructions")
+            yield Button(t("Save", lang), id="instrsave")
+            yield Static(t("F6 changes the role of the open chat: Tutor, Translator, Proofreader or none.", lang), classes="muted")
             yield Label(t("Working folder", lang), classes="h")
             yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
                          + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
@@ -1390,6 +1395,9 @@ class SettingsScreen(ModalScreen[str]):
             self.app.api.save_settings({"morning_at": self.query_one("#morningat", Input).value,
                                         "morning_city": self.query_one("#morningcity", Input).value})
             self.query_one("#morningat", Input).value = self.app.api.settings.morning_at
+            self.app.notify(t("Saved", L(self.app)), timeout=3)
+        elif bid == "instrsave":
+            self.app.api.save_settings({"instructions": self.query_one("#instructions", TextArea).text})
             self.app.notify(t("Saved", L(self.app)), timeout=3)
         elif bid == "morningshow":
             self.app.notify(self.app.api.morning_preview(), title="☀️ " + t("Morning summary", L(self.app)),
@@ -1945,6 +1953,20 @@ class _ChatScreen(Screen):
         self.open_thread(self.tid)
         self._watch(res["stream"])
 
+    def action_next_role(self) -> None:
+        """F6: the open chat's role goes round: none → Tutor → Translator → Proofreader → none."""
+        from .roles import ROLES
+        order = ["", *ROLES]
+        lang = L(self.app)
+        if self.tid is None:
+            self._new_role = order[(order.index(getattr(self, "_new_role", "")) + 1) % len(order)]
+            role = self._new_role
+        else:
+            role = order[(order.index(self.app.api.chat_role(self.tid)["role"]) + 1) % len(order)]
+            self.app.api.set_chat_role(self.tid, role)
+        self.app.notify(f"{ROLES[role][1]} {t(ROLES[role][0], lang)}" if role else t("No role", lang),
+                        title=t("Role of this chat", lang), timeout=4)
+
     def action_second_opinion(self) -> None:
         """F4: the last question to another model; its answer comes under the first one."""
         if self.tid is None or self._stream:
@@ -2062,6 +2084,9 @@ class _ChatScreen(Screen):
         self._asked = None
         if self.tid is None:
             self.tid = self.app.api.new_thread()["id"]
+            if getattr(self, "_new_role", ""):
+                self.app.api.set_chat_role(self.tid, self._new_role)
+                self._new_role = ""
             log.remove_children()
         log.query(".welcome").remove()
         files, self._files = self._files, []
@@ -2301,6 +2326,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+o", "models", t("Models", lang), priority=True),
         Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
         Binding("f4", "second_opinion", t("Second opinion", lang), priority=True),
+        Binding("f6", "next_role", t("Role", lang), priority=True),
         Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
         Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
         Binding("f2", "voice", t("Voice input", lang), priority=True),

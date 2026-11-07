@@ -179,6 +179,9 @@ class Api:
             autostart.set_enabled(bool(patch.pop("autostart")))
         if "hotkey" in patch and patch["hotkey"] not in shell.HOTKEYS:
             patch.pop("hotkey")
+        if "instructions" in patch:                        # longer than the other text settings
+            from .roles import clean_instructions
+            self.settings.instructions = clean_instructions(patch.pop("instructions"))
         for k, v in patch.items():
             if k in allowed:
                 setattr(self.settings, k, bool(v) if k in self._BOOLS else v.strip()[:40] if isinstance(v, str) else v)
@@ -644,9 +647,32 @@ class Api:
 
     def delete_thread(self, tid: int) -> bool:
         self.store.delete_thread(int(tid))
-        if self.settings.chat_dirs.pop(str(int(tid)), None) is not None:
+        a = self.settings.chat_dirs.pop(str(int(tid)), None)
+        b = self.settings.chat_roles.pop(str(int(tid)), None)
+        if a is not None or b is not None:
             self.settings.save()
         return True
+
+    # ---------------------------------------------------------------- a role for one chat, instructions for all
+    def chat_role(self, tid) -> dict:
+        return {"role": self.settings.chat_roles.get(str(int(tid or 0)), "")}
+
+    def set_chat_role(self, tid, role: str = "") -> dict:
+        from .roles import clean_role
+        key = str(int(tid or 0))
+        if key == "0" or not self.store.thread(int(key)):
+            return {"ok": False, "error": "no_chat"}
+        role = clean_role(role)
+        if role:
+            self.settings.chat_roles[key] = role
+        else:
+            self.settings.chat_roles.pop(key, None)
+        self.settings.save()
+        return {"ok": True, "role": role}
+
+    def _instructions(self, tid: int) -> str:
+        from .roles import system_note
+        return system_note(self.settings.instructions, self.settings.chat_roles.get(str(int(tid)), ""), self.settings.lang)
 
     def _undo_last(self, tid: int) -> str:
         """Takes back the last question (and its answers: a second opinion too); returns the question as saved."""
@@ -1030,6 +1056,7 @@ class Api:
                                 toolbox=LookupOnly(self.toolbox) if st.second else self.toolbox, summary=summary,
                                 lang=self.settings.lang, ask_first=self.settings.ask_first,
                                 ask_header=t("Questions for you:", self.settings.lang),
+                                instructions=self._instructions(tid),
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
             for p in conv.ask(text, images or None):
                 with st.lock:
