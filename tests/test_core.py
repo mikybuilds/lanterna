@@ -93,6 +93,8 @@ def test_no_unexpected_domains_in_sources():
                "html.duckduckgo.com",
                # model sizes for the Download buttons (manifests only)
                "registry.ollama.ai",
+               # local voice input: whisper.cpp models (pinned files, checked by SHA-256)
+               "huggingface.co",
                # optional Google sign-in and sync to the user's own Drive (hidden app folder)
                "accounts.google.com", "oauth2.googleapis.com", "www.googleapis.com",
                # the project's own pages (privacy policy)

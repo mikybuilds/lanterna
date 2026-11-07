@@ -12,6 +12,10 @@
   - With a condition ("only if it rains"), Lanterna stays quiet when it's not true.
   - Tasks use only safe tools (weather, web search, pages) and run while Lanterna is open or in the tray. They stay on this computer.
   - In Settings you can run, pause or delete a task.
+- **Voice input:** press the microphone next to the message box (or F2, also in the terminal), speak, and press it again. Your words appear in the box, so you can fix them before sending.
+  - Choose how in Settings → Voice input: off (the default), online with Groq Whisper (fast, needs the Groq key), or on this computer with whisper.cpp (nothing leaves your PC).
+  - On this computer: a one-time download of the speech engine and a model (Quick 60 MB, Better 190 MB or Best 574 MB). Every file is checked before it's used.
+  - A recording stops by itself after 2 minutes. Esc cancels it.
 
 ## 0.6.0 — edit and retry, save chats, memory that updates itself
 

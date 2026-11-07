@@ -121,6 +121,9 @@ Button:focus { text-style: bold; }
 """
 
 
+VOICE_ERR = {"off": "Turn on voice input in Settings first.", "no_engine": "Download the speech engine in Settings → Voice input first.", "no_key": "Online voice input needs the Groq key (Settings → Keys).",
+             "no_mic": "No microphone found.", "network": "Couldn't reach the speech service. Check the internet.", "engine": "The speech engine didn't work this time.", "empty": "I didn't hear anything. Try again a bit closer to the microphone."}
+
 TOOL_TEXT = {"weather": "Checking the weather", "web_search": "Searching the web", "read_page": "Reading a page",
              "calculate": "Calculating", "date_calc": "Counting dates", "remember": "Saving to memory",
              "forget": "Updating memory", "set_reminder": "Setting a reminder", "list_reminders": "Checking reminders",
@@ -1047,6 +1050,13 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.", lang), classes="muted")
             yield Checkbox(t("Learn about me from chats", lang), self.app.api.settings.auto_memory, id="automemory")
             yield Static(t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.", lang), classes="muted")
+            yield Label(t("Voice input", lang), classes="h")
+            yield Static(t("Press the microphone next to the message box (or F2), speak, and press it again: your words appear in the box.", lang), classes="muted")
+            with Horizontal(classes="modes"):
+                for eng, label in (("off", "Off"), ("groq", "Online (Groq Whisper)"), ("local", "On this computer (whisper.cpp)")):
+                    yield Button(("● " if self.app.api.settings.voice == eng else "") + t(label, lang), id=f"voice-{eng}")
+            yield Static("", id="voiceinfo", classes="muted")
+            yield Button(t("Download ({mb} MB)", lang, mb="…"), id="voiceget")
             yield Button(t("Save a backup of all chats", lang), id="backupall")
             yield Static(t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
@@ -1074,6 +1084,7 @@ class SettingsScreen(ModalScreen[str]):
         self._fill_keys()
         self._fill_memory()
         self._paint_wd()
+        self._paint_voice()
         self._paint_limits()
         self._paint_drive()
         self.set_interval(1.0, self._paint_drive)
@@ -1176,6 +1187,29 @@ class SettingsScreen(ModalScreen[str]):
         self.app.api.github_disconnect()
         self._paint_github()
 
+    def _paint_voice(self) -> None:
+        """Settings → Voice input: what the local engine needs, or that it is ready / downloading."""
+        lang, v = L(self.app), self.app.api.voice_status()
+        info, get = self.query_one("#voiceinfo", Static), self.query_one("#voiceget", Button)
+        loc = v["local"]
+        get.display = False
+        if v["engine"] == "groq":
+            info.update(t("Fast and accurate. Your recording goes to Groq to be turned into text. Needs the Groq key.", lang))
+        elif v["engine"] != "local":
+            info.update("")
+        elif loc["engine"] and loc["model"]:
+            info.update(t("Ready. Everything is on this computer.", lang))
+        elif loc.get("phase") == "downloading":
+            info.update(t("Downloading… {done} of {total} MB", lang, done=round(loc["done"] / 1e6), total=round(loc["total"] / 1e6)))
+            self.set_timer(1.0, self._paint_voice)
+        elif not loc["platform_ok"] and not loc["engine"]:
+            info.update(t("There is no ready speech engine for this system. Install whisper.cpp (the whisper-cli command) and Lanterna will use it.", lang))
+        else:
+            mb = (0 if loc["engine"] else v["engine_mb"]) + (0 if loc["model"] else next(m["mb"] for m in v["models"] if m["id"] == v["model"]))
+            info.update(t("Nothing leaves your PC. A one-time download: the speech engine and a model. Slower on older computers.", lang) + ("\n" + t("The download didn't work. Check the internet and try again.", lang) if loc.get("phase") == "error" else ""))
+            get.label = t("Download ({mb} MB)", lang, mb=mb)
+            get.display = True
+
     def _fill_memory(self) -> None:
         lang, api = L(self.app), self.app.api
         facts, rems = self.query_one("#facts", Vertical), self.query_one("#rems", Vertical)
@@ -1247,6 +1281,12 @@ class SettingsScreen(ModalScreen[str]):
         elif bid.startswith("rem-"):
             self.app.api.cancel_reminder(int(bid[4:]))
             self._fill_memory()
+        elif bid.startswith("voice-"):
+            self.app.api.save_settings({"voice": bid[6:]})
+            self.dismiss("reopen")
+        elif bid == "voiceget":
+            self.app.api.voice_setup()
+            self._paint_voice()
         elif bid.startswith("taskdel-"):
             self.app.api.task_delete(int(bid[8:]))
             self._fill_memory()
@@ -1751,6 +1791,35 @@ class _ChatScreen(Screen):
         self.open_thread(self.tid)
         self._watch(res["stream"])
 
+    def action_voice(self) -> None:
+        """F2: start recording; F2 again: stop, and the words go to the message box."""
+        lang = L(self.app)
+        if not getattr(self, "_recording", False):
+            r = self.app.api.voice_start()
+            if not r.get("ok"):
+                self.app.notify(t(VOICE_ERR.get(r.get("error"), VOICE_ERR["engine"]), lang), severity="warning")
+                return
+            self._recording = True
+            self.app.notify(t("Listening… Press F2 again to stop.", lang), timeout=4)
+            return
+        self._recording = False
+        self.app.notify(t("Turning speech into text…", lang), timeout=3)
+        self._voice_text()
+
+    @work(thread=True, group="voice")
+    def _voice_text(self) -> None:
+        r = self.app.api.voice_stop()
+        self.app.call_from_thread(self._voice_done, r)
+
+    def _voice_done(self, r: dict) -> None:
+        lang = L(self.app)
+        if not r.get("ok"):
+            self.app.notify(t(VOICE_ERR.get(r.get("error"), VOICE_ERR["engine"]), lang), severity="warning")
+            return
+        box = self.query_one("#composer", Input)
+        box.value = (box.value.rstrip() + " " if box.value.strip() else "") + r["text"]
+        box.focus()
+
     def action_save_chat(self) -> None:
         """Ctrl+X: the chat as a Markdown file in Downloads."""
         lang = L(self.app)
@@ -2028,6 +2097,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
         Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
         Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
+        Binding("f2", "voice", t("Voice input", lang), priority=True),
         Binding("ctrl+h", "history", t("What Lanterna did", lang), priority=True),
         Binding("f1", "about", t("About", lang), priority=True),
         Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),

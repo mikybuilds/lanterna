@@ -812,6 +812,7 @@ function renderMain() {
         <div class="box"><button class="attach" id="attach" title="${t("Attach a file or photo")}">${icon("clip")}</button>
           <input type="file" id="file" multiple hidden>
           <textarea id="input" rows="1" placeholder="${t("Message Lanterna…")}"></textarea>
+          <button class="mic" id="mic" title="${esc(t("Voice input (F2)"))}">${icon("mic")}</button>
           <button class="send" id="send" disabled title="Send">${icon("send")}</button></div>
         <div class="under">
           <button class="lim" id="lim" hidden><span class="lim-track"><i></i></span><span class="lim-tx"></span></button>
@@ -835,6 +836,16 @@ function renderMain() {
   inp.oninput = fit;
   inp.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
   $("#send").onclick = send;
+  $("#mic").onclick = micClick;
+  if (recording) $("#mic").classList.add("rec");
+  if (!window.__micKey) {
+    window.__micKey = true;
+    document.addEventListener("keydown", e => {
+      if (e.key === "F2" && $("#mic") && !document.querySelector(".veil")) { e.preventDefault(); micClick(); }
+      else if (e.key === "Escape" && recording) { e.stopImmediatePropagation(); e.preventDefault(); recording = false;
+        $("#input").placeholder = t("Message Lanterna…"); $("#mic").classList.remove("rec"); api.voice_cancel(); }
+    }, true);
+  }
   $("#attach").onclick = () => $("#file").click();
   $("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
   const main = $(".main");
@@ -849,6 +860,35 @@ function renderMain() {
   refreshThreads().then(list => openThread(!QUICK && list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
   if (!QUICK && !window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
+}
+
+// ---------------------------------------------------------------- voice input (the mic button / F2)
+let recording = false;
+const VOICE_ERR = { off: "Turn on voice input in Settings first.", no_engine: "Download the speech engine in Settings → Voice input first.", no_key: "Online voice input needs the Groq key (Settings → Keys).",
+  no_mic: "No microphone found.", network: "Couldn't reach the speech service. Check the internet.", engine: "The speech engine didn't work this time.", empty: "I didn't hear anything. Try again a bit closer to the microphone." };
+async function micClick() {
+  const b = $("#mic");
+  if (!b || b.disabled) return;
+  if (!recording) {
+    const r = await api.voice_start();
+    if (!r.ok) {
+      toast(t(VOICE_ERR[r.error] || VOICE_ERR.engine));
+      if (["off", "no_engine"].includes(r.error) && !QUICK) { openSettings(); setTimeout(() => { const v = $("#voice-set"); if (v) v.scrollIntoView({ block: "center" }); }, 350); }
+      return;
+    }
+    recording = true; b.classList.add("rec"); b.title = t("Stop and turn into text");
+    $("#input").placeholder = t("Listening… Press F2 again to stop.");
+    return;
+  }
+  recording = false; b.classList.remove("rec"); b.classList.add("wait"); b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
+  $("#input").placeholder = t("Turning speech into text…");
+  const r = await api.voice_stop();
+  b.classList.remove("wait"); b.disabled = false; b.innerHTML = icon("mic"); b.title = t("Voice input (F2)");
+  $("#input").placeholder = t("Message Lanterna…");
+  if (!r.ok) return toast(t(VOICE_ERR[r.error] || VOICE_ERR.engine));
+  const inp = $("#input");
+  inp.value = (inp.value.trim() ? inp.value.trimEnd() + " " : "") + r.text;
+  inp.oninput(); inp.focus();
 }
 
 // ---------------------------------------------------------------- the quick-question window (Windows)
@@ -1216,6 +1256,19 @@ function openSettings() {
         <span><b>${t("Learn about me from chats")}</b><small>${t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.")}</small></span></label>
       <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
       <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
+      <div id="voice-set">
+      <h4 style="margin-top:22px">${t("Voice input")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Press the microphone next to the message box (or F2), speak, and press it again: your words appear in the box.")}</p>
+      <div class="voice-opts">
+        <label class="check"><input type="radio" name="voice" value="off"><span><b>${t("Off")}</b></span></label>
+        <label class="check"><input type="radio" name="voice" value="groq"><span><b>${t("Online (Groq Whisper)")}</b><small>${t("Fast and accurate. Your recording goes to Groq to be turned into text. Needs the Groq key.")}</small></span></label>
+        <label class="check"><input type="radio" name="voice" value="local"><span><b>${t("On this computer (whisper.cpp)")}</b><small>${t("Nothing leaves your PC. A one-time download: the speech engine and a model. Slower on older computers.")}</small></span></label>
+      </div>
+      <div id="voice-local" hidden>
+        <div class="row-field"><span>${t("Speech model")}</span><select class="field" id="voice-model"></select></div>
+        <div id="voice-dl" style="margin-top:10px"></div>
+      </div>
+      </div>
       <div id="desk-set" hidden>
       <h4 style="margin-top:22px">${t("Always at hand")}</h4>
       <label class="check"><input type="checkbox" id="tray" ${S.settings.tray !== false ? "checked" : ""}>
@@ -1265,6 +1318,9 @@ function openSettings() {
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }
     $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
+    paintVoice();
+    body.querySelectorAll('input[name="voice"]').forEach(r => r.onchange = async () => { S = await api.save_settings({ voice: r.value }); paintVoice(); });
+    $("#voice-model", body).onchange = async e => { S = await api.save_settings({ voice_model: e.target.value }); paintVoice(); };
     api.desktop_status().then(d => {             // Windows window app: tray, Start with Windows, hotkey
       const box = $("#desk-set", body);
       if (!box || !d.available) return;
@@ -1318,6 +1374,30 @@ function openSettings() {
     box.innerHTML = list.length ? list.map(f => `<div class="row"><div class="grow">${esc(f.text)}</div><button class="btn ghost small" data-f="${f.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
       : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("Nothing yet. Say “remember that…” in a chat.")}</p>`;
     box.querySelectorAll("[data-f]").forEach(b => b.onclick = async () => { await api.delete_fact(+b.dataset.f); paintFacts(); });
+  };
+  const paintVoice = async () => {
+    const v = await api.voice_status();
+    body.querySelectorAll('input[name="voice"]').forEach(r => { r.checked = r.value === v.engine; });
+    $("#voice-local", body).hidden = v.engine !== "local";
+    const labels = { base: "Quick ({mb} MB)", small: "Better ({mb} MB)", turbo: "Best, slow without a strong PC ({mb} MB)" };
+    const sel = $("#voice-model", body);
+    sel.innerHTML = v.models.map(m => `<option value="${m.id}">${esc(t(labels[m.id], { mb: m.mb }))}</option>`).join("");
+    sel.value = v.model;
+    const box = $("#voice-dl", body), L = v.local;
+    if (v.engine !== "local") return;
+    if (L.engine && L.model) box.innerHTML = `<p class="muted" style="margin:0">${icon("check")} ${esc(t("Ready. Everything is on this computer."))}</p>`;
+    else if (L.phase === "downloading") {
+      box.innerHTML = `<div class="status"><span class="spinner"></span>${esc(t("Downloading… {done} of {total} MB", { done: Math.round(L.done / 1e6), total: Math.round(L.total / 1e6) }))}</div>
+        <button class="btn ghost small" id="voice-cancel" style="margin-top:6px">${t("Cancel")}</button>`;
+      $("#voice-cancel", box).onclick = async () => { await api.voice_setup_cancel(); setTimeout(paintVoice, 400); };
+      setTimeout(() => { if (box.isConnected) paintVoice(); }, 800);
+    } else if (!L.platform_ok && !L.engine) box.innerHTML = `<p class="muted" style="margin:0">${esc(t("There is no ready speech engine for this system. Install whisper.cpp (the whisper-cli command) and Lanterna will use it."))}</p>`;
+    else {
+      const mb = (L.engine ? 0 : v.engine_mb) + (L.model ? 0 : v.models.find(m => m.id === v.model).mb);
+      box.innerHTML = `${L.phase === "error" ? `<p class="muted" style="margin:0 0 6px">${esc(t("The download didn't work. Check the internet and try again."))}</p>` : ""}
+        <button class="btn primary small" id="voice-get">${icon("save")} ${esc(t("Download ({mb} MB)", { mb }))}</button>`;
+      $("#voice-get", box).onclick = async () => { await api.voice_setup(); paintVoice(); };
+    }
   };
   const paintTasks = async () => {
     const list = await api.task_list(), box = $("#tasks", body);

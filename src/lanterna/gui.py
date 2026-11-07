@@ -30,7 +30,8 @@ METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "mod
            "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out",
            "doctor", "history_list", "history_undo", "history_clear", "install_ollama",
            "desktop_status", "quick_hide", "open_in_main", "screenshot",
-           "task_list", "task_add", "task_delete", "task_pause", "task_run"}
+           "task_list", "task_add", "task_delete", "task_pause", "task_run",
+           "voice_status", "voice_start", "voice_stop", "voice_cancel", "voice_setup", "voice_setup_cancel"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 

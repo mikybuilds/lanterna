@@ -74,6 +74,10 @@ class Api:
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
         self._saved: set[str] = set()                         # files saved by export (show_saved may open these)
         self._desk = None                                      # Windows window app: tray, hotkey, quick window (gui.Desk)
+        from . import voice
+        from .config import data_dir
+        self._recorder = voice.Recorder()                     # voice input (the mic button / F2 in the terminal)
+        self._whisper = voice.LocalWhisper(data_dir() / "whisper")
         self._follow: dict[int, tuple[threading.Event, list[str]]] = {}   # follow-up ideas being written
         self._learned: dict[int, tuple[threading.Event, list[dict]]] = {}  # facts the side model added after an answer
         self._lock = threading.Lock()
@@ -115,7 +119,12 @@ class Api:
 
     def save_settings(self, patch: dict) -> dict:
         from . import shell
-        allowed = {"lang", "name", "mode", "provider", "hotkey"} | self._BOOLS
+        from . import voice
+        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model"} | self._BOOLS
+        if patch.get("voice", "off") not in voice.ENGINES:
+            patch.pop("voice")
+        if patch.get("voice_model", "small") not in voice.MODELS:
+            patch.pop("voice_model")
         patch = dict(patch or {})
         if "autostart" in patch:                           # lives in Windows (the Run key), not in our settings
             from . import autostart
@@ -595,6 +604,57 @@ class Api:
         from pathlib import Path
         d = self.places.folders().get("downloads")
         return d if d and d.is_dir() else Path.home()
+
+    # ---------------------------------------------------------------- voice input
+    def voice_status(self) -> dict:
+        from . import voice
+        s = self.settings
+        return {"engine": s.voice, "model": s.voice_model, "recording": self._recorder.recording,
+                "has_groq": bool(keys.get_key("groq")), "local": self._whisper.status(s.voice_model),
+                "models": [{"id": k, "mb": round(v[2] / 1e6)} for k, v in voice.MODELS.items()],
+                "engine_mb": round(voice.ENGINE_FILES.get(__import__("sys").platform, ("", "", 0))[2] / 1e6)}
+
+    def voice_start(self) -> dict:
+        """The mic button: starts recording (nothing is sent anywhere until voice_stop)."""
+        from . import voice
+        if self.settings.voice not in ("groq", "local"):
+            return {"ok": False, "error": "off"}
+        if self.settings.voice == "local" and not all(self._whisper.status(self.settings.voice_model)[k] for k in ("engine", "model")):
+            return {"ok": False, "error": "no_engine"}
+        if self.settings.voice == "groq" and not keys.get_key("groq"):
+            return {"ok": False, "error": "no_key"}
+        try:
+            self._recorder.start()
+        except voice.VoiceError as e:
+            return {"ok": False, "error": e.kind}
+        return {"ok": True}
+
+    def voice_stop(self) -> dict:
+        """Stops recording and turns the speech into text with the chosen engine."""
+        from . import voice
+        wav = self._recorder.stop()
+        if voice.speech_seconds(wav) < 0.4:
+            return {"ok": False, "error": "empty", "text": ""}
+        lang = self.settings.lang
+        try:
+            if self.settings.voice == "local":
+                text = self._whisper.transcribe(wav, self.settings.voice_model, lang)
+            else:
+                text = voice.transcribe_groq(wav, keys.get_key("groq") or "", lang)
+        except voice.VoiceError as e:
+            bugreport.remember_error("VoiceError", str(e))
+            return {"ok": False, "error": e.kind, "text": ""}
+        return {"ok": bool(text), "error": "" if text else "empty", "text": text}
+
+    def voice_cancel(self) -> None:
+        self._recorder.stop(cancel=True)
+
+    def voice_setup(self) -> dict:
+        """Settings → Voice → Download: the whisper.cpp engine and the chosen model (pinned files, checked)."""
+        return self._whisper.setup(self.settings.voice_model)
+
+    def voice_setup_cancel(self) -> None:
+        self._whisper.cancel()
 
     # ---------------------------------------------------------------- always at hand (Windows window app)
     def desktop_status(self) -> dict:

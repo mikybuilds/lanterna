@@ -341,6 +341,12 @@ body.quick .chip:not([hidden]) + #q-shot { margin-left: 6px; }
 /* stage 4: attachments, tool chips, toasts */
 .attach { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex: none; margin-left: -8px; }
 .attach:hover { color: var(--amber); background: var(--amber-soft); }
+.mic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex: none; }
+.mic:hover { color: var(--amber); background: var(--amber-soft); }
+.mic.rec { color: #fff; background: #d9473f; animation: micpulse 1.2s ease-in-out infinite; }
+.mic.wait { color: var(--amber); }
+@keyframes micpulse { 50% { box-shadow: 0 0 0 7px rgba(217, 71, 63, .25); } }
+.voice-opts .check { margin-top: 8px; }
 .files { max-width: 780px; margin: 0 auto 8px; display: flex; flex-wrap: wrap; gap: 8px; }
 .files[hidden] { display: none; }
 .file { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; padding: 5px 6px 5px 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
