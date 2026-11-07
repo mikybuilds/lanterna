@@ -20,7 +20,7 @@ from typing import Callable
 
 import httpx
 
-from . import HOMEPAGE, __version__
+from . import HOMEPAGE, __version__, convert
 
 UA = f"Lanterna/{__version__} (+{HOMEPAGE}; open-source assistant)"  # sites like Wikipedia want a contact link
 TIMEOUT = 15.0
@@ -517,6 +517,18 @@ class Toolbox:
                  _obj({"op": {"type": "string", "enum": ["between", "add", "weekday"]}, "date": s, "date2": s,
                        "days": {"type": "integer"}}, ["op", "date"]),
                  lambda **a: date_calc(today=self._now().date(), **a), "📅"),
+            Tool("currency", "Convert money between currencies at today's official National Bank of Ukraine rate "
+                 "(about 60 currencies). Use it for any exchange-rate question instead of guessing. Codes like USD, EUR, "
+                 "PLN, UAH, GBP.",
+                 _obj({"amount": {"type": "number"}, "from": {**s, "description": "e.g. USD"},
+                       "to": {**s, "description": "e.g. UAH"}}, ["amount", "from", "to"]),
+                 lambda amount, **a: convert.currency(amount, a.get("from", ""), a.get("to", "")), "💱"),
+            Tool("convert_units", "Exact unit conversion: length, weight, volume (incl. cups, tbsp, gallons), area "
+                 "(m2, ha, a = 'sotka', acre), speed, time, data (kb, mb, gb, gib, mbit), energy (kcal, kwh), pressure "
+                 "(hpa, mmhg, psi, bar) and temperature (c, f, k). Use short unit names.",
+                 _obj({"value": {"type": "number"}, "from": {**s, "description": "e.g. mi"},
+                       "to": {**s, "description": "e.g. km"}}, ["value", "from", "to"]),
+                 lambda value, **a: convert.convert_units(value, a.get("from", ""), a.get("to", "")), "📏"),
             Tool("weather", "Current weather, forecast (up to 7 days) and air quality for a place.",
                  _obj({"place": {**s, "description": "city name, e.g. Ferrara"},
                        "days": {"type": "integer", "description": "1-7"}}, ["place"]),

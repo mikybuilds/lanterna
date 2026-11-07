@@ -91,6 +91,8 @@ def test_no_unexpected_domains_in_sources():
                # keyless tools: weather (Open-Meteo) and web search (DuckDuckGo)
                "api.open-meteo.com", "geocoding-api.open-meteo.com", "air-quality-api.open-meteo.com",
                "html.duckduckgo.com",
+               # official exchange rates (National Bank of Ukraine, keyless)
+               "bank.gov.ua",
                # model sizes for the Download buttons (manifests only)
                "registry.ollama.ai",
                # local voice input: whisper.cpp models (pinned files, checked by SHA-256)

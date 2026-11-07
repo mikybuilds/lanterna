@@ -3,6 +3,8 @@
 ## Unreleased
 
 **New**
+- **Exchange rates and units:** “how much is 100 dollars in hryvnias?” uses today's official National Bank of Ukraine rate (about 60 currencies, any pair), and “5 miles in km”, “6 sotkas in hectares”, “350 °F in °C” are converted exactly, not guessed. Units work offline.
+- **Audio files become text:** attach a voice message or a recording (MP3, WAV, OGG, M4A, FLAC, WEBM…) and ask about it. Lanterna turns it into text with the voice input you set up (Groq online, or whisper.cpp on your PC for MP3/WAV/OGG/FLAC) and sends the text to the model.
 - **Morning summary** (Settings → Reminders, off by default): once a day at the time you pick, a short note for the day — the weather in your city, today's reminders and regular tasks. It is made on your computer without a model; only the weather comes from Open-Meteo, and only if you set a city. “Show it now” previews it.
 - **Repeating reminders:** “remind me every day at 9 to take my pills” makes a reminder that comes back every day, on weekdays, every week or every month. It needs no model and no internet: just the reminder at its time. Missed times (the PC was off) are skipped, not shown one by one. Settings → Reminders marks them with 🔁.
 - **Snooze 10 min:** a reminder in the window has a “Snooze 10 min” button (F8 in the terminal app). A repeating reminder keeps its own time.

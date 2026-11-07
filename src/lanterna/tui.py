@@ -129,7 +129,9 @@ TOOL_TEXT = {"weather": "Checking the weather", "web_search": "Searching the web
              "calculate": "Calculating", "date_calc": "Counting dates", "remember": "Saving to memory",
              "forget": "Updating memory", "set_reminder": "Setting a reminder", "list_reminders": "Checking reminders",
              "cancel_reminder": "Cancelling a reminder", "add_task": "Adding a regular task",
-             "list_tasks": "Checking regular tasks", "delete_task": "Deleting a regular task"}
+             "list_tasks": "Checking regular tasks", "delete_task": "Deleting a regular task",
+             "currency": "Converting currency", "convert_units": "Converting units",
+             "transcribe_audio": "Turning audio into text"}
 
 
 def tool_text(chip: str, lang: str) -> str:
@@ -2141,6 +2143,8 @@ class _ChatScreen(Screen):
             tip = ("Tip: add a key for one more free service (Settings → Keys) to get more answers a day."
                    if err.get("more_keys") else "Tip: a local model (Settings → Local models) answers when the limits run out.")
             return first + " " + t(tip, lang)
+        if kind == "file":
+            return err.get("message", "")
         if kind == "auth":
             return t("No working key. Add one in Settings (Ctrl+S).", lang)
         if kind == "empty":

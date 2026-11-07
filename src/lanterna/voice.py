@@ -199,16 +199,25 @@ def speech_seconds(wav: bytes) -> float:
 
 
 # ---------------------------------------------------------------- online: Groq Whisper
-def transcribe_groq(wav: bytes, key: str, lang: str = "", http: httpx.Client | None = None) -> str:
+GROQ_TYPES = {".mp3": "audio/mpeg", ".mpga": "audio/mpeg", ".mpeg": "audio/mpeg", ".wav": "audio/wav",
+              ".m4a": "audio/mp4", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".opus": "audio/ogg", ".flac": "audio/flac",
+              ".webm": "audio/webm"}
+LOCAL_TYPES = {".wav", ".mp3", ".flac", ".ogg", ".oga"}      # what whisper.cpp reads by itself
+
+
+def transcribe_groq(wav: bytes, key: str, lang: str = "", http: httpx.Client | None = None,
+                    name: str = "voice.wav") -> str:
     if not key:
         raise VoiceError("no_key")
     data = {"model": GROQ_MODEL, "response_format": "json", "temperature": "0"}
     if lang and lang != "auto":
         data["language"] = lang
-    client = http or httpx.Client(timeout=60)
+    ext = Path(name).suffix.lower()
+    upload = ("audio.ogg" if ext in (".oga", ".opus") else "audio" + ext) if ext in GROQ_TYPES else "voice.wav"
+    client = http or httpx.Client(timeout=180)
     try:
         r = client.post(GROQ_URL, headers={"Authorization": f"Bearer {key}"}, data=data,
-                        files={"file": ("voice.wav", wav, "audio/wav")})
+                        files={"file": (upload, wav, GROQ_TYPES.get(ext, "audio/wav"))})
     except httpx.HTTPError as e:
         raise VoiceError("network", str(e)) from e
     finally:
@@ -361,18 +370,19 @@ class LocalWhisper:
             self._job.update(kw)
 
     # using it
-    def transcribe(self, wav: bytes, model: str, lang: str = "") -> str:
+    def transcribe(self, wav: bytes, model: str, lang: str = "", suffix: str = ".wav") -> str:
         exe, mp = self.binary(), self.model_path(model)
         if exe is None or not mp.is_file():
             raise VoiceError("engine", "the speech engine is not downloaded yet")
-        fd, name = tempfile.mkstemp(suffix=".wav", prefix="lanterna-voice-")
+        suffix = suffix if suffix in LOCAL_TYPES else ".wav"
+        fd, name = tempfile.mkstemp(suffix=suffix, prefix="lanterna-voice-")
         os.close(fd)
         try:
             Path(name).write_bytes(wav)
             args = [str(exe), "-m", str(mp), "-f", name, "-nt", "-np", "-t", str(max(1, min(8, (os.cpu_count() or 4) - 1))),
                     "-l", lang if lang and lang != "auto" else "auto"]
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            r = subprocess.run(args, capture_output=True, timeout=300, creationflags=flags, cwd=str(exe.parent))
+            r = subprocess.run(args, capture_output=True, timeout=1800, creationflags=flags, cwd=str(exe.parent))
         except subprocess.TimeoutExpired as e:
             raise VoiceError("engine", "the speech engine took too long") from e
         finally:

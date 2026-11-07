@@ -13,6 +13,7 @@ TEXT_LIMIT = 15000                  # characters of a document sent to the model
 IMAGE_SIDE = 1024                   # photos are scaled down to this many pixels on the long side
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".oga", ".opus", ".flac", ".webm", ".mpga", ".mpeg", ".aac"}
 TEXT_EXT = {".txt", ".md", ".csv", ".tsv", ".json", ".xml", ".html", ".htm", ".py", ".js", ".ts", ".java", ".c",
             ".cpp", ".h", ".cs", ".go", ".rs", ".rb", ".php", ".sh", ".ps1", ".bat", ".yml", ".yaml", ".toml",
             ".ini", ".cfg", ".log", ".sql", ".css", ".tex", ".srt"}
@@ -67,6 +68,33 @@ def _docx_text(data: bytes) -> str:
     return re.sub(r"<[^>]+>", "", xml)
 
 
+def is_audio(name: str) -> bool:
+    return Path(name).suffix.lower() in AUDIO_EXT
+
+
+def audio_block(name: str, text: str) -> str:
+    text = (text or "").strip()
+    cut = len(text) > TEXT_LIMIT
+    return (f"[Audio: {name}, turned into text]\n```\n{text[:TEXT_LIMIT]}\n```" +
+            ("\n[…text cut, too long]" if cut else ""))
+
+
+def read_upload(f: dict) -> tuple[str, bytes]:
+    """(name, bytes) of one attached file: {"name", "data": base64} from the window or {"path"} from the terminal."""
+    if f.get("path"):
+        p = Path(str(f["path"])).expanduser()
+        if not p.is_file():
+            raise FileError(f"file not found: {p}")
+        if p.stat().st_size > MAX_BYTES:
+            raise FileError(f"{p.name} is bigger than 20 MB")
+        return p.name, p.read_bytes()
+    name = Path(str(f.get("name") or "file")).name
+    try:
+        return name, base64.b64decode(str(f.get("data") or ""), validate=False)
+    except ValueError as e:
+        raise FileError(f"{name}: broken upload") from e
+
+
 def prepare_one(name: str, data: bytes) -> tuple[str, str | None]:
     """Returns (text block, image data URL or None)."""
     if len(data) > MAX_BYTES:
@@ -97,19 +125,9 @@ def prepare(files: list[dict]) -> Prepared:
     out = Prepared()
     blocks = []
     for f in files or []:
-        if f.get("path"):
-            p = Path(str(f["path"])).expanduser()
-            if not p.is_file():
-                raise FileError(f"file not found: {p}")
-            if p.stat().st_size > MAX_BYTES:
-                raise FileError(f"{p.name} is bigger than 20 MB")
-            name, data = p.name, p.read_bytes()
-        else:
-            name = Path(str(f.get("name") or "file")).name
-            try:
-                data = base64.b64decode(str(f.get("data") or ""), validate=False)
-            except ValueError as e:
-                raise FileError(f"{name}: broken upload") from e
+        name, data = read_upload(f)
+        if len(data) > MAX_BYTES:
+            raise FileError(f"{name} is bigger than 20 MB")
         block, image = prepare_one(name, data)
         blocks.append(block)
         out.names.append(name)

@@ -450,7 +450,8 @@ function md(text) {
 const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the web", read_page: "Reading a page",
   calculate: "Calculating", date_calc: "Counting dates", remember: "Saving to memory", forget: "Updating memory",
   set_reminder: "Setting a reminder", list_reminders: "Checking reminders", cancel_reminder: "Cancelling a reminder",
-  add_task: "Adding a regular task", list_tasks: "Checking regular tasks", delete_task: "Deleting a regular task" };
+  add_task: "Adding a regular task", list_tasks: "Checking regular tasks", delete_task: "Deleting a regular task",
+  currency: "Converting currency", convert_units: "Converting units", transcribe_audio: "Turning audio into text" };
 const toolChip = s => { const [emo, name] = String(s).split(" "); return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
 
 let pending = [];        // files waiting to be sent: {name, size, data(base64)}
@@ -1253,6 +1254,7 @@ async function send(retryText) {
         : k === "vision" ? (S.settings.mode === "local" ? t("To understand photos, download a photo model in Settings → Local models.") : t("To understand photos, add a free Gemini key in Settings."))
         : k === "local" ? (p.error.message === "no local models" ? t("No local model yet. Download one in Settings → Local models.") : t("Ollama isn't running. Start it, or switch to Cloud in Settings."))
         : k === "empty" ? t("The model sent no answer. Press Retry or ask in other words.")
+        : k === "file" ? p.error.message
         : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
       box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files, again: true }); };

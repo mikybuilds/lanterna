@@ -834,24 +834,81 @@ class Api:
                 text = old
         if (not text and not files) or not self.store.thread(tid):
             return {"ok": False, "error": "empty"}
+        from .files import is_audio, read_upload
+        audio, other = [], []
         try:
-            prep = prepare(files or [])
+            for f in files or []:
+                (audio if is_audio(str(f.get("name") or f.get("path") or "")) else other).append(f)
+            audio = [read_upload(f) for f in audio]
+            prep = prepare(other)
         except FileError as e:
             return {"ok": False, "error": "file", "message": str(e)}
+        if audio:
+            bad = self._audio_problem([n for n, _ in audio])
+            if bad:
+                return {"ok": False, "error": "file", "message": bad}
         sid = uuid.uuid4().hex
         st = _Stream(self.settings.lang)
         self._streams[sid] = st
         history = [{"role": m["role"], "content": m["content"]} for m in self.store.messages(tid)]
         full = "\n\n".join(x for x in (text, prep.text) if x)
-        self.store.add(tid, "user", full)
+        if not audio:
+            self.store.add(tid, "user", full)
         if not self.store.thread(tid)["title"]:
-            self.store.rename(tid, (text or ", ".join(prep.names)).splitlines()[0][:60])
-        st.files = list(prep.names)
-        threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images), daemon=True).start()
+            self.store.rename(tid, (text or ", ".join(prep.names + [n for n, _ in audio])).splitlines()[0][:60])
+        st.files = list(prep.names) + [n for n, _ in audio]
+        threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images, audio), daemon=True).start()
         return {"ok": True, "stream": sid}
 
-    def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None) -> None:
+    # ---------------------------------------------------------------- audio files: turned into text first
+    def _audio_problem(self, names: list[str]) -> str:
+        """Why these audio files can't be turned into text now ("" = they can)."""
+        from pathlib import Path
+
+        from . import voice
+        lang, eng = self.settings.lang, self.settings.voice
+        if eng == "groq" and keys.get_key("groq"):
+            return ""
+        if eng == "local" and all(self._whisper.status(self.settings.voice_model)[k] for k in ("engine", "model")):
+            odd = [n for n in names if Path(n).suffix.lower() not in voice.LOCAL_TYPES]
+            if odd:
+                return t("{name}: this audio format can be turned into text only online (Groq). Save it as MP3 or WAV, or switch voice input to Groq in Settings.",
+                         lang, name=odd[0])
+            return ""
+        return t("To turn an audio file into text, set up voice input in Settings → Voice input (online with Groq, or on this computer).", lang)
+
+    def _transcribe_file(self, name: str, data: bytes) -> str:
+        from pathlib import Path
+
+        from . import voice
+        lang = self.settings.lang
+        if self.settings.voice == "groq":
+            return voice.transcribe_groq(data, keys.get_key("groq") or "", "", name=name)
+        return self._whisper.transcribe(data, self.settings.voice_model, "", suffix=Path(name).suffix.lower()) or t(
+            "(no speech found)", lang)
+
+    def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None,
+             audio: list[tuple[str, bytes]] | None = None) -> None:
         st = self._streams[sid]
+        if audio:                                           # audio files: their words go with the question
+            from . import voice
+            from .files import audio_block
+            with st.lock:
+                st.tools.append("🎧 transcribe_audio")
+                st.steps.tool("transcribe_audio", "")
+            blocks = []
+            for name, data in audio:
+                try:
+                    blocks.append(audio_block(name, self._transcribe_file(name, data)))
+                except voice.VoiceError as e:
+                    self.store.add(tid, "user", "\n\n".join(x for x in (text, f"[Audio: {name}]") if x))
+                    with st.lock:
+                        st.error = {"kind": "file", "message": t("Couldn't turn {name} into text: {error}",
+                                                                 self.settings.lang, name=name, error=str(e))}
+                        st.done = True
+                    return
+            text = "\n\n".join(x for x in (text, *blocks) if x)
+            self.store.add(tid, "user", text)
         first = not history                                 # the chat's first answer (ask() extends history)
         summary, upto = self.store.summary(tid) if self.settings.compact_chats else ("", 0)
         if upto > len(history):                             # messages were removed: the summary no longer fits

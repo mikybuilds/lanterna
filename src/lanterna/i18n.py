@@ -349,6 +349,13 @@ _T.update({
     "City for the weather (optional)": {"uk": "Місто для погоди (необов'язково)", "it": "Città per il meteo (facoltativo)"},
     "Show it now": {"uk": "Показати зараз", "it": "Mostra ora"},
     "Saved": {"uk": "Збережено", "it": "Salvato"},
+    "Converting currency": {"uk": "Рахую валюту", "it": "Converto la valuta"},
+    "Converting units": {"uk": "Переводжу одиниці", "it": "Converto le unità"},
+    "Turning audio into text": {"uk": "Перетворюю аудіо на текст", "it": "Trascrivo l'audio"},
+    "{name}: this audio format can be turned into text only online (Groq). Save it as MP3 or WAV, or switch voice input to Groq in Settings.": {"uk": "{name}: цей формат аудіо можна перетворити на текст лише онлайн (Groq). Збережи його як MP3 або WAV, або вибери Groq у Налаштуваннях → Голосове введення.", "it": "{name}: questo formato audio si può trascrivere solo online (Groq). Salvalo come MP3 o WAV, oppure scegli Groq nelle Impostazioni → Input vocale."},
+    "To turn an audio file into text, set up voice input in Settings → Voice input (online with Groq, or on this computer).": {"uk": "Щоб перетворити аудіофайл на текст, налаштуй голосове введення в Налаштуваннях → Голосове введення (онлайн через Groq або на цьому комп'ютері).", "it": "Per trascrivere un file audio, configura l'input vocale in Impostazioni → Input vocale (online con Groq o su questo computer)."},
+    "Couldn't turn {name} into text: {error}": {"uk": "Не вдалося перетворити {name} на текст: {error}", "it": "Non sono riuscito a trascrivere {name}: {error}"},
+    "(no speech found)": {"uk": "(мовлення не знайдено)", "it": "(nessun parlato trovato)"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })
