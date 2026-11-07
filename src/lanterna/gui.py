@@ -171,11 +171,26 @@ class Desk:
         text = clipboard_text().strip()
         return text if len(text) >= 2 else ""
 
+    def copied_picture(self) -> dict:
+        """A picture copied a moment ago (a snip from Win+Shift+S) when no text was: offered in the quick window
+        with Explain / Translate / Ask about it. Read only now; nothing is sent until the user chooses."""
+        import base64
+
+        from . import shell
+        data = shell.clipboard_image()
+        if not data:
+            return {}
+        return {"name": time.strftime("snip-%H%M%S.png"), "size": len(data), "data": base64.b64encode(data).decode()}
+
     def toggle_quick(self, file: dict | None = None) -> None:
         if self.quick_shown and not file:
             return self.hide_quick()
+        fresh = bool(self.shell and self.api.settings.copied_text
+                     and time.time() - getattr(self.shell, "copied_at", 0.0) <= self.COPIED_FRESH)
         copied = "" if file else self.copied_text()
-        self.quick.evaluate_js(f"window.quickOpen && quickOpen({json.dumps(file)}, {json.dumps(copied)})")
+        pic = self.copied_picture() if fresh and not file and not copied else {}
+        more = f", {json.dumps(pic)}" if pic else ""
+        self.quick.evaluate_js(f"window.quickOpen && quickOpen({json.dumps(file)}, {json.dumps(copied)}{more})")
         self.quick.show()
         self.quick.restore()
         self.quick_shown = True

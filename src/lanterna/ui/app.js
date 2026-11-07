@@ -965,15 +965,43 @@ function showCopied(text) {
   $(".composer").prepend(el);
 }
 
+// a picture copied a moment ago (a snip from Win+Shift+S): explain it, translate its text, or attach it and ask
+const PIC_ASK = {
+  explain: "Explain what is in this picture:",
+  translate: "Translate the text in this picture into English. If it is already in English, translate it into the language I usually write in. Answer with the translation only.",
+};
+function showCopiedPic(pic) {
+  if (!pic || !pic.data) return;
+  const el = h(`<div class="copied pic"><div class="cp-head"><b>${esc(t("Picture you copied"))}</b>
+      <button class="cp-x" title="${esc(t("Close"))}">${icon("x")}</button></div>
+    <div class="cp-pic"><img alt=""></div>
+    <div class="cp-acts"><button class="btn ghost small" data-k="explain">${esc(t("Explain"))}</button>
+      <button class="btn ghost small" data-k="translate">${esc(t("Translate"))}</button>
+      <button class="btn ghost small" data-k="ask">${esc(t("Ask about it"))}</button></div></div>`);
+  el.querySelector("img").src = "data:image/png;base64," + pic.data;
+  el.querySelector(".cp-x").onclick = () => el.remove();
+  el.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
+    if (busy) return;
+    el.remove();
+    pending.push({ name: pic.name, size: pic.size, data: pic.data }); paintFiles();
+    const inp = $("#input");
+    if (b.dataset.k === "ask") { inp.oninput(); inp.focus(); return; }
+    inp.value = t(PIC_ASK[b.dataset.k]);
+    send();
+  });
+  $(".composer").prepend(el);
+}
+
 // called by the app when the hotkey (or the tray) opens the quick window; file = a screenshot to attach,
-// copied = text copied a moment ago
-window.quickOpen = (file, copied) => {
+// copied = text copied a moment ago, pic = a picture copied a moment ago (when no text was)
+window.quickOpen = (file, copied, pic) => {
   if (!$("#input")) return;
   const stale = Date.now() - quickAt > 10 * 60 * 1000;          // back within 10 minutes: the same quick chat
   quickAt = Date.now();
   if (stale && !busy) openThread(null);
   if (file && file.data) { pending.push(file); paintFiles(); $("#input").oninput(); }
   showCopied(copied || "");
+  showCopiedPic(pic);
   setTimeout(() => $("#input").focus(), 60);
 };
 
@@ -1569,7 +1597,7 @@ function openSettings() {
       <div class="row-field"><span>${t("Quick question hotkey")}</span><select class="field" id="hotkey"></select></div>
       <small class="muted" id="hotkey-warn" hidden style="display:block;margin-top:6px">${t("Another app already uses this hotkey. Pick another one.")}</small>
       <label class="check"><input type="checkbox" id="copied-text" ${S.settings.copied_text !== false ? "checked" : ""}>
-        <span><b>${t("Offer help with text you just copied")}</b><small>${t("Copy some text, then press the hotkey: the quick window offers Translate, Explain and Fix mistakes. Lanterna looks at the clipboard only at that moment, and sends nothing until you press a button.")}</small></span></label>
+        <span><b>${t("Offer help with text you just copied")}</b><small>${t("Copy some text, then press the hotkey: the quick window offers Translate, Explain and Fix mistakes. Lanterna looks at the clipboard only at that moment, and sends nothing until you press a button.")} ${t("A picture you copied or snipped (Win+Shift+S) works too: Explain, Translate or Ask about it.")}</small></span></label>
       </div>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>

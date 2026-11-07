@@ -88,6 +88,47 @@ def clipboard_text(limit: int = 20000) -> str:
         u.CloseClipboard()
 
 
+def clipboard_private() -> bool:
+    """True when the copy on the clipboard is marked "don't look" (a password manager, private clipboard history)."""
+    if sys.platform != "win32":
+        return True
+    u = ctypes.windll.user32
+    u.OpenClipboard.argtypes = [ctypes.c_void_p]
+    u.IsClipboardFormatAvailable.argtypes = [ctypes.c_uint]
+    u.RegisterClipboardFormatW.restype = ctypes.c_uint
+    u.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    for _ in range(5):
+        if u.OpenClipboard(None):
+            break
+        time.sleep(0.05)
+    else:
+        return True                                      # can't look: treat it as private
+    try:
+        return any(u.IsClipboardFormatAvailable(u.RegisterClipboardFormatW(f)) for f in _PRIVATE_FORMATS)
+    finally:
+        u.CloseClipboard()
+
+
+def clipboard_image(max_side: int = 1600) -> bytes:
+    """A picture on the clipboard now (a snip from Win+Shift+S, a copied image) as PNG; b"" for none or private."""
+    if sys.platform != "win32" or clipboard_private():
+        return b""
+    import io
+
+    from PIL import Image, ImageGrab
+    try:
+        img = ImageGrab.grabclipboard()
+    except Exception:                                    # noqa: BLE001  an odd clipboard format
+        return b""
+    if not isinstance(img, Image.Image) or img.width < 8 or img.height < 8:
+        return b""                                       # nothing, or copied files (a list of names)
+    img = img.convert("RGB")
+    img.thumbnail((max_side, max_side))
+    buf = io.BytesIO()
+    img.save(buf, "PNG", optimize=True)
+    return buf.getvalue()
+
+
 def tell_running_copy() -> bool:
     """If Lanterna already runs, asks it to show its window and returns True (this copy should then quit)."""
     if sys.platform != "win32":
