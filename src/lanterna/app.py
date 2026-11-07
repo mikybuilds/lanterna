@@ -102,6 +102,8 @@ class Api:
         from .config import data_dir
         self._recorder = voice.Recorder()                     # voice input (the mic button / F2 in the terminal)
         self._whisper = voice.LocalWhisper(data_dir() / "whisper")
+        from . import speech
+        self._piper = speech.Piper(data_dir() / "piper")
         self._follow: dict[int, tuple[threading.Event, list[str]]] = {}   # follow-up ideas being written
         self._learned: dict[int, tuple[threading.Event, list[dict]]] = {}  # facts the side model added after an answer
         self._lock = threading.Lock()
@@ -153,12 +155,15 @@ class Api:
 
     _BOOLS = {"onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly", "space_help",
               "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told",
-              "hotkey_moved", "copied_text", "morning"}
+              "hotkey_moved", "copied_text", "morning", "tts_auto"}
 
     def save_settings(self, patch: dict) -> dict:
         from . import shell
         from . import voice
-        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model", "morning_city"} | self._BOOLS
+        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model", "morning_city", "tts"} | self._BOOLS
+        from . import speech
+        if (patch or {}).get("tts", "off") not in speech.ENGINES:
+            patch = {k: v for k, v in patch.items() if k != "tts"}
         if "morning_at" in (patch or {}):
             from .tasks import clean_time
             self.settings.morning_at = clean_time(str(patch.get("morning_at") or ""), self.settings.morning_at)
@@ -707,6 +712,65 @@ class Api:
     def voice_setup_cancel(self) -> None:
         self._whisper.cancel()
 
+    # ---------------------------------------------------------------- reading answers aloud
+    def tts_status(self) -> dict:
+        import sys
+
+        from . import speech
+        return {"engine": self.settings.tts, "auto": self.settings.tts_auto, "platform": sys.platform,
+                "windows_langs": sorted({c.split("-")[0] for _n, c in speech.windows_voices()}),
+                "piper": self._piper.status(self.settings.lang), "lang": self.settings.lang,
+                "piper_langs": sorted(speech.VOICES)}
+
+    def tts_setup(self) -> dict:
+        """Settings → Reading aloud → Download: Piper and the voice for the interface language (pinned, checked)."""
+        return self._piper.setup(self.settings.lang)
+
+    def tts_setup_cancel(self) -> None:
+        self._piper.cancel()
+
+    def tts_say(self, text: str) -> dict:
+        """The window's 🔊: the answer as WAV (base64) for the page to play — Windows' voices or Piper."""
+        import base64
+
+        from . import speech
+        words = speech.speakable(text)
+        if not words:
+            return {"ok": False, "error": "empty"}
+        try:
+            if self.settings.tts == "piper":
+                wav = self._piper.say(words, self.settings.lang)
+            elif self.settings.tts == "system":
+                wav = speech.windows_say(words, self.settings.lang)
+            else:
+                return {"ok": False, "error": "off"}
+        except speech.SpeechError as e:
+            return {"ok": False, "error": e.kind}
+        return {"ok": True, "wav": base64.b64encode(wav).decode()}
+
+    def tts_play(self, text: str) -> dict:
+        """The terminal app: reads the text aloud on this computer (Piper, Windows' voices, or Linux's spd-say)."""
+        import sys
+
+        from . import speech
+        words = speech.speakable(text)
+        if not words or self.settings.tts == "off":
+            return {"ok": False, "error": "off" if words else "empty"}
+        try:
+            if self.settings.tts == "piper":
+                speech.play(self._piper.say(words, self.settings.lang))
+            elif sys.platform == "win32":
+                speech.play(speech.windows_say(words, self.settings.lang))
+            else:
+                speech.system_say(words, self.settings.lang)
+        except speech.SpeechError as e:
+            return {"ok": False, "error": e.kind}
+        return {"ok": True}
+
+    def tts_stop(self) -> None:
+        from . import speech
+        speech.stop()
+
     # ---------------------------------------------------------------- MCP servers (Settings → MCP servers)
     def mcp_status(self) -> dict:
         return self.mcp.status()
@@ -883,8 +947,9 @@ class Api:
         from . import voice
         lang = self.settings.lang
         if self.settings.voice == "groq":
-            return voice.transcribe_groq(data, keys.get_key("groq") or "", "", name=name)
-        return self._whisper.transcribe(data, self.settings.voice_model, "", suffix=Path(name).suffix.lower()) or t(
+            return voice.transcribe_groq(data, keys.get_key("groq") or "", lang, name=name)
+        # the interface language as a hint: without it a small model often mixes up close languages
+        return self._whisper.transcribe(data, self.settings.voice_model, lang, suffix=Path(name).suffix.lower()) or t(
             "(no speech found)", lang)
 
     def _run(self, sid: str, tid: int, text: str, history: list[dict], images: list[str] | None = None,

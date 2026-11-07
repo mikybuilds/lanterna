@@ -44,6 +44,8 @@ class Settings:
     copied_text: bool = True               # the quick window offers Translate / Explain / Fix for text just copied
     hotkey_moved: bool = False             # the default hotkey was taken, so Lanterna picked a free one (once)
     voice: str = "off"                     # voice input: off | groq (online Whisper) | local (whisper.cpp on this PC)
+    tts: str = "system"                    # reading answers aloud: off | system (the computer's voices) | piper
+    tts_auto: bool = False                 # read each new answer aloud by itself
     voice_model: str = "small"             # the whisper.cpp model for local voice input: base | small | turbo
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)

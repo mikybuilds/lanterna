@@ -1169,8 +1169,77 @@ function addBot(text, model, sent) {
   const e = $(".empty"); if (e) e.remove();
   const el = h(`<div class="msg bot"><img class="av" src="logo.svg" alt=""><div class="body"><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
   if (text === null) el.querySelector(".md").before(h(`<div class="think"><span class="think-dot"></span><span class="think-tx">${t("Thinking…")}</span></div>`));
-  else el.querySelector(".md").innerHTML = md(text);
+  else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); }
   $("#msgs").append(el); return el;
+}
+
+// ---------------------------------------------------------------- reading answers aloud (Settings → Reading aloud)
+let speaking = null;           // {btn, audio} while something is being read
+
+function speakable(text) {
+  return String(text || "").replace(/```[\s\S]*?```/g, " ").replace(/`([^`]*)`/g, "$1").replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/https?:\/\/\S+/g, " ").replace(/^\s{0,3}(#{1,6}|>|[-*+•]|\d+[.)])\s+/gm, "")
+    .replace(/[*_~#$|]+/g, " ").replace(/[ \t]+/g, " ").trim().slice(0, 6000);
+}
+
+function stopSpeaking() {
+  if (!speaking) return;
+  try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) { /* no speech */ }
+  if (speaking.audio) speaking.audio.pause();
+  if (speaking.btn) { speaking.btn.innerHTML = icon("speak"); speaking.btn.classList.remove("on"); }
+  speaking = null;
+}
+
+async function systemVoice(lang) {
+  let all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+  if (window.speechSynthesis && !all.length)            // the list comes a moment later the first time
+    all = await new Promise(ok => {
+      const done = () => ok(speechSynthesis.getVoices() || []);
+      speechSynthesis.addEventListener("voiceschanged", done, { once: true });
+      setTimeout(done, 1500);
+    });
+  return all.find(v => v.lang && v.lang.toLowerCase().startsWith(lang) && /natural|online/i.test(v.name) && v.localService)
+    || all.find(v => v.lang && v.lang.toLowerCase().startsWith(lang) && v.localService)
+    || all.find(v => v.lang && v.lang.toLowerCase().startsWith(lang));
+}
+
+async function speak(text, btn) {
+  const was = speaking && speaking.btn === btn;
+  stopSpeaking();
+  if (was) return;                                     // pressed again: stop
+  const words = speakable(text);
+  if (!words) return;
+  const done = () => { if (speaking && speaking.btn === btn) stopSpeaking(); };
+  if (btn) { btn.innerHTML = icon("stop"); btn.classList.add("on"); }
+  speaking = { btn };
+  const r = await api.tts_say(words);                  // Windows' voices or Piper make a WAV; the page plays it
+  if (!speaking || speaking.btn !== btn) return;
+  if (r.ok) {
+    const audio = new Audio("data:audio/wav;base64," + r.wav);
+    speaking.audio = audio; audio.onended = done; audio.play().catch(done);
+    return;
+  }
+  if (r.error !== "platform") {
+    done();
+    return toast(t(r.error === "not_ready" ? "Download Piper first: Settings → Reading aloud."
+      : r.error === "no_voice" ? "There is no Windows voice for this language. Add one in Windows Settings → Time & language → Speech, or choose Piper in Settings → Reading aloud."
+      : "Couldn't read it aloud this time."));
+  }
+  if (!window.speechSynthesis) { done(); return toast(t("This window can't speak. Choose Piper in Settings → Reading aloud.")); }
+  const voice = await systemVoice(LANG);
+  if (!speaking || speaking.btn !== btn) return;
+  if (!voice) { done(); return toast(t("There is no Windows voice for this language. Add one in Windows Settings → Time & language → Speech, or choose Piper in Settings → Reading aloud.")); }
+  const u = new SpeechSynthesisUtterance(words);
+  u.voice = voice; u.lang = voice.lang; u.onend = done; u.onerror = done;
+  speechSynthesis.speak(u);
+}
+
+function addSay(el, text) {
+  if ((S.settings.tts || "system") === "off" || !text || el.querySelector(".say")) return;
+  const b = h(`<button class="say" title="${esc(t("Read aloud"))}" aria-label="${esc(t("Read aloud"))}">${icon("speak")}</button>`);
+  b.onclick = () => speak(text, b);
+  el.querySelector(".body").append(b);
+  return b;
 }
 
 function scrollDown(force) {
@@ -1240,6 +1309,8 @@ async function send(retryText) {
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
     if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
+      const sayBtn = !(p.questions && p.questions.length) && addSay(bot, text_);
+      if (sayBtn && S.settings.tts_auto && thread === sentTo) speak(text_, sayBtn);
       if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));
       if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
@@ -1292,8 +1363,65 @@ function dialog(title, html, onClose) {
   return v;
 }
 
+// Settings are long: tabs by topic on top (they stay in view) and a box that finds a setting by its words
+const SET_TABS = [
+  ["general", "General", ["Language", "Name", "Mode", "Local models", "Updates"]],
+  ["models", "Models", ["Services", "Limits", "Free models right now"]],
+  ["memory", "Memory and reminders", ["Memory", "Reminders", "Regular tasks"]],
+  ["chats", "Chats", ["Working folder", "Chats", "Instructions and roles", "Backups"]],
+  ["voice", "Voice", ["Voice input", "Reading aloud"]],
+  ["pc", "Computer and tools", ["Always at hand", "Computer", "MCP servers", "Connectors"]],
+  ["account", "Account", ["Account and sync", "Found a bug?"]],
+];
+let setTab = (() => { try { return localStorage.getItem("set-tab") || "general"; } catch (e) { return "general"; } })();
+
+function settingsTabs(v, body) {
+  const head = v.querySelector("header");
+  const tabOf = {};
+  SET_TABS.forEach(([id, , secs]) => secs.forEach(s => { tabOf[t(s)] = id; }));
+  // each heading starts a group: it and everything after it until the next heading
+  const groups = [];
+  let cur = null;
+  [...body.children].forEach(el => {
+    const h4 = el.tagName === "H4" ? el : (el.matches("div[id]") && el.querySelector(":scope > h4"));
+    if (h4) {
+      const name = (h4.childNodes[0] && h4.childNodes[0].textContent || "").trim();
+      cur = h(`<div class="set-grp" data-tab="${tabOf[name] || "general"}"></div>`);
+      el.before(cur);
+      groups.push(cur);
+    }
+    if (cur) cur.append(el);
+  });
+  body.querySelectorAll(".set-grp > h4").forEach(x => { x.style.marginTop = "6px"; });
+  head.querySelector(".set-nav") && head.querySelector(".set-nav").remove();
+  const nav = h(`<div class="set-nav"><div class="set-tabs" role="tablist">${SET_TABS.map(([id, label]) => `<button role="tab" data-t="${id}">${esc(t(label))}</button>`).join("")}</div>
+    <label class="set-find">${icon("search")}<input id="set-find" placeholder="${esc(t("Find a setting"))}" aria-label="${esc(t("Find a setting"))}"></label></div>`);
+  head.append(nav);
+  const find = nav.querySelector("#set-find");
+  const show = () => {
+    const q = find.value.trim().toLowerCase();
+    nav.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("on", !q && b.dataset.t === setTab));
+    let any = false;
+    groups.forEach(g => {
+      const on = q ? g.textContent.toLowerCase().includes(q) : g.dataset.tab === setTab;
+      g.hidden = !on; any = any || on;
+    });
+    let none = body.querySelector(".set-none");
+    if (!any && !none) body.prepend(none = h(`<p class="faint set-none">${esc(t("No setting with these words."))}</p>`));
+    if (none) none.hidden = any;
+  };
+  nav.querySelectorAll("[data-t]").forEach(b => b.onclick = () => {
+    setTab = b.dataset.t; find.value = "";
+    try { localStorage.setItem("set-tab", setTab); } catch (e) { /* private window */ }
+    show(); v.querySelector(".dialog").scrollTop = 0;
+  });
+  find.oninput = show;
+  show();
+}
+
 function openSettings() {
   const v = dialog(t("Settings"), `<section id="set-body"></section>`, () => { LANG = S.settings.lang; renderMain(); });
+  v.querySelector(".dialog").classList.add("settings");
   const body = v.querySelector("#set-body");
   const paint = () => {
     body.innerHTML = `
@@ -1373,6 +1501,18 @@ function openSettings() {
         <div class="row-field"><span>${t("Speech model")}</span><select class="field" id="voice-model"></select></div>
         <div id="voice-dl" style="margin-top:10px"></div>
       </div>
+      </div>
+      <div id="tts-set">
+      <h4 style="margin-top:22px">${t("Reading aloud")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Press 🔊 under an answer to hear it. Code and links are skipped.")}</p>
+      <div class="voice-opts">
+        <label class="check"><input type="radio" name="tts" value="off"><span><b>${t("Off")}</b></span></label>
+        <label class="check"><input type="radio" name="tts" value="system"><span><b>${t("Windows voices")}</b><small>${t("The voices already on your computer. Nothing to download, works offline. More voices: Windows Settings → Time & language → Speech.")}</small></span></label>
+        <label class="check"><input type="radio" name="tts" value="piper"><span><b>${t("Piper (natural voices)")}</b><small>${t("A separate free program with more natural voices, offline after a one-time download from its own page. It has its own license (GPL), so it is not part of Lanterna.")}</small></span></label>
+      </div>
+      <div id="tts-piper" hidden></div>
+      <label class="check"><input type="checkbox" id="tts-auto" ${S.settings.tts_auto ? "checked" : ""}>
+        <span><b>${t("Read each new answer aloud")}</b><small>${t("Starts by itself when an answer is ready. Press ■ to stop.")}</small></span></label>
       </div>
       <div id="mcp-set">
       <h4 style="margin-top:22px">${t("MCP servers")}</h4>
@@ -1494,6 +1634,9 @@ function openSettings() {
       });
     };
     body.querySelectorAll('input[name="voice"]').forEach(r => r.onchange = async () => { S = await api.save_settings({ voice: r.value }); paintVoice(); });
+    body.querySelectorAll('input[name="tts"]').forEach(r => r.onchange = async () => { stopSpeaking(); S = await api.save_settings({ tts: r.value }); paintTts(); });
+    $("#tts-auto", body).onchange = async e => { S = await api.save_settings({ tts_auto: e.target.checked }); };
+    paintTts();
     $("#voice-model", body).onchange = async e => { S = await api.save_settings({ voice_model: e.target.value }); paintVoice(); };
     api.desktop_status().then(d => {             // Windows window app: tray, Start with Windows, hotkey
       const box = $("#desk-set", body);
@@ -1534,6 +1677,7 @@ function openSettings() {
     };
     $("#fact-add", body).onclick = async () => { const i = $("#fact-new", body); if (i.value.trim()) { await api.add_fact(i.value.trim()); i.value = ""; paintFacts(); } };
     $("#fact-new", body).onkeydown = e => { if (e.key === "Enter") $("#fact-add", body).click(); };
+    settingsTabs(v, body);
   };
   const paintPicks = async () => {
     const st = await api.local_status(), box = $("#picks", body);
@@ -1602,6 +1746,35 @@ function openSettings() {
         <button class="btn primary small" id="voice-get">${icon("save")} ${esc(t("Download ({mb} MB)", { mb }))}</button>`;
       $("#voice-get", box).onclick = async () => { await api.voice_setup(); paintVoice(); };
     }
+  };
+  const paintTts = async () => {
+    const v = await api.tts_status(), box = $("#tts-piper", body);
+    if (!box) return;
+    body.querySelectorAll('input[name="tts"]').forEach(r => { r.checked = r.value === v.engine; });
+    box.hidden = v.engine !== "piper";
+    if (v.engine === "system" && v.platform === "win32" && !(v.windows_langs || []).includes(LANG)) {
+      box.hidden = false;                                 // say it now, not on the first 🔊
+      box.innerHTML = `<p class="muted" style="margin:0">${esc(t("There is no Windows voice for this language. Add one in Windows Settings → Time & language → Speech, or choose Piper in Settings → Reading aloud."))}</p>`;
+    }
+    if (v.engine !== "piper") return;
+    const P = v.piper;
+    const try_ = `<button class="btn ghost small" id="tts-try">${icon("speak")} ${esc(t("Try it"))}</button>`;
+    if (P.engine && P.voice) box.innerHTML = `<p class="muted" style="margin:0 0 6px">${icon("check")} ${esc(t("Ready. Everything is on this computer."))}</p>${try_}`;
+    else if (P.phase === "downloading") {
+      box.innerHTML = `<div class="status"><span class="spinner"></span>${esc(t("Downloading… {done} of {total} MB", { done: Math.round(P.done / 1e6), total: Math.round(P.total / 1e6) }))}</div>
+        <button class="btn ghost small" id="tts-cancel" style="margin-top:6px">${t("Cancel")}</button>`;
+      $("#tts-cancel", box).onclick = async () => { await api.tts_setup_cancel(); setTimeout(paintTts, 400); };
+      setTimeout(() => { if (box.isConnected) paintTts(); }, 800);
+      return;
+    } else if (!P.platform_ok) box.innerHTML = `<p class="muted" style="margin:0">${esc(t("Piper has no ready download for this system."))}</p>`;
+    else {
+      const mb = (P.engine ? 0 : P.engine_mb) + (P.voice ? 0 : P.voice_mb);
+      box.innerHTML = `${P.phase === "error" ? `<p class="muted" style="margin:0 0 6px">${esc(t("The download didn't work. Check the internet and try again."))}</p>` : ""}
+        <button class="btn primary small" id="tts-get">${icon("save")} ${esc(t("Download ({mb} MB)", { mb }))}</button>`;
+      $("#tts-get", box).onclick = async () => { await api.tts_setup(); paintTts(); };
+    }
+    const tb = $("#tts-try", box);
+    if (tb) tb.onclick = () => speak(t("Hello! This is how Lanterna sounds."), tb);
   };
   const paintTasks = async () => {
     const list = await api.task_list(), box = $("#tasks", body);

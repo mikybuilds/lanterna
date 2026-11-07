@@ -1076,6 +1076,14 @@ class SettingsScreen(ModalScreen[str]):
                     yield Button(("● " if self.app.api.settings.voice == eng else "") + t(label, lang), id=f"voice-{eng}")
             yield Static("", id="voiceinfo", classes="muted")
             yield Button(t("Download ({mb} MB)", lang, mb="…"), id="voiceget")
+            yield Label(t("Reading aloud", lang), classes="h")
+            yield Static(t("F3 reads the last answer aloud; F3 again stops. Code and links are skipped.", lang), classes="muted")
+            with Horizontal(classes="modes"):
+                for eng, label in (("off", "Off"), ("system", "System voice (spd-say)"), ("piper", "Piper (natural voices)")):
+                    yield Button(("● " if self.app.api.settings.tts == eng else "") + t(label, lang), id=f"tts-{eng}")
+            yield Static("", id="ttsinfo", classes="muted")
+            yield Button(t("Download ({mb} MB)", lang, mb="…"), id="ttsget")
+            yield Checkbox(t("Read each new answer aloud", lang), self.app.api.settings.tts_auto, id="ttsauto")
             yield Button(t("Save a backup of all chats", lang), id="backupall")
             yield Static(t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
@@ -1104,6 +1112,7 @@ class SettingsScreen(ModalScreen[str]):
         self._fill_memory()
         self._paint_wd()
         self._paint_voice()
+        self._paint_tts()
         self._paint_mcp()
         self._paint_limits()
         self._paint_drive()
@@ -1259,6 +1268,30 @@ class SettingsScreen(ModalScreen[str]):
             self._paint_mcp()
         self.app.push_screen(ConfirmScreen(ask, t("Add", lang)), done)
 
+    def _paint_tts(self) -> None:
+        """Settings → Reading aloud: Piper's download, or that it is ready."""
+        lang, v = L(self.app), self.app.api.tts_status()
+        info, get = self.query_one("#ttsinfo", Static), self.query_one("#ttsget", Button)
+        P = v["piper"]
+        get.display = False
+        if v["engine"] == "system":
+            info.update(t("The voices already on your computer. Nothing to download, works offline.", lang))
+        elif v["engine"] != "piper":
+            info.update("")
+        elif P["engine"] and P["voice"]:
+            info.update(t("Ready. Everything is on this computer.", lang))
+        elif P["phase"] == "downloading":
+            info.update(t("Downloading… {done} of {total} MB", lang, done=round(P["done"] / 1e6), total=round(P["total"] / 1e6)))
+            self.set_timer(1.0, self._paint_tts)
+        elif not P["platform_ok"]:
+            info.update(t("Piper has no ready download for this system.", lang))
+        else:
+            mb = (0 if P["engine"] else P["engine_mb"]) + (0 if P["voice"] else P["voice_mb"])
+            info.update(t("A separate free program with more natural voices, offline after a one-time download from its own page. It has its own license (GPL), so it is not part of Lanterna.", lang)
+                        + ("\n" + t("The download didn't work. Check the internet and try again.", lang) if P["phase"] == "error" else ""))
+            get.label = t("Download ({mb} MB)", lang, mb=mb)
+            get.display = True
+
     def _paint_voice(self) -> None:
         """Settings → Voice input: what the local engine needs, or that it is ready / downloading."""
         lang, v = L(self.app), self.app.api.voice_status()
@@ -1369,6 +1402,12 @@ class SettingsScreen(ModalScreen[str]):
         elif bid == "voiceget":
             self.app.api.voice_setup()
             self._paint_voice()
+        elif bid.startswith("tts-"):
+            self.app.api.save_settings({"tts": bid[4:]})
+            self.dismiss("reopen")
+        elif bid == "ttsget":
+            self.app.api.tts_setup()
+            self._paint_tts()
         elif bid == "mcptoggle":
             self._mcp_toggle()
         elif bid == "mcpadd":
@@ -1396,6 +1435,10 @@ class SettingsScreen(ModalScreen[str]):
             self.app.push_screen(LocalScreen())
         elif bid == "close":
             self.action_close()
+
+    @on(Checkbox.Changed, "#ttsauto")
+    def _tts_auto(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"tts_auto": ev.value})
 
     @on(Checkbox.Changed, "#morning")
     def _morning(self, ev: Checkbox.Changed) -> None:
@@ -1914,6 +1957,29 @@ class _ChatScreen(Screen):
         self.app.notify(t("Turning speech into text…", lang), timeout=3)
         self._voice_text()
 
+    def action_read_aloud(self) -> None:
+        """F3: reads the last answer aloud; F3 again while it reads: stop."""
+        if getattr(self, "_reading", False):
+            self._reading = False
+            self.app.api.tts_stop()
+            return
+        last = next((m["content"] for m in reversed(self.app.api.store.messages(self.tid)) if m["role"] == "assistant"),
+                    "") if self.tid else ""
+        if last:
+            self._read(last)
+
+    @work(thread=True, group="speak", exclusive=True)
+    def _read(self, text: str) -> None:
+        self._reading = True
+        r = self.app.api.tts_play(text)
+        if not r.get("ok"):
+            self._reading = False
+            msg = {"off": "Reading aloud is off. Turn it on in Settings → Reading aloud.",
+                   "not_ready": "Download Piper first: Settings → Reading aloud.",
+                   "no_player": "No speech program found. Install speech-dispatcher (spd-say), or choose Piper in Settings → Reading aloud."
+                   }.get(r.get("error"), "Couldn't read it aloud this time.")
+            self.app.call_from_thread(self.app.notify, t(msg, L(self.app)), severity="warning")
+
     @work(thread=True, group="voice")
     def _voice_text(self) -> None:
         r = self.app.api.voice_stop()
@@ -2057,6 +2123,8 @@ class _ChatScreen(Screen):
         if r.get("done"):
             self._stream = None
             err = r.get("error")
+            if not err and self._text and self.app.api.settings.tts_auto and self.app.api.settings.tts != "off":
+                self._read(self._text)
             if err:
                 await log.mount(Static(self._error_text(err), classes="msg-err", markup=False))
                 if not self._text and self._bot is not None:
@@ -2219,6 +2287,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
         Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
         Binding("f2", "voice", t("Voice input", lang), priority=True),
+        Binding("f3", "read_aloud", t("Read aloud", lang), priority=True),
         Binding("ctrl+h", "history", t("What Lanterna did", lang), priority=True),
         Binding("f1", "about", t("About", lang), priority=True),
         Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),

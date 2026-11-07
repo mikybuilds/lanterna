@@ -3,6 +3,8 @@
 ## Unreleased
 
 **New**
+- **Answers read aloud:** press 🔊 under an answer (F3 in the terminal app), or let every new answer be read by itself. Choose in Settings → Voice → Reading aloud: the voices Windows already has (nothing to download), or Piper with natural voices in 7 languages. Piper is a separate free program with its own license (GPL), so it is not part of Lanterna: it is downloaded on request from its own page as pinned files checked by SHA-256, and works offline. Code and links are skipped.
+- **Easier Settings:** tabs by topic at the top (General, Models, Memory and reminders, Chats, Voice, Computer and tools, Account) and a box that finds a setting by its words. The last tab is remembered.
 - **Exchange rates and units:** “how much is 100 dollars in hryvnias?” uses today's official National Bank of Ukraine rate (about 60 currencies, any pair), and “5 miles in km”, “6 sotkas in hectares”, “350 °F in °C” are converted exactly, not guessed. Units work offline.
 - **Audio files become text:** attach a voice message or a recording (MP3, WAV, OGG, M4A, FLAC, WEBM…) and ask about it. Lanterna turns it into text with the voice input you set up (Groq online, or whisper.cpp on your PC for MP3/WAV/OGG/FLAC) and sends the text to the model.
 - **Morning summary** (Settings → Reminders, off by default): once a day at the time you pick, a short note for the day — the weather in your city, today's reminders and regular tasks. It is made on your computer without a model; only the weather comes from Open-Meteo, and only if you set a city. “Show it now” previews it.

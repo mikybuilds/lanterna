@@ -189,6 +189,10 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .msg.bot .av { flex: none; width: 30px; height: 30px; margin-top: 2px; }
 .msg.bot .body { min-width: 0; flex: 1; }
 .msg.bot .meta { font-size: 12px; color: var(--faint); margin-top: 6px; }
+.msg.bot .say { margin-top: 6px; width: 30px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center; color: var(--faint); }
+.msg.bot .say:hover, .msg.bot .say.on { color: var(--text); background: var(--line); }
+.msg.bot .say .i { width: 17px; height: 17px; }
+#tts-piper { margin: 6px 0 0 30px; }
 .ask { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
 .ask-opts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .ask-opts .btn.on { border-color: var(--amber-line); background: var(--amber-soft); color: var(--amber-2); }
@@ -339,6 +343,16 @@ body.quick .chip:not([hidden]) + #q-shot { margin-left: 6px; }
 .dialog header h2 { margin: 0; font: 650 19px/1.2 var(--display); flex: 1; }
 .dialog header button { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--muted); }
 .dialog header button:hover { background: var(--surface-2); color: var(--text); }
+.dialog.settings { max-width: 640px; }
+.dialog header:has(.set-nav) { flex-wrap: wrap; row-gap: 10px; border-bottom: 1px solid var(--line); }
+.set-nav { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; }
+.set-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.dialog header .set-tabs button { width: auto; height: auto; padding: 6px 12px; border-radius: 99px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); }
+.dialog header .set-tabs button.on { color: var(--text); background: var(--surface-2); border-color: var(--amber-line); }
+.set-find { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; color: var(--faint); }
+.set-find input { flex: 1; height: 34px; background: none; border: 0; outline: 0; color: var(--text); font: inherit; font-size: 14px; }
+.set-grp[hidden] { display: none; }
+.set-none { margin: 10px 0; font-size: 14px; }
 .dialog section { padding: 6px 20px 18px; }
 .dialog h4 { margin: 8px 0 10px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
 .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
