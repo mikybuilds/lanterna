@@ -134,6 +134,7 @@
  "Downloads": "Pobrane",
  "Downloads start only when you press the button. Models are stored by Ollama on this computer.": "Pobieranie zaczyna się dopiero po naciśnięciu przycisku. Ollama trzyma modele na tym komputerze.",
  "Earlier": "Wcześniej",
+ "Edit": "Edytuj",
  "Enter the sync password you chose on your other device.": "Wpisz hasło synchronizacji wybrane na innym urządzeniu.",
  "Error: {error}": "Błąd: {error}",
  "Error: {err}": "Błąd: {err}",

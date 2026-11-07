@@ -535,9 +535,31 @@ class Api:
             self.settings.save()
         return True
 
-    def send(self, tid: int, text: str, files: list[dict] | None = None) -> dict:
+    def _undo_last(self, tid: int) -> str:
+        """Takes back the last question (and its answer, if there is one); returns the question as it was saved."""
+        msgs = self.store.messages(tid)
+        if msgs and msgs[-1]["role"] == "assistant" and len(msgs) > 1 and msgs[-2]["role"] == "user":
+            self.store.trim_tail(tid, 2)
+            return msgs[-2]["content"]
+        if msgs and msgs[-1]["role"] == "user":                 # a question left without an answer (an error)
+            self.store.trim_tail(tid, 1)
+            return msgs[-1]["content"]
+        return ""
+
+    def edit_last(self, tid: int) -> dict:
+        """"Edit": the last question and its answer go; the question comes back to the message box."""
+        if any(not s.done for s in self._streams.values()):
+            return {"ok": False, "text": ""}
+        return {"ok": True, "text": _short_files(self._undo_last(int(tid)))}
+
+    def send(self, tid: int, text: str, files: list[dict] | None = None, again: bool = False) -> dict:
+        """again: answer the last question again (Retry) — it replaces the old answer instead of piling up."""
         text = (text or "").strip()
         tid = int(tid)
+        if again and self.store.thread(tid):
+            old = self._undo_last(tid)
+            if not text and not files:
+                text = old
         if (not text and not files) or not self.store.thread(tid):
             return {"ok": False, "error": "empty"}
         try:

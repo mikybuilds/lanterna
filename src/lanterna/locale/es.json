@@ -134,6 +134,7 @@
  "Downloads": "Descargas",
  "Downloads start only when you press the button. Models are stored by Ollama on this computer.": "Las descargas empiezan solo cuando pulsas el botón. Ollama guarda los modelos en este ordenador.",
  "Earlier": "Antes",
+ "Edit": "Editar",
  "Enter the sync password you chose on your other device.": "Escribe la contraseña de sincronización que elegiste en tu otro dispositivo.",
  "Error: {error}": "Error: {error}",
  "Error: {err}": "Error: {err}",

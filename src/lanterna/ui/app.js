@@ -915,9 +915,31 @@ async function openThread(id) {
     waiting.forEach(c => box.append(actCard(c)));
     host.querySelector(".md").after(box);
   }
+  paintLastActions();
   refreshThreads();
   scrollDown(true);
   $("#input").focus();
+}
+
+// "Edit" under my last message and "Retry" under the last answer (no branches: the old ones are replaced)
+function clearLastActions() { document.querySelectorAll(".last-act").forEach(x => x.remove()); }
+function paintLastActions() {
+  clearLastActions();
+  const all = [...document.querySelectorAll("#msgs > .msg")];
+  const bot = all[all.length - 1], user = all[all.length - 2];
+  if (!bot || !user || !bot.classList.contains("bot") || !user.classList.contains("user") || bot.querySelector(".ask")) return;
+  const edit = h(`<div class="last-act user-act"><button class="btn ghost small">${icon("edit")} ${esc(t("Edit"))}</button></div>`);
+  edit.querySelector("button").onclick = async () => {
+    if (busy) return;
+    const r = await api.edit_last(thread);
+    if (!r.ok) return;
+    bot.remove(); user.remove(); clearLastActions();
+    const inp = $("#input"); inp.value = r.text; inp.oninput(); inp.focus();
+  };
+  user.after(edit);
+  const again = h(`<button class="btn ghost small last-act">${icon("refresh")} ${esc(t("Retry"))}</button>`);
+  again.onclick = () => { if (busy) return; bot.remove(); clearLastActions(); send({ retry: true, text: "", files: [], again: true }); };
+  bot.querySelector(".body").append(again);
 }
 
 function showEmpty() {
@@ -965,7 +987,8 @@ async function send(retryText) {
   const retry = typeof retryText === "object" && retryText !== null && retryText.retry === true;
   const text = retry ? retryText.text : inp.value.trim();
   const files = retry ? retryText.files : pending;
-  if ((!text && !files.length) || busy) return;
+  const again = retry && retryText.again === true;     // answer the last question again: the server replaces it
+  if ((!text && !files.length && !again) || busy) return;
   busy = true; $("#send").disabled = true;
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
@@ -980,7 +1003,8 @@ async function send(retryText) {
   const bot = addBot(null);
   const box = bot.querySelector(".md");
   scrollDown(true);
-  const r = await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })));
+  clearLastActions();
+  const r = await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
   refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th) $("#title").textContent = th.title; });
   if (!r.ok) {
     busy = false; inp.oninput();
@@ -1031,11 +1055,12 @@ async function send(retryText) {
         : k === "empty" ? t("The model sent no answer. Press Retry or ask in other words.")
         : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
-      box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files }); };
+      box.querySelector("button").onclick = () => { bot.remove(); send({ retry: true, text, files, again: true }); };
     }
     if (p.done) {
       thinkDone(p.error ? [] : p.steps); busy = false; inp.oninput(); paintLimit();
       if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
+      else if (!p.error && thread === sentTo) paintLastActions();
       if (titling) api.wait_title(sentTo).then(tt => {    // a fast model is naming the new chat
         refreshThreads(); if (tt && thread === sentTo) $("#title").textContent = tt; });
       if (suggesting) api.wait_follow_ups(sentTo).then(list => {   // follow-up buttons under the answer

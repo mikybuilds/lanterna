@@ -347,3 +347,25 @@ def test_questionnaire_form_sends_the_answers(api, monkeypatch):
             assert "1. Which language? — Python" in sent and "2. For whom? — my little brother" in sent
             assert not any(t["function"]["name"] == "ask_user" for t in asked[1].get("tools", []))
     asyncio.run(go())
+
+
+def test_retry_and_edit_last_with_keys(api):
+    """Ctrl+R answers the last question again (replacing the answer); Ctrl+E brings the question back to the box."""
+    api.save_settings({"onboarded": True, "name": "Bo", "lang": "en", "provider": "groq"})
+    api.settings.ai_titles = api.settings.follow_ups = False
+    tid = api.new_thread()["id"]
+    api.store.add(tid, "user", "hello")
+    api.store.add(tid, "assistant", "Old answer")
+    api.store.rename(tid, "hello")
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 40)) as pilot:
+            assert await wait_for(pilot, lambda: chat_ready(app) and len(app.screen.query(Markdown)) == 1)
+            await pilot.press("ctrl+r")
+            assert await wait_for(pilot, lambda: [m["content"] for m in api.store.messages(tid)] == ["hello", "Ciao **Anna**!"])
+            assert await wait_for(pilot, lambda: app.screen._stream is None)
+            await pilot.press("ctrl+e")
+            assert await wait_for(pilot, lambda: app.screen.query_one("#composer", Input).value == "hello")
+            assert api.store.messages(tid) == []
+    asyncio.run(go())

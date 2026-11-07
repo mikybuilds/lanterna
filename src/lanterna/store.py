@@ -106,6 +106,15 @@ class Store:
                              (new_uid(), tid, role, content, model, now, sent))
             self._db.execute("UPDATE threads SET updated=? WHERE id=?", (now, tid))
 
+    def trim_tail(self, tid: int, n: int) -> None:
+        """Removes the last n messages of a chat (answer again / edit the last message); other devices drop them too."""
+        if n <= 0:
+            return
+        where = "id IN (SELECT id FROM messages WHERE thread=? ORDER BY id DESC LIMIT ?)"
+        with self._lock, self._db:
+            self._tomb("messages", where, (tid, n))
+            self._db.execute(f"DELETE FROM messages WHERE {where}", (tid, n))
+
     def messages(self, tid: int) -> list[dict]:
         return self._q("SELECT role, content, model, at, sent FROM messages WHERE thread=? ORDER BY id", (tid,))
 

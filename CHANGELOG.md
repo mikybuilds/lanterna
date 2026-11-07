@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **Edit and Retry:** under your last message there is Edit (the question comes back to the box, its answer goes), under the last answer Retry (a new answer replaces it). Terminal: Ctrl+E and Ctrl+R.
+
+**Fixed**
+- Retry after an error no longer saves your question twice.
+
 ## 0.5.0 — a smarter chat: questions first, chat names, follow-ups, long chats
 
 **New**

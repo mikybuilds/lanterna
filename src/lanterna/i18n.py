@@ -174,6 +174,7 @@ _T.update({
     "Skip the questions: do it your way and tell me what you assumed.": {"uk": "Пропусти питання: зроби на свій розсуд і скажи, що ти припустив.", "it": "Salta le domande: fai come credi e dimmi cosa hai supposto."},
     "Ask before big tasks": {"uk": "Уточнювати складні задачі", "it": "Chiedi prima dei compiti grandi"},
     "Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.": {"uk": "Перед великою задачею (програма, план, проєкт) модель може спершу поставити 1–4 короткі питання з варіантами. Твої відповіді стають її інструкцією.", "it": "Prima di un compito grande (un programma, un piano, un progetto) il modello può farti 1-4 brevi domande con opzioni. Le tue risposte diventano le sue istruzioni."},
+    "Edit": {"uk": "Змінити", "it": "Modifica"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

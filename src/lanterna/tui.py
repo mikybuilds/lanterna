@@ -1704,6 +1704,28 @@ class _ChatScreen(Screen):
     def _new_btn(self) -> None:
         self.action_new_chat()
 
+    def action_retry(self) -> None:
+        """Ctrl+R: answer the last question again (the old answer is replaced)."""
+        if self.tid is None or self._stream:
+            return
+        res = self.app.api.send(self.tid, "", [], again=True)
+        if not res.get("ok"):
+            return
+        self.open_thread(self.tid)
+        self._watch(res["stream"])
+
+    def action_edit_last(self) -> None:
+        """Ctrl+E: the last question and its answer go; the question comes back to the box to change it."""
+        if self.tid is None or self._stream:
+            return
+        r = self.app.api.edit_last(self.tid)
+        if not r.get("ok"):
+            return
+        self.open_thread(self.tid)
+        box = self.query_one("#composer", Input)
+        box.value = r["text"]
+        box.focus()
+
     def action_delete_chat(self) -> None:
         if self.tid is None or self._stream:
             return
@@ -1749,7 +1771,12 @@ class _ChatScreen(Screen):
             err = res.get("message") or res.get("error")
             log.mount(Static(t("Error: {err}", L(self.app), err=err), classes="msg-err", markup=False))
             return
-        self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = res["stream"], 0, "", 0, 0
+        self._watch(res["stream"])
+
+    def _watch(self, sid: str) -> None:
+        """Shows "Thinking…" and follows the answer's stream."""
+        log = self.query_one("#log", VerticalScroll)
+        self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = sid, 0, "", 0, 0
         self._cards_seen, self._live = 0, ""
         self._bot = Markdown("_" + t("Thinking…", L(self.app)) + "_", classes="msg-bot")
         log.mount(self._bot)
@@ -1926,6 +1953,8 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+s", "settings", t("Settings", lang), priority=True),
         Binding("ctrl+f", "attach", t("Attach", lang), priority=True),
         Binding("ctrl+o", "models", t("Models", lang), priority=True),
+        Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
+        Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
         Binding("ctrl+h", "history", t("What Lanterna did", lang), priority=True),
         Binding("f1", "about", t("About", lang), priority=True),
         Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),

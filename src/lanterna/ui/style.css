@@ -171,6 +171,10 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .ask-opts .btn.on { border-color: var(--amber-line); background: var(--amber-soft); color: var(--amber-2); }
 .ask-other { height: 38px; font-size: 13.5px; border-radius: 10px; }
 .ask-act { display: flex; gap: 8px; }
+.user-act { display: flex; justify-content: flex-end; margin-top: -6px; }
+.last-act .btn, .btn.last-act { opacity: .55; height: 28px; font-size: 12.5px; }
+.last-act .btn:hover, .btn.last-act:hover { opacity: 1; }
+.btn.last-act { margin-top: 8px; }
 .follow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .follow .btn { white-space: normal; text-align: left; height: auto; min-height: 30px; padding: 5px 12px; }
 .md > :first-child { margin-top: 0; }

@@ -20,7 +20,7 @@ from .app import Api
 
 UI = Path(__file__).with_name("ui")
 METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "new_thread",
-           "messages", "rename_thread", "wait_title", "wait_follow_ups", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
+           "messages", "rename_thread", "wait_title", "wait_follow_ups", "edit_last", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",
            "cards", "pc_undo", "chat_folder", "set_chat_folder", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",
