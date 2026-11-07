@@ -128,3 +128,56 @@ def test_show_saved_opens_only_files_it_saved(tmp_path, monkeypatch):
     assert a.show_saved(r"C:\Windows\System32\cmd.exe") is False
     r = a.export_all()
     assert a.show_saved(r["path"]) is True and str(opened[0]) == r["path"]
+
+
+# ---------------------------------------------------------------- memory that updates itself
+def test_about_me_and_clean_facts():
+    from lanterna.chat import about_me, clean_facts
+    assert about_me("Я працюю медсестрою у Львові") and about_me("I study physics") and about_me("J'aime le thé")
+    assert not about_me("Яка погода завтра?") and not about_me("Jaka jest pogoda i wiatr?")
+    raw = "- Works as a nurse.\nNONE\nHer password is hunter2\nPhone 0671234567\nLives in Lviv.\nLikes tea.\nHas a cat."
+    assert clean_facts(raw, ["lives in lviv"]) == ["Works as a nurse.", "Likes tea."]
+    assert clean_facts("NONE", []) == []
+
+
+def _memory_api(tmp_path, monkeypatch, on=True):
+    from lanterna.chat import MEMORY_PROMPT
+    seen = []
+
+    def answer(body, n):
+        if body["messages"][0]["content"] == MEMORY_PROMPT:
+            seen.append(body["messages"][1]["content"])
+            return "Працює медсестрою.\nЖиве у Львові."
+        return "Гарно!"
+    a, bodies, wait = _api(tmp_path, monkeypatch, answer)
+    a.settings.auto_memory = on
+    return a, seen, wait
+
+
+def test_memory_learns_facts_and_undo_removes_them(tmp_path, monkeypatch):
+    a, seen, wait = _memory_api(tmp_path, monkeypatch)
+    a.store.add_fact("Живе у Львові.")
+    tid = a.new_thread()["id"]
+    p = wait(a.send(tid, "я медсестра, живу у Львові, порадь книжку")["stream"])
+    assert p["learning"] is True
+    got = a.wait_memory(tid)
+    assert [f["text"] for f in got] == ["Працює медсестрою."]          # what was known isn't added twice
+    assert "Живе у Львові." in seen[0]                                   # the side model saw what is known
+    assert [f["text"] for f in a.store.facts()] == ["Живе у Львові.", "Працює медсестрою."]
+    a.delete_fact(got[0]["id"])                                          # Undo
+    assert [f["text"] for f in a.store.facts()] == ["Живе у Львові."]
+
+
+def test_memory_stays_quiet_when_off_or_not_about_me(tmp_path, monkeypatch):
+    a, seen, wait = _memory_api(tmp_path, monkeypatch, on=False)
+    tid = a.new_thread()["id"]
+    assert wait(a.send(tid, "я медсестра")["stream"])["learning"] is False
+    a.settings.auto_memory = True
+    assert wait(a.send(tid, "скільки буде 2+2?")["stream"])["learning"] is False
+    assert seen == [] and a.wait_memory(tid) == [] and a.store.facts() == []
+
+
+def test_memory_is_off_by_default_and_synced():
+    from lanterna import sync
+    from lanterna.config import Settings
+    assert Settings().auto_memory is False and "auto_memory" in sync.PREFS

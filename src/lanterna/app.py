@@ -13,7 +13,8 @@ import uuid
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
-from .chat import MAX_HISTORY, KEEP_RECENT, Conversation, Questions, ToolUse, chat_title, follow_ups, summarize, summary_due
+from .chat import (MAX_HISTORY, KEEP_RECENT, Conversation, Questions, ToolUse, about_me, chat_title, follow_ups,
+                   learn_facts, summarize, summary_due)
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
@@ -42,6 +43,7 @@ class _Stream:
         self.final = False                 # pieces now hold the cleaned full reply
         self.titling = False               # a side model is naming the chat: the UI asks wait_title()
         self.suggesting = False            # follow-up buttons are coming: the UI asks wait_follow_ups()
+        self.learning = False              # a side model looks for facts to remember: the UI asks wait_memory()
         self.questions: list[dict] = []    # the model asked these before a big task (the UI shows a form)
         self.error: dict | None = None
         self.files: list[str] = []         # attached file names
@@ -71,6 +73,7 @@ class Api:
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
         self._saved: set[str] = set()                         # files saved by export (show_saved may open these)
         self._follow: dict[int, tuple[threading.Event, list[str]]] = {}   # follow-up ideas being written
+        self._learned: dict[int, tuple[threading.Event, list[dict]]] = {}  # facts the side model added after an answer
         self._lock = threading.Lock()
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
         self._hw: hardware.Hardware | None = None
@@ -107,11 +110,11 @@ class Api:
 
     def save_settings(self, patch: dict) -> dict:
         allowed = {"lang", "name", "mode", "provider", "onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access",
-                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first"}
+                   "tidy_weekly", "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory"}
         for k, v in (patch or {}).items():
             if k in allowed:
                 setattr(self.settings, k, v.strip()[:40] if isinstance(v, str) else bool(v) if k in ("onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly",
-                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first") else v)
+                                                                  "space_help", "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory") else v)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -515,6 +518,34 @@ class Api:
             self._follow[tid] = (ev, out)
             st.suggesting = True
             threading.Thread(target=self._suggest, args=(tid, router, question, reply, out, ev), daemon=True).start()
+        # memory that updates itself (off by default): only when the user said something about themself,
+        # never with Gemini (its limit is for answers); a local side model is fine (it stays on this PC)
+        self._learned.pop(tid, None)
+        if (self.settings.auto_memory and side and side[0].provider != "gemini" and about_me(question)
+                and not st.questions):
+            ev2, got = threading.Event(), []
+            self._learned[tid] = (ev2, got)
+            st.learning = True
+            threading.Thread(target=self._learn, args=(router, question, reply, got, ev2), daemon=True).start()
+
+    def wait_memory(self, tid: int, timeout: float = 20) -> list[dict]:
+        """Facts the side model just added to Memory after the last answer: [{"id", "text"}] (the UI offers Undo)."""
+        item = self._learned.get(int(tid))
+        if not item:
+            return []
+        item[0].wait(timeout)
+        return list(item[1])
+
+    def _learn(self, router: Router, question: str, reply: str, out: list[dict], ev: threading.Event) -> None:
+        try:
+            for text in learn_facts(router.quick, question, reply, [f["text"] for f in self.store.facts()]):
+                fid = self.store.add_fact(text)
+                if fid:
+                    out.append({"id": fid, "text": text})
+        except Exception as e:                              # noqa: BLE001  memory is never worth an error
+            bugreport.remember_error(type(e).__name__, str(e))
+        finally:
+            ev.set()
 
     def _name_chat(self, tid: int, router: Router, question: str, reply: str, auto: str) -> None:
         """Background: a fast side model names the chat, unless the user renamed it meanwhile."""
@@ -681,7 +712,7 @@ class Api:
             if st.final:
                 from . import sent
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
-                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "questions": st.questions,
+                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": self._router.current.label if self._router and self._router.current else ""}

@@ -183,6 +183,10 @@ _T.update({
     "Nothing to save yet.": {"uk": "Поки нема чого зберігати.", "it": "Ancora niente da salvare."},
     "Saved from Lanterna on {date}": {"uk": "Збережено з Lanterna {date}", "it": "Salvato da Lanterna il {date}"},
     "You": {"uk": "Ти", "it": "Tu"},
+    "Remembered: {fact}": {"uk": "Запам'ятала: {fact}", "it": "Ho memorizzato: {fact}"},
+    "Removed from memory.": {"uk": "Прибрала з пам'яті.", "it": "Tolto dalla memoria."},
+    "Learn about me from chats": {"uk": "Запам'ятовувати про мене з чатів", "it": "Impara su di me dalle chat"},
+    "When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.": {"uk": "Коли ти розповідаєш щось про себе (робота, місто, що любиш), швидка модель додає це в Пам'ять. Ти бачиш кожен новий факт і можеш його скасувати. Паролі й номери — ніколи. Вимкнено за замовчуванням.", "it": "Quando racconti qualcosa di te (lavoro, città, cosa ti piace), un modello veloce lo aggiunge alla Memoria. Vedi ogni nuovo fatto e puoi annullarlo. Mai password o numeri. Disattivato di default."},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

@@ -892,6 +892,16 @@ async function refreshThreads() {
   return list;
 }
 
+// "Remembered: …" with Undo (the side model added a fact to Memory)
+function memoryToast(f) {
+  toast(t("Remembered: {fact}", { fact: f.text }));
+  const all = document.querySelectorAll(".toast"), el = all[all.length - 1];
+  if (!el) return;
+  const undo = h(`<button class="btn ghost small">${esc(t("Undo"))}</button>`);
+  undo.onclick = async () => { await api.delete_fact(f.id); el.querySelector("span").textContent = t("Removed from memory."); undo.remove(); };
+  el.insertBefore(undo, el.lastElementChild);
+}
+
 async function savedToast(r) {
   if (!r || !r.ok) return toast(t("Nothing to save yet."));
   toast(t("Saved to {name}", { name: r.name }) + " · " + t("Show in folder"));
@@ -1020,7 +1030,7 @@ async function send(retryText) {
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`; else bot.remove();
     return;
   }
-  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false, suggesting = false;
+  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false, suggesting = false, learning = false;
   const sentTo = thread;
   const chips = h(`<div class="tools"></div>`);
   bot.querySelector(".body").prepend(chips);
@@ -1050,7 +1060,7 @@ async function send(retryText) {
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
-    if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
+    if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
       if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));
       if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
@@ -1072,6 +1082,7 @@ async function send(retryText) {
       else if (!p.error && thread === sentTo) paintLastActions();
       if (titling) api.wait_title(sentTo).then(tt => {    // a fast model is naming the new chat
         refreshThreads(); if (tt && thread === sentTo) $("#title").textContent = tt; });
+      if (learning) api.wait_memory(sentTo).then(list => (list || []).forEach(memoryToast));   // memory updated itself
       if (suggesting) api.wait_follow_ups(sentTo).then(list => {   // follow-up buttons under the answer
         if (!list || !list.length || !bot.isConnected || busy || thread !== sentTo) return;
         const row = h(`<div class="follow">${list.map(x => `<button class="btn ghost small">${esc(x)}</button>`).join("")}</div>`);
@@ -1141,6 +1152,8 @@ function openSettings() {
         <span><b>${t("Remember long chats")}</b><small>${t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.")}</small></span></label>
       <label class="check"><input type="checkbox" id="ask-first" ${S.settings.ask_first !== false ? "checked" : ""}>
         <span><b>${t("Ask before big tasks")}</b><small>${t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.")}</small></span></label>
+      <label class="check"><input type="checkbox" id="auto-memory" ${S.settings.auto_memory ? "checked" : ""}>
+        <span><b>${t("Learn about me from chats")}</b><small>${t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.")}</small></span></label>
       <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
       <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
@@ -1178,7 +1191,7 @@ function openSettings() {
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
-    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"], ["#ask-first", "ask_first"]]) {
+    for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"], ["#ask-first", "ask_first"], ["#auto-memory", "auto_memory"]]) {
       const el = $(id, body);
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }

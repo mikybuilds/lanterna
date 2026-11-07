@@ -75,6 +75,8 @@ AskForm .askq { margin-top: 1; }
 AskForm Input { margin: 0; }
 AskForm Horizontal { height: auto; margin-top: 1; }
 .follow { height: auto; margin: 1 8 0 0; }
+.learned { height: auto; margin: 1 8 0 0; }
+.learnedtext { width: auto; color: $text-muted; padding: 0 1 0 0; }
 .followbtn { width: auto; min-width: 4; height: 1; border: none; margin: 0 0 0 0; padding: 0 1; background: $panel; }
 .welcome { color: $text-muted; margin: 2 0; content-align: center middle; width: 100%; }
 #composer { margin: 0 2 1 2; border: round $panel-lighten-2; }
@@ -1039,6 +1041,8 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.", lang), classes="muted")
             yield Checkbox(t("Ask before big tasks", lang), self.app.api.settings.ask_first, id="askfirst")
             yield Static(t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.", lang), classes="muted")
+            yield Checkbox(t("Learn about me from chats", lang), self.app.api.settings.auto_memory, id="automemory")
+            yield Static(t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.", lang), classes="muted")
             yield Button(t("Save a backup of all chats", lang), id="backupall")
             yield Static(t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.", lang), classes="muted")
             yield Label(t("Updates", lang), classes="h")
@@ -1254,6 +1258,10 @@ class SettingsScreen(ModalScreen[str]):
     def _backup_all(self) -> None:
         r = self.app.api.export_all()
         self.app.notify(t("Saved to {name}", L(self.app), name=r["path"]))
+
+    @on(Checkbox.Changed, "#automemory")
+    def _auto_memory(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"auto_memory": ev.value})
 
     @on(Checkbox.Changed, "#askfirst")
     def _ask_first(self, ev: Checkbox.Changed) -> None:
@@ -1824,6 +1832,7 @@ class _ChatScreen(Screen):
             self._text, changed = r["final"], True
             self._naming = bool(r.get("titling"))       # a fast model is naming this new chat
             self._suggesting = bool(r.get("suggesting"))   # follow-up buttons are coming
+            self._learning = bool(r.get("learning"))       # a side model looks for facts to remember
             if r.get("questions") and not getattr(self, "_asked", None):
                 self._asked = r["questions"]
                 await log.mount(AskForm(r["questions"]), after=self._bot)
@@ -1859,6 +1868,9 @@ class _ChatScreen(Screen):
             if getattr(self, "_suggesting", False):
                 self._suggesting = False
                 self._wait_follow(self.tid)
+            if getattr(self, "_learning", False):
+                self._learning = False
+                self._wait_memory(self.tid)
             self._timer.stop()      # last: stopping cancels this very callback at its next await
 
     @work(thread=True, group="follow")
@@ -1872,6 +1884,31 @@ class _ChatScreen(Screen):
         log = self.query_one("#log", VerticalScroll)
         log.mount(Vertical(*(Button("→ " + x, classes="followbtn", name=x) for x in ideas), classes="follow"))
         log.scroll_end(animate=False)
+
+    @work(thread=True, group="memory")
+    def _wait_memory(self, tid: int) -> None:
+        facts = self.app.api.wait_memory(tid)
+        self.app.call_from_thread(self._show_memory, tid, facts)
+
+    def _show_memory(self, tid: int, facts: list[dict]) -> None:
+        """ "Remembered: …" with an Undo button under the answer, for each new fact."""
+        if not facts or tid != self.tid:
+            return
+        lang = L(self.app)
+        log = self.query_one("#log", VerticalScroll)
+        for f in facts:
+            log.mount(Horizontal(Static(t("Remembered: {fact}", lang, fact=f["text"]), classes="learnedtext"),
+                                 Button(t("Undo", lang), classes="followbtn forgetbtn", name=str(f["id"])), classes="learned"))
+        log.scroll_end(animate=False)
+
+    @on(Button.Pressed, ".forgetbtn")
+    def _forget(self, ev: Button.Pressed) -> None:
+        ev.stop()
+        self.app.api.delete_fact(int(ev.button.name or 0))
+        row = ev.button.parent
+        if row is not None:
+            row.query_one(".learnedtext", Static).update(t("Removed from memory.", L(self.app)))
+            ev.button.remove()
 
     @on(Button.Pressed, ".followbtn")
     def _follow_pressed(self, ev: Button.Pressed) -> None:

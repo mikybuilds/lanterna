@@ -290,6 +290,44 @@ def follow_ups(quick, question: str, reply: str) -> list[str]:
                                    {"role": "user", "content": f"User: {question[:600]}\n\nAssistant: {reply[:1500]}"}]))
 
 
+# Memory that updates itself: only when the user talks about themself, a side model picks lasting facts.
+_ABOUT_ME = re.compile(r"\bI\b|(?i:\b(?:i'm|i've|my|me|mine|я|мені|мене|мій|моя|моє|мої|мною|ich|mein|meine|mich|mir|"
+                       r"yo|mi|mis|je|j'|mon|ma|mes|moi|ja|mój|moja|moje|mnie|io|mio|mia|miei|sono)\b)")
+MEMORY_PROMPT = ("From the USER's message, pick lasting facts about the user that are worth remembering in future chats: "
+                 "name, job or studies, city or country, family and pets, long-term goals and projects, likes, tools and "
+                 "the style they prefer. Not one-off tasks, not guesses, not facts about other people, and never passwords, "
+                 "keys, card, ID or phone numbers, exact addresses or health details. Skip what is already known. Write each "
+                 "new fact as one short sentence about the user in the user's language (\"Works as a nurse.\"), one per line, "
+                 "at most 2. If there is nothing new, write only NONE.")
+_SECRETISH = re.compile(r"\d{6,}|@|https?://|password|пароль|passwort|contraseña|mot de passe|hasło|token|api.?key", re.I)
+
+
+def about_me(text: str) -> bool:
+    """Does the message say something about the user (worth a memory check)?"""
+    return bool(_ABOUT_ME.search(text or ""))
+
+
+def clean_facts(raw: str, known: list[str], n: int = 2) -> list[str]:
+    """The model's lines as up to n new, safe facts (nothing already known, nothing that looks like a secret)."""
+    seen = {k.strip().lower().rstrip(".") for k in known}
+    out = []
+    for line in (raw or "").splitlines():
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip().strip("\"'«»“”„`").strip()
+        if not (4 <= len(line) <= 150) or line.upper().startswith("NONE") or _SECRETISH.search(line):
+            continue
+        if line.lower().rstrip(".") not in seen:
+            seen.add(line.lower().rstrip("."))
+            out.append(line)
+    return out[:n]
+
+
+def learn_facts(quick, question: str, reply: str, known: list[str]) -> list[str]:
+    """New lasting facts about the user from this exchange (quick = Router.quick); [] when none."""
+    body = ("Already known:\n" + "\n".join(f"- {k}" for k in known[-40:]) + "\n\n" if known else "")
+    body += f"User: {question[:1500]}\n\nAssistant (for context only): {reply[:400]}"
+    return clean_facts(quick([{"role": "system", "content": MEMORY_PROMPT}, {"role": "user", "content": body}]), known)
+
+
 def chat_title(quick, question: str, reply: str) -> str:
     """A 3-6 word chat name from a fast side model (quick = Router.quick); "" if none came."""
     return clean_title(quick([{"role": "system", "content": TITLE_PROMPT},

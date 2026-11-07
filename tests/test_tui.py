@@ -369,3 +369,28 @@ def test_retry_and_edit_last_with_keys(api):
             assert await wait_for(pilot, lambda: app.screen.query_one("#composer", Input).value == "hello")
             assert api.store.messages(tid) == []
     asyncio.run(go())
+
+
+def test_memory_row_undo_and_save_chat_key(api, tmp_path, monkeypatch):
+    """A fact the side model added shows under the answer with Undo; Ctrl+X saves the chat as Markdown."""
+    api.save_settings({"onboarded": True, "name": "Bo", "lang": "en", "provider": "groq"})
+    monkeypatch.setattr(api.places, "folders", lambda: {"downloads": tmp_path})
+    tid = api.new_thread()["id"]
+    api.store.add(tid, "user", "I am a nurse")
+    api.store.add(tid, "assistant", "Nice!")
+    api.store.rename(tid, "Nurse")
+    fid = api.store.add_fact("Works as a nurse.")
+
+    async def go():
+        app = LanternaApp(api=api)
+        async with app.run_test(size=(120, 40)) as pilot:
+            assert await wait_for(pilot, lambda: chat_ready(app) and len(app.screen.query(Markdown)) == 1)
+            app.screen._show_memory(tid, [{"id": fid, "text": "Works as a nurse."}])
+            assert await wait_for(pilot, lambda: len(app.screen.query(".forgetbtn")) == 1)
+            assert "Remembered: Works as a nurse." in str(app.screen.query_one(".learnedtext", Static).render())
+            await pilot.click(".forgetbtn")
+            assert await wait_for(pilot, lambda: api.store.facts() == [])
+            assert await wait_for(pilot, lambda: len(app.screen.query(".forgetbtn")) == 0)
+            await pilot.press("ctrl+x")
+            assert await wait_for(pilot, lambda: (tmp_path / "Nurse.md").exists())
+    asyncio.run(go())
