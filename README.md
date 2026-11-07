@@ -146,7 +146,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - [x] Local models via Ollama with hardware-based recommendations, and an Auto mode
 - [x] Working folder with confirmation cards, Google Drive connector, limits view, one-click updates
 - [x] GitHub connector, a folder per chat, limit bar, live "what I'm doing" steps
-- [ ] Voice
+- [x] 1.0: always at hand (tray, quick-question hotkey, screen questions), regular tasks, voice input, MCP servers
 
 ## What it can do
 
@@ -156,6 +156,10 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - **Weather and air quality** for any city (Open-Meteo, no key).
 - **Files and photos**: PDF, Word, text and code files, and photos (📎 button, drag and drop, or Ctrl+F / `/file path` in the terminal).
 - **Exact math and dates**: numbers are computed by code, not guessed by the model.
+- **Regular tasks** ("every morning at 8 tell me the weather in Kyiv", "in the evening tell me if it will rain tomorrow"): Lanterna does them on schedule and sends a notification, or stays quiet when your condition isn't true. Only safe tools (weather, web search, pages). Settings → Regular tasks.
+- **Voice input**: the microphone next to the message box (or F2), off by default. Online with Groq Whisper, or on this computer with whisper.cpp (a one-time, checked download; nothing leaves your PC). Your words land in the box, so you can fix them before sending.
+- **Always at hand (Windows)**: Lanterna stays in the tray when you close the window. Ctrl+Shift+Space opens a small quick-question window anywhere; its camera button (or "Ask about my screen" in the tray menu) attaches a screenshot. Start with Windows is off until you turn it on.
+- **MCP servers (advanced, off by default)**: add outside tools — a program on this computer or an https:// address. Turning it on first shows the risks, adding a server shows the exact command, and every tool call waits for Confirm unless you allow that tool.
 
 ## Local models (optional)
 
@@ -183,7 +187,10 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. The GitHub connector, if you connect it, can only write files in the repositories you chose, and only after you confirm. Help with this computer (Settings → Computer) sees only your standard folders, and every change waits for Confirm. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
-- Web pages and files Lanterna reads are treated as information, never as instructions.
+- Web pages and files Lanterna reads are treated as information, never as instructions. So are answers from MCP servers.
+- **Voice input** is off by default. Online (Groq Whisper), your recording goes to Groq to become text; on this computer (whisper.cpp) it never leaves your PC. Recordings are not kept.
+- **MCP servers** are off by default and made by other people. What a tool is asked goes to that server; a program server runs with your rights. Tokens for servers stay in the system's secure vault.
+- **Screenshots** are taken only when you press the camera button or "Ask about my screen", and go to the model like an attached photo.
 - The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**. The limits view is counted from the services' own answers, on your computer.
 - Bug reports are never sent automatically: you see the whole text and send it yourself (see below).
 

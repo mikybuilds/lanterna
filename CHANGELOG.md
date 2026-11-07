@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — always at hand, regular tasks, voice and MCP
 
 **New**
 - **Always at hand (Windows):** Lanterna lives next to the clock. Closing the window keeps it running in the tray (Settings → Always at hand). Quit it from the tray icon's menu.
