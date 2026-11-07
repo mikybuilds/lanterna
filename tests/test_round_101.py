@@ -227,10 +227,11 @@ def test_terminal_settings_and_f2(tmp_path, monkeypatch):
             app.screen.query_one("#voice-local", Button).press()
             for _ in range(100):                                   # Settings opens again with the new choice
                 await pilot.pause(0.05)
-                if isinstance(app.screen, SettingsScreen) and app.screen.query("#voiceget") and "199" in str(app.screen.query_one("#voiceget", Button).label):
+                if isinstance(app.screen, SettingsScreen) and app.screen.query("#voiceget") and "…" not in str(app.screen.query_one("#voiceget", Button).label):
                     break
             assert api.settings.voice == "local"
-            assert "199" in str(app.screen.query_one("#voiceget", Button).label)
+            label = str(app.screen.query_one("#voiceget", Button).label)   # the engine size differs by system
+            assert label.startswith("Download (") and label.endswith(" MB)") and "…" not in label, label
             assert "Nothing leaves your PC" in str(app.screen.query_one("#voiceinfo", Static).render())
             app.screen.dismiss("")
             await pilot.pause(0.3)
