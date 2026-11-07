@@ -98,6 +98,7 @@ def _error(resp: httpx.Response) -> ProviderError:
 # An online model that hasn't started answering by now is stuck (some new Gemini models hang for minutes):
 # the router moves on to the next one. Once the answer flows, the usual timeout applies between pieces.
 FIRST_WAIT = 30.0
+PING_WAIT = 25.0          # a tiny test request (model checks)
 
 
 class Client:
@@ -142,7 +143,11 @@ class Client:
         body = {"model": model, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 8, "stream": False}
         t0 = time.monotonic()
         try:
-            r = self._http.post("chat/completions", json=body, timeout=25)
+            r = self._http.post("chat/completions", json=body, timeout=PING_WAIT)
+        except httpx.TimeoutException as e:                 # reached the service, but the model said nothing
+            if isinstance(e, (httpx.ConnectTimeout, httpx.PoolTimeout)):
+                raise ProviderError("network", str(e)) from e
+            raise ProviderError("timeout", str(e) or "The model did not answer in time") from e
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
         if r.status_code != 200:

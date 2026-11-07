@@ -798,6 +798,8 @@ function renderMain() {
     <aside class="side">
       <div class="brand"><img src="logo.svg" alt=""><b>Lanterna</b></div>
       <button class="btn ghost newchat" id="new">${icon("plus")} ${t("New chat")}</button>
+      <label class="find"><span class="find-ic">${icon("search")}</span><input id="find" type="search" autocomplete="off" spellcheck="false"
+        placeholder="${t("Search chats")}" aria-label="${t("Search chats")}"><button id="find-x" hidden title="${t("Close")}">${icon("x")}</button></label>
       <nav class="threads" id="threads"></nav>
       <div class="side-foot">
         <button id="open-history">${icon("history")} ${t("What Lanterna did")}</button>
@@ -824,6 +826,7 @@ function renderMain() {
     </main>
   </div>`;
   $("#new").onclick = () => openThread(null);
+  setupFind();
   $("#open-settings").onclick = openSettings;
   $("#open-about").onclick = openAbout;
   $("#open-history").onclick = openHistory;
@@ -912,13 +915,42 @@ function renderQuick() {
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.querySelector(".veil")) api.quick_hide(); });
 }
 
-// called by the app when the hotkey (or the tray) opens the quick window; file = a screenshot to attach
-window.quickOpen = file => {
+// text the user copied a moment ago: one click to translate, explain or fix it (nothing is sent before the click)
+const COPIED_MAX = 6000;
+const COPIED_ASK = {
+  translate: "Translate this text into English. If it is already in English, translate it into the language I usually write in. Answer with the translation only:",
+  explain: "Explain simply what this text means:",
+  fix: "Fix the spelling and grammar in this text. Keep its language and meaning, and answer with the corrected text only:",
+};
+function showCopied(text) {
+  document.querySelectorAll(".copied").forEach(x => x.remove());
+  if (!text) return;
+  const cut = text.length > COPIED_MAX;
+  const body = cut ? text.slice(0, COPIED_MAX) : text;
+  const el = h(`<div class="copied"><div class="cp-head"><b>${esc(t("Text you copied"))}</b>
+      <button class="cp-x" title="${esc(t("Close"))}">${icon("x")}</button></div>
+    <div class="cp-text"></div>
+    <div class="cp-acts">${Object.keys(COPIED_ASK).map(k => `<button class="btn ghost small" data-k="${k}">${esc(t({ translate: "Translate", explain: "Explain", fix: "Fix mistakes" }[k]))}</button>`).join("")}</div></div>`);
+  el.querySelector(".cp-text").textContent = body.replace(/\s+/g, " ").slice(0, 220) + (body.length > 220 ? "…" : "");
+  el.querySelector(".cp-x").onclick = () => el.remove();
+  el.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
+    if (busy) return;
+    el.remove();
+    $("#input").value = t(COPIED_ASK[b.dataset.k]) + "\n\n" + body + (cut ? "\n\n[" + t("The text was cut to the first {n} characters.", { n: COPIED_MAX }) + "]" : "");
+    send();
+  });
+  $(".composer").prepend(el);
+}
+
+// called by the app when the hotkey (or the tray) opens the quick window; file = a screenshot to attach,
+// copied = text copied a moment ago
+window.quickOpen = (file, copied) => {
   if (!$("#input")) return;
   const stale = Date.now() - quickAt > 10 * 60 * 1000;          // back within 10 minutes: the same quick chat
   quickAt = Date.now();
   if (stale && !busy) openThread(null);
   if (file && file.data) { pending.push(file); paintFiles(); $("#input").oninput(); }
+  showCopied(copied || "");
   setTimeout(() => $("#input").focus(), 60);
 };
 
@@ -964,8 +996,46 @@ function askForm(qs) {
   return f;
 }
 
+// the search box above the chat list: words in a chat's name or messages (2+ letters)
+let findTimer = null;
+const findQuery = () => { const f = $("#find"); return f ? f.value.trim() : ""; };
+function setupFind() {
+  const f = $("#find"), x = $("#find-x");
+  if (!f) return;
+  f.oninput = () => { x.hidden = !f.value; clearTimeout(findTimer); findTimer = setTimeout(refreshThreads, 180); };
+  f.onkeydown = e => { if (e.key === "Escape" && f.value) { e.stopPropagation(); f.value = ""; f.oninput(); } };
+  x.onclick = () => { f.value = ""; f.oninput(); f.focus(); };
+}
+function markWords(text, q) {               // the found words in bold, the rest escaped
+  const lo = text.toLowerCase(), ql = q.toLowerCase();
+  let out = "", at = 0, i;
+  while (ql && (i = lo.indexOf(ql, at)) >= 0) { out += esc(text.slice(at, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>"; at = i + q.length; }
+  return out + esc(text.slice(at));
+}
+async function showFound(q) {
+  const found = await api.search_chats(q);
+  if (q !== findQuery()) return;            // typed on meanwhile
+  const nav = $("#threads");
+  nav.innerHTML = found.length ? `<h6>${esc(t("Found: {n}", { n: found.length }))}</h6>` + found.map(x => `<button class="th found ${x.id === thread ? "on" : ""}" data-id="${x.id}">
+      <span class="f-title">${markWords(x.title || t("New chat"), q)}</span>${x.snippet ? `<small class="f-snip">${markWords(x.snippet, q)}</small>` : ""}</button>`).join("")
+    : `<p class="find-none">${esc(t("Nothing found."))}</p>`;
+  nav.querySelectorAll(".th").forEach(b => b.onclick = async () => {
+    await openThread(+b.dataset.id); $(".shell").classList.remove("open");
+    showHit(q);
+  });
+}
+function showHit(q) {                       // the first message with the words: scrolled to and lit up for a moment
+  const ql = q.toLowerCase();
+  const m = [...document.querySelectorAll("#msgs .msg")].find(el => el.textContent.toLowerCase().includes(ql));
+  if (!m) return;
+  m.scrollIntoView({ block: "center" });
+  m.classList.add("hit"); setTimeout(() => m.classList.remove("hit"), 2200);
+}
+
 async function refreshThreads() {
   const list = await api.threads();
+  const q = findQuery();
+  if (q.length >= 2) { showFound(q); return list; }
   const now = Date.now() / 1000, dayStart = new Date().setHours(0, 0, 0, 0) / 1000;
   const today = list.filter(x => x.updated >= dayStart), older = list.filter(x => x.updated < dayStart);
   const item = x => `<button class="th ${x.id === thread ? "on" : ""}" data-id="${x.id}"><span>${esc(x.title || t("New chat"))}</span>
@@ -1303,6 +1373,8 @@ function openSettings() {
         <span><b>${t("Start with Windows")}</b><small>${t("Lanterna starts hidden in the tray when you sign in to Windows.")}</small></span></label>
       <div class="row-field"><span>${t("Quick question hotkey")}</span><select class="field" id="hotkey"></select></div>
       <small class="muted" id="hotkey-warn" hidden style="display:block;margin-top:6px">${t("Another app already uses this hotkey. Pick another one.")}</small>
+      <label class="check"><input type="checkbox" id="copied-text" ${S.settings.copied_text !== false ? "checked" : ""}>
+        <span><b>${t("Offer help with text you just copied")}</b><small>${t("Copy some text, then press the hotkey: the quick window offers Translate, Explain and Fix mistakes. Lanterna looks at the clipboard only at that moment, and sends nothing until you press a button.")}</small></span></label>
       </div>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
@@ -1397,6 +1469,8 @@ function openSettings() {
       hk.value = d.hotkey;
       warn.hidden = !d.hotkey || d.hotkey_ok;
       tr.onchange = async () => { S = await api.save_settings({ tray: tr.checked }); };
+      const cp = $("#copied-text", body);
+      cp.onchange = async () => { S = await api.save_settings({ copied_text: cp.checked }); };
       au.onchange = async () => { await api.save_settings({ autostart: au.checked }); au.checked = (await api.desktop_status()).autostart; };
       hk.onchange = async () => { S = await api.save_settings({ hotkey: hk.value }); const n = await api.desktop_status(); warn.hidden = !n.hotkey || n.hotkey_ok; };
     });

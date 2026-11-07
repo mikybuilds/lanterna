@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+**New**
+- **Search your chats:** the box above the chat list finds words in chat names and messages (any case, any language). Click a result: the chat opens at the first message with those words. In the terminal app too.
+- **Help with text you just copied (Windows):** copy some text, press the quick-question hotkey, and the quick window offers Translate, Explain and Fix mistakes. Lanterna looks at the clipboard only at that moment, skips copies a password manager marks as private, and sends nothing until you press a button. You can turn it off in Settings → Always at hand.
+- **A free hotkey by itself:** if another app already uses Ctrl+Shift+Space, Lanterna picks the next free one once and tells you which. A hotkey you picked yourself is never changed.
+- **Models check themselves:** once a day Lanterna quietly sends one tiny request to the first untested models in its queue (6 at most), so a question never waits on a model that doesn't answer. A model that hung or is gone rests for longer each time (1 hour, 6 hours, a day, three days), even after a restart, and comes back by itself once it answers again.
+
 **Fixed**
-- **A question could look stuck for minutes.** Some new online models (for example gemini-3.7-flash) accept a question and then say nothing. Lanterna now gives an online model 30 seconds to start answering, then moves on to the next one and leaves the silent one alone for an hour. A slow answer that has already started is not cut off.
+- **A question could look stuck for minutes.** Some new online models (for example gemini-3.7-flash) accept a question and then say nothing. Lanterna now gives an online model 30 seconds to start answering, then moves on to the next one and leaves the silent one alone. A slow answer that has already started is not cut off.
 - **"Thinking…" disappeared** when the chat was redrawn while an answer was still coming (opening the window from the tray, clicking the chat in the list). Now the live answer stays in place, and Retry / Edit show up only when it's done.
 
 ## 1.0.0 — always at hand, regular tasks, voice and MCP

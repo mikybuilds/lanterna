@@ -159,7 +159,7 @@ def test_closing_with_tray_off_ends_the_app(desk):
 def test_quick_window_toggles_and_opens_in_main(desk):
     desk.toggle_quick()
     assert desk.quick_shown and ("show",) in desk.quick.calls
-    assert any(c[0] == "evaluate_js" and "quickOpen(null)" in c[1] for c in desk.quick.calls)
+    assert any(c[0] == "evaluate_js" and "quickOpen(null, \"\")" in c[1] for c in desk.quick.calls)   # no copied text
     assert desk.quick_closing() is False and not desk.quick_shown          # its X only hides it
     desk.toggle_quick()
     desk.toggle_quick()

@@ -21,7 +21,7 @@ from pathlib import Path
 from .app import Api
 
 UI = Path(__file__).with_name("ui")
-METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "new_thread",
+METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "search_chats", "new_thread",
            "messages", "rename_thread", "wait_title", "wait_follow_ups", "edit_last", "export_chat", "wait_memory", "export_all", "show_saved", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",
@@ -56,7 +56,30 @@ class Desk:
                                  on_hotkey=self.toggle_quick, hotkey=self.api.settings.hotkey)
         if not self.shell.start():
             self.shell = None
+        self.free_hotkey()
         self.api.updater.quit_app = self.quit_now        # an update closes Lanterna: take the tray icon away first
+
+    def free_hotkey(self) -> str:
+        """The default hotkey is taken by another app (for example another assistant): take the first free one,
+        once, and say which. A hotkey the user picked is never changed. Returns the hotkey now in use, or ""."""
+        from . import shell
+        sh, s = self.shell, self.api.settings
+        if not sh or sh.hotkey_ok or s.hotkey_moved or s.hotkey != shell.HOTKEYS[0]:
+            return ""
+        for hk in shell.HOTKEYS[1:]:
+            if not hk:
+                continue
+            sh.set_hotkey(hk)
+            if sh.hotkey_ok:
+                self.api.save_settings({"hotkey": hk, "hotkey_moved": True})
+                from . import notify
+                from .i18n import t
+                msg = t("Another app already uses {old}, so the quick question opens with {new}. You can change it in Settings.",
+                        s.lang, old=shell.pretty_hotkey(shell.HOTKEYS[0]), new=shell.pretty_hotkey(hk))
+                threading.Thread(target=notify.notify, args=("Lanterna", msg), daemon=True).start()
+                return hk
+        sh.set_hotkey(s.hotkey)                          # none free: keep the default, Settings shows the warning
+        return ""
 
     def _menu(self) -> list:
         from .i18n import t
@@ -130,10 +153,24 @@ class Desk:
         self.quick.hide()
         self.quick_shown = False
 
+    COPIED_FRESH = 90                                    # seconds: text copied this recently is offered in the quick window
+
+    def copied_text(self) -> str:
+        """Text the user copied a moment ago (once per copy), for Translate / Explain / Fix in the quick window.
+        The clipboard is read only now, when the user opens the quick window, and nothing is sent until they choose."""
+        sh = self.shell
+        if not sh or not self.api.settings.copied_text or time.time() - getattr(sh, "copied_at", 0.0) > self.COPIED_FRESH:
+            return ""
+        sh.copied_at = 0.0                               # offered once: opening the window again doesn't repeat it
+        from .shell import clipboard_text
+        text = clipboard_text().strip()
+        return text if len(text) >= 2 else ""
+
     def toggle_quick(self, file: dict | None = None) -> None:
         if self.quick_shown and not file:
             return self.hide_quick()
-        self.quick.evaluate_js(f"window.quickOpen && quickOpen({json.dumps(file)})")
+        copied = "" if file else self.copied_text()
+        self.quick.evaluate_js(f"window.quickOpen && quickOpen({json.dumps(file)}, {json.dumps(copied)})")
         self.quick.show()
         self.quick.restore()
         self.quick_shown = True

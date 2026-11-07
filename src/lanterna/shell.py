@@ -11,6 +11,7 @@ from __future__ import annotations
 import ctypes
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -19,6 +20,10 @@ WM_APP = 0x8000
 WM_TRAY, WM_SHOW_ME, WM_REHOOK = WM_APP + 1, WM_APP + 2, WM_APP + 3
 WM_CLOSE, WM_DESTROY, WM_COMMAND, WM_HOTKEY = 0x0010, 0x0002, 0x0111, 0x0312
 WM_LBUTTONUP, WM_RBUTTONUP, WM_CONTEXTMENU = 0x0202, 0x0205, 0x007B
+WM_CLIPBOARDUPDATE = 0x031D
+CF_UNICODETEXT = 13
+# formats that password managers (and Windows' own clipboard history) use to say "don't look at this copy"
+_PRIVATE_FORMATS = ("ExcludeClipboardContentFromMonitorProcessing", "Clipboard Viewer Ignore")
 MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, MOD_NOREPEAT = 0x1, 0x2, 0x4, 0x8, 0x4000
 HOTKEY_ID = 1
 
@@ -43,6 +48,43 @@ def parse_hotkey(text: str) -> tuple[int, int] | None:
 def pretty_hotkey(text: str) -> str:
     """"ctrl+shift+space" -> "Ctrl+Shift+Space"."""
     return "+".join(p.capitalize() if len(p) > 1 else p.upper() for p in (text or "").split("+") if p)
+
+
+def clipboard_text(limit: int = 20000) -> str:
+    """The text on the clipboard now ("" for none, pictures, files, or a copy marked private by a password manager)."""
+    if sys.platform != "win32":
+        return ""
+    u, k = ctypes.windll.user32, ctypes.windll.kernel32
+    u.OpenClipboard.argtypes = [ctypes.c_void_p]
+    u.GetClipboardData.restype = ctypes.c_void_p
+    u.GetClipboardData.argtypes = [ctypes.c_uint]
+    u.IsClipboardFormatAvailable.argtypes = [ctypes.c_uint]
+    u.RegisterClipboardFormatW.restype = ctypes.c_uint
+    u.RegisterClipboardFormatW.argtypes = [ctypes.c_wchar_p]
+    k.GlobalLock.restype = ctypes.c_void_p
+    k.GlobalLock.argtypes = [ctypes.c_void_p]
+    k.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    for _ in range(5):                                   # another app may hold the clipboard for a moment
+        if u.OpenClipboard(None):
+            break
+        time.sleep(0.05)
+    else:
+        return ""
+    try:
+        if any(u.IsClipboardFormatAvailable(u.RegisterClipboardFormatW(f)) for f in _PRIVATE_FORMATS):
+            return ""
+        if not u.IsClipboardFormatAvailable(CF_UNICODETEXT):
+            return ""
+        h = u.GetClipboardData(CF_UNICODETEXT)
+        p = k.GlobalLock(h) if h else None
+        if not p:
+            return ""
+        try:
+            return ctypes.wstring_at(p)[:limit]
+        finally:
+            k.GlobalUnlock(h)
+    finally:
+        u.CloseClipboard()
 
 
 def tell_running_copy() -> bool:
@@ -73,6 +115,7 @@ class Shell:
         self.on_click, self.on_hotkey = on_click, on_hotkey
         self.hotkey = hotkey
         self.hotkey_ok = False            # the hotkey is registered (another app may hold it)
+        self.copied_at = 0.0              # when something was last copied anywhere (only the time, never what)
         self.hwnd = None
         self._ready = threading.Event()
         self._thread: threading.Thread | None = None
@@ -155,6 +198,8 @@ class Shell:
         u.UnregisterHotKey.argtypes = [W.HWND, ctypes.c_int]
         u.DestroyWindow.argtypes = [W.HWND]
         u.RegisterWindowMessageW.restype = W.UINT
+        u.AddClipboardFormatListener.argtypes = [W.HWND]
+        u.RemoveClipboardFormatListener.argtypes = [W.HWND]
         k.GetModuleHandleW.restype = W.HMODULE
         sh.Shell_NotifyIconW.argtypes = [W.DWORD, ctypes.c_void_p]
 
@@ -204,6 +249,9 @@ class Shell:
             if msg == WM_HOTKEY and wp == HOTKEY_ID:
                 self._fire(self.on_hotkey)
                 return 0
+            if msg == WM_CLIPBOARDUPDATE:
+                self.copied_at = time.time()
+                return 0
             if msg == WM_SHOW_ME:
                 self._fire(self.on_click)
                 return 0
@@ -222,6 +270,7 @@ class Shell:
             if msg == WM_DESTROY:
                 sh.Shell_NotifyIconW(2, ctypes.byref(nid))                      # NIM_DELETE
                 u.UnregisterHotKey(hwnd, HOTKEY_ID)
+                u.RemoveClipboardFormatListener(hwnd)
                 u.PostQuitMessage(0)
                 return 0
             return u.DefWindowProcW(hwnd, msg, wp, lp)
@@ -237,6 +286,7 @@ class Shell:
         nid.hWnd = self.hwnd
         add_icon()
         hook()
+        u.AddClipboardFormatListener(self.hwnd)       # "something was copied" (for the quick window's copied text)
         self._ready.set()
         msg = W.MSG()
         while u.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:

@@ -56,19 +56,26 @@ class Router:
         now = self._clock()
         if self._until.get((c.provider, c.model), 0) > now or self._until.get((c.provider, "*"), 0) > now:
             return True
+        from .health import HEALTH
         from .limits import TRACKER                      # a daily limit seen earlier, maybe before a restart
-        return TRACKER.rest_until(c.provider, c.model) > time.time()
+        return TRACKER.rest_until(c.provider, c.model) > time.time() or HEALTH.rest_until(c.provider, c.model) > time.time()
 
     def _cool(self, c: Candidate, e: ProviderError) -> None:
         secs = e.retry_after if e.kind == "rate" and e.retry_after else COOLDOWN.get(e.kind, 60)
         whole_provider = e.kind in ("auth", "network")
+        if not PROVIDERS[c.provider].local and (e.kind == "timeout" or e.status == 404):
+            from .health import HEALTH                   # hung or gone: remembered across restarts, longer each time
+            secs = max(secs, HEALTH.bad(c.provider, c.model, "timeout" if e.kind == "timeout" else "gone"))
         self._until[(c.provider, "*" if whole_provider else c.model)] = self._clock() + secs
 
     def resting(self) -> dict[str, float]:
-        """"provider/model" -> seconds until it is tried again (after a limit or an error)."""
+        """"provider/model" -> seconds until it is tried again (after a limit, an error, or hanging earlier)."""
+        from .health import HEALTH
         now, out = self._clock(), {}
+        sick = HEALTH.resting()
         for c in self.candidates:
             left = max(self._until.get((c.provider, c.model), 0), self._until.get((c.provider, "*"), 0)) - now
+            left = max(left, sick.get(f"{c.provider}/{c.model}", 0))
             if left > 0:
                 out[f"{c.provider}/{c.model}"] = left
         return out
@@ -139,6 +146,9 @@ class Router:
                             raise
                         if attempts[i + 1][0] is None:
                             self.no_tools.add((c.provider, c.model))
+                if not PROVIDERS[c.provider].local:
+                    from .health import HEALTH
+                    HEALTH.good(c.provider, c.model)      # it answered: an old "hung" mark goes away
                 return
             except ProviderError as e:
                 if started:                                 # the answer was half-way: don't mix two models

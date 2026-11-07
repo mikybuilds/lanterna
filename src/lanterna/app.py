@@ -107,6 +107,19 @@ class Api:
             threading.Thread(target=self._reminder_loop, daemon=True).start()
             threading.Thread(target=self.syncer.loop, daemon=True).start()
             threading.Thread(target=updates.cleanup, daemon=True).start()
+            threading.Thread(target=self._health_loop, daemon=True).start()
+
+    def _health_loop(self, first_wait: float = 90, every: float = 3600) -> None:
+        """Once a day, quietly: one tiny request to the first untested online models and to those that hung before."""
+        from .health import HEALTH
+        time.sleep(first_wait)                              # not while Lanterna is starting
+        while True:
+            try:
+                if self.settings.mode != "local" and HEALTH.due():
+                    HEALTH.check(self._get_router())
+            except Exception:                               # noqa: BLE001  no keys, no internet: next time
+                pass
+            time.sleep(every)
 
     # ---------------------------------------------------------------- state & settings
     def state(self) -> dict:
@@ -121,7 +134,8 @@ class Api:
         }
 
     _BOOLS = {"onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly", "space_help",
-              "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told"}
+              "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told",
+              "hotkey_moved", "copied_text"}
 
     def save_settings(self, patch: dict) -> dict:
         from . import shell
@@ -468,6 +482,10 @@ class Api:
     # ---------------------------------------------------------------- chats
     def threads(self) -> list[dict]:
         return self.store.threads()
+
+    def search_chats(self, query: str) -> list[dict]:
+        """The search box above the chat list: chats with these words in the name or in a message."""
+        return self.store.search(str(query or "")[:200])
 
     def new_thread(self) -> dict:
         tid = self.store.new_thread()

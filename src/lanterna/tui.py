@@ -58,6 +58,7 @@ Screen { background: $background; }
 #sidebar { width: 30; background: $surface; border-right: solid $panel; padding: 0 1; }
 #brand { text-style: bold; color: $primary; height: 1; margin: 1 0; }
 #newchat { width: 100%; margin-bottom: 1; }
+#findchats { width: 100%; margin-bottom: 1; }
 #threads { background: $surface; height: 1fr; }
 #threads > ListItem { background: $surface; padding: 0 1; }
 #threads > ListItem.-highlight { background: $panel; }
@@ -1718,6 +1719,7 @@ class _ChatScreen(Screen):
             with Vertical(id="sidebar"):
                 yield Label(f"{LOGO} Lanterna", id="brand")
                 yield Button("+ " + t("New chat", lang), id="newchat", variant="primary")
+                yield Input(placeholder="🔎 " + t("Search chats", lang), id="findchats")
                 yield ListView(id="threads")
             with Vertical(id="main"):
                 with Horizontal(id="topbar"):
@@ -1774,8 +1776,17 @@ class _ChatScreen(Screen):
 
     # threads -----------------------------------------------------------------
     def _fill_threads(self, threads: list[dict] | None = None) -> None:
-        threads = self.app.api.threads() if threads is None else threads
+        q = self.query_one("#findchats", Input).value.strip()
+        if len(q) >= 2:                                    # the search box: chats with these words
+            threads = [{**x, "title": (x["title"] or t("New chat", L(self.app))) + ("\n  " + x["snippet"][:70] if x["snippet"] else "")}
+                       for x in self.app.api.search_chats(q)] or [{"id": None, "title": t("Nothing found.", L(self.app))}]
+        else:
+            threads = self.app.api.threads() if threads is None else threads
         self.run_worker(self._refill_threads(threads), group="threads")
+
+    @on(Input.Changed, "#findchats")
+    def _find(self, ev: Input.Changed) -> None:
+        self._fill_threads()
 
     async def _refill_threads(self, threads: list[dict]) -> None:
         # One refill at a time: overlapping refills used to show a chat twice in the list.
@@ -1784,7 +1795,8 @@ class _ChatScreen(Screen):
         async with self._threads_lock:
             lv = self.query_one("#threads", ListView)
             await lv.clear()
-            await lv.extend([ListItem(Label(th["title"] or t("New chat", L(self.app)), markup=False), name=str(th["id"]))
+            await lv.extend([ListItem(Label(th["title"] or t("New chat", L(self.app)), markup=False),
+                                      name=str(th["id"]) if th["id"] is not None else "")
                              for th in threads])
             for i, th in enumerate(threads):
                 if th["id"] == self.tid:

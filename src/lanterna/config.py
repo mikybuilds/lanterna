@@ -41,6 +41,8 @@ class Settings:
     tray: bool = True                      # Windows: closing the window keeps Lanterna in the tray
     tray_told: bool = False                # the "still running in the tray" notice was shown once
     hotkey: str = "ctrl+shift+space"       # Windows: opens the quick-question window ("" = off)
+    copied_text: bool = True               # the quick window offers Translate / Explain / Fix for text just copied
+    hotkey_moved: bool = False             # the default hotkey was taken, so Lanterna picked a free one (once)
     voice: str = "off"                     # voice input: off | groq (online Whisper) | local (whisper.cpp on this PC)
     voice_model: str = "small"             # the whisper.cpp model for local voice input: base | small | turbo
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it

@@ -122,6 +122,31 @@ class Store:
     def messages(self, tid: int) -> list[dict]:
         return self._q("SELECT role, content, model, at, sent FROM messages WHERE thread=? ORDER BY id", (tid,))
 
+    def search(self, query: str, limit: int = 40) -> list[dict]:
+        """Chats whose name or messages contain the words (any case, any language), newest first, with a snippet
+        around the first match: [{id, title, updated, hits, snippet}]."""
+        q = " ".join((query or "").split()).lower()
+        if len(q) < 2:
+            return []
+        like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        with self._lock:
+            self._db.create_function("lc", 1, lambda s: (s or "").lower(), deterministic=True)   # SQLite's lower() is ASCII only
+            rows = self._db.execute(
+                "SELECT t.id, t.title, t.updated, (SELECT COUNT(*) FROM messages m WHERE m.thread=t.id AND lc(m.content) LIKE ? ESCAPE '\\') AS hits,"
+                " (SELECT m.content FROM messages m WHERE m.thread=t.id AND lc(m.content) LIKE ? ESCAPE '\\' ORDER BY m.id LIMIT 1) AS first"
+                " FROM threads t WHERE lc(t.title) LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM messages m WHERE m.thread=t.id AND lc(m.content) LIKE ? ESCAPE '\\')"
+                " ORDER BY t.updated DESC LIMIT ?", (like, like, like, like, int(limit))).fetchall()
+        out = []
+        for r in rows:
+            text = " ".join((r["first"] or "").split())
+            i = text.lower().find(q)
+            snippet = ""
+            if i >= 0:
+                a, b = max(0, i - 40), min(len(text), i + len(q) + 80)
+                snippet = ("…" if a else "") + text[a:b] + ("…" if b < len(text) else "")
+            out.append({"id": r["id"], "title": r["title"], "updated": r["updated"], "hits": r["hits"], "snippet": snippet})
+        return out
+
     # memory: short facts about the user, shown to the model in the system prompt
     def add_fact(self, text: str) -> int:
         with self._lock, self._db:

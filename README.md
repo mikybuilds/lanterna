@@ -158,7 +158,8 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - **Exact math and dates**: numbers are computed by code, not guessed by the model.
 - **Regular tasks** ("every morning at 8 tell me the weather in Kyiv", "in the evening tell me if it will rain tomorrow"): Lanterna does them on schedule and sends a notification, or stays quiet when your condition isn't true. Only safe tools (weather, web search, pages). Settings → Regular tasks.
 - **Voice input**: the microphone next to the message box (or F2), off by default. Online with Groq Whisper, or on this computer with whisper.cpp (a one-time, checked download; nothing leaves your PC). Your words land in the box, so you can fix them before sending.
-- **Always at hand (Windows)**: Lanterna stays in the tray when you close the window. Ctrl+Shift+Space opens a small quick-question window anywhere; its camera button (or "Ask about my screen" in the tray menu) attaches a screenshot. Start with Windows is off until you turn it on.
+- **Always at hand (Windows)**: Lanterna stays in the tray when you close the window. Ctrl+Shift+Space opens a small quick-question window anywhere; its camera button (or "Ask about my screen" in the tray menu) attaches a screenshot. Copied some text a moment ago? The quick window offers Translate, Explain and Fix mistakes. Start with Windows is off until you turn it on.
+- **Search your chats**: the box above the chat list finds words in any chat.
 - **MCP servers (advanced, off by default)**: add outside tools — a program on this computer or an https:// address. Turning it on first shows the risks, adding a server shows the exact command, and every tool call waits for Confirm unless you allow that tool.
 
 ## Local models (optional)
@@ -191,6 +192,8 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - **Voice input** is off by default. Online (Groq Whisper), your recording goes to Groq to become text; on this computer (whisper.cpp) it never leaves your PC. Recordings are not kept.
 - **MCP servers** are off by default and made by other people. What a tool is asked goes to that server; a program server runs with your rights. Tokens for servers stay in the system's secure vault.
 - **Screenshots** are taken only when you press the camera button or "Ask about my screen", and go to the model like an attached photo.
+- **Copied text**: Lanterna notes only *when* something was copied, never what. It reads the clipboard only when you open the quick window within 90 seconds of copying, skips copies a password manager marks as private, and sends the text only when you press Translate, Explain or Fix mistakes.
+- **Model checks**: once a day, up to 6 tiny "Hi" requests go to models in your queue that haven't been tried yet, so they're known to answer before you need them.
 - The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**. The limits view is counted from the services' own answers, on your computer.
 - Bug reports are never sent automatically: you see the whole text and send it yourself (see below).
 
