@@ -733,6 +733,36 @@ class Places:
         self.actions.propose("pc_mkdir", {"place": place, "path": rel}, run)
         return WAITING
 
+    def propose_write(self, place: str, path: str, text: str) -> str:
+        """A new text file in one of the user's folders (a note, a command to copy). Never overwrites a file."""
+        from .workspace import WRITE_LIMIT
+        p = self.path(place, path)
+        if p == self.root(place) or not p.name:
+            raise WorkError("Give a file name, e.g. notes.txt.")
+        if not p.suffix:
+            p = p.with_suffix(".txt")
+        if p.suffix.lower() in NEVER_WRITE:
+            raise WorkError(f"Lanterna doesn't create {p.suffix} files: the system could run them.")
+        text = str(text or "")
+        if len(text) > WRITE_LIMIT:
+            raise WorkError("That is too long for one file.")
+        if p.exists():
+            raise WorkError(f"'{self.rel(place, p)}' already exists in {place}. Pick another name.")
+        rel = self.rel(place, p)
+
+        def run() -> str:
+            q = self.path(place, rel)                       # the folder may have changed since
+            if q.exists():
+                raise WorkError(f"'{rel}' appeared in the meantime; nothing was changed.")
+            q.parent.mkdir(parents=True, exist_ok=True)
+            with open(q, "x", encoding="utf-8", newline="") as f:
+                f.write(text)
+            self.actions.note_undo({"type": "trash", "paths": [str(q)]})
+            return f"{place}/{rel} ({q})"
+        self.actions.propose("pc_write", {"place": place, "path": rel, "full": str(p), "preview": text[:1500],
+                                          "chars": len(text), "lines": text.count("\n") + 1 if text else 0}, run)
+        return WAITING + f" When confirmed, the file will be at {p}."
+
     def propose_trash(self, place: str, paths: list[str], reason: str = "") -> str:
         files = self._files(place, paths)
         rels = [self.rel(place, p) for p in files]
@@ -856,6 +886,13 @@ def place_tools(pl: Places) -> list:
         Tool("pc_rename", "Rename a file or folder in the user's folders. " + card,
              _obj({"place": place, "path": s, "new_name": s}, ["place", "path", "new_name"]),
              lambda place, path, new_name: pl.propose_rename(place, path, new_name), "✏️"),
+        Tool("pc_write", "Create a new text file on this computer, in one of the user's folders (Desktop, Documents, "
+             "Downloads…): a note, a list, a command or code for the user to open and copy. Use this whenever the "
+             "user asks for a file on the desktop or in a folder of theirs — not Google Drive. Never overwrites a "
+             "file. " + card,
+             _obj({"place": place, "path": {"type": "string", "description": "file name, e.g. notes.txt"}, "text": s},
+                  ["place", "path", "text"]),
+             lambda place, path, text: pl.propose_write(place, path, text), "📝"),
         Tool("pc_make_folder", "Create a folder in the user's folders. " + card,
              _obj({"place": place, "path": s}, ["place", "path"]), lambda place, path: pl.propose_mkdir(place, path), "📁"),
         Tool("pc_trash", "Move files or folders to the Recycle Bin / Trash (they can be restored from there; nothing "

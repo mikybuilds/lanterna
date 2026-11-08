@@ -679,6 +679,8 @@ _T.update({
     "Enter sends · Ctrl+P: all commands · Ctrl+N: new chat · /file and a path: attach a file": {"uk": "Enter — надіслати · Ctrl+P — усі команди · Ctrl+N — нова розмова · /file і шлях — додати файл", "it": "Invio invia · Ctrl+P: tutti i comandi · Ctrl+N: nuova chat · /file e un percorso: allega un file"},
     "Enter: choose · Tab: next · Esc: close": {"uk": "Enter — вибрати · Tab — далі · Esc — закрити", "it": "Invio: scegli · Tab: avanti · Esc: chiudi"},
     "Tab: next · ←/→: tabs · Esc: close": {"uk": "Tab — далі · ←/→ — вкладки · Esc — закрити", "it": "Tab: avanti · ←/→: schede · Esc: chiudi"},
+    "Create {path} in {place}": {"uk": "Створити {path} у папці {place}", "it": "Creare {path} in {place}"},
+    "Created {path} in {place}": {"uk": "Створено {path} у папці {place}", "it": "Creato {path} in {place}"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

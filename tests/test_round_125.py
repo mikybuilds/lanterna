@@ -167,3 +167,40 @@ def test_mail_dialog_enter_moves_on_and_errors_are_plain(ready, monkeypatch):
         await pilot.pause(0.2)
         assert scr.query_one("#mlservers").display
     run(ready, body, size=(120, 50))
+
+
+# ---------------------------------------------------------------- "make a text file on my desktop"
+from lanterna import gdrive, pcfiles  # noqa: E402
+from lanterna.app import action_title  # noqa: E402
+from lanterna.chat import PC_GUIDE  # noqa: E402
+from lanterna.workspace import WorkError  # noqa: E402
+from test_pc import _places, home  # noqa: E402,F401
+
+
+def test_a_text_file_on_the_desktop_not_in_google_drive(home, tmp_path):  # noqa: F811
+    trashed = []
+    pl, acts, cards = _places(home, lang="uk", trashed=trashed)
+    tool = next(t for t in pcfiles.place_tools(pl) if t.name == "pc_write")
+    cmd = "mkdir -p ~/.local/share/fonts && cd /tmp && curl -L https://example.com/f.zip -o f.zip"
+    out = tool.run(place="desktop", path="Font_Install_Command", text=cmd)
+    assert "Nothing has been changed yet" in out and str(home["desktop"]) in out
+    assert not list(home["desktop"].iterdir())                  # nothing written before Confirm
+    c = cards[0]
+    assert c["kind"] == "pc_write" and c["details"]["path"] == "Font_Install_Command.txt" and c["details"]["preview"] == cmd
+    assert action_title("pc_write", c["details"], "", "uk") == "Створити Font_Install_Command.txt у папці Робочий стіл"
+    a = acts.confirm(c["id"])
+    assert a.state == "done", a.result
+    f = home["desktop"] / "Font_Install_Command.txt"
+    assert f.read_text(encoding="utf-8") == cmd
+    with pytest.raises(WorkError, match="already exists"):     # never overwrites
+        pl.propose_write("desktop", "Font_Install_Command.txt", "other")
+    for bad in ("run.sh.exe", "../x.txt", ".hidden.txt", ""):
+        with pytest.raises(WorkError):
+            pl.propose_write("desktop", bad, "x")
+    assert f.read_text(encoding="utf-8") == cmd
+
+
+def test_the_model_is_told_where_files_go():
+    assert "pc_write" in PC_GUIDE and "never Google Drive" in PC_GUIDE
+    src = open(gdrive.__file__, encoding="utf-8").read()
+    assert "not on this computer" in src and "pc_write" in src

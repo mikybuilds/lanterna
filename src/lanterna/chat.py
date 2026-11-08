@@ -162,7 +162,7 @@ TOOLS_GUIDE = (
 PC_GUIDE = (
     "This computer: the pc_* tools work with the user's own folders (Downloads, Desktop, Documents, Pictures, Videos, "
     "Music) without any setup. 'Sort / tidy my downloads' = call pc_sort right away (its card shows the whole plan; "
-    "pc_overview is for questions about what is there). app_* tools find, "
+    "pc_overview is for questions about what is there). A file on the desktop or in one of these folders (a note, a command to copy) = pc_write, never Google Drive. app_* tools find, "
     "install, update and remove programs from the official catalog (winget / Flathub): app_search, then app_install "
     "with the exact id — never send the user to download installers from websites. For a slow or misbehaving PC look "
     "first — call pc_info, pc_load and pc_startup in this same turn, don't just announce it — explain in plain words, "

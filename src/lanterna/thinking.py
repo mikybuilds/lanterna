@@ -40,6 +40,7 @@ TOOL_TEXT = {
     "folder_search": ("Searching the folder: {x}", "text"),
     "folder_read": ("Reading {x}", "path"),
     "folder_write": ("Preparing the file {x}", "path"),
+    "pc_write": ("Preparing the file {x}", "path"),
     "folder_make": ("Preparing the folder {x}", "path"),
     "folder_move": ("Preparing to move {x}", "path"),
     "drive_list": ("Looking in Google Drive", ""),

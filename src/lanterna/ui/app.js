@@ -2641,7 +2641,7 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive",
   github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub",
   pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
-  pc_mkdir: "Create the folder {path}", pc_trash: "Move {count} items to the Recycle Bin",
+  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", pc_trash: "Move {count} items to the Recycle Bin",
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}",
   sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
   mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };

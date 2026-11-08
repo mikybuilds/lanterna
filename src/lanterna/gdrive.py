@@ -236,8 +236,11 @@ def drive_tools(conn: Connector, ws, actions) -> list:
         Tool("drive_make_folder", "Create a folder in the user's Google Drive (parent: a folder Lanterna created, "
              "'' = My Drive). The user confirms it on a card (no need to ask first).",
              _obj({"name": s, "parent": s}, ["name"]), drive_make_folder, "☁️"),
-        Tool("drive_save_text", "Save text to the user's Google Drive as a new Google Doc (or a .txt file with "
-             "google_doc=false). The user confirms it on a card (no need to ask first).",
+        Tool("drive_save_text", "Save text to the user's Google Drive (in the cloud, not on this computer) as a new "
+             "Google Doc (or a .txt file with google_doc=false). Only when the user wants it in Google Drive: for a file "
+             "on the desktop or in a folder on this computer use pc_write; without it, say that Settings → Computer "
+             "→ 'Allow Lanterna to help with this computer' turns it on. Never say a Drive file is on the computer. "
+             "The user confirms it on a card (no need to ask first).",
              _obj({"name": s, "text": s, "folder": s, "google_doc": {"type": "boolean"}}, ["name", "text"]),
              drive_save_text, "☁️"),
     ]

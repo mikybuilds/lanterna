@@ -1853,6 +1853,7 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "pc_move": ("Move {count} items to {to}", "Moved {count} items to {to}"),
             "pc_rename": ("Rename {path} → {to}", "Renamed {path} → {to}"),
             "pc_mkdir": ("Create the folder {path}", "Created the folder {path}"),
+            "pc_write": ("Create {path} in {place}", "Created {path} in {place}"),
             "pc_trash": ("Move {count} items to the Recycle Bin", "Moved {count} items to the Recycle Bin"),
             "app_install": ("Install {name}", "Installed {name}"), "app_upgrade": ("Update {name}", "Updated {name}"),
             "app_uninstall": ("Remove {name}", "Removed {name}"),
