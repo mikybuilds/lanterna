@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.4 — Connectors, sync without a password, an easier terminal app
 
 **New**
 - **Connectors** (sidebar), with two tabs like Claude's directory. **Browse**: about 75 ready-made connectors from the services themselves (Notion, Linear, Jira and Confluence, Asana, Canva, Miro, Dropbox, Stripe, Supabase, Vercel, Zapier…), by category, with search. **Yours**: what you connected, with sign-in, on/off and Remove.
