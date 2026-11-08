@@ -7,7 +7,7 @@
 - **Browse shows every category at once**, like Claude's directory: the popular ones first, then each category with its first few and **Show all**.
 
 **Fixed**
-- **"Installing…, almost done" while nothing happened.** Some models can't use tools (Gemma on Google, for one); Lanterna answered with them anyway, and they only described work they never did. Now a model that can use tools answers when one is free, every model is told nothing happens between replies, and a reply that says it is doing something while nothing ran gets a warning under it.
+- **"Installing…, almost done" while nothing happened.** When a model couldn't use tools, Lanterna answered with it anyway, and they only described work they never did. Now a model that can use tools answers when one is free, every model is told nothing happens between replies, and a reply that says it is doing something while nothing ran gets a warning under it.
 - **Terminal app:** closing Connectors while a search was still running could crash it.
 - **Connectors window:** the Yours / Browse switch and “Add your own” were squeezed into small squares; the check mark of a long name stays right after it.
 - **Logos in Connectors:** each service shows its own logo (from Simple Icons) instead of a letter, where one exists; mail has an envelope.
