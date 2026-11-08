@@ -5,6 +5,7 @@ sync (sync.py). Deleted things leave a small note in `deleted` so they don't com
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 import threading
 import time
@@ -33,6 +34,12 @@ _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary T
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0",
                                                    "repeat TEXT NOT NULL DEFAULT ''"]}
 MAX_FACTS = 60
+_MARKS = re.compile(r"(\*\*|__|`)(?=\S)(.+?)(?<=\S)\1|(?<![\w*])([*_])(?=\S)([^*_\n]+?)(?<=\S)\3(?![\w*])")
+
+
+def plain_fact(text: str) -> str:
+    """A memory fact as plain text: models sometimes write *Title* or **word**, and the marks showed as they are."""
+    return " ".join(_MARKS.sub(lambda m: m.group(2) or m.group(4), str(text or "")).split())
 REPEATS = ("day", "weekday", "week", "month")      # a reminder that comes back; "" = once
 
 
@@ -228,6 +235,9 @@ class Store:
     def add_fact(self, text: str, force: bool = False) -> int:
         """The new fact's id; 0 if it is already there; -1 if memory is full (nothing old is dropped behind the
         user's back: they choose what to forget). force: the user added it by hand, so it goes in anyway."""
+        text = plain_fact(text)
+        if not text:
+            return 0
         with self._lock, self._db:
             if self._db.execute("SELECT 1 FROM facts WHERE lc(text)=lc(?)", (text,)).fetchone():
                 return 0
@@ -237,7 +247,8 @@ class Store:
             return self._db.execute("INSERT INTO facts(uid, text, at) VALUES (?,?,?)", (new_uid(), text, time.time())).lastrowid
 
     def facts(self) -> list[dict]:
-        return self._q("SELECT id, text, at FROM facts ORDER BY id")
+        """Shown and sent without Markdown marks (facts saved before 1.1.4 may have them; the saved text stays)."""
+        return [{**f, "text": plain_fact(f["text"]) or f["text"]} for f in self._q("SELECT id, text, at FROM facts ORDER BY id")]
 
     def delete_fact(self, fid: int) -> None:
         with self._lock, self._db:

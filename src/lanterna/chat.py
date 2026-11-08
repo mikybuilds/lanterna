@@ -297,8 +297,11 @@ MEMORY_PROMPT = ("From the USER's message, pick lasting facts about the user tha
                  "name, job or studies, city or country, family and pets, long-term goals and projects, likes, tools and "
                  "the style they prefer. Not one-off tasks, not guesses, not facts about other people, and never passwords, "
                  "keys, card, ID or phone numbers, exact addresses or health details. Skip what is already known. Write each "
-                 "new fact as one short sentence about the user in the user's language (\"Works as a nurse.\"), one per line, "
-                 "at most 2. If there is nothing new, write only NONE.")
+                 "new fact in the user's language as one short sentence that starts with the verb, with no subject or "
+                 "pronoun (never \"They…\", \"The user…\", \"He…\", \"She…\"); where verbs change with the person, use "
+                 "the singular: \"Works as a nurse.\", in Ukrainian \"Працює медсестрою.\", in Italian \"Lavora come "
+                 "infermiera.\" Plain text: no Markdown, no asterisks or quotes around titles. One fact per line, at most 2. "
+                 "If there is nothing new, write only NONE.")
 _SECRETISH = re.compile(r"\d{6,}|@|https?://|password|пароль|passwort|contraseña|mot de passe|hasło|token|api.?key", re.I)
 
 

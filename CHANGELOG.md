@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- **Memory read oddly:** facts came out as “They like teen movies” and showed asterisks (*Fear*). New facts are written like notes (“Likes teen movies.”), and Markdown marks no longer show in Settings → Memory, also on facts saved before (the saved text itself isn't changed).
+
 ## 1.1.3 — More free services, Cerebras gone, lists that keep counting
 
 **New**

@@ -648,8 +648,10 @@ class Toolbox:
                  lambda url: read_page(url, focus=self.focus, limit=self.page_limit), "📄"),
             Tool("remember", "Save a lasting fact about the user when they share one or ask you to remember something. "
                  "Not for one-time things (today's plans, a single question) — those don't need saving.",
-                 _obj({"fact": {**s, "description": "short fact in the language the user writes in, "
-                                                    "e.g. 'Is allergic to peanuts' or 'Studies at ITI in Ferrara'"}},
+                 _obj({"fact": {**s, "description": "short fact in the language the user writes in, starting with the "
+                                                    "verb, with no subject or pronoun (not 'They…' or 'The user…'), plain "
+                                                    "text without Markdown, e.g. 'Is allergic to peanuts', 'Studies at ITI "
+                                                    "in Ferrara', in Ukrainian 'Любить підліткові фільми'"}},
                       ["fact"]),
                  self._remember, "🧠"),
             Tool("forget", "Remove facts from memory that contain this text.", _obj({"fact": s}, ["fact"]),
