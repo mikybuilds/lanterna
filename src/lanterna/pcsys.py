@@ -252,6 +252,14 @@ class System:
         code, out = self.run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"])
         return "dark" if "dark" in out else "light"
 
+    def _theme_is(self, theme: str) -> bool:
+        """Already like that everywhere a switch would change (on Windows the apps' part and the system's part)."""
+        if self.platform == "win32":
+            want = 1 if theme == "light" else 0
+            vals = [self.reg.get("HKEY_CURRENT_USER", PERSONALIZE, k) for k in ("AppsUseLightTheme", "SystemUsesLightTheme")]
+            return all((1 if v is None else v) == want for v in vals)
+        return self.theme_now() == theme
+
     # ---------------------------------------------------------------- changes (cards)
     def propose_theme(self, theme: str) -> str:
         theme = str(theme or "").lower()
@@ -260,6 +268,8 @@ class System:
         if self.platform != "win32" and not self.which("gsettings"):
             raise WorkError("This desktop can't be switched by Lanterna; change it in the system settings.")
         was = self.theme_now()
+        if self._theme_is(theme):           # a card that changes nothing only confuses (and Undo would do nothing)
+            return f"Nothing to change: the theme is already {theme}."
 
         def go() -> str:
             if self.platform == "win32":

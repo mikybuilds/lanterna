@@ -24,6 +24,9 @@ def _arg(arguments: str, key: str) -> str:
         return ""
 
 
+SECOND = "A second opinion: the same question to another model, without the first answer"
+
+
 def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
           tools: list[tuple[str, str]], summary: bool = False, old_files: list[str] | None = None,
           parts: list[str] | None = None, second: bool = False, private: bool = False) -> list[dict]:
@@ -33,7 +36,7 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
     if private:
         out.append({"t": "Private chat: it isn't saved, and memory and your other chats aren't used", "v": {}})
     if second:
-        out.append({"t": "A second opinion: the same question to another model, without the first answer", "v": {}})
+        out.append({"t": SECOND, "v": {}})
     if summary:
         out.append({"t": "A short summary of the older part of this chat", "v": {}})
     if name:
@@ -82,6 +85,15 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
 
 def dumps(items: list[dict]) -> str:
     return json.dumps(items, ensure_ascii=False)
+
+
+def is_second(raw: str) -> bool:
+    """Whether a stored reply was a second opinion (its "what went to the model" says so)."""
+    try:
+        items = json.loads(raw or "[]")
+    except ValueError:
+        return False
+    return isinstance(items, list) and any(isinstance(x, dict) and x.get("t") == SECOND for x in items)
 
 
 def view(raw: str, lang: str) -> list[str]:

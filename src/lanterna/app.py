@@ -25,7 +25,7 @@ from .router import Router, Switched, used_model
 from .notify import notify
 from .store import Store
 from .sync import PREFS as SYNC_PREFS
-from .thinking import Steps
+from .thinking import Steps, tool_step
 from .tools import Toolbox
 from .workspace import Actions, Workspace, folder_tools, too_broad
 
@@ -646,9 +646,12 @@ class Api:
                 m["after_summary"] = True                   # the window draws "older messages are summarized" here
             if m["role"] == "user":
                 m = {**m, "content": _short_files(m["content"])}
-            elif out and out[-1]["role"] == "assistant":
-                m["second"] = True                          # a second opinion: drawn with its own small title
-            m["sent"] = sent.view(m.pop("sent", ""), lang) if m["role"] == "assistant" else []
+            raw = m.pop("sent", "")
+            if m["role"] == "assistant":
+                # a second opinion is drawn with its own small title. Not every reply right after a reply is one:
+                # notes after a confirmed card, the morning summary and regular tasks come one after another too
+                m["second"] = sent.is_second(raw)
+            m["sent"] = sent.view(raw, lang) if m["role"] == "assistant" else []
             out.append(m)
         return out
 
@@ -1453,7 +1456,8 @@ class Api:
                     if isinstance(p, Switched):
                         st.notes.append(p.to.label)
                     elif isinstance(p, ToolUse):
-                        st.tools.append(f"{p.label} {p.name}")
+                        # the line under the reply says what it did, with what (the search words, the program)
+                        st.tools.append(f"{p.label} {tool_step(p.name, p.arguments, self.settings.lang, why=False)}")
                         st.used.append((p.name, p.arguments))
                         st.steps.tool(p.name, p.arguments)
                     elif isinstance(p, Questions):

@@ -11,6 +11,13 @@
 - **Terminal app:** closing Connectors while a search was still running could crash it.
 - **Connectors window:** the Yours / Browse switch and “Add your own” were squeezed into small squares; the check mark of a long name stays right after it.
 - **Logos in Connectors:** each service shows its own logo (from Simple Icons) instead of a letter, where one exists; mail has an envelope.
+- **Installing programs on Linux found the wrong program or failed.** The search looked only in Flatpak, whose loose search offered unrelated apps (asking for htop found "Beat And Match To Pass"), and every install went to `--user flathub`, which Fedora doesn't have, so it failed. Now the search also looks in the system's packages (dnf, apt), keeps only programs that have the words you asked for and says where each one comes from. A Flatpak installs from the place that has it (on Fedora that's for the whole system, so it asks for your password). A program that is already installed isn't installed again: its Undo would have removed your own copy. That also holds when Fedora and Flathub name the same program with different capital letters (VLC is `org.videolan.vlc` in one, `org.videolan.VLC` in the other).
+- **The warning under "installing…, almost done" didn't show when the model had only searched first.** A search doesn't install anything either: a reply that says it is installing or will let you know later, after only looking things up, now gets the warning too.
+- **The lines under a reply** said `app_search` or `pc_info`, with a note in English ("to install htop"). They now say what was looked for, in your language ("Looking for the program: htop").
+- **"Second opinion" over the wrong message:** when a chat was opened again, the notes after a confirmed card got the "Second opinion" title.
+- **A card to switch to the dark theme when it was already dark.** Lanterna now says it already is.
+- **Undo had the same name as Cancel** (Ukrainian in the terminal app, Italian and French everywhere). It is "Повернути як було" (Ripristina, Rétablir) now. "3 моделей" is now "моделей: 3".
+- **Connectors:** logos that are only the name written out (Cal.com, Egnyte, Wix, Kaggle, Zapier) showed as a dash or tiny letters; those show their first letter now. "Added" is a word, so it isn't mixed up with the tick that means "made by the service itself", and that tick no longer lands on a line of its own after a long name. The window keeps its size when you switch tabs and categories, and **Show all** has a way back.
 
 ## 1.1.5 — Open things, change the look, do it on its own when you ask
 

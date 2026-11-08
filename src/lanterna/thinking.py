@@ -52,7 +52,20 @@ TOOL_TEXT = {
     "github_read": ("Reading {x} on GitHub", "path"),
     "github_push": ("Preparing a push to {x}", "repo"),
     "github_new_repo": ("Preparing a new repository {x}", "name"),
+    "app_search": ("Looking for the program: {x}", "query"),
+    "app_info": ("Reading about the program {x}", "id"),
+    "app_installed": ("Looking at the installed programs", ""),
+    "app_updates": ("Checking for program updates", ""),
+    "app_install": ("Preparing to install {x}", "id"),
+    "app_update": ("Preparing to update {x}", "id"),
+    "app_uninstall": ("Preparing to remove {x}", "id"),
+    "pc_info": ("Looking at the computer", ""),
+    "pc_look": ("Looking at the look settings", ""),
+    "pc_look_set": ("Preparing changes to the look", ""),
+    "pc_theme": ("Preparing the theme", ""),
 }
+CYRILLIC = re.compile(r"[Ѐ-ӿ]")
+CYRILLIC_LANGS = ("uk", "ru", "be", "bg", "sr", "mk")
 
 
 def _short(text: str, n: int = 70) -> str:
@@ -60,8 +73,15 @@ def _short(text: str, n: int = 70) -> str:
     return text if len(text) <= n else text[:n - 1].rstrip() + "…"
 
 
-def tool_step(name: str, arguments: str, lang: str = "en") -> str:
-    """'web_search', '{"query": "Ferrara news"}' → 'Шукаю в інтернеті: Ferrara news'."""
+def fits_lang(text: str, lang: str) -> bool:
+    """Whether a model's short note can be the user's language: models often write the "why" in English even in
+    a Ukrainian chat (and an English line in Cyrillic is just as wrong)."""
+    return bool(CYRILLIC.search(text)) == (lang in CYRILLIC_LANGS)
+
+
+def tool_step(name: str, arguments: str, lang: str = "en", why: bool = True) -> str:
+    """'web_search', '{"query": "Ferrara news"}' → 'Шукаю в інтернеті: Ferrara news'. why=False leaves out the
+    model's own reason (the tool lines under a reply)."""
     try:
         args = json.loads(arguments or "{}")
     except ValueError:
@@ -76,8 +96,10 @@ def tool_step(name: str, arguments: str, lang: str = "en") -> str:
     if "{x}" in text and not x:                   # no argument: say it without the colon / name
         text = text.replace(": {x}", "").replace(" {x}", "")
     line = t(text, lang, x=x) if "{x}" in text else t(text, lang)
-    why = _short(args.get("intent") or "", 70) if isinstance(args.get("intent"), str) else ""
-    return f"{line} — {why}" if why else line                # the model's own "why", in the user's language
+    note = _short(args.get("intent") or "", 70) if why and isinstance(args.get("intent"), str) else ""
+    if note and not fits_lang(note, lang):
+        note = ""                                         # not in the user's language: the line alone says enough
+    return f"{line} — {note}" if note else line           # the model's own "why", in the user's language
 
 
 def _last_line(text: str) -> str:

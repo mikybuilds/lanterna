@@ -725,9 +725,9 @@ _T.update({
     "Changed {count} settings of the look": {"uk": "Вигляд системи змінено (налаштувань: {count})", "it": "Aspetto cambiato ({count} impostazioni)"},
     "Let Lanterna act on its own in this chat for {count} min": {"uk": "Дозволити Lanterna діяти самій у цій розмові на {count} хв", "it": "Lasciare che Lanterna agisca da sola in questa chat per {count} min"},
     "Lanterna acts on its own here for {count} min": {"uk": "Lanterna діє сама в цій розмові {count} хв", "it": "Lanterna agisce da sola qui per {count} min"},
-    "The old values are kept: Undo puts them back.": {"uk": "Старі значення збережено: «Скасувати» поверне їх.", "it": "I valori precedenti sono conservati: Annulla li ripristina."},
-    "Without asking: files and folders (deleting only to the Recycle Bin), the look and settings, installing programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. Every change is in What Lanterna did, with Undo. You can stop it any time.": {"uk": "Без запитань: файли й папки (видалення — лише в Кошик), вигляд і налаштування системи, встановлення програм із каталогу. Як і раніше, питатиме: видалення програм, пошта, GitHub, Google Drive, інші сервіси. Кожна зміна є в «Що зробила Lanterna», з кнопкою «Скасувати». Зупинити можна будь-коли.", "it": "Senza chiedere: file e cartelle (eliminati solo nel Cestino), aspetto e impostazioni, installazione di programmi dal catalogo. Chiede ancora: rimozione di programmi, posta, GitHub, Google Drive, altri servizi. Ogni modifica è in Cosa ha fatto Lanterna, con Annulla. Puoi fermarla quando vuoi."},
-    "on its own; Undo is in What Lanterna did": {"uk": "сама; «Скасувати» — у «Що зробила Lanterna»", "it": "da sola; Annulla è in Cosa ha fatto Lanterna"},
+    "The old values are kept: Undo puts them back.": {"uk": "Старі значення збережено: кнопка «Повернути як було» поверне їх.", "it": "I valori precedenti sono conservati: Ripristina li rimette."},
+    "Without asking: files and folders (deleting only to the Recycle Bin), the look and settings, installing programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. Every change is in What Lanterna did, with Undo. You can stop it any time.": {"uk": "Без запитань: файли й папки (видалення — лише в Кошик), вигляд і налаштування системи, встановлення програм із каталогу. Як і раніше, питатиме: видалення програм, пошта, GitHub, Google Drive, інші сервіси. Кожна зміна є в «Що зробила Lanterna», з кнопкою «Повернути як було». Зупинити можна будь-коли.", "it": "Senza chiedere: file e cartelle (eliminati solo nel Cestino), aspetto e impostazioni, installazione di programmi dal catalogo. Chiede ancora: rimozione di programmi, posta, GitHub, Google Drive, altri servizi. Ogni modifica è in Cosa ha fatto Lanterna, con Ripristina. Puoi fermarla quando vuoi."},
+    "on its own; Undo is in What Lanterna did": {"uk": "сама; «Повернути як було» — у «Що зробила Lanterna»", "it": "da sola; Ripristina è in Cosa ha fatto Lanterna"},
     "Lanterna acts on its own in this chat: {n} min left": {"uk": "Lanterna діє сама в цій розмові: залишилось {n} хв", "it": "Lanterna agisce da sola in questa chat: restano {n} min"},
     "Stop": {"uk": "Зупинити", "it": "Ferma"},
     "Didn't find it? Type its name in Search: Lanterna also looks in the public MCP catalog, which has thousands more servers made by other people.": {"uk": "Не знайшов? Введи назву в пошук: Lanterna шукає і у відкритому каталозі MCP, де ще тисячі серверів від інших людей.", "it": "Non l'hai trovato? Scrivi il nome in Cerca: Lanterna guarda anche nel catalogo pubblico MCP, con migliaia di altri server fatti da altre persone."},
@@ -1004,7 +1004,7 @@ _T.update({
     "Connected as {account}": {"uk": "Підключено як {account}", "it": "Collegato come {account}"},
     "Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.": {"uk": "Помічник зможе створювати папки й зберігати файли у твоєму Google Drive після того, як ти підтвердиш кожну дію. Він бачить тільки те, що створив сам.", "it": "L'assistente potrà creare cartelle e salvare file nel tuo Google Drive, dopo che confermi ogni azione. Vede solo ciò che ha creato lui."},
     "Google Drive was disconnected. Connect it again.": {"uk": "Google Drive відключено. Підключи його знову.", "it": "Google Drive è stato scollegato. Collegalo di nuovo."},
-    "(tried {n} models)": {"uk": "(спробував {n} моделей)", "it": "(provati {n} modelli)"},
+    "(tried {n} models)": {"uk": "(спробував моделей: {n})", "it": "(provati {n} modelli)"},
     "Created {path}": {"uk": "Створено {path}", "it": "Creato {path}"},
     "Rewrote {path}": {"uk": "Переписано {path}", "it": "Riscritto {path}"},
     "Added to {path}": {"uk": "Дописано в {path}", "it": "Aggiunto a {path}"},
@@ -1107,7 +1107,7 @@ _T.update({
     "Files": {"uk": "Файли", "it": "File"},
     "{n} files still downloading are left alone.": {"uk": "{n} файлів, які ще завантажуються, не чіпаю.", "it": "{n} file ancora in download restano dove sono."},
     "You can undo the sort afterwards.": {"uk": "Розкладання можна буде скасувати.", "it": "Potrai annullare l'ordinamento."},
-    "Undo": {"uk": "Повернути як було", "it": "Annulla"},
+    "Undo": {"uk": "Повернути як було", "it": "Ripristina"},
     "They go to the Recycle Bin: you can restore them from there.": {"uk": "Вони підуть у Кошик: звідти їх можна відновити.", "it": "Vanno nel Cestino: puoi recuperarli da lì."},
     "Reason: {r}": {"uk": "Причина: {r}", "it": "Motivo: {r}"},
     "Publisher: {p}": {"uk": "Видавець: {p}", "it": "Editore: {p}"},
@@ -1224,14 +1224,13 @@ _T.update({
     # what Lanterna did
     "What Lanterna did": {"uk": "Що зробила Lanterna", "it": "Cosa ha fatto Lanterna"},
     "Changes you confirmed on this computer, newest first. Undo puts files back, takes them out of the Recycle Bin or switches a setting back.": {
-        "uk": "Зміни, які ти підтвердив на цьому комп'ютері, найновіші зверху. «Скасувати» повертає файли на місце, дістає їх із Кошика або повертає налаштування.",
-        "it": "Le modifiche che hai confermato su questo computer, dalle più recenti. «Annulla» rimette i file al loro posto, li recupera dal Cestino o ripristina un'impostazione."},
+        "uk": "Зміни, які ти підтвердив на цьому комп'ютері, найновіші зверху. «Повернути як було» повертає файли на місце, дістає їх із Кошика або повертає налаштування.",
+        "it": "Le modifiche che hai confermato su questo computer, dalle più recenti. «Ripristina» rimette i file al loro posto, li recupera dal Cestino o riporta un'impostazione com'era."},
     "Nothing yet. When you confirm a change on a card, it shows up here.": {
         "uk": "Поки нічого. Коли ти підтвердиш зміну на картці, вона з'явиться тут.",
         "it": "Ancora niente. Quando confermi una modifica su una scheda, compare qui."},
     "Clear the list": {"uk": "Очистити список", "it": "Svuota l'elenco"},
     "Undone": {"uk": "Скасовано", "it": "Annullato"},
-    "Undo": {"uk": "Скасувати", "it": "Annulla"},
     "This change can't be undone.": {"uk": "Цю зміну не можна скасувати.", "it": "Questa modifica non si può annullare."},
     "Changed back.": {"uk": "Повернуто як було.", "it": "Ripristinato."},
     "{n} files are back from the Recycle Bin.": {"uk": "Файлів повернуто з Кошика: {n}.", "it": "{n} file sono tornati dal Cestino."},
@@ -1318,4 +1317,20 @@ _T.update({
                                                          "it": "Ollama è installato. Ora scarica un modello qui sotto."},
     "Installing… this can take a few minutes.": {"uk": "Встановлюю… це може зайняти кілька хвилин.",
                                                  "it": "Installo… può richiedere qualche minuto."},
+})
+
+# Programs on Linux, honest replies, tool lines (1.1.6b5)
+_T.update({
+    "In this reply Lanterna only looked things up: nothing was installed, opened or changed.": {"uk": "У цій відповіді Lanterna лише шукала й дивилася: нічого не встановлено, не відкрито й не змінено.", "it": "In questa risposta Lanterna ha solo cercato informazioni: niente è stato installato, aperto o cambiato."},
+    "Looking for the program: {x}": {"uk": "Шукаю програму: {x}", "it": "Cerco il programma: {x}"},
+    "Reading about the program {x}": {"uk": "Читаю про програму {x}", "it": "Leggo le informazioni su {x}"},
+    "Looking at the installed programs": {"uk": "Дивлюсь встановлені програми", "it": "Guardo i programmi installati"},
+    "Checking for program updates": {"uk": "Шукаю оновлення програм", "it": "Cerco aggiornamenti dei programmi"},
+    "Preparing to install {x}": {"uk": "Готую встановлення {x}", "it": "Preparo l'installazione di {x}"},
+    "Preparing to update {x}": {"uk": "Готую оновлення {x}", "it": "Preparo l'aggiornamento di {x}"},
+    "Preparing to remove {x}": {"uk": "Готую видалення {x}", "it": "Preparo la rimozione di {x}"},
+    "Looking at the computer": {"uk": "Дивлюсь характеристики комп'ютера", "it": "Guardo le caratteristiche del computer"},
+    "Looking at the look settings": {"uk": "Дивлюсь налаштування вигляду", "it": "Guardo le impostazioni dell'aspetto"},
+    "Preparing changes to the look": {"uk": "Готую зміни вигляду", "it": "Preparo le modifiche all'aspetto"},
+    "Preparing the theme": {"uk": "Готую тему", "it": "Preparo il tema"},
 })

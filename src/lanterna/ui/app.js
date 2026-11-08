@@ -229,7 +229,7 @@ const STR = {
   "Sign out and delete the copy in Google Drive": { uk: "Вийти й видалити копію з Google Drive", it: "Esci ed elimina la copia su Google Drive" },
   "Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.": { uk: "Видалити зашифровану копію чатів з Google Drive? Чати на цьому пристрої залишаться.", it: "Eliminare la copia cifrata delle chat da Google Drive? Le chat su questo dispositivo restano." },
   "Couldn't sync: {error}": { uk: "Не вдалося синхронізувати: {error}", it: "Sincronizzazione non riuscita: {error}" },
-  "(tried {n} models)": { uk: "(спробував {n} моделей)", it: "(provati {n} modelli)" },
+  "(tried {n} models)": { uk: "(спробував моделей: {n})", it: "(provati {n} modelli)" },
   "Requests today: {n}": { uk: "Запитів сьогодні: {n}", it: "Richieste oggi: {n}" },
   "Refused: {n}": { uk: "Відхилено: {n}", it: "Rifiutate: {n}" },
   "Update now": { uk: "Оновити зараз", it: "Aggiorna ora" },
@@ -325,7 +325,7 @@ const STR = {
   "{name} no longer starts with the computer": { uk: "{name} більше не запускається разом із комп'ютером", it: "{name} non si avvia più con il computer" },
   "{n} files still downloading are left alone.": { uk: "{n} файлів, які ще завантажуються, не чіпаю.", it: "{n} file ancora in download restano dove sono." },
   "You can undo the sort afterwards.": { uk: "Розкладання можна буде скасувати.", it: "Potrai annullare l'ordinamento." },
-  "Undo": { uk: "Повернути як було", it: "Annulla" },
+  "Undo": { uk: "Повернути як було", it: "Ripristina" },
   "They go to the Recycle Bin: you can restore them from there.": { uk: "Вони підуть у Кошик: звідти їх можна відновити.", it: "Vanno nel Cestino: puoi recuperarli da lì." },
   "Reason: {r}": { uk: "Причина: {r}", it: "Motivo: {r}" },
   "Publisher: {p}": { uk: "Видавець: {p}", it: "Editore: {p}" },
@@ -496,7 +496,9 @@ const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the 
   add_task: "Adding a regular task", list_tasks: "Checking regular tasks", delete_task: "Deleting a regular task",
   currency: "Converting currency", convert_units: "Converting units", transcribe_audio: "Turning audio into text",
   search_chats: "Looking through earlier chats", read_chat: "Reading an earlier chat" };
-const toolChip = s => { const [emo, name] = String(s).split(" "); return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
+// "🔎 web_search" (older) or "🔎 Searching the web: news" (the step, already in the window's language)
+const toolChip = s => { const [emo, ...rest] = String(s).split(" "); const name = rest.join(" ");
+  return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
 
 let pending = [];        // files waiting to be sent: {name, size, data(base64)}
 const MAX_FILE = 20 * 1024 * 1024;
@@ -1198,7 +1200,7 @@ async function openThread(id, priv) {
   if (id < 0) msgs.prepend(privBar());
   items.forEach(m => {
     if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
-    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent);
+    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent, m.second);
   });
   // an answer still coming in this chat: put its live bubble ("Thinking…", switch note, cards) back at the end
   const back = busy && live && live.tid === id && thread === id && items.length && items[items.length - 1].role === "user";
@@ -1292,10 +1294,8 @@ function sentBox(lines) {
     <ul>${lines.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>`;
 }
 
-function addBot(text, model, sent) {
+function addBot(text, model, sent, second = false) {    // second: a second opinion, with its own small title
   const e = $(".empty"); if (e) e.remove();
-  const prev = [...document.querySelectorAll("#msgs > .msg")].pop();
-  const second = !!(prev && prev.classList.contains("bot") && text !== "");     // an answer right after an answer
   const el = h(`<div class="msg bot${second ? " second" : ""}"><img class="av" src="logo.svg" alt=""><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
   if (text === null) el.querySelector(".md").before(h(`<div class="think"><span class="think-dot"></span><span class="think-tx">${t("Thinking…")}</span></div>`));
   else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); }
@@ -1397,7 +1397,7 @@ async function send(retryText) {
     const names = files.map(f => (/[.](png|jpe?g|webp|gif|bmp)$/i.test(f.name) ? "🖼 " : "📎 ") + f.name);
     addUser([text, ...names].filter(Boolean).join(String.fromCharCode(10, 10)));
   }
-  const bot = addBot(null);
+  const bot = addBot(null, "", null, second);
   const box = bot.querySelector(".md");
   live = { tid: thread, el: bot, sw: null };
   scrollDown(true);
@@ -2057,17 +2057,17 @@ function openConnectors(tab) {
   const card = c => {
     const closed = c.auth === "closed";
     const right = closed ? `<span class="cn-badge">${t("Unavailable")}</span>`
-      : c.added ? `<span class="cn-added" title="${esc(t("Added"))}">${icon("check")}</span>`
+      : c.added ? `<span class="cn-badge on">${t("Added")}</span>`     // a word: the tick after a name means "official"
       : `<button class="cn-add" data-add="${esc(c.id)}" title="${esc(t("Add"))}" aria-label="${esc(t("Add"))} ${esc(c.name)}">${icon("plus")}</button>`;
     return `<div class="cn-card${closed ? " closed" : ""}" data-c="${esc(c.id)}">${connLogo(c.name, c.id)}
-      <div class="cn-txt"><b>${esc(c.name)}${c.official && !closed ? ` <span class="cn-ok" title="${esc(t("Made by the service itself"))}">${icon("check")}</span>` : ""}</b>
+      <div class="cn-txt"><b>${esc(c.name)}${c.official && !closed ? `&nbsp;<span class="cn-ok" title="${esc(t("Made by the service itself"))}">${icon("check")}</span>` : ""}</b>
         <small class="cn-about">${esc(closed ? t(c.why) : c.about)}</small>
         <small class="faint">${esc(t("Made by {who}", { who: c.by }))}</small></div>${right}</div>`;
   };
   const regCard = (e, i) => `<div class="cn-card reg" data-r="${i}">${connLogo(e.name)}
       <div class="cn-txt"><b>${esc(e.name)}</b><small class="cn-about">${esc(e.about || "")}</small>
         <small class="faint">${esc(t("Made by {who}", { who: e.by }))}${e.through ? " · " + esc(t("through {host}", { host: e.through })) : ""}${e.kind === "stdio" ? " · " + esc(t("a program on this computer")) : ""}</small></div>
-      ${e.added ? `<span class="cn-added">${icon("check")}</span>` : `<button class="cn-add" data-radd="${i}" title="${esc(t("Add"))}">${icon("plus")}</button>`}</div>`;
+      ${e.added ? `<span class="cn-badge on">${t("Added")}</span>` : `<button class="cn-add" data-radd="${i}" title="${esc(t("Add"))}">${icon("plus")}</button>`}</div>`;
 
   const match = c => {
     if (!query) return true;
@@ -2093,7 +2093,8 @@ function openConnectors(tab) {
     body.innerHTML = `<div class="cn-bar"><h3>${esc(query ? t("Ready to connect") : cat ? t(C.categories[cat]) : all ? t("All connectors") : t("Popular connectors"))}
         <span class="cn-count">${query || cat ? show.length : total}</span></h3>
       <select class="field cn-cat" id="cn-cat"><option value="">${esc(t("All categories"))}</option>${Object.entries(C.categories).map(([k, n]) => `<option value="${k}" ${k === cat ? "selected" : ""}>${esc(t(n))}</option>`).join("")}</select>
-      ${home ? `<button class="link cn-all" id="cn-all">${t("Show all")} →</button>` : ""}</div>
+      ${home ? `<button class="link cn-all" id="cn-all">${t("Show all")} →</button>`
+        : all && !query && !cat ? `<button class="link cn-all" id="cn-back">← ${t("Popular connectors")}</button>` : ""}</div>
       ${show.length ? `<div class="cn-grid">${show.map(card).join("")}</div>` : `<p class="faint">${esc(t("No ready-made connector with these words."))}</p>`}
       ${home ? Object.entries(C.categories).map(([k, n]) => catSection(k, n)).join("")
         + `<p class="muted cn-more-hint">${esc(t("Didn't find it? Type its name in Search: Lanterna also looks in the public MCP catalog, which has thousands more servers made by other people."))}</p>` : ""}
@@ -2107,7 +2108,10 @@ function openConnectors(tab) {
     sel.onchange = () => { cat = sel.value; paint(); };
     const allBtn = $("#cn-all", body);
     if (allBtn) allBtn.onclick = () => { all = true; paint(); };
-    body.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; paint(); body.scrollTop = 0; });
+    const back = $("#cn-back", body);
+    const toTop = () => { v.querySelector(".dialog").scrollTop = 0; };    // the dialog scrolls, not the body
+    if (back) back.onclick = () => { all = false; paint(); toTop(); };
+    body.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; paint(); toTop(); });
     const mo = $("#cn-more", body);
     if (mo) mo.onclick = more;
     const ask = $("#cn-ask", body);

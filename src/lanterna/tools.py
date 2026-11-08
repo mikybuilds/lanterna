@@ -404,12 +404,19 @@ GROUPS = {
                       r"фон|background|sfondo|hintergrund|fondo|акцент|accent|кол[ьі]?ор|colou?r|шрифт|font|курсор|cursor|"
                       r"pointer|іконк|icon|гучн|volume|нічн|night|не турбу|do not disturb|кастом|custom|вигляд|оформл|look|"
                       r"годинник|clock|\bсам[аеоі]?\b|автоном|on (your|its) own|by yourself|yourself|da solo|selbst|"
-                      r"tu mismo|toi-même|sam", re.I),
+                      r"tu mismo|toi-même|sam\b", re.I),
 }
 
 
 _CHAT_FILE = re.compile(r"\[File: ([^\]\n]+)\]\n```.*?```", re.S)
 LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page")
+# Tools that only look: they change nothing, open nothing and propose no card. A reply that says it installs or sets
+# something up needs more than these (see chat.false_claim). A tool missing here counts as one that acts.
+READ_ONLY_TOOLS = frozenset((*LOOKUP_TOOLS, "list_reminders", "list_tasks", "search_chats", "read_chat",
+                             "folder_list", "folder_search", "folder_read", "drive_list", "github_repos", "github_list",
+                             "github_read", "mail_folders", "mail_list", "mail_read", "pc_info", "pc_load", "pc_startup",
+                             "pc_power", "pc_look", "pc_space", "pc_folders", "pc_overview", "pc_list", "pc_find",
+                             "pc_read", "pc_duplicates", "app_search", "app_info", "app_installed", "app_updates"))
 
 
 class LookupOnly:

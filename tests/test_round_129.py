@@ -88,7 +88,8 @@ def test_a_claim_without_any_tool_gets_a_warning(monkeypatch):
 
 def test_no_warning_when_a_tool_really_ran():
     call = ToolCalls([ToolCall("c1", "calculate", '{"expression": "2+2"}')])
-    fake = Fake([[call], ["Я вже порахував: 4. Майже готово з рештою."]])
+    # "almost done with the rest" after a mere calculation now gets the warning too (see test_round_130)
+    fake = Fake([[call], ["Я вже порахував: 4. Перевіряю решту."]])
     s = chat.Conversation(router=router(fake, "able"), lang="uk", toolbox=Toolbox(NoStore()))
     out = "".join(p for p in s.ask("порахуй 2+2") if isinstance(p, str))
     assert "⚠️" not in out and "4" in out

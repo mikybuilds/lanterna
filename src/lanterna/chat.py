@@ -10,6 +10,7 @@ from typing import Iterator
 from . import AUTHOR, HOMEPAGE, i18n, soul
 from .providers import ToolCalls
 from .router import Router, Switched, used_model
+from .tools import READ_ONLY_TOOLS
 
 MAX_HISTORY = 30          # messages kept in context (older ones are dropped, or summarized: see summarize)
 KEEP_RECENT = 20          # a long chat: the newest messages go to the model as they are…
@@ -163,8 +164,10 @@ PC_GUIDE = (
     "This computer: the pc_* tools work with the user's own folders (Downloads, Desktop, Documents, Pictures, Videos, "
     "Music) without any setup. 'Sort / tidy my downloads' = call pc_sort right away (its card shows the whole plan; "
     "pc_overview is for questions about what is there). A file on the desktop or in one of these folders (a note, a command to copy) = pc_write, never Google Drive. Open a program, a website or a file = pc_open_program / pc_open_site / pc_open_file (immediate). The look (wallpaper, accent, icons, fonts, night light, volume…) = pc_look, then pc_look_set. When the user wants several things done without confirming each one, agree on the plan, then call pc_auto_ask. app_* tools find, "
-    "install, update and remove programs from the official catalog (winget / Flathub): app_search, then app_install "
-    "with the exact id — never send the user to download installers from websites. For a slow or misbehaving PC look "
+    "install, update and remove programs from the official catalogs (winget on Windows; Flatpak and dnf/apt on Linux): "
+    "app_search, then app_install with the exact id and source of the result that is the program the user asked for. "
+    "If no result is that program, say so: never install a look-alike, and never send the user to download installers "
+    "from websites. For a slow or misbehaving PC look "
     "first — call pc_info, pc_load and pc_startup in this same turn, don't just announce it — explain in plain words, "
     "then offer the fix. Every change you call becomes a "
     "card the user confirms: call the tool, then say in one sentence what will happen after Confirm. Never claim a "
@@ -185,25 +188,47 @@ NO_TOOLS_NOTE = (
     "the steps or commands to do it by hand."
 )
 
-# A reply that says it is doing or did something on the computer. Checked only when no tool ran in that reply.
-_CLAIM = re.compile(
-    r"встановлю(ю|єм)|встановив|встановила|налаштовую|налаштував|завершую|запускаю|перевіряю|оновлюю|завантажую|"
-    r"переходжу до|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|повідомлю,? (як|коли)|"
-    r"устанавлива|настраива|почти готов|"
-    r"\bI'?m (now |still |just )?(installing|setting up|configuring|checking|updating|downloading|changing|removing|"
-    r"finishing|running)\b|\bI(?:'ve| have) (just )?(installed|configured|changed|updated|removed|set up|run)\b|"
+# A reply that says it changes (or changed) something on the computer, or that work goes on after it ("almost done",
+# "I'll let you know"). Fine only when a tool that acts ran in that reply: a lookup doesn't install anything.
+_CLAIM_WORK = re.compile(
+    r"встановлю(ю|єм)|встановив|встановила|налаштовую|налаштував|налаштувала|оновлюю|завантажую|змінюю|вмикаю|"
+    r"вимикаю|видаляю|завершую|переходжу до|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|"
+    r"повідомлю,? (як|коли)|устанавлива|настраива|почти готов|"
+    r"\bI'?m (now |still |just )?(installing|setting up|configuring|updating|downloading|changing|removing|"
+    r"finishing)\b|\bI(?:'ve| have) (just )?(installed|configured|changed|updated|removed|set up)\b|"
     r"almost (done|finished|there)|I'?ll (let you know|report back|ping you)|"
-    r"\b(checking|installing|configuring|downloading|updating)\b[^.\n]{0,40}(\.\.\.|…)|"
-    r"\bsto (installando|configurando|controllando|aggiornando)|\bho (installato|configurato|cambiato)|quasi (fatto|finito)",
+    r"\b(installing|configuring|downloading|updating)\b[^.\n]{0,40}(\.\.\.|…)|"
+    r"\bsto (installando|configurando|aggiornando)|\bho (installato|configurato|cambiato)|quasi (fatto|finito)",
+    re.I)
+# A reply that says it is checking or running something: true after a lookup, made up when no tool ran at all.
+_CLAIM_LOOK = re.compile(
+    r"запускаю|перевіряю|\bI'?m (now |still |just )?(checking|running)\b|\bI(?:'ve| have) (just )?run\b|"
+    r"\bchecking\b[^.\n]{0,40}(\.\.\.|…)|\bsto controllando",
     re.I)
 
 
 def claims_action(text: str) -> bool:
     """The reply says it is doing (or did) something — fine only if a tool really ran in it."""
-    return bool(_CLAIM.search(text or ""))
+    return bool(_CLAIM_WORK.search(text or "") or _CLAIM_LOOK.search(text or ""))
+
+
+def claims_change(text: str) -> bool:
+    """The reply says it installs, sets up or changes something, or that it will go on after this reply."""
+    return bool(_CLAIM_WORK.search(text or ""))
+
+
+def false_claim(reply: str, ran: list[str]) -> str:
+    """The warning to show under a reply that claims work it didn't do ("" = none): nothing ran at all, or only
+    tools that look things up while it says it is installing or almost done."""
+    if not ran:
+        return NOTHING_RAN if claims_action(reply) else ""
+    if all(n in READ_ONLY_TOOLS for n in ran) and claims_change(reply):
+        return ONLY_LOOKED
+    return ""
 
 
 NOTHING_RAN = "Lanterna didn't run anything in this reply: nothing was installed, opened or changed."
+ONLY_LOOKED = "In this reply Lanterna only looked things up: nothing was installed, opened or changed."
 
 
 def system_prompt(name: str = "", now: datetime.datetime | None = None, extra: str = "", model: str = "",
@@ -535,9 +560,10 @@ class Conversation:
                     yield p
         reply = (questions_text(asked, self.ask_header) if asked
                  else soul.humanize("".join(pieces).strip(), self.last_reply))
-        if not asked and not done and claims_action(reply):
-            # it says it is installing / almost done, but nothing ran: say so where the user sees it
-            warn = "\n\n⚠️ " + i18n.t(NOTHING_RAN, self.lang)
+        claim = "" if asked else false_claim(reply, [n for n, _ in done])
+        if claim:
+            # it says it is installing / almost done, but nothing ran (or it only looked): say so where the user sees it
+            warn = "\n\n⚠️ " + i18n.t(claim, self.lang)
             yield warn
             reply += warn
         note = f"{text}\n[attached {len(images)} image(s)]" if images else text
