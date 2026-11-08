@@ -25,7 +25,7 @@ METHODS = {"state", "save_settings", "check_key", "delete_key", "open_url", "mod
            "messages", "rename_thread", "wait_title", "wait_follow_ups", "edit_last", "export_chat", "wait_memory", "export_all", "show_saved", "delete_thread", "send", "poll", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",
-           "cards", "pc_undo", "chat_folder", "set_chat_folder", "chat_role", "set_chat_role", "forget_private", "backup_status", "backup_set_password", "backup_off", "backup_now", "backup_set_folder", "backup_open_folder", "backup_restore", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",
+           "cards", "pc_undo", "chat_folder", "set_chat_folder", "chat_role", "set_chat_role", "forget_private", "mcp_presets", "mcp_add_preset", "mcp_update_preset", "backup_status", "backup_set_password", "backup_off", "backup_now", "backup_set_folder", "backup_open_folder", "backup_restore", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",
            "github_status", "github_connect", "github_cancel", "github_disconnect", "drive_status", "drive_connect", "drive_cancel", "drive_disconnect", "bug_report", "open_mail",
            "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out",
            "doctor", "history_list", "history_undo", "history_clear", "install_ollama",

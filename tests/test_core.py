@@ -99,6 +99,8 @@ def test_no_unexpected_domains_in_sources():
                "huggingface.co",
                # optional Google sign-in and sync to the user's own Drive (hidden app folder)
                "accounts.google.com", "oauth2.googleapis.com", "www.googleapis.com",
+               # ready-made MCP servers: where to get Node.js or uv (links the user opens, never fetched)
+               "nodejs.org", "docs.astral.sh",
                # the project's own pages (privacy policy)
                "mikybuilds.github.io", "api." "git" "hub.com"}
     root = Path(__file__).parents[1]

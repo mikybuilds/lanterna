@@ -36,6 +36,7 @@ DESC_LIMIT = 300
 RESULT_LIMIT = 6000
 WAIT_OK = 10 * 60                     # how long a tool call waits for Confirm
 START_TIMEOUT = 30.0
+FIRST_START = 180.0                   # a ready-made server: npx / uvx may first download it
 CALL_TIMEOUT = 90.0
 _NAME = re.compile(r"[^a-z0-9]+")
 _WEB = re.compile(r"^(https)://\S+$|^(http)://(localhost|127\.0\.0\.1)(:\d+)?(/\S*)?$")   # http only on this PC
@@ -57,6 +58,87 @@ def split_command(line: str) -> list[str]:
     if sys.platform == "win32":
         return [p[1:-1] if len(p) > 1 and p[0] == p[-1] and p[0] in "\"'" else p for p in shlex.split(line, posix=False)]
     return shlex.split(line)
+
+
+# ---------------------------------------------------------------- ready-made servers, one button each
+# Checked by hand; each version is pinned, so the code that runs can't change until a Lanterna update moves it
+# (`npx -y package` without a version takes whatever was published last, every time).
+PRESETS: tuple[dict, ...] = (
+    {"id": "files", "name": "Files in a folder", "icon": "📁", "needs": "node", "node": 24, "folder": True,
+     "about": "Reads, searches and edits files, only inside the folder you pick.",
+     "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem@2.2.0", "{folder}"]},
+    {"id": "git", "name": "Git repository", "icon": "🌿", "needs": "uv", "folder": True,
+     "about": "Status, history, diffs and commits, only in the Git repository you pick.",
+     "command": ["uvx", "mcp-server-git@2026.11.4", "--repository", "{folder}"]},
+    {"id": "browser", "name": "Web browser", "icon": "🌐", "needs": "node", "node": 18,
+     "about": "Opens pages in its own browser window, reads, clicks and fills them in. A fresh profile each time: "
+              "none of your sign-ins, nothing saved.",
+     "command": ["npx", "-y", "@playwright/mcp@0.0.84", "--isolated", *(["--browser", "msedge"] if sys.platform == "win32" else [])]},
+    {"id": "thinking", "name": "Step-by-step thinking", "icon": "🧠", "needs": "node", "node": 24,
+     "about": "Helps the model plan a hard problem in numbered steps. It runs on this computer and sends nothing anywhere.",
+     "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking@2.1.1"]},
+)
+_PRESET = {p["id"]: p for p in PRESETS}
+RUNTIMES = {"node": ("Node.js", "https://nodejs.org"), "uv": ("uv", "https://docs.astral.sh/uv/getting-started/installation/")}
+
+
+def _node_major() -> int:
+    exe = shutil.which("node")
+    if not exe:
+        return 0
+    try:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+        return int(re.match(r"v?(\d+)", out.strip()).group(1))
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        return 0
+
+
+def runtime(preset: dict, node_major: Callable[[], int] = _node_major) -> str:
+    """"" when this computer can start the preset, else what's missing: "node" / "node-old" / "uv"."""
+    if preset["needs"] == "uv":
+        return "" if shutil.which("uvx") else "uv"
+    if not shutil.which("npx"):
+        return "node"
+    return "" if node_major() >= preset.get("node", 0) else "node-old"
+
+
+def preset_command(pid: str, folder: str = "") -> list[str]:
+    p = _PRESET[pid]
+    return [folder if x == "{folder}" else x for x in p["command"]]
+
+
+def pinned_version(pid: str) -> str:
+    for x in _PRESET[pid]["command"]:
+        m = re.search(r"[^@]@(\d[\w.\-]*)$", x)
+        if m:
+            return m.group(1)
+    return ""
+
+
+_RUNNERS = {"npx": ("-y", "--yes", "-q", "--quiet"), "bunx": ("-y", "--bun"), "pnpx": ("-y",), "uvx": ("-q", "--quiet"),
+            "pipx": ("run", "-q", "--quiet")}
+
+
+def unpinned(command: list[str]) -> bool:
+    """True for `npx -y pkg` / `uvx pkg` without a version: each start may run newer code nobody checked."""
+    if not command:
+        return False
+    run = Path(command[0]).name.lower().removesuffix(".cmd").removesuffix(".exe")
+    if run not in _RUNNERS:
+        return False
+    args = list(command[1:])
+    if run == "uvx" and "--from" in args:
+        i = args.index("--from")
+        pkg = args[i + 1] if i + 1 < len(args) else ""
+    else:
+        pkg = next((a for a in args if a not in _RUNNERS[run] and not a.startswith("-")), "")
+    if not pkg:
+        return False
+    if run in ("uvx", "pipx"):
+        return not re.search(r"(==|@)\d", pkg)
+    body = pkg[1:] if pkg.startswith("@") else pkg
+    return not re.search(r"@\d", body)
 
 
 # ---------------------------------------------------------------- settings (mcp.json, no secrets)
@@ -294,7 +376,8 @@ class Server:
                         raise McpError("no command")
                     self._conn = _Stdio(cmd, sec["env"])
                 self._req("initialize", {"protocolVersion": PROTOCOL, "capabilities": {},
-                                         "clientInfo": {"name": "Lanterna", "version": __version__}}, START_TIMEOUT)
+                                         "clientInfo": {"name": "Lanterna", "version": __version__}},
+                          FIRST_START if self.conf.get("preset") else START_TIMEOUT)
                 self._conn.notify("notifications/initialized")
                 tools, cursor = [], None
                 for _ in range(10):
@@ -426,13 +509,64 @@ class Hub:
         out = []
         for c in self.cfg["servers"]:
             srv = self.servers.get(c["id"])
+            pid = c.get("preset") if c.get("preset") in _PRESET else ""
+            newer = bool(pid) and preset_command(pid, c.get("folder", "")) != list(c.get("command") or [])
             out.append({"id": c["id"], "name": c.get("name", ""), "kind": c.get("kind", "stdio"), "on": c.get("on", True),
+                        "preset": pid, "version": c.get("version", ""), "newer": pinned_version(pid) if newer else "",
+                        "unpinned": c.get("kind") != "http" and unpinned(list(c.get("command") or [])),
                         "where": c.get("url", "") if c.get("kind") == "http" else " ".join(c.get("command") or []),
                         "state": srv.state if srv else "off", "error": srv.error if srv else "",
                         "allow": list(c.get("allow") or []), "has_secret": bool(keys.stored_key(f"mcp-{c['id']}")),
                         "tools": [{"name": t["name"], "description": str(t.get("description") or "")[:200]}
                                   for t in (srv.tools if srv else [])]})
         return {"enabled": self.cfg["enabled"], "warned": self.cfg["warned"], "servers": out}
+
+    def presets(self, node_major: Callable[[], int] = _node_major) -> list[dict]:
+        """The ready-made servers: what each does, its pinned version, whether it's added, what's missing."""
+        have = {c.get("preset") for c in self.cfg["servers"]}
+        major = None
+
+        def node() -> int:
+            nonlocal major
+            major = node_major() if major is None else major
+            return major
+        return [{"id": p["id"], "name": p["name"], "icon": p["icon"], "about": p["about"], "folder": bool(p.get("folder")),
+                 "version": pinned_version(p["id"]), "added": p["id"] in have, "missing": runtime(p, node),
+                 "needs": RUNTIMES[p["needs"]][0], "node": p.get("node", 0), "link": RUNTIMES[p["needs"]][1],
+                 "command": " ".join(preset_command(p["id"], "<folder>" if p.get("folder") else ""))} for p in PRESETS]
+
+    def add_preset(self, pid: str, folder: str = "", name: str = "") -> str:
+        if pid not in _PRESET:
+            raise McpError("Unknown server.")
+        p = _PRESET[pid]
+        folder = str(folder or "").strip().strip('"')
+        if p.get("folder"):
+            if not folder or not Path(folder).is_dir():
+                raise McpError("Pick a folder first.")
+            from .workspace import too_broad
+            if too_broad(Path(folder)):
+                raise McpError("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.")
+            folder = str(Path(folder).resolve())
+        if runtime(p):
+            raise McpError(f"Needs {RUNTIMES[p['needs']][0]}: {RUNTIMES[p['needs']][1]}")
+        sid = self.add(name or p["name"], "stdio", preset_command(pid, folder))
+        self.cfg = load()
+        for c in self.cfg["servers"]:
+            if c["id"] == sid:
+                c.update(preset=pid, version=pinned_version(pid), **({"folder": folder} if folder else {}))
+        save(self.cfg)
+        self.start()
+        return sid
+
+    def update_preset(self, sid: str) -> None:
+        """Moves a ready-made server to the version this Lanterna pins (after a Lanterna update)."""
+        self.cfg = load()
+        for c in self.cfg["servers"]:
+            if c["id"] == sid and c.get("preset") in _PRESET:
+                c["command"] = preset_command(c["preset"], c.get("folder", ""))
+                c["version"] = pinned_version(c["preset"])
+        save(self.cfg)
+        self.start()
 
     def set_enabled(self, on: bool) -> None:
         self.cfg = load()

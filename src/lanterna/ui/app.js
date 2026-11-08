@@ -1593,6 +1593,8 @@ function openSettings() {
       <label class="check" style="margin-top:0"><input type="checkbox" id="mcp-on"><span><b>${t("Use MCP servers")}</b><small>${t("Off by default. Turning it on first shows what can go wrong.")}</small></span></label>
       <div id="mcp-body" hidden>
         <div id="mcp-list"></div>
+        <p class="mcp-sub">${t("Ready-made servers")} <small class="faint">${t("checked, with the version fixed: their code doesn't change until a Lanterna update")}</small></p>
+        <div id="mcp-presets"></div>
         <details class="task-new" id="mcp-new"><summary class="btn ghost small">${icon("plus")} ${t("Add a server")}</summary>
           <div class="task-form">
             <select class="field" id="mcp-kind"><option value="stdio">${t("A program on this computer")}</option><option value="http">${t("A web address")}</option></select>
@@ -1784,13 +1786,18 @@ function openSettings() {
       const tools = s.on && s.tools.length ? `<details class="mcp-tools"><summary class="faint">${esc(t("Tools: tick the ones that may run without asking"))}</summary>
         ${s.tools.map(x => `<label class="check"><input type="checkbox" data-allow="${esc(s.id)}" value="${esc(x.name)}" ${s.allow.includes(x.name) ? "checked" : ""}>
           <span><b>${esc(x.name)}</b>${x.description ? `<small>${esc(x.description)}</small>` : ""}</span></label>`).join("")}</details>` : "";
-      return `<div class="row mcp-row"><div class="grow"><b>🧩 ${esc(s.name)}</b><small>${esc(s.where)}</small>
-          <small class="plain ${s.state === "error" && s.on ? "sync-err" : "faint"}">${esc(state)}</small>${tools}</div>
+      const pin = s.unpinned ? `<small class="plain mcp-warn">${esc(t("No version fixed: each start may run newer code that nobody checked. Add @version to the package to fix it."))}</small>`
+        : s.preset && s.version ? `<small class="plain faint">${esc(t("Version {v}", { v: s.version }))}</small>` : "";
+      const newer = s.newer ? `<button class="btn ghost small" data-newer="${esc(s.id)}">${esc(t("Update to {v}", { v: s.newer }))}</button>` : "";
+      return `<div class="row mcp-row"><div class="grow"><b>🧩 ${esc(s.preset ? t(s.name) : s.name)}</b><small>${esc(s.where)}</small>
+          <small class="plain ${s.state === "error" && s.on ? "sync-err" : "faint"}">${esc(state)}</small>${pin}${tools}</div>${newer}
         <button class="btn ghost small" data-restart="${esc(s.id)}" title="${esc(t("Restart"))}" ${s.on ? "" : "hidden"}>${icon("refresh")}</button>
         <button class="btn ghost small" data-on="${esc(s.id)}" data-v="${s.on ? 0 : 1}">${esc(s.on ? t("Pause") : t("Resume"))}</button>
         <button class="btn ghost small" data-del="${esc(s.id)}" title="${t("Remove")}">${icon("trash")}</button></div>`;
     }).join("") : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No servers yet.")}</p>`;
     box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { await api.mcp_remove(b.dataset.del); paintMcp(); });
+    box.querySelectorAll("[data-newer]").forEach(b => b.onclick = async () => { b.disabled = true; await api.mcp_update_preset(b.dataset.newer); paintMcp(); });
+    paintPresets();
     box.querySelectorAll("[data-on]").forEach(b => b.onclick = async () => { await api.mcp_update(b.dataset.on, { on: b.dataset.v === "1" }); paintMcp(); });
     box.querySelectorAll("[data-restart]").forEach(b => b.onclick = async () => { b.disabled = true; b.innerHTML = `<span class="spinner"></span>`; await api.mcp_restart(b.dataset.restart); paintMcp(); });
     box.querySelectorAll("[data-allow]").forEach(c => c.onchange = async () => {
@@ -1799,6 +1806,45 @@ function openSettings() {
       await api.mcp_update(sid, { allow });
     });
     if (st.servers.some(s => s.on && s.state === "starting")) setTimeout(() => { if (box.isConnected) paintMcp(); }, 1000);
+  };
+  // ready-made servers: one button each; a folder one asks for the folder first, then shows the exact command
+  const paintPresets = async () => {
+    const pbox = $("#mcp-presets", body);
+    if (!pbox || pbox.dataset.busy) return;
+    const { presets } = await api.mcp_presets();
+    pbox.innerHTML = presets.map(p => {
+      const need = p.missing === "node-old" ? t("Needs {name} {v} or newer", { name: p.needs, v: p.node }) : t("Needs {name}", { name: p.needs });
+      const btn = p.added ? `<span class="faint mcp-added">${icon("check")} ${t("Added")}</span>`
+        : p.missing ? `<button class="btn ghost small" data-get="${esc(p.link)}" title="${esc(p.link)}">${esc(need)} ${icon("ext")}</button>`
+        : `<button class="btn primary small" data-preset="${esc(p.id)}">${t(p.folder ? "Pick a folder and add" : "Add")}</button>`;
+      return `<div class="row mcp-row mcp-preset"><div class="grow"><b>${p.icon} ${esc(t(p.name))}</b><small class="plain">${esc(t(p.about))}</small>
+        <small class="faint">${esc(t("Version {v}", { v: p.version }))}${p.missing ? "" : " · " + esc(t("Uses {name}", { name: p.needs }))}</small></div>${btn}</div>`;
+    }).join("");
+    pbox.querySelectorAll("[data-get]").forEach(b => b.onclick = () => api.open_url(b.dataset.get));
+    pbox.querySelectorAll("[data-preset]").forEach(b => b.onclick = async () => {
+      const p = presets.find(x => x.id === b.dataset.preset);
+      let folder = "";
+      if (p.folder) {
+        const errs = { not_found: t("There is no such folder."), too_broad: t("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.") };
+        let r = await api.choose_folder("");
+        if (r.error === "no_dialog") {                    // browser mode: type the path
+          const typed = (prompt(t("Folder")) || "").trim();
+          if (!typed) return;
+          r = await api.check_folder(typed);
+        }
+        if (!r.ok) { if (r.error !== "cancelled") toast(errs[r.error] || r.error); return; }
+        if (!r.path) return;
+        folder = r.path;
+      }
+      mcpConfirm([{ kind: "stdio", where: p.command.replace("<folder>", folder) }], async () => {
+        pbox.dataset.busy = "1"; b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
+        const r = await api.mcp_add_preset(p.id, folder);
+        delete pbox.dataset.busy;
+        if (!r.ok) { toast(t(r.error)); return paintPresets(); }
+        toast(t("Added. The first start can take a minute: it downloads the server."));
+        paintMcp();
+      });
+    });
   };
   const paintVoice = async () => {
     const v = await api.voice_status();

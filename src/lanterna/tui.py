@@ -1038,6 +1038,7 @@ class SettingsScreen(ModalScreen[str]):
             yield Static(t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.", lang), classes="muted")
             yield Button("", id="mcptoggle")
             yield Vertical(id="mcplist")
+            yield Vertical(id="mcppresets")
             with Horizontal(classes="keyrow", id="mcpaddrow"):
                 yield Input(placeholder=t("Command or https:// address", lang), id="mcpwhere")
                 yield Input(placeholder=t("Name (optional)", lang), id="mcpname")
@@ -1247,13 +1248,59 @@ class SettingsScreen(ModalScreen[str]):
         for s in st["servers"]:
             state = (t("Off", lang) if not s["on"] else t("{n} tools", lang, n=len(s["tools"])) if s["state"] == "ready"
                      else t("Didn't start: {error}", lang, error=s["error"]) if s["state"] == "error" else t("Starting…", lang))
-            box.mount(Horizontal(Label(f"🧩 {s['name']}  ({state})  {s['where'][:60]}", markup=False),
-                                 Button(t("Pause" if s["on"] else "Resume", lang), id=f"mcpon-{s['id']}-{0 if s['on'] else 1}"),
+            pin = ("  ⚠ " + t("No version fixed: each start may run newer code that nobody checked. Add @version to the package to fix it.", lang)
+                   if s.get("unpinned") else "")
+            row = [Label(f"🧩 {t(s['name'], lang) if s.get('preset') else s['name']}  ({state})  {s['where'][:60]}{pin}", markup=False)]
+            if s.get("newer"):
+                row.append(Button(t("Update to {v}", lang, v=s["newer"]), id=f"mcpnew-{s['id']}"))
+            box.mount(Horizontal(*row, Button(t("Pause" if s["on"] else "Resume", lang), id=f"mcpon-{s['id']}-{0 if s['on'] else 1}"),
                                  Button(t("Remove", lang), id=f"mcpdel-{s['id']}"), classes="listrow"))
         if st["enabled"] and not st["servers"]:
             box.mount(Static(t("No servers yet.", lang), classes="muted"))
+        pre = self.query_one("#mcppresets", Vertical)
+        pre.remove_children()
+        pre.display = st["enabled"]
+        if st["enabled"]:
+            pre.mount(Static(t("Ready-made servers", lang) + " — " + t("checked, with the version fixed: their code doesn't change until a Lanterna update", lang)
+                             + (" " + t("For a folder one, type the folder in the box below first.", lang)), classes="muted"))
+            for p in self.app.api.mcp_presets()["presets"]:
+                need = (t("Needs {name} {v} or newer", lang, name=p["needs"], v=p["node"]) if p["missing"] == "node-old"
+                        else t("Needs {name}", lang, name=p["needs"]) + f" ({p['link']})")
+                text = f"{p['icon']} {t(p['name'], lang)} · {t('Version {v}', lang, v=p['version'])} — {t(p['about'], lang)}"
+                tail = ([Label("✓ " + t("Added", lang))] if p["added"] else [Label(need, classes="muted")] if p["missing"]
+                        else [Button(t("Add", lang), id=f"mcppre-{p['id']}")])
+                pre.mount(Horizontal(Label(text, markup=False), *tail, classes="listrow"))
         if any(s["on"] and s["state"] == "starting" for s in st["servers"]):
             self.set_timer(1.0, self._paint_mcp)
+
+    def _mcp_preset(self, pid: str) -> None:
+        lang = L(self.app)
+        p = next((x for x in self.app.api.mcp_presets()["presets"] if x["id"] == pid), None)
+        if p is None:
+            return
+        folder = ""
+        if p["folder"]:
+            folder = self.query_one("#mcpwhere", Input).value.strip().strip('"')
+            chk = self.app.api.check_folder(folder) if folder else {"ok": False, "error": ""}
+            if not chk.get("ok") or not chk.get("path"):
+                self.app.notify(t({"not_found": "There is no such folder.", "too_broad": "Choose a smaller folder: not a whole disk, your whole home folder or a system folder."}
+                                  .get(chk.get("error"), "For a folder one, type the folder in the box below first."), lang), severity="warning")
+                return
+            folder = chk["path"]
+        ask = (t("Lanterna will start this program with your rights each time it opens:", lang) + "\n" + p["command"].replace("<folder>", folder)
+               + "\n" + t("Add it only if you trust where it comes from.", lang))
+
+        def done(yes: bool) -> None:
+            if not yes:
+                return
+            r = self.app.api.mcp_add_preset(pid, folder)
+            if not r.get("ok"):
+                self.app.notify(t(r.get("error", ""), lang), severity="warning")
+                return
+            self.query_one("#mcpwhere", Input).value = ""
+            self.app.notify(t("Added. The first start can take a minute: it downloads the server.", lang))
+            self._paint_mcp()
+        self.app.push_screen(ConfirmScreen(ask, t("Add", lang)), done)
 
     def _mcp_toggle(self) -> None:
         lang = L(self.app)
@@ -1488,6 +1535,11 @@ class SettingsScreen(ModalScreen[str]):
             self._mcp_add()
         elif bid.startswith("mcpdel-"):
             self.app.api.mcp_remove(bid[7:])
+            self._paint_mcp()
+        elif bid.startswith("mcppre-"):
+            self._mcp_preset(bid[7:])
+        elif bid.startswith("mcpnew-"):
+            self.app.api.mcp_update_preset(bid[7:])
             self._paint_mcp()
         elif bid.startswith("mcpon-"):
             sid, on = bid[6:].rsplit("-", 1)

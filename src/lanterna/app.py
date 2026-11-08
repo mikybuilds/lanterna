@@ -855,6 +855,26 @@ class Api:
             return {"ok": False, "error": f"{e.__class__.__name__}: {e}"}
         return {"ok": True, "id": sid, **self.mcp.status()}
 
+    def mcp_presets(self) -> dict:
+        """Settings → MCP servers → Ready-made: a few checked servers with pinned versions."""
+        return {"presets": self.mcp.presets()}
+
+    def mcp_add_preset(self, pid: str, folder: str = "") -> dict:
+        from . import mcp
+        if not self.mcp.cfg["enabled"]:
+            return {"ok": False, "error": "MCP servers are off."}
+        try:
+            sid = self.mcp.add_preset(str(pid or ""), str(folder or ""))
+        except mcp.McpError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:                                # noqa: BLE001  (secure store unavailable)
+            return {"ok": False, "error": f"{e.__class__.__name__}: {e}"}
+        return {"ok": True, "id": sid, **self.mcp.status()}
+
+    def mcp_update_preset(self, sid: str) -> dict:
+        self.mcp.update_preset(str(sid))
+        return self.mcp.status()
+
     def mcp_import(self, text: str) -> dict:
         """Settings → MCP servers → Paste JSON: the {"mcpServers": {...}} block many server pages show."""
         from . import mcp
