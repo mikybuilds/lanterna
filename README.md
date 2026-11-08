@@ -82,6 +82,18 @@ On first launch you pick a language, your name and your first free service:
 | Extras | strong open models (GPT-OSS, Qwen) | understands photos and documents, long memory |
 | Get a key | [console.groq.com/keys](https://console.groq.com/keys) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 
+More free services can be added any time in Settings → Models (each needs its own free key; none asks for a card):
+
+| Service | What to know |
+|---|---|
+| OpenRouter | only its free models are used: 50 requests a day |
+| Mistral | needs a phone number; on the free plan Mistral may use what you send to train its models |
+| NVIDIA | needs a phone number; free for personal use and testing, about 40 requests a minute |
+| Z.ai (GLM) | only its free GLM Flash models are used, so nothing is ever charged |
+| Cohere | 1,000 free requests a month, for personal use only |
+
+Lanterna only ever uses free models, so a key never costs you money. Cerebras and GitHub Models were removed when they stopped being free.
+
 In a terminal `lanterna` opens a full-screen app (chats on the left, Ctrl+N new chat, Ctrl+S settings, Ctrl+O models). `lanterna chat` gives a simple line-by-line chat.
 
 <p align="center"><img src="docs/screen-terminal.png" width="720" alt="Lanterna in a terminal"></p>
@@ -130,7 +142,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 ## Limits and updates
 
 - The **bar under the message box** shows how much of the free limit of the model in use is left and when it resets; click it for the details.
-- **Settings → Limits** shows, per model, how many requests you made today, what the service says is left (Groq, Cerebras, Mistral and GitHub tell it; Gemini only says it when the limit is reached) and which models are resting after a limit.
+- **Settings → Limits** shows, per model, how many requests you made today, what the service says is left (Groq, Mistral and some others tell it; Gemini only says it when the limit is reached) and which models are resting after a limit.
 - **What went to the model:** under each reply a fold-out line lists what this answer sent and where — your message and how many earlier ones, memory facts, file names, a search, a web page. Never contents of files you didn't open. Stored with the reply on this device only.
 - **Out of free limits?** In Cloud mode a downloaded local model answers when every online model is resting or there is no internet (Settings → Local models; on by default, can be turned off). On Windows the same screen can install Ollama with winget after you confirm.
 - **Check Lanterna** (About, or `lanterna doctor`): keys, internet, sync, folders, programs and local models, each with a plain sentence. A bug report includes the quick checks (never keys, chats or your name).
@@ -139,7 +151,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
-- [x] All free services (Groq, Gemini, OpenRouter, Cerebras, Mistral) and automatic discovery of models that are free right now, with fallback when a limit is reached
+- [x] All free services (Groq, Gemini, OpenRouter, Mistral, NVIDIA, Z.ai, Cohere) and automatic discovery of models that are free right now, with fallback when a limit is reached
 - [x] Windows app (window with chats, settings, first-run setup)
 - [x] Windows installer (Setup.exe) and portable zip, built by the release workflow
 - [x] Update notice at start with steps for your kind of install (can be turned off)
@@ -197,7 +209,7 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 ## Privacy
 
 - **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. The GitHub connector, if you connect it, can only write files in the repositories you chose, and only after you confirm. Help with this computer (Settings → Computer) sees only your standard folders, and every change waits for Confirm. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
-- **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. **Local mode:** nothing leaves your computer.
+- **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. On their free plans Gemini and Mistral may use what you send to improve their models. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
 - Web pages and files Lanterna reads are treated as information, never as instructions. So are answers from MCP servers.
 - **Voice input** is off by default. Online (Groq Whisper), your recording goes to Groq to become text; on this computer (whisper.cpp) it never leaves your PC. Recordings are not kept.

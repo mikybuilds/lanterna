@@ -1,7 +1,7 @@
 """Finds chat models that are free to use right now and ranks them.
 
 - OpenRouter publishes prices: only models priced 0 (prompt and completion) are taken.
-- Groq, Gemini, Cerebras and Mistral have free tiers per account: their chat models are taken
+- Groq, Gemini, Mistral, NVIDIA, Z.ai and Cohere have free tiers per account: their chat models are taken
   and the best few are pinged once, so models that are blocked or paid for this account drop out.
 - Models nobody has heard of yet are scored by size and family, so new free models are picked up automatically.
 Results are cached for a day.
@@ -29,6 +29,12 @@ _SKIP = re.compile(r"whisper|tts|speech|transcri|audio-preview|guard|safeguard|c
 
 # Known families: (pattern, score 0–100). First match wins; unknown models fall back to size.
 _KNOWN = [
+    (r"glm-[\d.]+v?-flash", 72), (r"deepseek-v4[\d.]*-flash", 80), (r"deepseek-v4", 88), (r"minimax-m[2-9]", 82),
+    # NVIDIA lists many generations: the new ones first, the older big ones below them
+    (r"nemotron-3-ultra", 90), (r"nemotron-3-super", 86), (r"mistral-large-4", 90),
+    (r"mistral-large-2-instruct|mistralai/mistral-large$", 74), (r"nemotron-4-340b|nemotron-(70|51)b", 72),
+    (r"llama-3\.2-90b-vision", 70), (r"llama-3\.1-405b", 74), (r"palmyra", 64),
+    (r"command-a-reasoning", 82), (r"command-a", 78), (r"command-r-plus", 70), (r"command-r7b", 55), (r"command-r", 64),
     (r"gemini-[\d.]+-pro", 94), (r"gemini-[\d.]+-flash-lite", 76), (r"gemini-[\d.]+-flash", 88),
     (r"gpt-oss-120b", 86), (r"gpt-oss-20b", 72), (r"gpt-[45]", 88),
     (r"deepseek-(r1|v3|chat|reasoner)", 86), (r"kimi-k2", 86), (r"glm-4\.[5-9]|glm-5", 84),
@@ -103,10 +109,13 @@ def candidates_for(client: Client) -> list[Candidate]:
     pid = client.provider.id
     if pid == "openrouter":
         return _free_openrouter(raw)
+    p = client.provider
+    keep = re.compile(p.keep, re.I) if p.keep else None
+    drop = re.compile(p.drop, re.I) if p.drop else None
     out = []
     for m in raw:
         mid = m["id"]
-        if _SKIP.search(mid):
+        if _SKIP.search(mid) or (keep and not keep.search(mid)) or (drop and drop.search(mid)):
             continue
         if pid == "gemini" and not re.search(r"gemini|gemma", mid):
             continue
@@ -138,7 +147,7 @@ def discover(preferred: str = "", ping: bool = True, providers: list[str] | None
         except ProviderError:
             continue
         if ping:
-            top = cands[:PING_PER_PROVIDER]
+            top = cands[:min(PING_PER_PROVIDER, cl.provider.pings)]
             with ThreadPoolExecutor(max_workers=len(top) or 1) as ex:
                 list(ex.map(lambda c: _check(c, cl), top))
         found += cands

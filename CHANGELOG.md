@@ -3,9 +3,12 @@
 ## Unreleased
 
 **New**
+- **Three more free services:** NVIDIA (strong open models such as Kimi, DeepSeek, Nemotron), Z.ai (only its free GLM Flash models, so nothing is ever charged) and Cohere (1,000 free requests a month). Add their keys in Settings → Models.
+- **What to know before signing up:** each service in Settings → Models now says what it asks for (a phone number, personal use only) and whether it may use what you send to train its models.
 - **Lists in your messages:** in the message box, Shift+Enter on a line like “1. …” starts “2. ” by itself (“- …” gives the next “- ”); Shift+Enter on an empty item ends the list. Sent, such lines show as a real list, like in Claude or ChatGPT; everything else in your message stays exactly as you typed it.
 
 **Fixed**
+- **Cerebras is gone:** its free plan ended in July 2026 (now a card trial, then pay per use). Lanterna never spends your money, so it no longer uses Cerebras; a saved Cerebras choice falls back to your other services.
 - **Numbered lists showed 1, 1, 1:** when an answer had text between the items (“1. Film … Vibe: … 2. Film …”), every item started a new list from 1. The numbers now continue, lines under an item stay with it, and when a model writes “1.” before every item, Lanterna counts on. The terminal app counts on too.
 
 ## 1.1.2 — Update now works when GitHub's download link doesn't

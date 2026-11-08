@@ -21,6 +21,7 @@ PATTERNS = {
     "OpenAI-style key": r"\bsk-(?:proj-)?[A-Za-z0-9]{32,}",
     "GitHub token": r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}",
     "Cerebras key": r"\bcsk-[a-z0-9]{30,}",
+    "NVIDIA key": r"\bnvapi-[A-Za-z0-9_-]{30,}",
     "Slack/Telegram token": r"\bxox[abpr]-[A-Za-z0-9-]{10,}|\b\d{8,10}:AA[A-Za-z0-9_-]{30,}",
     "private key": r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",
     "e-mail address": r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",

@@ -18,20 +18,40 @@ class Provider:
     key_url: str = ""                     # where the user creates a free key
     needs_key: bool = True
     local: bool = False
+    note: str = ""                        # what to know before signing up (Settings → Services), translated by the UI
+    models_url: str = ""                  # where the model list is, when it isn't <base_url>/models
+    keep: str = ""                        # only models matching this are used (the free ones on a mixed service)
+    drop: str = ""                        # models to leave out on this service (not chat, old base models)
+    known: tuple[str, ...] = ()           # used when the service has no model list
+    pings: int = 3                        # models tried once a day (few for small monthly limits)
 
 
 PROVIDERS: dict[str, Provider] = {p.id: p for p in [
-    Provider("groq", "Groq", "https://api.groq.com/openai/v1", "https://console.groq.com/keys"),
-    Provider("gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "https://aistudio.google.com/apikey"),
-    Provider("openrouter", "OpenRouter", "https://openrouter.ai/api/v1", "https://openrouter.ai/settings/keys"),
-    Provider("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "https://cloud.cerebras.ai"),
-    Provider("mistral", "Mistral", "https://api.mistral.ai/v1", "https://console.mistral.ai/api-keys"),
+    Provider("groq", "Groq", "https://api.groq.com/openai/v1", "https://console.groq.com/keys",
+             note="Quick sign-up with Google or GitHub."),
+    Provider("gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "https://aistudio.google.com/apikey",
+             note="Needs a Google account. On the free plan Google may use what you send to improve its models."),
+    Provider("openrouter", "OpenRouter", "https://openrouter.ai/api/v1", "https://openrouter.ai/settings/keys",
+             note="Only its free models are used: 50 requests a day."),
+    Provider("mistral", "Mistral", "https://api.mistral.ai/v1", "https://console.mistral.ai/api-keys",
+             note="Needs a phone number. On the free plan Mistral may use what you send to train its models."),
+    Provider("nvidia", "NVIDIA", "https://integrate.api.nvidia.com/v1", "https://build.nvidia.com/settings/api-keys",
+             note="Needs a phone number. Free for personal use and testing, about 40 requests a minute.",
+             drop=r"reward|nemotron-parse|detector|deplot|kosmos|fuyu|neva-|/vila|clip|riva-|diffusion|calibration|cosmos|"
+                  r"muse-|chatqa|codegemma|starcoder|codellama|recurrentgemma|llama2-|-v0\.1$|gemma-2b$|palmyra-(fin|med)"),
+    Provider("zai", "Z.ai (GLM)", "https://api.z.ai/api/paas/v4", "https://z.ai/manage-apikey/apikey-list",
+             note="Only its free GLM Flash models are used, so nothing is ever charged.",
+             keep=r"^glm-[\d.]+v?-flash$", known=("glm-4.7-flash", "glm-4.6v-flash", "glm-4.5-flash")),
+    Provider("cohere", "Cohere", "https://api.cohere.ai/compatibility/v1", "https://dashboard.cohere.com/api-keys",
+             note="1,000 free requests a month, for personal use only.",
+             models_url="https://api.cohere.ai/v1/models?endpoint=chat", pings=1),
     Provider("ollama", "Ollama (local)", "http://127.0.0.1:11434/v1", "https://ollama.com/download", needs_key=False, local=True),
 ]}
 
 # Services that closed: settings, caches and synced keys that still name them are ignored.
 # GitHub Models was shut down by GitHub on 30 July 2026 (its address now answers "OK" to everything).
-RETIRED: dict[str, str] = {"github": "GitHub Models"}
+# Cerebras ended its free plan on 21 July 2026 (a card trial, then pay per use): Lanterna never spends money.
+RETIRED: dict[str, str] = {"github": "GitHub Models", "cerebras": "Cerebras"}
 
 # Good default chat models per provider, best first. Stage 1 replaces this with live discovery.
 PREFERRED: dict[str, list[str]] = {
@@ -112,6 +132,7 @@ class Client:
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         headers["User-Agent"] = "Lanterna"
         self.provider = provider
+        self.guessed = False                 # True when the model list came from Provider.known (the service has none)
         self._timeout = timeout
         self._http = httpx.Client(base_url=provider.base_url, headers=headers, timeout=timeout, transport=transport)
 
@@ -121,9 +142,12 @@ class Client:
     def raw_models(self) -> list[dict]:
         """The provider's model list as returned (OpenRouter includes prices; others just ids)."""
         try:
-            r = self._http.get("models")
+            r = self._http.get(self.provider.models_url or "models")
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
+        if r.status_code in (400, 404, 405) and self.provider.known:     # no model list there: the known ones
+            self.guessed = True
+            return [{"id": m} for m in self.provider.known]
         if r.status_code != 200:
             raise _error(r)
         try:
@@ -138,10 +162,16 @@ class Client:
                 m = dict(m)
                 m["id"] = str(m.get("id") or m.get("name")).removeprefix("models/")
                 out.append(m)
+        keep = re.compile(self.provider.keep, re.I) if self.provider.keep else None
+        if self.provider.known and keep and not any(keep.search(m["id"]) for m in out):   # its free ones aren't listed
+            self.guessed = True
+            return [{"id": m} for m in self.provider.known]
         return out
 
     def list_models(self) -> list[str]:
-        return [m["id"] for m in self.raw_models()]
+        """The models Lanterna may use here (a service with paid models too gives only its free ones)."""
+        keep = re.compile(self.provider.keep, re.I) if self.provider.keep else None
+        return [m["id"] for m in self.raw_models() if keep is None or keep.search(m["id"])]
 
     def ping(self, model: str) -> float:
         """Tiny request to check that a model answers right now. Returns seconds; raises ProviderError."""

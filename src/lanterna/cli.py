@@ -53,6 +53,8 @@ def _stamp_key(pid: str) -> None:
 def ask_key(pid: str, lang: str) -> bool:
     p = PROVIDERS[pid]
     console.print(t("Get a free key here: {url}", lang, url=f"[link={p.key_url}]{p.key_url}[/link]"))
+    if p.note:
+        console.print(f"[dim]{t(p.note, lang)}[/]", markup=True, highlight=False)
     hint = t("Create an account, press “Create API key”, copy it and paste it below. It is stored in your system's secure vault.", lang)
     console.print(f"[dim]{hint}[/]")
     for _ in range(3):

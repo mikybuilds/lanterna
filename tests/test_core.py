@@ -86,7 +86,10 @@ def test_requests_stay_on_provider_host(pid):
 
 def test_no_unexpected_domains_in_sources():
     allowed = {"api.groq.com", "console.groq.com", "generativelanguage.googleapis.com", "aistudio.google.com",
-               "openrouter.ai", "api.cerebras.ai", "cloud.cerebras.ai", "api.mistral.ai", "console.mistral.ai",
+               "openrouter.ai", "api.mistral.ai", "console.mistral.ai",
+               # NVIDIA, Z.ai and Cohere: free tiers (keys made by the user)
+               "integrate.api.nvidia.com", "build.nvidia.com", "api.z.ai", "z.ai", "api.cohere.ai",
+               "dashboard.cohere.com",
                "git" "hub.com", "localhost", "127.0.0.1", "ollama.com",
                # keyless tools: weather (Open-Meteo) and web search (DuckDuckGo)
                "api.open-meteo.com", "geocoding-api.open-meteo.com", "air-quality-api.open-meteo.com",

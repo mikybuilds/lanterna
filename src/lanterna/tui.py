@@ -235,6 +235,8 @@ class KeyScreen(ModalScreen[bool]):
         with Vertical(classes="dialog"):
             yield Label(t("Key for {p}", lang, p=p.name), classes="h")
             yield Static(f"[link='{p.key_url}']{p.key_url}[/link]")
+            if p.note:
+                yield Static(t(p.note, lang), classes="muted", markup=False)
             yield Static("\n".join([t("1. Sign in or create a free account.", lang),
                                     t("2. Create an API key and copy it.", lang),
                                     t("3. Paste it here.", lang)]), classes="muted")
@@ -1505,6 +1507,8 @@ class SettingsScreen(ModalScreen[str]):
             row.mount(Button(t("Change", lang) if p["has_key"] else t("Add", lang), id=f"set-{p['id']}"))
             if p["has_key"]:
                 row.mount(Button(t("Remove", lang), id=f"del-{p['id']}", variant="error"))
+            if p.get("note"):                                # what to know before signing up, under the row
+                box.mount(Static(t(p["note"], lang), classes="muted", markup=False))
 
     @on(Button.Pressed)
     def _pressed(self, ev: Button.Pressed) -> None:

@@ -1553,7 +1553,7 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Services")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Add keys for more services: when one runs out of free limit, Lanterna switches to the next.")}</p>
       <div>${S.providers.filter(p => !p.local).map(p => `<div class="row" data-p="${p.id}">
-        <div class="grow"><b>${esc(p.name)}</b><small>${p.has_key ? esc(p.masked) : t("No key")}</small></div>
+        <div class="grow"><b>${esc(p.name)}</b><small>${p.has_key ? esc(p.masked) : t("No key")}</small>${p.note ? `<small class="plain faint">${esc(t(p.note))}</small>` : ""}</div>
         <a class="link" style="font-size:13px" data-href="${esc(p.key_url)}">${icon("ext")}</a>
         ${p.has_key ? `<button class="btn ghost small" data-act="rm">${t("Remove")}</button>` : ""}
         <button class="btn ${p.has_key ? "ghost" : "primary"} small" data-act="add">${p.has_key ? t("Change") : t("Add")}</button>

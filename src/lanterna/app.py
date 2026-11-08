@@ -149,7 +149,7 @@ class Api:
         return {
             "version": __version__, "author": AUTHOR, "homepage": HOMEPAGE,
             "settings": asdict(s), "langs": LANGS, "first": FIRST_CHOICES, "strings": catalog(s.lang),
-            "providers": [{"id": p.id, "name": p.name, "key_url": p.key_url, "local": p.local,
+            "providers": [{"id": p.id, "name": p.name, "key_url": p.key_url, "local": p.local, "note": p.note,
                            "has_key": bool(keys.get_key(p.id)), "masked": keys.mask(keys.get_key(p.id))}
                           for p in PROVIDERS.values()],
             "model": self._router.current.label if self._router and self._router.current else "",
@@ -209,7 +209,13 @@ class Api:
             return {"ok": False, "error": "empty"}
         try:
             c = Client(p, key, timeout=20)
-            c.list_models()
+            models = c.list_models()
+            if c.guessed and models:                         # no real list, so the key wasn't checked yet: one tiny request
+                try:
+                    c.ping(models[0])
+                except ProviderError as e:
+                    if e.kind not in ("rate", "timeout"):            # busy or slow still means the key was accepted
+                        raise
             c.close()
         except ProviderError as e:
             bad = e.kind == "other" and e.status == 200          # answered, but not like that service does

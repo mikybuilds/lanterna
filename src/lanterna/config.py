@@ -23,6 +23,9 @@ def data_dir() -> Path:
     return p
 
 
+# providers.RETIRED (kept here too: config can't import providers)
+RETIRED_IDS = ("github", "cerebras")
+
 @dataclass
 class Settings:
     lang: str = "en"                       # interface language: en | uk | it
@@ -78,7 +81,7 @@ class Settings:
         except (OSError, ValueError):
             return cls()
         known = {k: v for k, v in raw.items() if k in cls.__dataclass_fields__}
-        if known.get("provider") in ("github",):                # a service that closed (providers.RETIRED)
+        if known.get("provider") in RETIRED_IDS:                # a service that closed or stopped being free
             known["provider"] = ""
         return cls(**known)
 

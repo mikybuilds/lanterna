@@ -1,7 +1,7 @@
 """How much of each free limit is left.
 
 Two sources, both local:
-- what the service itself says in its answer headers (Groq, Cerebras, Mistral send
+- what the service itself says in its answer headers (Groq, Mistral and others send
   "x-ratelimit-remaining-…"; Google Gemini sends nothing);
 - Lanterna's own count of requests per model today, and the limit a service named in its "limit reached" message
   (Gemini: "… limit: 20, model: …").
@@ -19,7 +19,7 @@ from .config import data_dir
 
 _HDR = re.compile(r"^x-ratelimit-(limit|remaining|reset)-(requests|tokens)(?:-(minute|hour|day|month))?$")
 # When a header has no period in its name, the service's documented one.
-_DEFAULT_PERIOD = {"groq": {"requests": "day", "tokens": "minute"}, "github": {"requests": "day", "tokens": "minute"}}
+_DEFAULT_PERIOD = {"groq": {"requests": "day", "tokens": "minute"}}
 _LIMIT_IN_MSG = re.compile(r"\blimit:\s*(\d+)", re.I)
 LONG_REST = 10 * 60          # longer waits are kept in limits.json, so a restart doesn't try that model again
 GEMINI_DAY = 20              # free requests per day of a Gemini model when it hasn't told us yet (shown as "about")
