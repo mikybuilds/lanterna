@@ -1,5 +1,5 @@
 """Lanterna — a friendly AI assistant by mikybuilds."""
 
-__version__ = "1.1.6b2"
+__version__ = "1.1.6b3"
 AUTHOR = "mikybuilds"
 HOMEPAGE = "https://github.com/mikybuilds/lanterna"
