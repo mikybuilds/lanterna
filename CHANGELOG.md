@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**New**
+- **Connectors** (sidebar), with two tabs like Claude's directory. **Browse**: about 75 ready-made connectors from the services themselves (Notion, Linear, Jira and Confluence, Asana, Canva, Miro, Dropbox, Stripe, Supabase, Vercel, Zapier…), by category, with search. **Yours**: what you connected, with sign-in, on/off and Remove.
+- **Sign in through the browser**: press + and the service's own sign-in page opens; the sign-in is kept in the system's secure vault and renewed on its own.
+- **Search the public MCP Registry** from Browse, shown apart from the checked ones, with who made each server.
+- **Mail**: Gmail, ukr.net, iCloud, Yahoo, Zoho or any IMAP mail through an app password. Lanterna can list, read (without marking as read), sort into folders or labels, save drafts and send; every change waits for Confirm.
+- **When a service can't be connected** (Gmail's own connector, Slack, Figma…), Connectors says why and offers another way, and Lanterna can look for a connector or a workaround itself when you ask it to work with a service.
+
 **Fixed**
 - **Memory read oddly:** facts came out as “They like teen movies” and showed asterisks (*Fear*). New facts are written like notes (“Likes teen movies.”), and Markdown marks no longer show in Settings → Memory, also on facts saved before (the saved text itself isn't changed).
 

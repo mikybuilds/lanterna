@@ -67,7 +67,7 @@ def too_broad(p: Path) -> str:
 @dataclass
 class Action:
     id: str
-    kind: str                                  # write_new | write_replace | write_append | mkdir | move | drive_folder | drive_upload
+    kind: str                                  # write_new | write_replace | write_append | mkdir | move | drive_folder | drive_upload | mail_*
     details: dict
     run: Callable[[], str]
     tid: int = 0

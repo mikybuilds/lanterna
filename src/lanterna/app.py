@@ -86,6 +86,8 @@ class Api:
         self.places = pcfiles.Places(self.actions, lang=lambda: self.settings.lang)
         self.apps = apps.Apps(self.actions)
         self.system = pcsys.System(self.actions)
+        from . import mail as mailbox
+        self.mail = mailbox.Connector()                       # the user's mailbox (app password in the vault)
         from . import mcp
         self.mcp = mcp.Hub(self.actions)                      # outside tools the user added (off until they turn it on)
         self.mcp.start()
@@ -94,7 +96,7 @@ class Api:
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
                                + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools()
-                               + self.mcp.tools())
+                               + mailbox.mail_tools(self.mail, self.actions) + [self._connector_tool()] + self.mcp.tools())
         self._router: Router | None = None
         self._streams: dict[str, _Stream] = {}
         self._titling: dict[int, threading.Event] = {}   # chats whose name a side model is writing now
@@ -908,6 +910,160 @@ class Api:
         self.mcp.restart(str(sid))
         return self.mcp.status()
 
+    # ---------------------------------------------------------------- Connectors (Yours · Browse)
+    def connectors(self) -> dict:
+        """Everything for the Connectors window: the catalog with what is added, and the user's own connectors."""
+        from . import connectors
+        added = {c.get("catalog"): c["id"] for c in self.mcp.cfg["servers"] if c.get("catalog")}
+        built = {"mail": self.mail.status()["connected"], "gdrive": self.drive.status().get("phase") == "ready",
+                 "github": self.github.status().get("phase") == "ready"}
+        cat = [{**c, "added": added.get(c["id"], "") or ("builtin" if built.get(c["builtin"]) else "")}
+               for c in connectors.CATALOG]
+        return {"catalog": cat, "categories": connectors.CATEGORIES, "mcp": self.mcp.status(), "mail": self.mail.status(),
+                "drive": self.drive.status(), "github": self.github.status()}
+
+    def connectors_search(self, q: str, cursor: str = "") -> dict:
+        """Browse → search: the ready-made ones first, then the public MCP Registry (made by anyone)."""
+        from . import connectors
+        reg = connectors.search_registry(str(q or ""), str(cursor or ""))
+        have = {c.get("url") for c in self.mcp.cfg["servers"]} | {" ".join(c.get("command") or []) for c in self.mcp.cfg["servers"]}
+        ready_urls = {c["url"] for c in connectors.CATALOG if c["url"]}
+        items = [{**e, "added": (e.get("url") or " ".join(e.get("command") or [])) in have} for e in reg["items"]
+                 if e.get("url") not in ready_urls]
+        return {"registry": items, "next": reg["next"], "ok": reg["ok"]}
+
+    def connector_add(self, cid: str) -> dict:
+        """Adds a ready-made connector; one with a browser sign-in opens it right away."""
+        from . import connectors, mcp
+        c = connectors.BY_ID.get(str(cid))
+        if not c or c["auth"] not in ("oauth", "open"):
+            return {"ok": False, "error": "This connector can't be added."}
+        if not self.mcp.cfg["enabled"]:
+            return {"ok": False, "error": "off"}
+        try:
+            sid = self.mcp.add(c["name"], "http", c["url"], auth="oauth" if c["auth"] == "oauth" else "", catalog=c["id"])
+            if c["auth"] == "oauth":
+                self.mcp.sign_in(sid)
+        except mcp.McpError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:                                # noqa: BLE001  (secure store unavailable)
+            return {"ok": False, "error": f"{e.__class__.__name__}: {e}"}
+        return {"ok": True, "id": sid, **self.connectors()}
+
+    def connector_add_entry(self, entry: dict, values: dict | None = None) -> dict:
+        """Adds a server found in the public registry. A web one: Lanterna asks it how to sign in (browser sign-in,
+        none, or a key the user gives); a program: npx / uvx with the values it needs (kept in the vault)."""
+        from . import connectors, mcp, oauth
+        if not self.mcp.cfg["enabled"]:
+            return {"ok": False, "error": "off"}
+        entry = entry if isinstance(entry, dict) else {}
+        values = {str(k): str(v) for k, v in (values or {}).items() if str(v).strip()}
+        name = " ".join(str(entry.get("name") or "").split())[:40]
+        try:
+            if entry.get("kind") == "http":
+                url = str(entry.get("url") or "")
+                if not url.startswith("https://"):
+                    return {"ok": False, "error": "Use an https:// address (http:// only for localhost)."}
+                import httpx
+                with httpx.Client(timeout=20, follow_redirects=False) as cl:
+                    how = oauth.probe(url, cl)
+                if how["kind"] == "down":
+                    return {"ok": False, "error": f"The server didn't answer ({how.get('error', '')})."}
+                heads = {h["name"]: values[h["name"]] for h in entry.get("headers") or [] if h.get("name") in values}
+                if how["kind"] == "token" and not heads and not values.get("token"):
+                    return {"ok": False, "error": "token"}
+                if values.get("token"):
+                    tok = values["token"]
+                    heads["Authorization"] = tok if tok.lower().startswith("bearer ") else "Bearer " + tok
+                sid = self.mcp.add(name, "http", url, headers=heads, auth="oauth" if how["kind"] == "oauth" and not heads else "",
+                                   catalog=str(entry.get("id") or "")[:60])
+                if how["kind"] == "oauth" and not heads:
+                    self.mcp.sign_in(sid)
+            elif entry.get("kind") == "stdio":
+                cmd = [str(x) for x in entry.get("command") or []]
+                if not cmd or cmd[0] not in ("npx", "uvx") or not all(re.fullmatch(r"[-@\w./=+]+", x) for x in cmd):
+                    return {"ok": False, "error": "This server can't be started from here."}
+                need = [e["name"] for e in entry.get("env") or [] if e.get("name")]
+                missing = [n for n in need if n not in values]
+                if missing:
+                    return {"ok": False, "error": "values", "missing": missing}
+                env = {n: values[n] for n in need if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,60}", n)}
+                sid = self.mcp.add(name, "stdio", cmd, env=env, catalog=str(entry.get("id") or "")[:60])
+            else:
+                return {"ok": False, "error": "This server can't be added."}
+        except mcp.McpError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:                                # noqa: BLE001  (secure store unavailable)
+            return {"ok": False, "error": f"{e.__class__.__name__}: {e}"}
+        return {"ok": True, "id": sid, **self.connectors()}
+
+    def mcp_sign_in(self, sid: str) -> dict:
+        from . import mcp
+        try:
+            self.mcp.sign_in(str(sid))
+        except mcp.McpError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, **self.mcp.status()}
+
+    def mcp_sign_cancel(self, sid: str) -> dict:
+        self.mcp.cancel_sign_in(str(sid))
+        return self.mcp.status()
+
+    def mcp_sign_out(self, sid: str) -> dict:
+        self.mcp.sign_out(str(sid))
+        return self.mcp.status()
+
+    # ---------------------------------------------------------------- Mail connector
+    def mail_status(self) -> dict:
+        return self.mail.status()
+
+    def mail_connect(self, form: dict) -> dict:
+        f = form if isinstance(form, dict) else {}
+        try:
+            ip, sp = int(f.get("imap_port") or 0), int(f.get("smtp_port") or 0)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "server"}
+        r = self.mail.connect(str(f.get("address") or ""), str(f.get("password") or ""), str(f.get("preset") or ""),
+                              str(f.get("imap") or ""), str(f.get("smtp") or ""), ip, sp)
+        if r.get("ok"):
+            self._router = None
+        return r
+
+    def mail_disconnect(self) -> dict:
+        return self.mail.disconnect()
+
+    def _connector_tool(self):
+        """find_connector: when the user wants something done in a service Lanterna can't reach yet."""
+        from . import connectors
+        from .tools import Tool, _obj
+
+        def find_connector(service: str) -> str:
+            ready = connectors.find(service)[:5]
+            st = self.connectors()
+            added = {c["id"]: c["added"] for c in st["catalog"]}
+            lines = []
+            for c in ready:
+                if c["auth"] == "closed":
+                    alt = connectors.BY_ID.get(c.get("instead", ""))
+                    lines.append(f"- {c['name']}: can't be connected ({c['why']})" + (f" Instead: {alt['name']}." if alt else ""))
+                else:
+                    state = "already connected" if added.get(c["id"]) else "not connected yet"
+                    lines.append(f"- {c['name']} ({state}): {c['about']}")
+            if not ready:
+                reg = connectors.search_registry(service, limit=8)["items"][:4]
+                lines += [f"- {e['name']} by {e['by']} (from the public MCP Registry, not checked by Lanterna): {e['about'][:120]}"
+                          for e in reg]
+            if not lines:
+                return (f"No connector for '{service}' was found. Offer a compromise: what you can do with your own tools "
+                        "(web search, reading its public pages, files the user exports from it, preparing text they "
+                        "paste there), or that they can add their own server in Connectors → Yours → Add.")
+            return ("Connectors (the user adds them in Connectors, in the menu on the left: Browse tab, then +):\n"
+                    + "\n".join(lines) + "\nTell the user which one fits and how to add it. Don't claim you can use one "
+                    "that isn't connected yet. If none fits, offer a compromise with your own tools.")
+        return Tool("find_connector", "Look for a connector when the user wants you to work with a service or site you "
+                    "have no tool for (their mail, calendar, Notion, Jira, a shop, a bank…). service: its name or what it is.",
+                    _obj({"service": {"type": "string"}}, ["service"]), find_connector, "🔌")
+
     # ---------------------------------------------------------------- always at hand (Windows window app)
     def desktop_status(self) -> dict:
         """For Settings: is the tray there, did Windows give us the hotkey, does Lanterna start with Windows."""
@@ -1695,6 +1851,9 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
             "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
             "mcp_call": ("Use {name}", "Used {name}"),
+            "mail_sort": ("Sort {count} emails into folders", "Sorted {count} emails into folders"),
+            "mail_draft": ("Save a draft to {name}", "Saved a draft to {name}"),
+            "mail_send": ("Send an email to {name}", "Sent an email to {name}"),
             "sys_startup": (("Start {name} with the computer", "{name} starts with the computer") if d.get("on") else
                             ("Don't start {name} with the computer", "{name} no longer starts with the computer"))}
     place = t(str(d.get("place", "")).title(), lang) if d.get("place") else ""

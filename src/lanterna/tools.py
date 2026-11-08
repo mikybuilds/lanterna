@@ -391,6 +391,8 @@ GROUPS = {
                      r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
                      r"cestino|elimina|sort|organi[sz]e|clean ?up|tidy|місц|space|spazio|диск|disk|storage|звільн|free up|libera|"
                      r"сміт|junk|займа|takes up|occupa", re.I),
+    "mail": re.compile(r"пошт|\bлист(?!опад)|inbox|вхідн|e-?mail|\bmail|gmail|ukr\.net|icloud|скриньк|спам|spam|"
+                       r"чернетк|draft|надішли|відправ|send|posta|correo|courriel|poczt|почт|письм|\bnewsletter|розсилк", re.I),
     "apps": re.compile(r"встанов|установ|інстал|install|програм|додат|застосун|\bapp|онов|update|upgrade|uninstall|winget|"
                        r"flatpak|dnf\b|installa|aggiorna|programm|applicazion|software|видали", re.I),
     "sys": re.compile(r"\bпк\b|\bpc\b|комп.ютер|computer|ноутбук|laptop|гальм|лаг|повільн|тормоз|slow|lent|"

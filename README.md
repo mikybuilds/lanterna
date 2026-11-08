@@ -127,6 +127,15 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - No password or token is typed into Lanterna; the sign-in is kept in your system's vault. Files that look like passwords or keys (`.env`, private keys, API tokens inside) are never pushed.
 - Commits are yours; every one shows Lanterna Assistant as a co-author. That is only a name on the commit, not access.
 
+## Connectors
+
+**Connectors** (sidebar) has two tabs, like the directory in Claude:
+
+- **Browse**: about 75 ready-made connectors from the services themselves — Notion, Linear, Jira and Confluence, Asana, monday.com, ClickUp, Todoist, Airtable, Miro, Canva, Dropbox, Stripe, PayPal, Supabase, Vercel, Sentry, Zapier, Make and more — by category, with search. Press **+**: the service's own sign-in page opens in your browser, and you choose there what Lanterna may do. Searching also looks through the public MCP Registry (servers anyone can publish; shown separately, with who made them).
+- **Yours**: what you connected — Mail, Google Drive, GitHub and the connectors you added — with sign-in, on/off, the list of tools, **Sign out** and **Remove**.
+- Some services let only apps they approved connect (Gmail's and Google Calendar's own connectors, Microsoft 365, Slack, Figma, HubSpot…). They are listed as unavailable with the reason and, where there is one, another way: for Gmail it is **Mail**. If nothing fits, ask Lanterna: it looks for a connector itself or suggests a workaround with its own tools.
+- **Mail** works with Gmail, ukr.net, iCloud, Yahoo, Zoho and any mail with IMAP, through an *app password* (a separate password your mail service makes just for Lanterna; you can revoke it there). Then ask: "sort my inbox into folders", "find the bank letters from last month", "draft a reply to Olena". Reading never marks letters as read; sorting, drafts and sending each wait for **Confirm**, and nothing is deleted.
+
 ## Help with this computer
 
 **Settings → Computer** (on by default). Just ask: "sort my Downloads", "what takes the most space in Downloads?", "find duplicate photos", "install VLC", "update my programs", "my computer is slow", "turn on dark mode", "stop Discord from starting with Windows".
@@ -214,6 +223,8 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - Web pages and files Lanterna reads are treated as information, never as instructions. So are answers from MCP servers.
 - **Voice input** is off by default. Online (Groq Whisper), your recording goes to Groq to become text; on this computer (whisper.cpp) it never leaves your PC. Recordings are not kept.
 - **MCP servers** are off by default and made by other people. What a tool is asked goes to that server; a program server runs with your rights. Tokens for servers stay in the system's secure vault.
+- **Connectors** are MCP servers too, so they need MCP servers turned on. You sign in on the service's own page; Lanterna never sees that password and keeps only the sign-in it gets back, in the system's secure vault, renewed on its own. Sign out or remove a connector and that sign-in is deleted. What you ask a connector goes to that service. Servers from the public MCP Registry are made by anyone and are not checked by Lanterna.
+- **Mail**: the app password stays in the system's secure vault, never in files or logs. Letters Lanterna reads go to the model in use, like a message; the model is told to treat them as information, never as instructions.
 - **Exchange rates** come from the National Bank of Ukraine (bank.gov.ua), only when you ask about money; the request carries nothing about you.
 - **Reading aloud** with Windows voices stays on your PC. Piper is downloaded only when you ask (pinned files checked by SHA-256) and then works offline.
 - **Audio files** you attach are turned into text by the voice input you chose: online with Groq, or on your PC with whisper.cpp.

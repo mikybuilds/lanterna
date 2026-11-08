@@ -46,6 +46,46 @@ def delete_key(provider: str) -> None:
         pass
 
 
+# Windows keeps at most 2,560 bytes (1,280 characters) per entry; sign-in tokens can be longer, so a long value
+# is kept in pieces: the first entry says how many ("~3~" + piece 1), the others are "<name>~2", "<name>~3".
+_PIECE = 1000
+
+
+def set_long(name: str, value: str) -> None:
+    pieces = [value[i:i + _PIECE] for i in range(0, len(value), _PIECE)] or [""]
+    old = _pieces(name)
+    if len(pieces) == 1 and not value.startswith("~"):
+        keyring.set_password(SERVICE, name, value)
+    else:
+        for i, p in enumerate(pieces[1:], 2):
+            keyring.set_password(SERVICE, f"{name}~{i}", p)
+        keyring.set_password(SERVICE, name, f"~{len(pieces)}~" + pieces[0])
+    for i in range(len(pieces) + 1, old + 1):              # a shorter value: drop the pieces left over
+        delete_key(f"{name}~{i}")
+
+
+def _pieces(name: str) -> int:
+    first = stored_key(name)
+    if first.startswith("~") and first[1:first.find("~", 1)].isdigit():
+        return int(first[1:first.find("~", 1)])
+    return 1 if first else 0
+
+
+def get_long(name: str) -> str:
+    first = stored_key(name)
+    n = _pieces(name)
+    if n <= 1 and not first.startswith("~"):
+        return first
+    rest = [stored_key(f"{name}~{i}") for i in range(2, n + 1)]
+    return first[first.find("~", 1) + 1:] + "".join(rest)
+
+
+def delete_long(name: str) -> None:
+    for i in range(2, _pieces(name) + 1):
+        delete_key(f"{name}~{i}")
+    delete_key(name)
+
+
 def mask(key: str | None) -> str:
     """For display only: 'gsk_…9f2a'."""
     if not key:

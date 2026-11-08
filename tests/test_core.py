@@ -1,5 +1,6 @@
 import json
 import re
+from urllib.parse import urlsplit
 from pathlib import Path
 
 import httpx
@@ -105,7 +106,15 @@ def test_no_unexpected_domains_in_sources():
                # ready-made MCP servers: where to get Node.js or uv (links the user opens, never fetched)
                "nodejs.org", "docs.astral.sh",
                # the project's own pages (privacy policy)
-               "mikybuilds.github.io", "api." "git" "hub.com"}
+               "mikybuilds.github.io", "api." "git" "hub.com",
+               # the public MCP Registry (Connectors → Browse → search)
+               "registry.modelcontextprotocol.io",
+               # mail connector: where each mail service makes app passwords (links the user opens)
+               "myaccount.google.com", "mail.ukr.net", "account.apple.com", "login.yahoo.com", "accounts.zoho.com"}
+    # Connectors: each ready-made connector's own address (checked, made by that service) is reached only after the
+    # user adds it; listed in one place, connectors.py, and nowhere else
+    from lanterna import connectors
+    allowed |= {urlsplit(c["url"]).hostname for c in connectors.CATALOG if c["url"]}
     root = Path(__file__).parents[1]
     files = [*root.joinpath("src").rglob("*.py"), *root.joinpath("src").rglob("*.js"), *root.joinpath("src").rglob("*.html"), root / "pyproject.toml", root / "README.md"]
     found = {h for f in files if f.exists() for h in re.findall(r"https?://([^/\s\"'`)>:]+)", f.read_text(encoding="utf-8"))}

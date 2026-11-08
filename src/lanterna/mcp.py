@@ -26,11 +26,11 @@ from typing import Callable
 
 import httpx
 
-from . import __version__, keys
+from . import __version__, keys, oauth, quiet
 from .config import config_dir
 
 PROTOCOL = "2025-06-18"
-MAX_SERVERS = 12
+MAX_SERVERS = 30
 MAX_TOOLS = 40                        # offered to the model in total: every description costs tokens
 DESC_LIMIT = 300
 RESULT_LIMIT = 6000
@@ -44,6 +44,10 @@ _WEB = re.compile(r"^(https)://\S+$|^(http)://(localhost|127\.0\.0\.1)(:\d+)?(/\
 
 class McpError(Exception):
     pass
+
+
+class SignInNeeded(McpError):
+    """The server wants the user to sign in (again) through the browser."""
 
 
 def _slug(s: str, n: int) -> str:
@@ -280,10 +284,10 @@ class _Stdio:
 
 
 class _Http:
-    def __init__(self, url: str, headers: dict, http: httpx.Client | None = None):
+    def __init__(self, url: str, headers: dict, http: httpx.Client | None = None, token: Callable[[bool], str] | None = None):
         if not _WEB.match(url):
             raise McpError("Use an https:// address (http:// only for localhost).")
-        self.url, self.session, self._own = url, "", http is None
+        self.url, self.session, self._own, self.token = url, "", http is None, token
         self.client = http or httpx.Client(timeout=httpx.Timeout(20, read=CALL_TIMEOUT), follow_redirects=False)
         self.headers = {"Accept": "application/json, text/event-stream", "User-Agent": f"Lanterna/{__version__}", **headers}
         self.stderr = ""
@@ -293,10 +297,20 @@ class _Http:
         if self.session:
             h["Mcp-Session-Id"] = self.session
             h["MCP-Protocol-Version"] = PROTOCOL
-        try:
-            r = self.client.post(self.url, json=body, headers=h, timeout=timeout)
-        except httpx.HTTPError as e:
-            raise McpError(f"couldn't reach the server ({e.__class__.__name__})") from e
+        for attempt in (0, 1):
+            if self.token is not None:                  # signed in through the browser: a fresh token each time
+                tok = self.token(attempt == 1)
+                if not tok:
+                    raise SignInNeeded("sign in again")
+                h["Authorization"] = f"Bearer {tok}"
+            try:
+                r = self.client.post(self.url, json=body, headers=h, timeout=timeout)
+            except httpx.HTTPError as e:
+                raise McpError(f"couldn't reach the server ({e.__class__.__name__})") from e
+            if r.status_code != 401 or self.token is None:
+                break
+        if r.status_code == 401 and self.token is not None:
+            raise SignInNeeded("sign in again")
         if r.status_code in (401, 403):
             raise McpError("the server wants a valid token (add it when you add the server)")
         if r.status_code >= 400:
@@ -340,7 +354,7 @@ class Server:
         self.conf = conf
         self.id, self.name = conf["id"], conf.get("name") or conf["id"]
         self.tools: list[dict] = []
-        self.state, self.error = "off", ""          # off | starting | ready | error
+        self.state, self.error = "off", ""          # off | starting | ready | error | signin (needs the browser sign-in)
         self._conn = None
         self._rid = 0
         self._http = http
@@ -369,7 +383,13 @@ class Server:
             sec = secrets(self.id)
             try:
                 if self.conf.get("kind") == "http":
-                    self._conn = _Http(self.conf.get("url", ""), sec["headers"], self._http)
+                    token = None
+                    if self.conf.get("auth") == "oauth":
+                        if not oauth.load(self.id).get("access"):
+                            raise SignInNeeded("sign in first")
+                        client = self._http or httpx.Client(timeout=30, follow_redirects=False)
+                        token = lambda force: oauth.access(self.id, client, force)   # noqa: E731
+                    self._conn = _Http(self.conf.get("url", ""), sec["headers"], self._http, token)
                 else:
                     cmd = list(self.conf.get("command") or [])
                     if not cmd:
@@ -387,6 +407,9 @@ class Server:
                     if not cursor:
                         break
                 self.tools, self.state = tools, "ready"
+            except SignInNeeded:
+                self.state, self.error = "signin", ""
+                self.stop(keep_state=True)
             except Exception as e:                         # noqa: BLE001  a bad server never breaks Lanterna
                 err = str(e) if isinstance(e, McpError) else f"{e.__class__.__name__}: {e}"
                 if self._conn is not None and getattr(self._conn, "stderr", ""):
@@ -412,6 +435,9 @@ class Server:
                 raise McpError(self.error or "the server isn't running")
         try:
             r = self._req("tools/call", {"name": tool, "arguments": args}, CALL_TIMEOUT)
+        except SignInNeeded as e:
+            self.state = "signin"
+            raise McpError(f"{self.name} needs you to sign in again: Connectors → Yours → Sign in") from e
         except McpError as e:
             raise McpError(self._hide(str(e))) from e
         return result_text(r)
@@ -476,6 +502,8 @@ class Hub:
         self.servers: dict[str, Server] = {}
         self._lock = threading.Lock()
         self._waits: dict[str, threading.Event] = {}
+        self.signing: dict[str, dict] = {}             # browser sign-ins in progress: {"url", "error", "cancel"}
+        self.browser = quiet.open_url
 
     # lifecycle
     def start(self) -> None:
@@ -492,7 +520,7 @@ class Hub:
                     srv = self.servers[c["id"]] = Server(c, self._http)
                 if not (self.cfg["enabled"] and c.get("on", True)):
                     srv.stop()
-                elif srv.state in ("off", "error"):
+                elif srv.state in ("off", "error") or (srv.state == "signin" and oauth.load(c["id"]).get("access")):
                     threading.Thread(target=srv.start, daemon=True).start()
 
     def stop_all(self) -> None:
@@ -517,6 +545,10 @@ class Hub:
                         "where": c.get("url", "") if c.get("kind") == "http" else " ".join(c.get("command") or []),
                         "state": srv.state if srv else "off", "error": srv.error if srv else "",
                         "allow": list(c.get("allow") or []), "has_secret": bool(keys.stored_key(f"mcp-{c['id']}")),
+                        "auth": c.get("auth", ""), "catalog": c.get("catalog", ""),
+                        "signing": c["id"] in self.signing and not self.signing[c["id"]].get("error"),
+                        "sign_url": self.signing.get(c["id"], {}).get("url", ""),
+                        "sign_error": self.signing.get(c["id"], {}).get("error", ""),
                         "tools": [{"name": t["name"], "description": str(t.get("description") or "")[:200]}
                                   for t in (srv.tools if srv else [])]})
         return {"enabled": self.cfg["enabled"], "warned": self.cfg["warned"], "servers": out}
@@ -576,7 +608,49 @@ class Hub:
         save(self.cfg)
         self.start()
 
-    def add(self, name: str, kind: str, where: str, env: dict | None = None, headers: dict | None = None) -> str:
+    # browser sign-in (connectors that support it)
+    def sign_in(self, sid: str) -> None:
+        conf = next((c for c in self.cfg["servers"] if c["id"] == sid), None)
+        if not conf or conf.get("auth") != "oauth":
+            raise McpError("This server doesn't use a sign-in.")
+        if sid in self.signing and not self.signing[sid].get("error"):
+            return
+        job = self.signing[sid] = {"url": "", "error": "", "cancel": threading.Event()}
+
+        def opened(url: str) -> None:
+            job["url"] = url
+            self.browser(url)
+
+        def run() -> None:
+            try:
+                oauth.store(sid, oauth.sign_in(conf["url"], opened, job["cancel"], self._http))
+                self.signing.pop(sid, None)
+                srv = self.servers.get(sid)
+                if srv and self.cfg["enabled"] and conf.get("on", True):
+                    srv.start()
+            except oauth.AuthError as e:
+                if e.kind == "cancelled":
+                    self.signing.pop(sid, None)
+                else:
+                    job["error"] = str(e)[:200]
+            except Exception as e:                       # noqa: BLE001  never leave the window waiting
+                job["error"] = f"{e.__class__.__name__}: {e}"[:200]
+        threading.Thread(target=run, daemon=True).start()
+
+    def cancel_sign_in(self, sid: str) -> None:
+        job = self.signing.pop(sid, None)
+        if job:
+            job["cancel"].set()
+
+    def sign_out(self, sid: str) -> None:
+        oauth.forget(sid)
+        srv = self.servers.get(sid)
+        if srv:
+            srv.stop()
+            srv.state = "signin"
+
+    def add(self, name: str, kind: str, where: str, env: dict | None = None, headers: dict | None = None,
+            auth: str = "", catalog: str = "") -> str:
         self.cfg = load()
         if len(self.cfg["servers"]) >= MAX_SERVERS:
             raise McpError(f"Up to {MAX_SERVERS} servers.")
@@ -586,11 +660,15 @@ class Hub:
             if not _WEB.match(where.strip()):
                 raise McpError("Use an https:// address (http:// only for localhost).")
             conf = {"id": sid, "name": name or where.split("/")[2], "kind": "http", "url": where.strip(), "on": True, "allow": []}
+            if auth == "oauth":
+                conf["auth"] = "oauth"
         else:
             cmd = split_command(where) if isinstance(where, str) else [str(x) for x in where]
             if not cmd:
                 raise McpError("Type the command that starts the server.")
             conf = {"id": sid, "name": name or Path(cmd[0]).stem, "kind": "stdio", "command": cmd, "on": True, "allow": []}
+        if catalog:
+            conf["catalog"] = str(catalog)[:60]
         set_secrets(sid, env, headers)
         self.cfg["servers"].append(conf)
         save(self.cfg)
@@ -613,6 +691,8 @@ class Hub:
         self.cfg["servers"] = [c for c in self.cfg["servers"] if c["id"] != sid]
         save(self.cfg)
         keys.delete_key(f"mcp-{sid}")
+        self.cancel_sign_in(sid)
+        oauth.forget(sid)
         self.start()
 
     # tools for the model
@@ -621,11 +701,13 @@ class Hub:
         if not self.cfg["enabled"]:
             return []
         out = []
-        for c in self.cfg["servers"]:
-            srv = self.servers.get(c["id"])
-            if not srv or srv.state != "ready" or not c.get("on", True):
-                continue
-            for tl in srv.tools:
+        ready = [(c, self.servers[c["id"]]) for c in self.cfg["servers"]
+                 if c["id"] in self.servers and self.servers[c["id"]].state == "ready" and c.get("on", True)]
+        # many connectors: each gets an even share of the tool budget (its first tools), so none is left out
+        share = max(3, MAX_TOOLS // max(1, len(ready)))
+        total = sum(len(s.tools) for _, s in ready)
+        for c, srv in ready:
+            for tl in (srv.tools if total <= MAX_TOOLS else srv.tools[:share]):
                 if len(out) >= MAX_TOOLS:
                     return out
                 name = f"mcp_{_slug(srv.name, 12)}_{_slug(tl['name'], 40)}"[:64]

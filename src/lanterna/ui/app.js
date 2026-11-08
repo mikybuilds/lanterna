@@ -869,6 +869,7 @@ function renderMain() {
         placeholder="${t("Search chats")}" aria-label="${t("Search chats")}"><button id="find-x" hidden title="${t("Close")}">${icon("x")}</button></label>
       <nav class="threads" id="threads"></nav>
       <div class="side-foot">
+        <button id="open-connectors">${icon("plug")} ${t("Connectors")}</button>
         <button id="open-history">${icon("history")} ${t("What Lanterna did")}</button>
         <button id="open-settings">${icon("gear")} ${t("Settings")}</button>
         <button id="open-about">${icon("info")} ${t("About")}</button>
@@ -898,6 +899,7 @@ function renderMain() {
   $("#open-settings").onclick = openSettings;
   $("#open-about").onclick = openAbout;
   $("#open-history").onclick = openHistory;
+  $("#open-connectors").onclick = () => openConnectors();
   $("#menu").onclick = () => $(".shell").classList.toggle("open");
   const inp = $("#input");
   const fit = () => {
@@ -1681,6 +1683,7 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Account and sync")}</h4>
       <div id="sync"></div>
       <h4 style="margin-top:22px">${t("Connectors")}</h4>
+      <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Mail, Notion, Jira, Canva and dozens more: all in one place.")} <button class="link" id="set-conn">${t("Open Connectors")} →</button></p>
       <div id="connectors"></div>
       <h4 style="margin-top:22px">${t("Found a bug?")}</h4>
       <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
@@ -1784,6 +1787,7 @@ function openSettings() {
     const uc = $("#upd-check", body);
     uc.onchange = async () => { S = await api.save_settings({ update_check: uc.checked }); };
     $("#set-bug", body).onclick = () => openBugReport();
+    $("#set-conn", body).onclick = () => { v.remove(); openConnectors(); };
     syncPanel($("#sync", body));
     limitsPanel($("#limits", body));
     $("#lim-refresh", body).onclick = () => limitsPanel($("#limits", body));
@@ -1986,6 +1990,271 @@ function openSettings() {
 }
 
 // ---------------------------------------------------------------- MCP: the risk window and the "add this?" check
+// ---------------------------------------------------------------- Connectors: Yours · Browse (a directory, like Claude's)
+let connTab = "browse";
+const CONN_POPULAR = ["mail", "gdrive-builtin", "notion", "github-builtin", "canva", "atlassian", "linear", "asana",
+  "dropbox", "zapier", "airtable", "miro", "clickup", "stripe", "supabase", "vercel"];
+
+function connLogo(name) {
+  const ch = ((name || "").match(/[\p{L}\p{N}]/u) || ["?"])[0].toUpperCase();
+  let hue = 0;
+  for (const c of name || "") hue = (hue * 31 + c.charCodeAt(0)) % 360;
+  return `<span class="cn-logo" style="--h:${hue}" aria-hidden="true">${esc(ch)}</span>`;
+}
+
+function openConnectors(tab) {
+  if (tab) connTab = tab;
+  let C = null, query = "", cat = "", all = false, reg = { items: [], next: "", q: null, busy: false, ok: true }, timer = 0, alive = true;
+  const v = dialog(t("Connectors"), `<section class="cn-body" id="cn-body"><p class="faint"><span class="spinner"></span></p></section>`,
+    () => { alive = false; clearTimeout(timer); });
+  v.querySelector(".dialog").classList.add("connectors");
+  const head = v.querySelector("header"), body = $("#cn-body", v);
+  head.querySelector("h2").insertAdjacentHTML("afterend", `<div class="seg cn-seg"><button data-ct="yours">${t("Yours")}</button><button data-ct="browse">${t("Browse")}</button></div>
+    <label class="set-find cn-find">${icon("search")}<input id="cn-q" type="search" placeholder="${esc(t("Search"))}" aria-label="${esc(t("Search"))}"></label>
+    <button class="btn ghost small cn-own" id="cn-own">${icon("plus")} ${t("Add your own")}</button>`);
+  const q = $("#cn-q", head);
+  head.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => { connTab = b.dataset.ct; paint(); });
+  $("#cn-own", head).onclick = () => { v.remove(); setTab = "pc"; openSettings(); setTimeout(() => { const d = $("#mcp-new"); if (d) { d.open = true; d.scrollIntoView({ block: "center" }); } }, 300); };
+  q.oninput = () => {
+    query = q.value.trim(); connTab = "browse";
+    clearTimeout(q._t); q._t = setTimeout(() => { reg = { items: [], next: "", q: null, busy: false, ok: true }; paint(); if (query) more(); }, 300);
+  };
+
+  // the catalog comes in English: descriptions (and the names of the built-in ones) in the window's language
+  const local = r => { (r.catalog || []).forEach(c => { if (c.builtin) c.name = t(c.name); if (c.about) c.about = t(c.about); }); return r; };
+  const load = async () => { C = local(await api.connectors()); return C; };
+  const mcpOn = fn => C.mcp.enabled ? fn() : mcpRisks(async () => { await api.mcp_enable(true); await load(); fn(); });
+  const settingsAt = () => { v.remove(); setTab = "pc"; openSettings(); };
+
+  const card = c => {
+    const closed = c.auth === "closed";
+    const right = closed ? `<span class="cn-badge">${t("Unavailable")}</span>`
+      : c.added ? `<span class="cn-added" title="${esc(t("Added"))}">${icon("check")}</span>`
+      : `<button class="cn-add" data-add="${esc(c.id)}" title="${esc(t("Add"))}" aria-label="${esc(t("Add"))} ${esc(c.name)}">${icon("plus")}</button>`;
+    return `<div class="cn-card${closed ? " closed" : ""}" data-c="${esc(c.id)}">${connLogo(c.name)}
+      <div class="cn-txt"><b>${esc(c.name)}${c.official && !closed ? ` <span class="cn-ok" title="${esc(t("Made by the service itself"))}">${icon("check")}</span>` : ""}</b>
+        <small class="cn-about">${esc(closed ? t(c.why) : c.about)}</small>
+        <small class="faint">${esc(t("Made by {who}", { who: c.by }))}</small></div>${right}</div>`;
+  };
+  const regCard = (e, i) => `<div class="cn-card reg" data-r="${i}">${connLogo(e.name)}
+      <div class="cn-txt"><b>${esc(e.name)}</b><small class="cn-about">${esc(e.about || "")}</small>
+        <small class="faint">${esc(t("Made by {who}", { who: e.by }))}${e.through ? " · " + esc(t("through {host}", { host: e.through })) : ""}${e.kind === "stdio" ? " · " + esc(t("a program on this computer")) : ""}</small></div>
+      ${e.added ? `<span class="cn-added">${icon("check")}</span>` : `<button class="cn-add" data-radd="${i}" title="${esc(t("Add"))}">${icon("plus")}</button>`}</div>`;
+
+  const match = c => {
+    if (!query) return true;
+    const hay = [c.name, c.by, c.about, c.why || "", t(c.why || "")].join(" ").toLowerCase();
+    return query.toLowerCase().split(/\s+/).every(w => hay.includes(w));
+  };
+
+  function paintBrowse() {
+    const ready = C.catalog.filter(c => (!cat || c.cat === cat) && match(c));
+    const open = ready.filter(c => c.auth !== "closed"), closed = ready.filter(c => c.auth === "closed");
+    const show = query || cat || all ? [...open, ...closed] : CONN_POPULAR.map(id => C.catalog.find(c => c.id === id)).filter(Boolean);
+    const total = C.catalog.filter(c => c.auth !== "closed").length;
+    body.innerHTML = `<div class="cn-bar"><h3>${esc(query ? t("Ready to connect") : cat ? t(C.categories[cat]) : all ? t("All connectors") : t("Popular connectors"))}
+        <span class="cn-count">${query || cat ? show.length : total}</span></h3>
+      <select class="field cn-cat" id="cn-cat"><option value="">${esc(t("All categories"))}</option>${Object.entries(C.categories).map(([k, n]) => `<option value="${k}" ${k === cat ? "selected" : ""}>${esc(t(n))}</option>`).join("")}</select>
+      ${!query && !cat && !all ? `<button class="link cn-all" id="cn-all">${t("Show all")} →</button>` : ""}</div>
+      ${show.length ? `<div class="cn-grid">${show.map(card).join("")}</div>` : `<p class="faint">${esc(t("No ready-made connector with these words."))}</p>`}
+      ${query ? `<div class="cn-bar"><h3>${esc(t("From the public MCP catalog"))}</h3></div>
+        <p class="muted cn-warn">${esc(t("Made by other people and not checked by Lanterna. Add only what you trust: what a tool is asked goes to its maker."))}</p>
+        <div class="cn-grid" id="cn-reg">${reg.items.map(regCard).join("")}</div>
+        ${reg.busy ? `<p class="faint"><span class="spinner"></span>${t("Searching…")}</p>` : !reg.ok ? `<p class="faint">${esc(t("The public catalog didn't answer. Try again later."))}</p>`
+          : reg.items.length === 0 && reg.q === query ? `<p class="faint">${esc(t("Nothing found there either."))} <button class="link" id="cn-ask">${esc(t("Ask Lanterna how to connect “{q}”", { q: query }))}</button></p>`
+          : reg.next ? `<button class="btn ghost small" id="cn-more">${t("Show more")}</button>` : ""}` : ""}`;
+    const sel = $("#cn-cat", body);
+    sel.onchange = () => { cat = sel.value; paint(); };
+    const allBtn = $("#cn-all", body);
+    if (allBtn) allBtn.onclick = () => { all = true; paint(); };
+    const mo = $("#cn-more", body);
+    if (mo) mo.onclick = more;
+    const ask = $("#cn-ask", body);
+    if (ask) ask.onclick = () => { v.remove(); askLanterna(t("I want you to work with {q}. How can I connect it to you? If there is no connector, suggest another way.", { q: query })); };
+    body.querySelectorAll("[data-add]").forEach(b => b.onclick = e => { e.stopPropagation(); add(C.catalog.find(c => c.id === b.dataset.add)); });
+    body.querySelectorAll(".cn-card.closed").forEach(el => el.onclick = () => whyClosed(C.catalog.find(c => c.id === el.dataset.c)));
+    body.querySelectorAll("[data-radd]").forEach(b => b.onclick = e => { e.stopPropagation(); addEntry(reg.items[+b.dataset.radd]); });
+  }
+
+  async function more() {
+    if (reg.busy) return;
+    const asked = query;
+    reg.busy = true; paint();
+    const r = await api.connectors_search(asked, reg.q === asked ? reg.next : "");
+    if (!alive || asked !== query) { reg.busy = false; return; }
+    reg = { items: reg.q === asked ? [...reg.items, ...r.registry] : r.registry, next: r.next, q: asked, busy: false, ok: r.ok };
+    paint();
+  }
+
+  function row(id, name, sub, buttons, extra = "") {
+    return `<div class="cn-row" data-s="${esc(id)}">${connLogo(name)}<div class="cn-txt"><b>${esc(name)}</b><small>${sub}</small>${extra}</div>
+      <div class="cn-btns">${buttons}</div></div>`;
+  }
+
+  function paintYours() {
+    const m = C.mail, d = C.drive, g = C.github, servers = C.mcp.servers;
+    const label = s => s.state === "ready" ? esc(t("Ready · {n} tools", { n: s.tools.length }))
+      : s.signing ? `<span class="spinner"></span>${esc(t("Waiting for you to sign in in the browser…"))}`
+      : s.sign_error ? `<span class="sync-err">${esc(t("Sign-in failed: {error}", { error: s.sign_error }))}</span>`
+      : s.state === "signin" ? esc(t("Sign in to use it"))
+      : s.state === "starting" ? `<span class="spinner"></span>${esc(t("Connecting…"))}`
+      : s.state === "error" ? `<span class="sync-err">${esc(t("Didn't start: {error}", { error: s.error }))}</span>`
+      : !C.mcp.enabled ? esc(t("Off: MCP servers are turned off")) : esc(t("Off"));
+    const sBtns = s => (s.signing ? `<button class="btn ghost small" data-x="cancel">${t("Cancel")}</button>${s.sign_url ? `<button class="btn ghost small" data-x="again">${t("Open again")} ${icon("ext")}</button>` : ""}`
+        : s.auth === "oauth" && (s.state === "signin" || s.sign_error) ? `<button class="btn primary small" data-x="signin">${t("Sign in")}</button>` : "")
+      + `<label class="cn-switch" title="${esc(t(s.on ? "On" : "Off"))}"><input type="checkbox" data-x="on" ${s.on ? "checked" : ""}><i></i></label>`
+      + `<details class="cn-menu"><summary class="btn ghost small" aria-label="${esc(t("More"))}">⋯</summary><div>
+          ${s.auth === "oauth" && s.state === "ready" ? `<button data-x="signout">${t("Sign out")}</button>` : ""}
+          <button data-x="tools">${t("Tools")}</button><button data-x="rm" class="danger">${t("Remove")}</button></div></details>`;
+    body.innerHTML = `
+      ${!C.mcp.enabled && servers.length ? `<div class="cn-note">${esc(t("MCP servers are turned off, so these connectors don't work now."))} <button class="btn primary small" id="cn-on">${t("Turn on")}</button></div>` : ""}
+      <div class="cn-bar"><h3>${t("Built into Lanterna")}</h3></div>
+      ${row("mail", t("Mail"), m.connected ? esc(m.address) : esc(t("Not connected")), m.connected ? `<button class="btn ghost small" data-b="mail-off">${t("Disconnect")}</button>` : `<button class="btn primary small" data-b="mail">${t("Connect")}</button>`)}
+      ${row("gdrive", "Google Drive", d.phase === "ready" ? esc(d.account || t("Connected")) : esc(t("Not connected")), `<button class="btn ghost small" data-b="set">${t(d.phase === "ready" ? "Settings" : "Connect")}</button>`)}
+      ${row("github", "GitHub", g.phase === "ready" ? esc(g.login || t("Connected")) : esc(t("Not connected")), `<button class="btn ghost small" data-b="set">${t(g.phase === "ready" ? "Settings" : "Connect")}</button>`)}
+      <div class="cn-bar"><h3>${t("Added by you")} <span class="cn-count">${servers.length}</span></h3></div>
+      ${servers.length ? servers.map(s => row(s.id, s.name, label(s), sBtns(s))).join("")
+        : `<p class="faint">${esc(t("Nothing here yet. Find a connector in Browse and press +."))} <button class="link" id="cn-go">${t("Browse")} →</button></p>`}`;
+    const on = $("#cn-on", body);
+    if (on) on.onclick = () => mcpRisks(async () => { await api.mcp_enable(true); refresh(); });
+    const go = $("#cn-go", body);
+    if (go) go.onclick = () => { connTab = "browse"; paint(); };
+    body.querySelectorAll("[data-b]").forEach(b => b.onclick = async () => {
+      if (b.dataset.b === "mail") return openMail(refresh);
+      if (b.dataset.b === "mail-off") { if (confirm(t("Disconnect mail? The app password is removed from this computer."))) { await api.mail_disconnect(); refresh(); } return; }
+      settingsAt();
+    });
+    body.querySelectorAll(".cn-row[data-s] [data-x]").forEach(b => {
+      const sid = b.closest("[data-s]").dataset.s, s = servers.find(x => x.id === sid);
+      const act = b.dataset.x;
+      const run = async () => {
+        if (act === "signin") await api.mcp_sign_in(sid);
+        else if (act === "cancel") await api.mcp_sign_cancel(sid);
+        else if (act === "again") api.open_url(s.sign_url);
+        else if (act === "signout") await api.mcp_sign_out(sid);
+        else if (act === "tools") return settingsAt();
+        else if (act === "rm") { if (!confirm(t("Remove {name}? Its sign-in is removed from this computer too.", { name: s.name }))) return; await api.mcp_remove(sid); }
+        refresh();
+      };
+      if (act === "on") b.onchange = async () => { await api.mcp_update(sid, { on: b.checked }); refresh(); };
+      else b.onclick = run;
+    });
+  }
+
+  function paint() {
+    if (!alive || !C) return;
+    head.querySelectorAll("[data-ct]").forEach(b => b.classList.toggle("on", b.dataset.ct === connTab));
+    if (connTab === "yours") paintYours(); else paintBrowse();
+    clearTimeout(timer);
+    const busy = C.mcp.servers.some(s => s.signing || s.state === "starting");
+    timer = setTimeout(refresh, busy ? 1200 : 4000);
+  }
+  async function refresh() { if (!alive) return; await load(); paint(); }
+
+  function add(c) {
+    if (!c) return;
+    if (c.builtin === "mail") return openMail(refresh);
+    if (c.builtin) return settingsAt();
+    mcpOn(async () => {
+      const r = await api.connector_add(c.id);
+      if (!r.ok) return toast(t(r.error === "off" ? "MCP servers are off." : r.error));
+      C = local(r);
+      if (c.auth === "oauth") toast(t("A sign-in page for {name} opened in your browser. Sign in there and come back.", { name: c.name }));
+      connTab = "yours"; paint();
+    });
+  }
+
+  function whyClosed(c) {
+    if (!c) return;
+    const alt = c.instead && C.catalog.find(x => x.id === c.instead);
+    const d = dialog(c.name, `<section class="mcp-risk"><p>${esc(t(c.why))}</p>
+      <div class="dlg-btns"><button class="btn ghost small" id="w-ask">${esc(t("Ask Lanterna for another way"))}</button>
+      ${alt ? `<button class="btn primary small" id="w-alt">${esc(t("Use {name}", { name: alt.name }))}</button>` : ""}</div></section>`);
+    $("#w-ask", d).onclick = () => { d.remove(); v.remove(); askLanterna(t("I want you to work with {q}. How can I connect it to you? If there is no connector, suggest another way.", { q: c.name })); };
+    if (alt) $("#w-alt", d).onclick = () => { d.remove(); add(alt); };
+  }
+
+  function addEntry(e, values = {}) {
+    if (!e) return;
+    const go = async vals => {
+      const r = await api.connector_add_entry(e, vals);
+      if (r.ok) { C = local(r); toast(t("Added {name}.", { name: e.name })); connTab = "yours"; return paint(); }
+      if (r.error === "token") return askValues(e, [{ name: "token", secret: true, about: t("This server wants a key or token. Make one on its website and paste it here.") }], go);
+      if (r.error === "values") return askValues(e, (e.env || []).filter(x => r.missing.includes(x.name)), go);
+      toast(t(r.error === "off" ? "MCP servers are off." : r.error));
+    };
+    mcpOn(() => mcpConfirm([{ kind: e.kind, where: e.kind === "http" ? e.url : (e.command || []).join(" ") }],
+      () => (e.env || []).length ? askValues(e, e.env, go) : go(values)));
+  }
+
+  function askValues(e, fields, done) {
+    const d = dialog(e.name, `<section class="mcp-risk">${fields.map((f, i) => `<label class="cn-field"><b>${esc(f.name === "token" ? t("Key or token") : f.name)}</b>
+        ${f.about ? `<small class="muted">${esc(f.about)}</small>` : ""}<input class="field" data-i="${i}" type="${f.secret ? "password" : "text"}" autocomplete="off" spellcheck="false"></label>`).join("")}
+      <p class="muted">${esc(t("Kept in the system's secure store, not in files."))}</p>
+      <div class="dlg-btns"><button class="btn ghost small" id="av-no">${t("Cancel")}</button><button class="btn primary small" id="av-ok">${t("Add")}</button></div></section>`);
+    $("#av-no", d).onclick = () => d.remove();
+    $("#av-ok", d).onclick = () => {
+      const vals = {};
+      d.querySelectorAll("[data-i]").forEach(x => { vals[fields[+x.dataset.i].name] = x.value.trim(); });
+      if (Object.values(vals).some(x => !x)) return d.querySelector("[data-i]").focus();
+      d.remove(); done(vals);
+    };
+    const first = d.querySelector("[data-i]");
+    if (first) first.focus();
+  }
+
+  load().then(paint);
+  setTimeout(() => q.focus(), 50);
+}
+
+function openMail(after) {
+  api.mail_status().then(st => {
+    const ps = st.presets;
+    const v = dialog(t("Connect mail"), `<section class="mcp-risk mail-set">
+      <p class="muted">${esc(t("Lanterna connects to your mailbox with an app password: a separate password your mail service makes just for Lanterna. You can revoke it there any time. It is kept only in the system's secure store."))}</p>
+      <label class="cn-field"><b>${t("Mail service")}</b><select class="field" id="ml-p">${ps.map(p => `<option value="${p.id}">${esc(t(p.name))}</option>`).join("")}</select></label>
+      <label class="cn-field"><b>${t("Email address")}</b><input class="field" id="ml-a" type="email" autocomplete="email" spellcheck="false" placeholder="you@example.com"></label>
+      <label class="cn-field"><b>${t("App password")}</b><input class="field" id="ml-w" type="password" autocomplete="off" spellcheck="false"></label>
+      <p class="ml-how" id="ml-how"></p>
+      <details id="ml-adv"><summary class="faint">${t("Servers")}</summary><div class="ml-srv">
+        <input class="field" id="ml-ih" placeholder="IMAP: imap.example.com"><input class="field" id="ml-ip" inputmode="numeric" value="993">
+        <input class="field" id="ml-sh" placeholder="SMTP: smtp.example.com"><input class="field" id="ml-sp" inputmode="numeric" value="465"></div></details>
+      <p class="muted">${esc(t("Lanterna reads without marking letters as read. Sorting, drafts and sending happen only after you confirm a card."))}</p>
+      <p class="sync-err" id="ml-err"></p>
+      <div class="dlg-btns"><button class="btn ghost small" id="ml-no">${t("Cancel")}</button><button class="btn primary small" id="ml-ok">${t("Connect")}</button></div></section>`);
+    const sel = $("#ml-p", v), addr = $("#ml-a", v), how = $("#ml-how", v), adv = $("#ml-adv", v);
+    const showHow = () => {
+      const p = ps.find(x => x.id === sel.value);
+      how.innerHTML = `${esc(t(p.how))}${p.help ? ` <a class="link" data-href="${esc(p.help)}">${t("Open")} ${icon("ext")}</a>` : ""}`;
+      adv.open = p.id === "other";
+      if (p.id !== "other") { $("#ml-ih", v).value = p.imap; $("#ml-sh", v).value = p.smtp; }
+    };
+    const guess = { "gmail.com": "gmail", "googlemail.com": "gmail", "ukr.net": "ukrnet", "icloud.com": "icloud", "me.com": "icloud", "yahoo.com": "yahoo", "zoho.com": "zoho" };
+    addr.oninput = () => { const dom = (addr.value.split("@")[1] || "").toLowerCase(); if (guess[dom] && sel.value !== guess[dom]) { sel.value = guess[dom]; showHow(); } };
+    sel.onchange = showHow; showHow();
+    $("#ml-no", v).onclick = () => v.remove();
+    const errs = { auth: "The mail service didn't accept the address or the app password. Check that it is an app password, not your usual one.",
+      network: "Couldn't reach the mail server. Check the server name and your internet.", address: "Check the email address.",
+      password: "Paste the app password.", server: "Check the server names.", vault: "The system's secure store isn't available." };
+    $("#ml-ok", v).onclick = async e => {
+      const b = e.target; b.disabled = true; $("#ml-err", v).textContent = "";
+      const r = await api.mail_connect({ preset: sel.value, address: addr.value.trim(), password: $("#ml-w", v).value,
+        imap: $("#ml-ih", v).value.trim(), imap_port: $("#ml-ip", v).value.trim(), smtp: $("#ml-sh", v).value.trim(), smtp_port: $("#ml-sp", v).value.trim() });
+      b.disabled = false;
+      if (!r.ok) { $("#ml-err", v).textContent = t(errs[r.error] || "Couldn't do it: {error}", { error: r.message || r.error }); return; }
+      v.remove(); toast(t("Mail connected: {a}", { a: r.address })); after && after();
+    };
+    addr.focus();
+  });
+}
+
+function askLanterna(text) {
+  const i = $("#input");
+  if (!i) return;
+  i.value = text; i.focus();
+  if (i.oninput) i.oninput();
+}
+
 function mcpRisks(onYes) {
   const v = dialog(t("Before you turn on MCP servers"), `<section class="mcp-risk">
     <p>${esc(t("MCP servers are made by other people, not by Lanterna. Add only servers you trust: from the official MCP list or from a company you already use."))}</p>
@@ -2374,7 +2643,8 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
   pc_mkdir: "Create the folder {path}", pc_trash: "Move {count} items to the Recycle Bin",
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}",
-  sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}" };
+  sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
+  mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
@@ -2382,7 +2652,7 @@ function actKey(c) {
   if (c.kind === "sys_startup") return d.on ? "Start {name} with the computer" : "Don't start {name} with the computer";
   return ACT_KEYS[c.kind] || "Change";
 }
-const cardIcon = k => k === "mcp_call" ? "🧩" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
+const cardIcon = k => k === "mcp_call" ? "🧩" : k.startsWith("mail_") ? "📬" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
   k.startsWith("pc_") ? "🗂" : k.startsWith("app_") ? "📦" : k.startsWith("sys_") ? "⚙️" : "📁";
 
 function actCard(c) {
@@ -2404,6 +2674,12 @@ function actCard(c) {
   } else if (c.kind === "github_new_repo") {
     meta.push(t(d.private ? "private" : "public"));
     extra = `<div class="cc-meta">${esc(t("Confirm opens GitHub with the form filled in: press “Create repository” there, then add it to Lanterna."))}</div>`;
+  } else if (c.kind === "mail_sort") {
+    extra = `<div class="cc-groups">${(d.groups || []).map(g => `<details><summary>📁 <b>${esc(g.to)}</b> <span class="muted">— ${g.count}</span></summary>
+      <pre class="cc-prev">${esc(g.files.join("\n"))}${g.count > g.files.length ? `\n… +${g.count - g.files.length}` : ""}</pre></details>`).join("")}</div>
+      <div class="cc-meta">${esc(t("Missing folders (in Gmail: labels) are created. Nothing is deleted."))}</div>`;
+  } else if (c.kind === "mail_send" || c.kind === "mail_draft") {
+    meta.push(t(c.kind === "mail_send" ? "The whole letter, as it will be sent:" : "The draft:"));
   } else if (c.kind === "pc_sort") {
     meta.push(((d.size || 0) / 1048576).toFixed(1) + " MB");
     extra = `<div class="cc-groups">${(d.groups || []).map(g => `<details><summary>📁 <b>${esc(g.to)}</b> <span class="muted">— ${g.count}</span></summary>
