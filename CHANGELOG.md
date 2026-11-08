@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.5 — Open things, change the look, do it on its own when you ask
 
 **New**
 - **Open things:** "open Google", "start Telegram", "open my plan.pdf" — programs from the system menu, websites in your browser and files from your folders open right away (program files never).
