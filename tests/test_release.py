@@ -106,7 +106,12 @@ def test_installer_and_release_files_agree():
     assert "PrivilegesRequired=lowest" in iss and "Lanterna-Setup-{#AppVersion}" in iss
     rel = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "Lanterna-Setup-$env:VERSION.exe" in rel and "--selfcheck" in rel and "scan_secrets.py --history" in rel
-    assert (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").count(f"## {__version__}") == 1
+    log = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    if re.search(r"[a-z]", __version__):           # a test version takes the notes from "Unreleased"
+        assert log.count("## Unreleased") == 1
+    else:
+        assert log.count(f"## {__version__}") == 1
+    assert 'throw "tests failed"' in rel            # a failed test must stop the release
 
 
 def test_vault_errors_are_reported_not_raised(tmp_path, monkeypatch):

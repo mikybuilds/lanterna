@@ -24,7 +24,9 @@ jobs:
         run: |
           pip install -e ".[dev]"
           python -m pytest -q
+          if ($LASTEXITCODE -ne 0) { throw "tests failed" }     # pwsh doesn't stop on a failed program by itself
           python tools/scan_secrets.py --history
+          if ($LASTEXITCODE -ne 0) { throw "secrets scan failed" }
       - name: Version must match the tag
         shell: pwsh
         run: |
