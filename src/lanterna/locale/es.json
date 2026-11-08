@@ -405,6 +405,7 @@
  "Lanterna can't write to this folder. Choose another one.": "Lanterna no puede escribir en esta carpeta. Elige otra.",
  "Lanterna checked what this computer can run.": "Lanterna comprobó qué puede ejecutar este ordenador.",
  "Lanterna connects to your mailbox with an app password: a separate password your mail service makes just for Lanterna. You can revoke it there any time. It is kept only in the system's secure store.": "Lanterna se conecta a tu buzón con una contraseña de aplicación: una contraseña aparte que tu servicio de correo crea solo para Lanterna. Puedes revocarla allí cuando quieras. Se guarda solo en el almacén seguro del sistema.",
+ "Lanterna didn't run anything in this reply: nothing was installed, opened or changed.": "En esta respuesta Lanterna no ejecutó nada: no se instaló, abrió ni cambió nada.",
  "Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.": "Lanterna las hace por su cuenta y te envía el resultado. Funcionan mientras Lanterna está abierta o en la bandeja y se quedan en este ordenador.",
  "Lanterna downloads the update, checks it, installs it over this version and opens again. Your chats, settings and keys stay as they are.": "Lanterna descarga la actualización, la comprueba, la instala sobre esta versión y se abre de nuevo. Tus chats, ajustes y claves se quedan como están.",
  "Lanterna is free and open source.": "Lanterna es gratis y de código abierto.",

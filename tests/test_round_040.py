@@ -121,7 +121,6 @@ def test_no_search_for_plain_chat_or_models_with_tools():
 
 def test_router_knows_when_the_next_model_lacks_tools():
     r = Router([Candidate("ollama", "gemma3:4b", 50, tools=False), Candidate("ollama", "qwen3:8b", 40)])
-    assert r.lacks_tools()                               # no current model yet: the first one will answer
-    r.current = r.candidates[1]
-    assert not r.lacks_tools()
+    assert not r.lacks_tools()                           # with tools on offer the one that can call them answers
+    assert Router([Candidate("ollama", "gemma3:4b", 50, tools=False)]).lacks_tools()   # only one that can't
     assert not Router([]).lacks_tools()

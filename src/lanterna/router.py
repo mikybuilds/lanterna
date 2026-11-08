@@ -126,9 +126,16 @@ class Router:
             order.sort(key=lambda c: PROVIDERS[c.provider].local)      # stable: cloud models keep their ranking
         if need_vision:
             order.sort(key=lambda c: not c.photo)                       # the local photo model first
+        # with tools on offer, a model that can't call them answers only when no model that can is free: otherwise
+        # it can't do anything and only says it does ("installing…, almost done")
+        lacks = lambda c: (c.provider, c.model) in self.no_tools   # noqa: E731
+        able = bool(tools) and any(not lacks(c) and (c.vision or not need_vision) for c in order)
+        if able:
+            order.sort(key=lacks)
         # a model already known to be resting (limit reached earlier) is skipped quietly, without a "switched" note
-        first = self.current if self.current in order else next((c for c in order if c.vision or not need_vision), None)
-        for c in order:
+        first = self.current if self.current in order and not (able and lacks(self.current)) \
+            else next((c for c in order if c.vision or not need_vision), None)
+        for n, c in enumerate(order):
             if need_vision and not c.vision:
                 continue
             if c is not first:
@@ -154,6 +161,8 @@ class Router:
                             raise
                         if attempts[i + 1][0] is None:
                             self.no_tools.add((c.provider, c.model))
+                            if any(not lacks(o) and (o.vision or not need_vision) for o in order[n + 1:]):
+                                raise ProviderError("tools", "this model can't use tools") from e   # try one that can
                 if not PROVIDERS[c.provider].local:
                     from .health import HEALTH
                     HEALTH.good(c.provider, c.model)      # it answered: an old "hung" mark goes away
@@ -161,7 +170,9 @@ class Router:
             except ProviderError as e:
                 if started:                                 # the answer was half-way: don't mix two models
                     raise
-                if e.kind == "bad_request" and any(m.get("role") == "tool" for m in messages):
+                if e.kind == "tools":
+                    pass                                    # fine for plain chats: it isn't put to rest
+                elif e.kind == "bad_request" and any(m.get("role") == "tool" for m in messages):
                     # refused in the middle of a tool round (often history another model left): not the model's fault
                     self._cool(c, ProviderError("other", str(e), e.status))
                 else:
@@ -198,10 +209,10 @@ class Router:
         return ""
 
     def lacks_tools(self) -> bool:
-        """True when the model that will answer next is known not to call tools (the current one, or the first free)."""
+        """True when the model that will answer next is known not to call tools: with tools on offer, stream() picks
+        a model that can whenever one is free, so only when none of the free ones can."""
         order = self.available()
-        c = self.current if self.current in order else (order[0] if order else None)
-        return bool(c) and (c.provider, c.model) in self.no_tools
+        return bool(order) and all((c.provider, c.model) in self.no_tools for c in order)
 
     def close(self) -> None:
         for c in self._clients.values():

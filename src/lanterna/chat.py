@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterator
 
-from . import AUTHOR, HOMEPAGE, soul
+from . import AUTHOR, HOMEPAGE, i18n, soul
 from .providers import ToolCalls
 from .router import Router, Switched, used_model
 
@@ -172,6 +172,40 @@ PC_GUIDE = (
 )
 
 
+HONEST_GUIDE = (
+    "Honesty about actions: you act only through tool calls in this reply. Nothing happens between your replies — "
+    "you can't keep working in the background, wait for something to finish, or report back later. Never say you are "
+    "installing, setting up, checking, changing or opening something, that you are almost done, or that you will let "
+    "the user know, unless a tool call in this very reply did it and you saw its result. If you can't do something "
+    "with your tools, say so plainly and give the exact steps or commands for the user to run."
+)
+NO_TOOLS_NOTE = (
+    "\n\nIn this reply you have no tools at all: you can't run, install, open, check or change anything on the "
+    "computer or online. Don't pretend you do. If the user expects an action, say you can't do it right now and give "
+    "the steps or commands to do it by hand."
+)
+
+# A reply that says it is doing or did something on the computer. Checked only when no tool ran in that reply.
+_CLAIM = re.compile(
+    r"встановлю(ю|єм)|встановив|встановила|налаштовую|налаштував|завершую|запускаю|перевіряю|оновлюю|завантажую|"
+    r"переходжу до|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|повідомлю,? (як|коли)|"
+    r"устанавлива|настраива|почти готов|"
+    r"\bI'?m (now |still |just )?(installing|setting up|configuring|checking|updating|downloading|changing|removing|"
+    r"finishing|running)\b|\bI(?:'ve| have) (just )?(installed|configured|changed|updated|removed|set up|run)\b|"
+    r"almost (done|finished|there)|I'?ll (let you know|report back|ping you)|"
+    r"\b(checking|installing|configuring|downloading|updating)\b[^.\n]{0,40}(\.\.\.|…)|"
+    r"\bsto (installando|configurando|controllando|aggiornando)|\bho (installato|configurato|cambiato)|quasi (fatto|finito)",
+    re.I)
+
+
+def claims_action(text: str) -> bool:
+    """The reply says it is doing (or did) something — fine only if a tool really ran in it."""
+    return bool(_CLAIM.search(text or ""))
+
+
+NOTHING_RAN = "Lanterna didn't run anything in this reply: nothing was installed, opened or changed."
+
+
 def system_prompt(name: str = "", now: datetime.datetime | None = None, extra: str = "", model: str = "",
                   facts: list[str] | None = None, tools: bool = False, pc: bool = False) -> str:
     now = now or datetime.datetime.now()
@@ -182,6 +216,7 @@ def system_prompt(name: str = "", now: datetime.datetime | None = None, extra: s
         f"If asked who made you, say that Lanterna was made by {AUTHOR}.{engine}",
         f"\nNow: {now:%A, %d %B %Y, %H:%M} (user's local time).",
         "Formatting: plain text or light Markdown. Use code blocks only for code.",
+        HONEST_GUIDE,
     ]
     if tools:
         parts.append(TOOLS_GUIDE)
@@ -428,6 +463,8 @@ class Conversation:
             schemas = [*schemas, ASK_TOOL]
             msgs[0]["content"] += ASK_HINT
         asked: list[dict] = []
+        if not schemas or self.router.lacks_tools():
+            msgs[0]["content"] += NO_TOOLS_NOTE
         if schemas and self.router.lacks_tools() and needs_search(text) and isinstance(msgs[-1]["content"], str):
             # this model can't call tools: search for it, so it doesn't make up fresh facts
             args = json.dumps({"query": " ".join(text.split())[:200]}, ensure_ascii=False)
@@ -498,6 +535,11 @@ class Conversation:
                     yield p
         reply = (questions_text(asked, self.ask_header) if asked
                  else soul.humanize("".join(pieces).strip(), self.last_reply))
+        if not asked and not done and claims_action(reply):
+            # it says it is installing / almost done, but nothing ran: say so where the user sees it
+            warn = "\n\n⚠️ " + i18n.t(NOTHING_RAN, self.lang)
+            yield warn
+            reply += warn
         note = f"{text}\n[attached {len(images)} image(s)]" if images else text
         self.history += [{"role": "user", "content": note}, {"role": "assistant", "content": reply}]
         self.last_reply = reply

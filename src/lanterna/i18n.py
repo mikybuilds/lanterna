@@ -781,6 +781,7 @@ _T.update({
     "Render lets only apps it approved use its connector.": {"uk": "Render пускає до свого конектора лише схвалені ним програми.", "it": "Render consente il suo connettore solo alle app che ha approvato."},
     "Indeed didn't accept Lanterna's sign-in.": {"uk": "Indeed не прийняв вхід через Lanterna.", "it": "Indeed non ha accettato l'accesso di Lanterna."},
     "ZoomInfo didn't accept Lanterna's sign-in.": {"uk": "ZoomInfo не прийняв вхід через Lanterna.", "it": "ZoomInfo non ha accettato l'accesso di Lanterna."},
+    "Lanterna didn't run anything in this reply: nothing was installed, opened or changed.": {"uk": "У цій відповіді Lanterna нічого не запускала: нічого не встановлено, не відкрито й не змінено.", "it": "In questa risposta Lanterna non ha eseguito nulla: niente è stato installato, aperto o cambiato."},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })
