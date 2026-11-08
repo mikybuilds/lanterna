@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.1 — GitHub Models is gone
 
 **Fixed**
 - **GitHub Models is gone:** GitHub shut the service down on 30 July 2026, and its address now answers a plain "OK" to everything, so checking a key showed “JSONDecodeError”. Lanterna no longer offers it; an old setting, saved model list or synced key that names it is ignored. If a service ever answers like that again, the key check says it answered oddly and may have closed, and the key isn't saved.
