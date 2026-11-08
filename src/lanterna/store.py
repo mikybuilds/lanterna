@@ -84,6 +84,9 @@ class Store:
                     self._db.execute(f"UPDATE {table} SET uid=lower(hex(randomblob(16))) WHERE uid IS NULL")
                     self._db.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS {table}_uid ON {table}(uid)")
         self.changes = 0                     # bumped on every write; sync uses it to know when to upload
+        # private chats: only in memory (negative ids), never in the database, the sync or a backup
+        self._private: dict[int, dict] = {}
+        self._next_private = -1
 
     def _q(self, sql: str, args: tuple = ()) -> list[dict]:
         with self._lock, self._db:
@@ -98,6 +101,22 @@ class Store:
                              [(r[0], now) for r in self._db.execute(f"SELECT uid FROM {table} WHERE {where}", args)])
         self.changes += 1
 
+    # ---------------------------------------------------------------- private chats (memory only)
+    def new_private(self) -> int:
+        with self._lock:
+            tid, self._next_private = self._next_private, self._next_private - 1
+            now = time.time()
+            self._private[tid] = {"title": "", "created": now, "updated": now, "msgs": []}
+            return tid
+
+    def forget_private(self, keep: int = 0) -> list[int]:
+        """Drops the private chats (all but `keep`); returns their ids."""
+        with self._lock:
+            gone = [tid for tid in self._private if tid != keep]
+            for tid in gone:
+                del self._private[tid]
+            return gone
+
     def new_thread(self, title: str = "") -> int:
         now = time.time()
         with self._lock, self._db:
@@ -109,29 +128,51 @@ class Store:
         return self._q("SELECT id, title, updated FROM threads ORDER BY updated DESC")
 
     def thread(self, tid: int) -> dict | None:
+        if tid < 0:
+            p = self._private.get(tid)
+            return {"id": tid, "title": p["title"], "updated": p["updated"], "private": True} if p else None
         r = self._q("SELECT id, title, updated FROM threads WHERE id=?", (tid,))
         return r[0] if r else None
 
     def rename(self, tid: int, title: str) -> None:
+        if tid < 0:
+            if tid in self._private:
+                self._private[tid]["title"] = title.strip()[:80]
+            return
         self._q("UPDATE threads SET title=?, title_at=? WHERE id=?", (title.strip()[:80], time.time(), tid))
 
     def summary(self, tid: int) -> tuple[str, int]:
         """A long chat's summary of its older part and how many of its first messages it covers."""
+        if tid < 0:
+            return "", 0
         r = self._q("SELECT summary, summary_upto FROM threads WHERE id=?", (tid,))
         return (r[0]["summary"], r[0]["summary_upto"]) if r else ("", 0)
 
     def set_summary(self, tid: int, text: str, upto: int) -> None:
         # not counted as a change: the summary stays on this device (each device makes its own), no sync upload
+        if tid < 0:
+            return
         with self._lock, self._db:
             self._db.execute("UPDATE threads SET summary=?, summary_upto=? WHERE id=?", (text, int(upto), tid))
 
     def delete_thread(self, tid: int) -> None:
+        if tid < 0:
+            with self._lock:
+                self._private.pop(tid, None)
+            return
         with self._lock, self._db:
             self._tomb("threads", "id=?", (tid,))
             self._db.execute("DELETE FROM threads WHERE id=?", (tid,))
 
     def add(self, tid: int, role: str, content: str, model: str = "", sent: str = "") -> None:
         now = time.time()
+        if tid < 0:
+            with self._lock:
+                p = self._private.get(tid)
+                if p is not None:
+                    p["msgs"].append({"role": role, "content": content, "model": model, "at": now, "sent": sent})
+                    p["updated"] = now
+            return
         with self._lock, self._db:
             self.changes += 1
             self._db.execute("INSERT INTO messages(uid, thread, role, content, model, at, sent) VALUES (?,?,?,?,?,?,?)",
@@ -142,12 +183,21 @@ class Store:
         """Removes the last n messages of a chat (answer again / edit the last message); other devices drop them too."""
         if n <= 0:
             return
+        if tid < 0:
+            with self._lock:
+                p = self._private.get(tid)
+                if p is not None:
+                    del p["msgs"][-n:]
+            return
         where = "id IN (SELECT id FROM messages WHERE thread=? ORDER BY id DESC LIMIT ?)"
         with self._lock, self._db:
             self._tomb("messages", where, (tid, n))
             self._db.execute(f"DELETE FROM messages WHERE {where}", (tid, n))
 
     def messages(self, tid: int) -> list[dict]:
+        if tid < 0:
+            with self._lock:
+                return [dict(m) for m in (self._private.get(tid) or {}).get("msgs", [])]
         return self._q("SELECT role, content, model, at, sent FROM messages WHERE thread=? ORDER BY id", (tid,))
 
     def search(self, query: str, limit: int = 40) -> list[dict]:

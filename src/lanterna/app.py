@@ -524,9 +524,23 @@ class Api:
         """The search box above the chat list: chats with these words in the name or in a message."""
         return self.store.search(str(query or "")[:200])
 
-    def new_thread(self) -> dict:
-        tid = self.store.new_thread()
-        return {"id": tid, "title": ""}
+    def new_thread(self, private: bool = False) -> dict:
+        """private: a chat that lives only in memory (not saved, not synced, no memory used); it goes when left."""
+        tid = self.store.new_private() if private else self.store.new_thread()
+        return {"id": tid, "title": "", "private": bool(private)}
+
+    def forget_private(self, keep: int = 0) -> bool:
+        """Leaving a private chat: it is gone for good (all but `keep`, the one still open)."""
+        changed = False
+        for tid in self.store.forget_private(int(keep or 0)):
+            a = self.settings.chat_dirs.pop(str(tid), None)
+            b = self.settings.chat_roles.pop(str(tid), None)
+            changed = changed or a is not None or b is not None
+            self._follow.pop(tid, None)
+            self._learned.pop(tid, None)
+        if changed:
+            self.settings.save()
+        return True
 
     def messages(self, tid: int) -> list[dict]:
         """Messages for display: attached file contents are shown as a short 📎 line."""
@@ -672,7 +686,10 @@ class Api:
 
     def _instructions(self, tid: int) -> str:
         from .roles import system_note
-        return system_note(self.settings.instructions, self.settings.chat_roles.get(str(int(tid)), ""), self.settings.lang)
+        note = system_note(self.settings.instructions, self.settings.chat_roles.get(str(int(tid)), ""), self.settings.lang)
+        if int(tid) < 0:
+            note = "\n\n".join(x for x in (note, "This is a private chat: nothing of it is saved after the user leaves it, and you have no memory about the user or their other chats here. Don't offer to remember anything.") if x)
+        return note
 
     def _undo_last(self, tid: int) -> str:
         """Takes back the last question (and its answers: a second opinion too); returns the question as saved."""
@@ -1153,9 +1170,12 @@ class Api:
         self.actions.bind(st.cards, tid)
         try:
             router = router or self._get_router()
-            from .tools import LookupOnly
-            conv = Conversation(router, self.settings.name, history=history[upto:],
-                                toolbox=LookupOnly(self.toolbox) if st.second else self.toolbox, summary=summary,
+            from .tools import LookupOnly, PrivateBox
+            private = tid < 0
+            box = LookupOnly(self.toolbox) if st.second else PrivateBox(self.toolbox) if private else self.toolbox
+            if st.second and private:
+                box.store = PrivateBox(self.toolbox).store
+            conv = Conversation(router, self.settings.name, history=history[upto:], toolbox=box, summary=summary,
                                 lang=self.settings.lang, ask_first=self.settings.ask_first,
                                 ask_header=t("Questions for you:", self.settings.lang),
                                 instructions=self._instructions(tid),
@@ -1181,12 +1201,12 @@ class Api:
             st.model = cur.label if cur else ""
             st.sent = sent.dumps(sent.build(
                 cur.label if cur else "", bool(cur and PROVIDERS[cur.provider].local), earlier,
-                bool(self.settings.name), len(self.store.facts()),
+                bool(self.settings.name), 0 if private else len(self.store.facts()),
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
                 len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else []),
-                parts=st.parts, second=st.second))
+                parts=st.parts, second=st.second, private=private))
             self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
-            if not st.second:                               # the first answer already named the chat, etc.
+            if not st.second and not private:               # the first answer already named the chat, etc.
                 self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
             if self.settings.compact_chats and summary_due(total, upto) and not st.second:
                 threading.Thread(target=self._compact, args=(tid, router, summary, upto, total), daemon=True).start()

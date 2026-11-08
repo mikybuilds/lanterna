@@ -429,6 +429,43 @@ class LookupOnly:
         return self._box.run(name, arguments)
 
 
+PRIVATE_HIDDEN = ("remember", "forget", "search_chats", "read_chat")
+
+
+class _NoFacts:
+    """The store as a private chat sees it: no memory about the user."""
+
+    def __init__(self, store):
+        self._store = store
+
+    def facts(self) -> list:
+        return []
+
+    def __getattr__(self, name):
+        return getattr(self._store, name)
+
+
+class PrivateBox(LookupOnly):
+    """The toolbox for a private chat: everything except memory and earlier chats."""
+
+    def __init__(self, box: "Toolbox"):
+        super().__init__(box)
+        self.store = _NoFacts(box.store)
+
+    @property
+    def tools(self) -> dict:
+        return {k: v for k, v in self._box.tools.items() if k not in PRIVATE_HIDDEN}
+
+    def schemas(self, context: str | None = None) -> list[dict]:
+        return [s for s in self._box.schemas(context) if s["function"]["name"] not in PRIVATE_HIDDEN]
+
+    def run(self, name: str, arguments: str) -> str:
+        if name in PRIVATE_HIDDEN:
+            return f"Error: there is no tool called {name}."
+        self._box.focus, self._box.page_limit = self.focus, self.page_limit
+        return self._box.run(name, arguments)
+
+
 class Toolbox:
     """The tools for one app session. Memory and reminders live in the local database (store)."""
 

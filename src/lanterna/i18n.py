@@ -451,6 +451,10 @@ _T.update({
     "Its password (if it was made elsewhere)": {"uk": "Її пароль (якщо зроблена деінде)", "it": "La sua password (se fatto altrove)"},
     "There is no such file.": {"uk": "Такого файлу немає.", "it": "Non esiste questo file."},
     "Turn off backups": {"uk": "Вимкнути копії", "it": "Disattiva i backup"},
+    "Private chat": {"uk": "Приватний чат", "it": "Chat privata"},
+    "Private chat: not saved, memory not used": {"uk": "Приватний чат: не зберігається, пам'ять не використовується", "it": "Chat privata: non salvata, memoria non usata"},
+    "It isn't saved, and memory and your other chats aren't used. It disappears when you leave it.": {"uk": "Він не зберігається, а пам'ять та інші твої чати не використовуються. Зникне, щойно ти з нього вийдеш.", "it": "Non viene salvata, e la memoria e le tue altre chat non vengono usate. Sparisce quando la lasci."},
+    "Private chat: it isn't saved, and memory and your other chats aren't used": {"uk": "Приватний чат: він не зберігається, а пам'ять та інші твої чати не використовуються", "it": "Chat privata: non viene salvata, e la memoria e le tue altre chat non vengono usate"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

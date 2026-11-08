@@ -26,10 +26,12 @@ def _arg(arguments: str, key: str) -> str:
 
 def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
           tools: list[tuple[str, str]], summary: bool = False, old_files: list[str] | None = None,
-          parts: list[str] | None = None, second: bool = False) -> list[dict]:
+          parts: list[str] | None = None, second: bool = False, private: bool = False) -> list[dict]:
     """[{"t": template, "v": vars}] — the first line says where it went."""
     out = [{"t": "Stayed on this computer ({model})" if local else "Sent to {model}", "v": {"model": model or "?"}}]
     out.append({"t": "Your message and {n} earlier messages of this chat" if history else "Your message", "v": {"n": history}})
+    if private:
+        out.append({"t": "Private chat: it isn't saved, and memory and your other chats aren't used", "v": {}})
     if second:
         out.append({"t": "A second opinion: the same question to another model, without the first answer", "v": {}})
     if summary:

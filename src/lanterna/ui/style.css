@@ -135,7 +135,10 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; }
 .brand img { width: 30px; height: 30px; }
 .brand b { font: 700 18px/1 var(--display); letter-spacing: -.01em; }
-.newchat { margin: 4px 14px 10px; justify-content: flex-start; height: 42px; padding: 0 14px; }
+.newrow { display: flex; gap: 8px; margin: 4px 14px 10px; }
+.newchat { flex: 1; min-width: 0; justify-content: flex-start; height: 42px; padding: 0 14px; }
+.newpriv { flex: none; width: 42px; height: 42px; padding: 0; justify-content: center; }
+.newpriv .i { width: 19px; height: 19px; }
 .threads { flex: 1; overflow: auto; padding: 4px 8px; }
 .copied { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--amber-line); border-radius: 14px; background: var(--amber-soft); }
 .cp-head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--amber); }
@@ -554,3 +557,10 @@ details.sent li { margin: 2px 0; }
 #bk-err:empty { display: none; }
 .note.ok { color: var(--green); }
 .note.ok .i { color: var(--green); }
+
+/* a private chat: not saved, memory not used */
+.priv-bar { display: flex; gap: 10px; align-items: flex-start; max-width: 780px; margin: 0 auto 14px; padding: 10px 14px; border-radius: 14px;
+  border: 1px dashed var(--line-2); background: var(--surface); color: var(--muted); font-size: 13px; line-height: 1.45; }
+.priv-bar .i { width: 20px; height: 20px; flex: none; color: var(--text); margin-top: 1px; }
+.priv-bar b { color: var(--text); margin-right: 4px; }
+body.private .newpriv { border-color: var(--amber-line); color: var(--amber); }

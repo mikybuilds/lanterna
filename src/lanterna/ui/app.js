@@ -819,7 +819,8 @@ function renderMain() {
   app.innerHTML = `<div class="shell">
     <aside class="side">
       <div class="brand"><img src="logo.svg" alt=""><b>Lanterna</b></div>
-      <button class="btn ghost newchat" id="new">${icon("plus")} ${t("New chat")}</button>
+      <div class="newrow"><button class="btn ghost newchat" id="new">${icon("plus")} ${t("New chat")}</button>
+        <button class="btn ghost newpriv" id="new-private" title="${esc(t("Private chat: not saved, memory not used"))}">${icon("incog")}</button></div>
       <label class="find"><span class="find-ic">${icon("search")}</span><input id="find" type="search" autocomplete="off" spellcheck="false"
         placeholder="${t("Search chats")}" aria-label="${t("Search chats")}"><button id="find-x" hidden title="${t("Close")}">${icon("x")}</button></label>
       <nav class="threads" id="threads"></nav>
@@ -848,6 +849,7 @@ function renderMain() {
     </main>
   </div>`;
   $("#new").onclick = () => openThread(null);
+  $("#new-private").onclick = () => { if (!busy) openThread(null, true); };
   setupFind();
   $("#open-settings").onclick = openSettings;
   $("#open-about").onclick = openAbout;
@@ -884,7 +886,9 @@ function renderMain() {
   $("#fold").onclick = e => { e.stopPropagation(); folderMenu(); };
   $("#role-btn").onclick = e => { e.stopPropagation(); roleMenu(); };
   paintLimit();
-  refreshThreads().then(list => openThread(!QUICK && list.length ? list[0].id : null));
+  // redrawn (a new language…): a private chat stays open, it isn't dropped by a redraw
+  refreshThreads().then(list => thread && thread < 0 ? openThread(thread) : privateNext ? openThread(null, true)
+    : openThread(!QUICK && list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
   if (!QUICK && !window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
 }
@@ -1117,7 +1121,16 @@ async function savedToast(r) {
   if (last) { last.style.cursor = "pointer"; last.onclick = () => api.show_saved(r.path); }
 }
 
-async function openThread(id) {
+// a private chat lives only in memory (negative id): not saved, not synced, memory and other chats not used.
+// It is gone for good when you leave it.
+let privateNext = false;
+function privBar() {
+  return h(`<div class="priv-bar">${icon("incog")}<span><b>${esc(t("Private chat"))}</b> ${esc(t("It isn't saved, and memory and your other chats aren't used. It disappears when you leave it."))}</span></div>`);
+}
+
+async function openThread(id, priv) {
+  if (thread && thread < 0 && id !== thread) api.forget_private(id && id < 0 ? id : 0);   // leaving a private chat
+  privateNext = !id && !!priv;
   thread = id;
   const sv = $("#save-chat");
   if (sv) { sv.hidden = !id; sv.onclick = async () => { if (thread) savedToast(await api.export_chat(thread)); }; }
@@ -1127,11 +1140,13 @@ async function openThread(id) {
   paintRole();
   const msgs = $("#msgs");
   msgs.innerHTML = "";
-  if (!id) { $("#title").textContent = QUICK ? t("Quick question") : "Lanterna"; showEmpty(); refreshThreads(); $("#input").focus(); return; }
+  document.body.classList.toggle("private", privateNext || (id || 0) < 0);
+  if (!id) { $("#title").textContent = QUICK ? t("Quick question") : privateNext ? t("Private chat") : "Lanterna"; showEmpty(); if (privateNext) msgs.prepend(privBar()); refreshThreads(); $("#input").focus(); return; }
   const [list, items] = await Promise.all([api.threads(), api.messages(id)]);
   const th = list.find(x => x.id === id);
-  $("#title").textContent = (th && th.title) || t("New chat");
+  $("#title").textContent = id < 0 ? t("Private chat") : (th && th.title) || t("New chat");
   if (!items.length) showEmpty();
+  if (id < 0) msgs.prepend(privBar());
   items.forEach(m => {
     if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
     m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent);
@@ -1304,7 +1319,8 @@ async function send(retryText) {
   busy = true; $("#send").disabled = true;
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
-    thread = (await api.new_thread()).id;
+    thread = (await api.new_thread(privateNext)).id;
+    privateNext = false;
     if (newChatFolder !== undefined) { await api.set_chat_folder(thread, newChatFolder, false); newChatFolder = undefined; }
     if (newChatRole) { await api.set_chat_role(thread, newChatRole); newChatRole = ""; }
   }
@@ -1319,7 +1335,7 @@ async function send(retryText) {
   scrollDown(true);
   clearLastActions();
   const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
-  refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th) $("#title").textContent = th.title; });
+  refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) $("#title").textContent = th.title; });
   if (!r.ok) {
     busy = false; live = null; inp.oninput();
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`;

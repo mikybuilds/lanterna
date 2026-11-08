@@ -1950,11 +1950,13 @@ class _ChatScreen(Screen):
             self.query_one("#composer", Input).focus()
 
     def open_thread(self, tid: int) -> None:
+        self._leave_private(tid)
         self.tid = tid
         log = self.query_one("#log", VerticalScroll)
         log.remove_children()
         th = next((x for x in self.app.api.threads() if x["id"] == tid), None)
-        self.query_one("#chattitle", Label).update((th or {}).get("title") or t("New chat", L(self.app)))
+        self.query_one("#chattitle", Label).update("🕶 " + t("Private chat", L(self.app)) if tid < 0
+                                                   else (th or {}).get("title") or t("New chat", L(self.app)))
         msgs = self.app.api.messages(tid)
         if not msgs:
             self._welcome()
@@ -1994,9 +1996,27 @@ class _ChatScreen(Screen):
         box.value = str(ev.button.label)
         box.post_message(Input.Submitted(box, box.value))
 
+    def _leave_private(self, to: int | None) -> None:
+        if self.tid is not None and self.tid < 0 and to != self.tid:
+            self.app.api.forget_private(to if to is not None and to < 0 else 0)
+
+    def action_private_chat(self) -> None:
+        """F7: a private chat: only in memory, not saved or synced, memory and other chats not used."""
+        if self._stream:
+            return
+        self.action_new_chat()
+        self._private_next = True
+        lang = L(self.app)
+        self.query_one("#chattitle", Label).update("🕶 " + t("Private chat", lang))
+        self.query_one("#log", VerticalScroll).mount(
+            Static("🕶 " + t("It isn't saved, and memory and your other chats aren't used. It disappears when you leave it.", lang),
+                   classes="msg-note", markup=False), before=0)
+
     def action_new_chat(self) -> None:
         if self._stream:
             return
+        self._leave_private(None)
+        self._private_next = False
         self.tid = None
         self.query_one("#log", VerticalScroll).remove_children()
         self.query_one("#chattitle", Label).update(t("New chat", L(self.app)))
@@ -2148,7 +2168,8 @@ class _ChatScreen(Screen):
         log.query(AskForm).remove()
         self._asked = None
         if self.tid is None:
-            self.tid = self.app.api.new_thread()["id"]
+            self.tid = self.app.api.new_thread(private=getattr(self, "_private_next", False))["id"]
+            self._private_next = False
             if getattr(self, "_new_role", ""):
                 self.app.api.set_chat_role(self.tid, self._new_role)
                 self._new_role = ""
@@ -2392,6 +2413,7 @@ def make_chat_screen(lang: str) -> Screen:
         Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
         Binding("f4", "second_opinion", t("Second opinion", lang), priority=True),
         Binding("f6", "next_role", t("Role", lang), priority=True),
+        Binding("f7", "private_chat", t("Private chat", lang), priority=True),
         Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
         Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
         Binding("f2", "voice", t("Voice input", lang), priority=True),
