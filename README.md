@@ -149,6 +149,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - [x] Working folder with confirmation cards, Google Drive connector, limits view, one-click updates
 - [x] GitHub connector, a folder per chat, limit bar, live "what I'm doing" steps
 - [x] 1.0: always at hand (tray, quick-question hotkey, screen questions), regular tasks, voice input, MCP servers
+- [x] Next: reading aloud, morning summary, rates and units, audio and more file types, second opinion, roles, snips, private chat, encrypted backups, `lanterna ask`, ready-made MCP servers
 
 ## What it can do
 
@@ -156,13 +157,21 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - **Reminders** ("remind me in 20 minutes to stretch", "every weekday at 8 the bus"): a system notification while Lanterna is open, with "Snooze 10 min". They can repeat every day, on weekdays, every week or every month without using a model. Missed ones show up the next time you open it.
 - **Search the web** (DuckDuckGo, no key) and read pages, with the site name as the source.
 - **Weather and air quality** for any city (Open-Meteo, no key).
-- **Files and photos**: PDF, Word, text and code files, and photos (📎 button, drag and drop, or Ctrl+F / `/file path` in the terminal).
+- **Exchange rates and units**: today's official National Bank of Ukraine rate for about 60 currencies, and exact unit conversions (miles, sotkas, °F…) that work offline.
+- **Files and photos**: PDF (scans too), Word, Excel, PowerPoint, OpenDocument, EPUB, text and code files, photos and audio recordings (📎 button, drag and drop, or Ctrl+F / `/file path` in the terminal). A long file sends the parts that fit your question; “Whole file” sends all of it.
 - **Exact math and dates**: numbers are computed by code, not guessed by the model.
 - **Regular tasks** ("every morning at 8 tell me the weather in Kyiv", "in the evening tell me if it will rain tomorrow"): Lanterna does them on schedule and sends a notification, or stays quiet when your condition isn't true. Only safe tools (weather, web search, pages). Settings → Regular tasks.
 - **Voice input**: the microphone next to the message box (or F2), off by default. Online with Groq Whisper, or on this computer with whisper.cpp (a one-time, checked download; nothing leaves your PC). Your words land in the box, so you can fix them before sending.
 - **Always at hand (Windows)**: Lanterna stays in the tray when you close the window. Ctrl+Shift+Space opens a small quick-question window anywhere; its camera button (or "Ask about my screen" in the tray menu) attaches a screenshot. Copied some text a moment ago? The quick window offers Translate, Explain and Fix mistakes. Start with Windows is off until you turn it on.
-- **Search your chats**: the box above the chat list finds words in any chat.
-- **MCP servers (advanced, off by default)**: add outside tools — a program on this computer or an https:// address. Turning it on first shows the risks, adding a server shows the exact command, and every tool call waits for Confirm unless you allow that tool.
+- **Search your chats**: the box above the chat list finds words in any chat. Ask “what did you suggest last time about…?” and the model looks through your earlier chats itself.
+- **Answers read aloud** (🔊, or every answer by itself): the voices Windows has, or Piper with natural voices in 7 languages (a separate program, downloaded on request).
+- **Morning summary** (off by default): the weather, today's reminders and regular tasks in one note at the time you pick.
+- **Second opinion**: the same question to another model, its answer right under the first one.
+- **Your own instructions and roles**: tell Lanterna once how to answer; give a chat a role (Tutor, Translator, Proofreader).
+- **Ask about a snip (Windows)**: Win+Shift+S, then the quick-question hotkey: Explain, Translate or Ask about the picture.
+- **Private chat** (🕶, F7 in the terminal app): never written to disk, synced or backed up, no memory used, gone when you leave it.
+- **Encrypted weekly backups** (Settings → Chats → Backups): one AES-256 file a week in Documents\Lanterna backups, the last 4 kept; restore on any computer with the password.
+- **MCP servers (advanced, off by default)**: add outside tools — a program on this computer or an https:// address, or one of four ready-made servers with a fixed version (files or Git in a folder you pick, a web browser, step-by-step thinking). Turning it on first shows the risks, adding a server shows the exact command, and every tool call waits for Confirm unless you allow that tool.
 
 ## Local models (optional)
 
@@ -193,6 +202,13 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - Web pages and files Lanterna reads are treated as information, never as instructions. So are answers from MCP servers.
 - **Voice input** is off by default. Online (Groq Whisper), your recording goes to Groq to become text; on this computer (whisper.cpp) it never leaves your PC. Recordings are not kept.
 - **MCP servers** are off by default and made by other people. What a tool is asked goes to that server; a program server runs with your rights. Tokens for servers stay in the system's secure vault.
+- **Exchange rates** come from the National Bank of Ukraine (bank.gov.ua), only when you ask about money; the request carries nothing about you.
+- **Reading aloud** with Windows voices stays on your PC. Piper is downloaded only when you ask (pinned files checked by SHA-256) and then works offline.
+- **Audio files** you attach are turned into text by the voice input you chose: online with Groq, or on your PC with whisper.cpp.
+- **Snips and copied pictures**: Lanterna looks at the clipboard only when you open the quick window, skips copies marked private, and sends the picture only when you press a button.
+- **Private chats** live only in memory: never written to disk, synced or put in a backup. The model you ask still gets those messages, as always.
+- **Backups** are encrypted with your password before they are written; the password itself is never stored (only a key made from it, in the system's secure vault), and no API keys or sign-ins go into a backup.
+- **`lanterna ask`** sends your question and what you pipe into it to the model, without your memory, and saves nothing unless you add `--save`.
 - **Screenshots** are taken only when you press the camera button or "Ask about my screen", and go to the model like an attached photo.
 - **Copied text**: Lanterna notes only *when* something was copied, never what. It reads the clipboard only when you open the quick window within 90 seconds of copying, skips copies a password manager marks as private, and sends the text only when you press Translate, Explain or Fix mistakes.
 - **Model checks**: once a day, up to 6 tiny "Hi" requests go to models in your queue that haven't been tried yet, so they're known to answer before you need them.
