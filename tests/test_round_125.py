@@ -204,3 +204,20 @@ def test_the_model_is_told_where_files_go():
     assert "pc_write" in PC_GUIDE and "never Google Drive" in PC_GUIDE
     src = open(gdrive.__file__, encoding="utf-8").read()
     assert "not on this computer" in src and "pc_write" in src
+
+
+
+
+def test_a_late_registry_answer_while_closing_is_dropped(ready):
+    """The registry search answers while the window is being taken down (on GitHub's slower machine the category
+    list was already gone and it crashed with "No nodes match '#cn-cat'"): the late answer is dropped."""
+    async def body(app, pilot):
+        app.screen.action_connectors("browse")
+        assert await wait_for(pilot, lambda: isinstance(app.screen, tui.ConnectorsScreen) and app.screen.query("#cn-q"))
+        await pilot.pause(0.3)
+        scr = app.screen
+        scr.query_one("#cn-q", Input).value = "zzqqxx"
+        await scr.query_one("#cn-cat").remove()           # half taken down, as when the window closes
+        scr._found("zzqqxx", {"registry": [], "next": "", "ok": True})
+        scr._tick()
+    run(ready, body)

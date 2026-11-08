@@ -39,3 +39,4 @@ def test_browse_shows_every_category():
     app = (UI / "app.js").read_text(encoding="utf-8")
     assert "catSection(k, n)" in app and 'data-cat="${k}"' in app and "cn-more-hint" in app
     assert ".cn-more-hint" in (UI / "style.css").read_text(encoding="utf-8")
+

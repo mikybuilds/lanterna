@@ -2211,7 +2211,13 @@ class ConnectorsScreen(ModalScreen[None]):
         self._paint_browse()
         self._paint_mine()
 
+    def _gone(self) -> bool:
+        """The window is closing: a late answer (a search, a sign-in) has nothing to paint."""
+        return not self.is_attached or not self.query("#cn-cat") or not self.query("#cn-q")
+
     def _tick(self) -> None:                                # a browser sign-in finishing, a server starting
+        if self._gone():
+            return
         st = self.app.api.mcp_status()
         sig = [(s["id"], s["state"], s["signing"], s["sign_error"], len(s["tools"])) for s in st["servers"]]
         if sig != getattr(self, "_sig", None):
@@ -2220,6 +2226,8 @@ class ConnectorsScreen(ModalScreen[None]):
 
     # -- Browse
     def _paint_browse(self) -> None:
+        if self._gone():
+            return
         lang = L(self.app)
         q = self.query_one("#cn-q", Input).value.strip().lower()
         cat = self.query_one("#cn-cat", Select).value
@@ -2273,12 +2281,14 @@ class ConnectorsScreen(ModalScreen[None]):
 
     @work(thread=True, exclusive=True, group="registry")
     def _search(self) -> None:
-        q = self.app.call_from_thread(lambda: self.query_one("#cn-q", Input).value.strip())
+        q = self.app.call_from_thread(lambda: "" if self._gone() else self.query_one("#cn-q", Input).value.strip())
+        if not q:
+            return
         r = self.app.api.connectors_search(q)
         self.app.call_from_thread(self._found, q, r)
 
     def _found(self, q: str, r: dict) -> None:
-        if q == self.query_one("#cn-q", Input).value.strip():
+        if not self._gone() and q == self.query_one("#cn-q", Input).value.strip():
             self.reg = r.get("registry") or []
             self._paint_browse()
 
