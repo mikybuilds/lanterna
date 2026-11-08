@@ -86,6 +86,8 @@ In a terminal `lanterna` opens a full-screen app (chats on the left, Ctrl+N new 
 
 <p align="center"><img src="docs/screen-terminal.png" width="720" alt="Lanterna in a terminal"></p>
 
+`lanterna ask "question"` prints one answer, for scripts: `git diff | lanterna ask "write a commit message"` sends the piped text with the question (`-f file` attaches a file, `--save` keeps it as a chat; memory about you isn't sent).
+
 Other commands: `lanterna models` (free models available right now), `lanterna local` (local models), `lanterna key set <provider>`, `lanterna key list`, `lanterna setup`, `lanterna about`.
 
 ## Your chats on all your devices

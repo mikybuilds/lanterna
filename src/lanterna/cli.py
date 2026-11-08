@@ -6,6 +6,7 @@
   lanterna setup           run setup again
   lanterna key set groq    store a key in the system vault
   lanterna key list        show which keys are stored (masked)
+  lanterna ask "question"  one answer, printed (for scripts): git diff | lanterna ask "write a commit message"
   lanterna about
   lanterna update          is there a new version, and how to install it
 """
@@ -154,6 +155,105 @@ def run_chat(s: Settings) -> int:
     console.print(f"[dim]{t('Bye!', lang)}[/]")
     router.close()
     return 0
+
+
+# ---------------------------------------------------------------- lanterna ask: one answer, for scripts and pipes
+STDIN_LIMIT = 20 * 1024 * 1024
+
+
+class _NoMemory:
+    """`lanterna ask` doesn't send what Lanterna remembers about you."""
+
+    @staticmethod
+    def facts() -> list:
+        return []
+
+
+def _stdin_file(data: bytes) -> dict:
+    """What came through the pipe, as an attachment ("input.txt", or input.pdf / .docx… by its first bytes)."""
+    import base64
+    name = ("input.pdf" if data[:5] == b"%PDF-" else "input.png" if data[:8] == b"\x89PNG\r\n\x1a\n"
+            else "input.jpg" if data[:3] == b"\xff\xd8\xff" else "input.txt")
+    return {"name": name, "data": base64.b64encode(data).decode()}
+
+
+def ask_cmd(s: Settings, question: str, paths: list[str] | None = None, save: bool = False, role: str = "",
+            lookups: bool = True, stdin=None, out=None, err=None) -> int:
+    """Answers once and prints only the answer (stdout), so it can go into a file or another program.
+    Text piped in (git diff, a log, a file) goes with the question; long input sends the parts that fit it.
+    Nothing is saved unless --save; memory about you isn't sent. Exit: 0 ok, 1 no model, 2 nothing to ask, 3 failed."""
+    from . import files as filemod
+    from . import roles, tools
+    stdin = stdin if stdin is not None else sys.stdin
+    out = out if out is not None else sys.stdout
+    err = err if err is not None else sys.stderr
+    for stream in (out, err):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    lang = s.lang
+    question = " ".join(str(question or "").split()) if "\n" not in str(question or "") else str(question).strip()
+    attach = [{"path": p} for p in paths or []]
+    piped = b""
+    if not stdin.isatty():
+        raw = getattr(stdin, "buffer", None)
+        piped = raw.read(STDIN_LIMIT + 1) if raw is not None else str(stdin.read(STDIN_LIMIT + 1)).encode("utf-8")
+        if len(piped) > STDIN_LIMIT:
+            err.write(t("The input is too big (more than 20 MB).", lang) + "\n")
+            return 2
+        if piped.strip():
+            attach.append(_stdin_file(piped))
+    if not question and not attach:
+        err.write(t('Nothing to ask. Example: lanterna ask "why is the sky blue?" or: git diff | lanterna ask "write a commit message"', lang) + "\n")
+        return 2
+    try:
+        prep = filemod.prepare(attach, focus=question)
+    except filemod.FileError as e:
+        err.write(t("Error: {err}", lang, err=e) + "\n")
+        return 2
+    text = "\n\n".join(x for x in (question, prep.text) if x)
+    cands = get_models(s.provider, mode=s.mode, picks=s.local_models, fallback=s.local_fallback)
+    if not cands:
+        p = PROVIDERS[s.provider or "groq"]
+        err.write(t("No key for {p}. Run: lanterna key set {id}", lang, p=p.name, id=p.id) + "\n")
+        return 1
+    router = Router(cands)
+    box = None
+    if lookups:
+        box = tools.LookupOnly(tools.Toolbox(None, lang=lambda: lang))
+        box.store = _NoMemory()
+    conv = Conversation(router, s.name, toolbox=box, lang=lang, auto_cloud=s.mode == "auto" and s.auto_cloud,
+                        instructions=roles.system_note(s.instructions, roles.clean_role(role), lang))
+    live = out.isatty() if hasattr(out, "isatty") else False
+    try:
+        for piece in conv.ask(text, prep.images or None):
+            if isinstance(piece, str) and live:              # a person watching: the words as they come
+                out.write(piece)
+                out.flush()
+    except ProviderError as e:
+        msg = (t("All free models are busy or out of limits. Try again in a minute.", lang)
+               if e.kind == "rate" else t("Network problem: {err}", lang, err=e) if e.kind == "network" else t("Error: {err}", lang, err=e))
+        err.write(msg + "\n")
+        router.close()
+        return 3
+    except KeyboardInterrupt:
+        router.close()
+        return 3
+    reply = conv.last_reply.strip()
+    out.write(("\n" if live else reply + "\n"))
+    out.flush()
+    if save and reply:
+        from .store import Store
+        st = Store()
+        tid = st.new_thread((question or ", ".join(prep.names)).splitlines()[0][:60])
+        st.add(tid, "user", text)
+        from .router import used_model
+        cur = used_model(router)
+        st.add(tid, "assistant", reply, cur.label if cur else "")
+        st.close()
+    router.close()
+    return 0 if reply else 3
 
 
 def local_cmd(s: Settings, action: str, value: str | None) -> int:
@@ -356,6 +456,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("setup")
     sub.add_parser("chat", help="simple line-by-line chat")
     sub.add_parser("about")
+    ak = sub.add_parser("ask", help="one answer, printed (pipe text in: git diff | lanterna ask \"write a commit message\")")
+    ak.add_argument("question", nargs="*", help="what to ask")
+    ak.add_argument("-f", "--file", action="append", default=[], help="attach a file (more than once for more files)")
+    ak.add_argument("--role", choices=["tutor", "translator", "proofreader"], help="answer as a tutor, translator or proofreader")
+    ak.add_argument("--save", action="store_true", help="also save the question and answer as a chat in Lanterna")
+    ak.add_argument("--no-tools", action="store_true", help="no web search, weather, rates or math tools")
     up = sub.add_parser("update", help="is there a new version, and how to install it")
     up.add_argument("--now", action="store_true", help="installed with pipx: update right away")
     sub.add_parser("doctor", help="check what works: keys, internet, sync, folders, programs, local models")
@@ -378,6 +484,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "about":
         banner(s.lang)
         return 0
+    if a.cmd == "ask":
+        return ask_cmd(s, " ".join(a.question), a.file, save=a.save, role=a.role or "", lookups=not a.no_tools)
     if a.cmd == "update":
         return update_cmd(s, a.now)
     if a.cmd == "doctor":
