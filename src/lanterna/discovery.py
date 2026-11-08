@@ -1,7 +1,7 @@
 """Finds chat models that are free to use right now and ranks them.
 
 - OpenRouter publishes prices: only models priced 0 (prompt and completion) are taken.
-- Groq, Gemini, Cerebras, Mistral and GitHub Models have free tiers per account: their chat models are taken
+- Groq, Gemini, Cerebras and Mistral have free tiers per account: their chat models are taken
   and the best few are pinged once, so models that are blocked or paid for this account drop out.
 - Models nobody has heard of yet are scored by size and family, so new free models are picked up automatically.
 Results are cached for a day.
@@ -164,7 +164,8 @@ def load_cache(providers: list[str]) -> list[Candidate] | None:
         return None
     if datetime.datetime.now() - at > datetime.timedelta(hours=CACHE_HOURS) or sorted(d.get("providers", [])) != sorted(providers):
         return None
-    return [Candidate(**c) for c in d["candidates"] if not _SKIP.search(c.get("model", ""))]   # lists saved by older versions
+    return [Candidate(**c) for c in d["candidates"]                      # lists saved by older versions
+            if not _SKIP.search(c.get("model", "")) and c.get("provider") in PROVIDERS]
 
 
 def save_cache(cands: list[Candidate], providers: list[str]) -> None:

@@ -906,5 +906,6 @@
  "{n} tools": "{n} Werkzeuge",
  "{n} weren't in the Recycle Bin any more (or something with that name is there again).": "{n} waren nicht mehr im Papierkorb (oder dort liegt wieder etwas mit diesem Namen).",
  "{place}: {min}…{max}°C, chance of rain {rain}%": "{place}: {min}…{max}°C, Regenwahrscheinlichkeit {rain}%",
+ "{p} answered, but not the way it should. The service may have changed or closed; try another one.": "{p} hat geantwortet, aber nicht wie erwartet. Der Dienst hat sich vielleicht geändert oder wurde eingestellt; versuch einen anderen.",
  "{term}: the full-screen app may look wrong. Use a terminal app like GNOME Terminal or Konsole.": "{term}: Die Vollbild-App sieht eventuell falsch aus. Nutze ein Terminal wie GNOME Terminal oder Konsole."
 }

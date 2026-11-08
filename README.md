@@ -139,7 +139,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
-- [x] All free services (Groq, Gemini, OpenRouter, Cerebras, Mistral, GitHub Models) and automatic discovery of models that are free right now, with fallback when a limit is reached
+- [x] All free services (Groq, Gemini, OpenRouter, Cerebras, Mistral) and automatic discovery of models that are free right now, with fallback when a limit is reached
 - [x] Windows app (window with chats, settings, first-run setup)
 - [x] Windows installer (Setup.exe) and portable zip, built by the release workflow
 - [x] Update notice at start with steps for your kind of install (can be turned off)

@@ -478,6 +478,7 @@ _T.update({
     "Pick a folder first.": {"uk": "Спершу вибери папку.", "it": "Prima scegli una cartella."},
     "Unknown server.": {"uk": "Невідомий сервер.", "it": "Server sconosciuto."},
     "For a folder one, type the folder in the box below first.": {"uk": "Для серверів із папкою спершу впиши папку в поле нижче.", "it": "Per quelli con cartella, scrivi prima la cartella nel campo qui sotto."},
+    "{p} answered, but not the way it should. The service may have changed or closed; try another one.": {"uk": "{p} відповів, але не так, як мав би. Можливо, сервіс змінився або закрився; спробуй інший.", "it": "{p} ha risposto, ma non come dovrebbe. Il servizio potrebbe essere cambiato o chiuso; provane un altro."},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

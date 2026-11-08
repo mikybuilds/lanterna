@@ -26,9 +26,12 @@ PROVIDERS: dict[str, Provider] = {p.id: p for p in [
     Provider("openrouter", "OpenRouter", "https://openrouter.ai/api/v1", "https://openrouter.ai/settings/keys"),
     Provider("cerebras", "Cerebras", "https://api.cerebras.ai/v1", "https://cloud.cerebras.ai"),
     Provider("mistral", "Mistral", "https://api.mistral.ai/v1", "https://console.mistral.ai/api-keys"),
-    Provider("github", "GitHub Models", "https://models.github.ai/inference", "https://github.com/settings/personal-access-tokens"),
     Provider("ollama", "Ollama (local)", "http://127.0.0.1:11434/v1", "https://ollama.com/download", needs_key=False, local=True),
 ]}
+
+# Services that closed: settings, caches and synced keys that still name them are ignored.
+# GitHub Models was shut down by GitHub on 30 July 2026 (its address now answers "OK" to everything).
+RETIRED: dict[str, str] = {"github": "GitHub Models"}
 
 # Good default chat models per provider, best first. Stage 1 replaces this with live discovery.
 PREFERRED: dict[str, list[str]] = {
@@ -117,15 +120,17 @@ class Client:
 
     def raw_models(self) -> list[dict]:
         """The provider's model list as returned (OpenRouter includes prices; others just ids)."""
-        # GitHub Models keeps its catalog next to the inference endpoint, on the same host.
-        path = "../catalog/models" if self.provider.id == "github" else "models"
         try:
-            r = self._http.get(path)
+            r = self._http.get("models")
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
         if r.status_code != 200:
             raise _error(r)
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError:                                   # a page or a plain "OK": the service changed or closed
+            raise ProviderError("other", f"{self.provider.name} didn't send a list of models: {r.text[:80].strip()!r}",
+                                r.status_code) from None
         items = data.get("data", data.get("models", [])) if isinstance(data, dict) else data
         out = []
         for m in items if isinstance(items, list) else []:

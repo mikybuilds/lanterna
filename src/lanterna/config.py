@@ -78,6 +78,8 @@ class Settings:
         except (OSError, ValueError):
             return cls()
         known = {k: v for k, v in raw.items() if k in cls.__dataclass_fields__}
+        if known.get("provider") in ("github",):                # a service that closed (providers.RETIRED)
+            known["provider"] = ""
         return cls(**known)
 
     def save(self) -> None:

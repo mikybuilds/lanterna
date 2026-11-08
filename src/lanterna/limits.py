@@ -1,7 +1,7 @@
 """How much of each free limit is left.
 
 Two sources, both local:
-- what the service itself says in its answer headers (Groq, Cerebras, Mistral, GitHub Models send
+- what the service itself says in its answer headers (Groq, Cerebras, Mistral send
   "x-ratelimit-remaining-…"; Google Gemini sends nothing);
 - Lanterna's own count of requests per model today, and the limit a service named in its "limit reached" message
   (Gemini: "… limit: 20, model: …").

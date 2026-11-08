@@ -434,6 +434,7 @@ class Syncer:
         return out
 
     def _apply_extras(self, merged: dict, local: dict) -> None:
+        from .providers import PROVIDERS
         s, changed = self.settings, False
         p = merged.get("prefs", {})
         if (p.get("at") or 0) > (local["prefs"].get("at") or 0):
@@ -442,6 +443,8 @@ class Syncer:
                     setattr(s, k, p[k])
             s.prefs_at, changed = p["at"], True
         for pid, kv in merged.get("keys", {}).items():
+            if pid not in PROVIDERS:                         # a service that closed, or one this version doesn't know
+                continue
             mine = local["keys"].get(pid, {})
             if kv.get("key", "") == mine.get("key", "") or (kv.get("at") or 0) <= (mine.get("at") or 0):
                 continue

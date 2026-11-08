@@ -87,7 +87,7 @@ def test_requests_stay_on_provider_host(pid):
 def test_no_unexpected_domains_in_sources():
     allowed = {"api.groq.com", "console.groq.com", "generativelanguage.googleapis.com", "aistudio.google.com",
                "openrouter.ai", "api.cerebras.ai", "cloud.cerebras.ai", "api.mistral.ai", "console.mistral.ai",
-               "models.github.ai", "git" "hub.com", "localhost", "127.0.0.1", "ollama.com",
+               "git" "hub.com", "localhost", "127.0.0.1", "ollama.com",
                # keyless tools: weather (Open-Meteo) and web search (DuckDuckGo)
                "api.open-meteo.com", "geocoding-api.open-meteo.com", "air-quality-api.open-meteo.com",
                "html.duckduckgo.com",

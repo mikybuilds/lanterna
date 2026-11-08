@@ -804,6 +804,7 @@ function wireKeyRow(root, id, onOk) {
       st.className = "status err";
       st.textContent = r.error === "auth" || r.error === "bad_request" ? t("This key doesn't work. Check that you copied all of it.")
         : r.error === "network" ? t("No internet connection to {p}.", { p: pname(id) })
+        : r.error === "bad_reply" ? t("{p} answered, but not the way it should. The service may have changed or closed; try another one.", { p: pname(id) })
         : r.error === "vault" ? t("Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.") : t("Something went wrong: {e}", { e: r.message || r.error });
     }
   };

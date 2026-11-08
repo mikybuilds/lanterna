@@ -212,7 +212,8 @@ class Api:
             c.list_models()
             c.close()
         except ProviderError as e:
-            return {"ok": False, "error": e.kind, "message": str(e)[:200]}
+            bad = e.kind == "other" and e.status == 200          # answered, but not like that service does
+            return {"ok": False, "error": "bad_reply" if bad else e.kind, "message": str(e)[:200]}
         try:
             keys.set_key(provider, key)
             self._key_changed(provider)
