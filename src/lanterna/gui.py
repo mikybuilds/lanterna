@@ -405,6 +405,20 @@ def selfcheck(out: str) -> int:
         report["crypto"] = "ok" if sync.decrypt(sync.encrypt({"x": 1}, key, salt), key) == {"x": 1} else "wrong"
     except Exception as e:                                  # noqa: BLE001
         report["crypto"] = f"missing: {e}"
+    try:                                                    # encrypted backups must open inside the build
+        from . import backup
+        salt = b"s" * 16
+        key = backup.derive("selfcheck-pass", salt)
+        report["backup"] = "ok" if backup.open_sealed(backup.seal({"x": 1}, salt, key), "selfcheck-pass") == {"x": 1} else "wrong"
+    except Exception as e:                                  # noqa: BLE001
+        report["backup"] = f"missing: {e}"
+    try:                                                    # scanned PDFs become pictures with pdfium
+        import pypdfium2 as pdfium
+        doc = pdfium.PdfDocument.new()
+        doc.new_page(100, 100)
+        report["pdfium"] = "ok" if doc[0].render(scale=1).to_pil().size == (100, 100) else "wrong"
+    except Exception as e:                                  # noqa: BLE001
+        report["pdfium"] = f"missing: {e}"
     try:
         from . import __version__, hardware, local
         report["version"] = __version__
@@ -413,7 +427,7 @@ def selfcheck(out: str) -> int:
     except Exception as e:                                  # noqa: BLE001
         report["error"] = str(e)
     Path(out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
-    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx", "crypto")) and report["ui"] else 1
+    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx", "crypto", "backup", "pdfium")) and report["ui"] else 1
 
 
 def main(argv: list[str] | None = None) -> int:

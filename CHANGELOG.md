@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — read aloud, second opinion, private chat, backups and more
 
 **New**
 - **Ready-made MCP servers:** Settings → Computer and tools → MCP servers now lists four checked servers you add with one button: Files in a folder, Git repository (both limited to the folder you pick), Web browser (a fresh profile each time, none of your sign-ins) and Step-by-step thinking. Each has its version fixed, so the code that runs can't change until a Lanterna update moves it (then an “Update to …” button appears). They need Node.js or uv; the card says so and links to it. A server you add by hand with `npx -y package` and no version gets a warning: each start may run newer code nobody checked.

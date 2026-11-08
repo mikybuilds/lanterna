@@ -149,7 +149,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - [x] Working folder with confirmation cards, Google Drive connector, limits view, one-click updates
 - [x] GitHub connector, a folder per chat, limit bar, live "what I'm doing" steps
 - [x] 1.0: always at hand (tray, quick-question hotkey, screen questions), regular tasks, voice input, MCP servers
-- [x] Next: reading aloud, morning summary, rates and units, audio and more file types, second opinion, roles, snips, private chat, encrypted backups, `lanterna ask`, ready-made MCP servers
+- [x] 1.1: reading aloud, morning summary, rates and units, audio and more file types, second opinion, roles, snips, private chat, encrypted backups, `lanterna ask`, ready-made MCP servers
 
 ## What it can do
 
@@ -212,7 +212,8 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - **Screenshots** are taken only when you press the camera button or "Ask about my screen", and go to the model like an attached photo.
 - **Copied text**: Lanterna notes only *when* something was copied, never what. It reads the clipboard only when you open the quick window within 90 seconds of copying, skips copies a password manager marks as private, and sends the text only when you press Translate, Explain or Fix mistakes.
 - **Model checks**: once a day, up to 6 tiny "Hi" requests go to models in your queue that haven't been tried yet, so they're known to answer before you need them.
-- The only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**. The limits view is counted from the services' own answers, on your computer.
+- **Morning summary**, if you turn it on and set a city, asks Open-Meteo for that city's weather once a day.
+- Apart from what you turn on yourself (above), the only request Lanterna makes on its own is the update check when it starts (a plain request for the latest release, nothing about you). Turn it off in **Settings → Updates**. The limits view is counted from the services' own answers, on your computer.
 - Bug reports are never sent automatically: you see the whole text and send it yourself (see below).
 
 ## Found a bug?
