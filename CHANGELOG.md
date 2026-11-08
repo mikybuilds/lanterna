@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.3 — More free services, Cerebras gone, lists that keep counting
 
 **New**
 - **Three more free services:** NVIDIA (strong open models such as Kimi, DeepSeek, Nemotron), Z.ai (only its free GLM Flash models, so nothing is ever charged) and Cohere (1,000 free requests a month). Add their keys in Settings → Models.
