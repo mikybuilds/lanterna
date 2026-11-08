@@ -17,7 +17,7 @@ from .config import data_dir
 
 LIMIT = 300
 # kinds whose entries can be undone, and how (filled in by the code that made the change)
-UNDO_TYPES = ("moves", "trash", "rmdir", "restore_backup", "theme", "power", "startup", "app")
+UNDO_TYPES = ("moves", "trash", "rmdir", "restore_backup", "theme", "power", "startup", "app", "look")
 
 
 class History:

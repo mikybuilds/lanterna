@@ -138,6 +138,9 @@ Button:focus { text-style: bold; }
 #cn-list, #cn-mine { height: 1fr; border: none; background: $surface; }
 #cn-about, #cn-mineinfo { height: auto; min-height: 2; margin-top: 1; }
 #cn-q { width: 1fr; }
+#autobar { height: 1; width: 100%; background: $boost; display: none; }
+#autotext { width: 1fr; color: $warning; padding: 0 1; }
+#autostop { width: auto; min-width: 10; }
 #cn-cat { width: 34; }
 #choices { height: auto; max-height: 16; margin-top: 1; }
 """
@@ -365,7 +368,7 @@ class ActCard(Vertical):
         lang, c = L(self.app), self.card
         d = c.get("details", {})
         k = c["kind"]
-        icon = ("☁️ " if k.startswith("drive_") else "🐙 " if k.startswith("github_") else "🗑 " if k == "pc_trash" else
+        icon = ("🤖 " if k == "auto_on" else "🎨 " if k == "sys_look" else "☁️ " if k.startswith("drive_") else "🐙 " if k.startswith("github_") else "🗑 " if k == "pc_trash" else
                 "🗂 " if k.startswith("pc_") else "📦 " if k.startswith("app_") else "⚙️ " if k.startswith("sys_") else "🧩 " if k == "mcp_call" else "📬 " if k.startswith("mail_") else "📁 ")
         yield Static(icon + action_title(k, d, "", lang), markup=False)
         body = card_text(k, d, lang)
@@ -381,6 +384,9 @@ class ActCard(Vertical):
 
     def on_mount(self) -> None:
         self.query_one("#actundo").display = False
+        if self.card.get("state", "pending") != "pending":       # done on its own (or answered before)
+            self.query_one("#actbtns").display = False
+            self._show({"state": self.card["state"], "text": self.card.get("text", ""), "result": self.card.get("result", "")})
 
     @on(Button.Pressed, "#actyes")
     @on(Button.Pressed, "#actno")
@@ -401,8 +407,12 @@ class ActCard(Vertical):
         msg = ("✅ " + r.get("text", "") if r["state"] == "done" else t("Cancelled", lang) if r["state"] == "cancelled"
                else "⚠️ " + t("Couldn't do it: {error}", lang, error=r.get("result", "")) if r["state"] == "failed"
                else t("This card has expired. Ask again.", lang))
+        if r["state"] == "done" and (self.card.get("auto") or self.card.get("details", {}).get("auto")):
+            msg += "  · 🤖 " + t("on its own; Undo is in What Lanterna did", lang)
         self.query_one("#actq", Static).update(msg)
         self.query_one("#actundo").display = self.card["kind"] == "pc_sort" and r["state"] == "done"
+        if self.card["kind"] == "auto_on" and r["state"] == "done" and hasattr(self.screen, "_paint_auto"):
+            self.screen._paint_auto()
 
     @on(Button.Pressed, "#actundo")
     def _undo(self) -> None:
@@ -2487,6 +2497,9 @@ class _ChatScreen(Screen):
                     yield Label("", id="model")
                 yield VerticalScroll(id="log")
                 yield Label("", id="attached")
+                with Horizontal(id="autobar"):
+                    yield Label("", id="autotext")
+                    yield Button(t("Stop", lang), id="autostop", classes="sidebtn")
                 yield Input(placeholder=t("Message Lanterna…", lang), id="composer")
         yield Footer(show_command_palette=False)
 
@@ -2516,6 +2529,24 @@ class _ChatScreen(Screen):
             self._update_notice()
         self._sync_seen = self.app.api.sync_status()["last"]
         self.set_interval(10, self._watch_sync)
+        self.set_interval(2, self._paint_auto)
+        self._paint_auto()
+
+    def _paint_auto(self) -> None:
+        """"Lanterna acts on its own in this chat": a line over the message box with the time left and Stop."""
+        tid = getattr(self, "tid", None)
+        st = self.app.api.auto_status(tid) if tid and tid > 0 else {"on": False, "left": 0}
+        bar = self.query_one("#autobar")
+        bar.display = st["on"]
+        if st["on"]:
+            self.query_one("#autotext", Label).update("🤖 " + t("Lanterna acts on its own in this chat: {n} min left", L(self.app),
+                                                               n=-(-st["left"] // 60)))
+
+    @on(Button.Pressed, "#autostop")
+    def _auto_stop(self) -> None:
+        if getattr(self, "tid", None):
+            self.app.api.auto_stop(self.tid)
+        self._paint_auto()
 
     def _watch_sync(self) -> None:
         """A sync brought chats from another device: show them without a restart."""

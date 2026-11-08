@@ -140,6 +140,9 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .newpriv { flex: none; width: 42px; height: 42px; padding: 0; justify-content: center; }
 .newpriv .i { width: 19px; height: 19px; }
 .threads { flex: 1; overflow: auto; padding: 4px 8px; }
+.auto-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 6px 8px 6px 12px; border: 1px solid var(--amber-line);
+  border-radius: 12px; background: var(--amber-soft); font-size: 13px; }
+.auto-bar span { flex: 1; }
 .copied { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--amber-line); border-radius: 14px; background: var(--amber-soft); }
 .cp-head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--amber); }
 .cp-x { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: var(--faint); }

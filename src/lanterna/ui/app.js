@@ -1215,6 +1215,23 @@ async function openThread(id, priv) {
   refreshThreads();
   scrollDown(true);
   $("#input").focus();
+  paintAuto();
+}
+
+// "Lanterna acts on its own in this chat": a bar over the message box with the time left and Stop
+let autoTimer = 0;
+async function paintAuto() {
+  clearTimeout(autoTimer);
+  const old = $(".auto-bar");
+  const tid = thread;
+  const st = tid && tid > 0 ? await api.auto_status(tid) : { on: false };
+  if (tid !== thread) return;
+  if (!st.on) { if (old) old.remove(); return; }
+  const el = h(`<div class="auto-bar">🤖 <span>${esc(t("Lanterna acts on its own in this chat: {n} min left", { n: Math.ceil(st.left / 60) }))}</span>
+    <button class="btn ghost small">${esc(t("Stop"))}</button></div>`);
+  el.querySelector("button").onclick = async () => { await api.auto_stop(tid); paintAuto(); };
+  if (old) old.replaceWith(el); else $(".composer").prepend(el);
+  autoTimer = setTimeout(paintAuto, 30000);
 }
 
 // "Edit" under my last message and "Retry" under the last answer (no branches: the old ones are replaced)
@@ -2641,7 +2658,7 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive",
   github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub",
   pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
-  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", pc_trash: "Move {count} items to the Recycle Bin",
+  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", auto_on: "Let Lanterna act on its own in this chat for {count} min", pc_trash: "Move {count} items to the Recycle Bin",
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}",
   sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
   mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
@@ -2650,16 +2667,17 @@ function actKey(c) {
   const d = c.details || {};
   if (c.kind === "sys_theme") return d.theme === "dark" ? "Switch to the dark theme" : "Switch to the light theme";
   if (c.kind === "sys_startup") return d.on ? "Start {name} with the computer" : "Don't start {name} with the computer";
+  if (c.kind === "sys_look") return (d.count || 1) === 1 ? "Change: {name}" : "Change {count} settings of the look";
   return ACT_KEYS[c.kind] || "Change";
 }
-const cardIcon = k => k === "mcp_call" ? "🧩" : k.startsWith("mail_") ? "📬" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
+const cardIcon = k => k === "auto_on" ? "🤖" : k === "sys_look" ? "🎨" : k === "mcp_call" ? "🧩" : k.startsWith("mail_") ? "📬" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
   k.startsWith("pc_") ? "🗂" : k.startsWith("app_") ? "📦" : k.startsWith("sys_") ? "⚙️" : "📁";
 
 function actCard(c) {
   const d = c.details || {};
   let to = d.to || "";
   if (c.kind === "pc_move" && d.to_place) to = placeName(d.to_place) + (to && to !== "." ? "/" + to : "");
-  const title = t(actKey(c), { path: d.path || "", to, name: d.name || "", repo: d.repo || "", count: d.count || 0, place: placeName(d.place) });
+  const title = t(actKey(c), { path: d.path || "", to, name: t(d.name || ""), repo: d.repo || "", count: c.kind === "auto_on" ? d.minutes : d.count || 0, place: placeName(d.place) });
   const meta = [];
   const gh = c.kind.startsWith("github_");
   let extra = "";
@@ -2704,6 +2722,11 @@ function actCard(c) {
   } else if (c.kind === "mcp_call") {
     meta.push(t("MCP server: {s}", { s: d.server || "" }), t(d.kind === "http" ? "a web address" : "a program on this computer"));
     meta.push(t("What goes to the server:"));
+  } else if (c.kind === "sys_look") {
+    extra = `<pre class="cc-prev">${esc((d.changes || []).map(x => `${t(x.label)}: ${t(x.from) || "—"} → ${t(x.to)}`).join("\n"))}</pre>
+      <div class="cc-meta">${esc(t("The old values are kept: Undo puts them back."))}</div>`;
+  } else if (c.kind === "auto_on") {
+    extra = `${d.plan ? `<p class="cc-desc">${esc(d.plan)}</p>` : ""}<div class="cc-meta">${esc(t("Without asking: files and folders (deleting only to the Recycle Bin), the look and settings, installing programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. Every change is in What Lanterna did, with Undo. You can stop it any time."))}</div>`;
   } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
     if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
   } else if (c.kind.startsWith("drive_")) {
@@ -2728,7 +2751,9 @@ function actCard(c) {
       : esc(t("This card has expired. Ask again."));
     const inst = c.kind === "github_new_repo" && r.state === "done" && d.install
       ? `<button class="btn primary small" data-inst>${t("Add it to Lanterna")} ${icon("ext")}</button>` : "";
-    foot.innerHTML = `<span class="cc-q">${msg.replace(/ — https:\/\/\S+$/, "")}</span>${link && c.kind !== "github_new_repo" ? `<button class="btn ghost small" data-open>${t(gh ? "Open on GitHub" : "Open in Google Drive")} ${icon("ext")}</button>` : ""}${inst}`;
+    const own = (r.auto || c.auto || d.auto) && r.state === "done" ? ` <span class="muted">· 🤖 ${esc(t("on its own; Undo is in What Lanterna did"))}</span>` : "";
+    if (c.kind === "auto_on" && r.state === "done") paintAuto();
+    foot.innerHTML = `<span class="cc-q">${msg.replace(/ — https:\/\/\S+$/, "")}${own}</span>${link && c.kind !== "github_new_repo" ? `<button class="btn ghost small" data-open>${t(gh ? "Open on GitHub" : "Open in Google Drive")} ${icon("ext")}</button>` : ""}${inst}`;
     const o = foot.querySelector("[data-open]");
     if (o) o.onclick = () => api.open_url(link);
     const ins = foot.querySelector("[data-inst]");

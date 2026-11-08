@@ -399,7 +399,12 @@ GROUPS = {
                       r"автозапуск|startup|avvio|тем(а|у|н)|theme|dark|light|світл|живлен|power|energia|батаре|battery|"
                       r"диск|disk|місц|space|spazio|пам.ят|ram\b|memor|процесор|cpu|processor|налашт|настро|setting|"
                       r"impostaz|bluetooth|wi-?fi|звук|sound|audio|екран|display|schermo|характеристик|specs?\b|відеокарт|"
-                      r"gpu|видеокарт|оновлен|windows|fedora|linux", re.I),
+                      r"gpu|видеокарт|оновлен|windows|fedora|linux|gnome|відкрий|відкри|запуст|open|launch|start|apri|öffne|abre|ouvre|otwórz|"
+                      r"открой|запусти|google|гугл|сайт|site|website|browser|браузер|chrome|firefox|шпалер|обо[їи]|wallpaper|"
+                      r"фон|background|sfondo|hintergrund|fondo|акцент|accent|кол[ьі]?ор|colou?r|шрифт|font|курсор|cursor|"
+                      r"pointer|іконк|icon|гучн|volume|нічн|night|не турбу|do not disturb|кастом|custom|вигляд|оформл|look|"
+                      r"годинник|clock|\bсам[аеоі]?\b|автоном|on (your|its) own|by yourself|yourself|da solo|selbst|"
+                      r"tu mismo|toi-même|sam", re.I),
 }
 
 
@@ -478,6 +483,7 @@ class Toolbox:
         self._extra = extra or (lambda: [])          # tools that come and go (working folder, Google Drive)
         self.focus = ""                              # the question being answered: read_page keeps the parts that fit it
         self.page_limit = PAGE_LIMIT                 # page characters for the current model (set by the chat)
+        self.after: Callable[[str], str] | None = None   # looks at each tool's answer (changes done on their own)
 
     @property
     def tools(self) -> dict[str, Tool]:
@@ -501,7 +507,8 @@ class Toolbox:
             return "Error: arguments must be a JSON object."
         args.pop("intent", None)                                     # only for the "what I'm doing" line
         try:
-            return tool.run(**args)
+            out = tool.run(**args)
+            return self.after(out) if self.after else out
         except TypeError as e:
             return f"Error: wrong arguments ({e})."
         except Exception as e:                                       # noqa: BLE001  never break the chat

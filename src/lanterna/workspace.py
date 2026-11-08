@@ -81,6 +81,16 @@ class Action:
         return {"id": self.id, "kind": self.kind, "details": self.details, "state": self.state, "result": self.result}
 
 
+# Changes Lanterna may make without a card while the user let it act on its own in a chat (see Actions.auto):
+# only ones that stay on this computer and can be undone (files go to the Recycle Bin, never deleted for good;
+# old settings are kept), plus installing and updating programs from the official catalog. Removing programs,
+# mail, GitHub, Google Drive and outside tools always ask.
+AUTO_KINDS = {"write_new", "write_append", "write_replace", "mkdir", "move",
+              "pc_write", "pc_sort", "pc_move", "pc_rename", "pc_mkdir", "pc_trash",
+              "sys_theme", "sys_power", "sys_startup", "sys_look", "app_install", "app_upgrade"}
+AUTO_MAX_MIN = 120
+
+
 class Actions:
     """Changes waiting for the user's OK. The chat that proposed them gets a card (see bind)."""
 
@@ -88,6 +98,28 @@ class Actions:
         self.items: dict[str, Action] = {}
         self._local = threading.local()
         self._lock = threading.Lock()
+        self.auto: dict[int, float] = {}               # chat → until when Lanterna acts on its own there
+        self.on_auto: Callable[[Action], dict] | None = None   # runs an allowed change at once (set by the app)
+
+    def auto_left(self, tid: int) -> int:
+        """Seconds left of acting on its own in this chat (0 = off)."""
+        left = int(self.auto.get(int(tid or 0), 0) - time.time())
+        if left <= 0:
+            self.auto.pop(int(tid or 0), None)
+        return max(0, left)
+
+    def auto_start(self, tid: int, minutes: int) -> None:
+        if tid:
+            self.auto[int(tid)] = time.time() + max(1, min(AUTO_MAX_MIN, int(minutes))) * 60
+
+    def auto_stop(self, tid: int) -> None:
+        self.auto.pop(int(tid or 0), None)
+
+    def take_auto(self) -> list[Action]:
+        """The changes this thread just made on its own (the tool's answer says so instead of "waiting")."""
+        ran = getattr(self._local, "auto_ran", [])
+        self._local.auto_ran = []
+        return ran
 
     def bind(self, sink: list | None, tid: int = 0) -> None:
         """Cards proposed in this thread go to `sink` (the reply being streamed)."""
@@ -97,9 +129,15 @@ class Actions:
         a = Action(uuid.uuid4().hex[:12], kind, details, run, getattr(self._local, "tid", 0))
         with self._lock:
             self.items[a.id] = a
+        extra = {}
+        if (self.on_auto and kind in AUTO_KINDS and a.tid and self.auto_left(a.tid)
+                and getattr(self._local, "sink", None) is not None):  # only inside a reply, never on Undo
+            a.details["auto"] = True
+            extra = self.on_auto(a) or {}
+            self._local.auto_ran = getattr(self._local, "auto_ran", []) + [a]
         sink = getattr(self._local, "sink", None)
         if sink is not None:
-            sink.append(a.card())
+            sink.append({**a.card(), **extra})
         return a
 
     def tid(self) -> int:

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **Open things:** "open Google", "start Telegram", "open my plan.pdf" — programs from the system menu, websites in your browser and files from your folders open right away (program files never).
+- **Change the look:** wallpaper, accent color, icons, pointer, fonts, text size, night light, do not disturb, clock, window buttons and volume on GNOME; wallpaper, transparency, taskbar and Explorer options on Windows. Several at once on one card, with Undo.
+- **Do it on its own, when you ask:** after you agree on a plan, Lanterna can ask to act on its own in that chat for a while. Reversible changes on the computer then happen without cards (with Undo in What Lanterna did); removing programs, mail and outside services still ask. **Stop** is over the message box.
+
+**Fixed**
+- **"Make a file on my desktop" went to Google Drive** and the answer said it was on the desktop. Lanterna can now create a text file in your own folders (after Confirm), and uses Google Drive only when you ask for it.
+
 ## 1.1.4 — Connectors, sync without a password, an easier terminal app
 
 **New**

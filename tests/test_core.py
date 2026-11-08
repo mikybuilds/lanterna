@@ -110,7 +110,9 @@ def test_no_unexpected_domains_in_sources():
                # the public MCP Registry (Connectors → Browse → search)
                "registry.modelcontextprotocol.io",
                # mail connector: where each mail service makes app passwords (links the user opens)
-               "myaccount.google.com", "mail.ukr.net", "account.apple.com", "login.yahoo.com", "accounts.zoho.com"}
+               "myaccount.google.com", "mail.ukr.net", "account.apple.com", "login.yahoo.com", "accounts.zoho.com",
+               # opening a website in the browser when the user asks (an example for the model, never fetched)
+               "www.google.com"}
     # Connectors: each ready-made connector's own address (checked, made by that service) is reached only after the
     # user adds it; listed in one place, connectors.py, and nowhere else
     from lanterna import connectors

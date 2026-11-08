@@ -27,7 +27,7 @@ METHODS = {"state", "connectors", "connectors_search", "connector_add", "connect
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",
            "cards", "pc_undo", "chat_folder", "set_chat_folder", "chat_role", "set_chat_role", "forget_private", "mcp_presets", "mcp_add_preset", "mcp_update_preset", "backup_status", "backup_set_password", "backup_off", "backup_now", "backup_set_folder", "backup_open_folder", "backup_restore", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",
            "github_status", "github_connect", "github_cancel", "github_disconnect", "drive_status", "drive_connect", "drive_cancel", "drive_disconnect", "bug_report", "open_mail",
-           "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out", "sync_no_password", "sync_start_over",
+           "sync_status", "sync_sign_in", "sync_cancel", "sync_password", "sync_now", "sync_sign_out", "sync_no_password", "sync_start_over", "auto_status", "auto_stop",
            "doctor", "history_list", "history_undo", "history_clear", "install_ollama",
            "desktop_status", "quick_hide", "open_in_main", "screenshot",
            "task_list", "task_add", "task_delete", "task_pause", "task_run",
