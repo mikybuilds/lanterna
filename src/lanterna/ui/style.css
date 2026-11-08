@@ -614,6 +614,7 @@ body.private .newpriv { border-color: var(--amber-line); color: var(--amber); }
 .cn-badge { flex: 0 0 auto; font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 3px 8px; }
 .cn-all { font-size: 13.5px; }
 .cn-warn { font-size: 13px; margin: -4px 0 10px; }
+.cn-more-hint { font-size: 13px; margin: 22px 0 6px; }
 .cn-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
 .cn-row .cn-txt small { color: var(--muted); }
 .cn-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }

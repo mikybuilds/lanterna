@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**New**
+- **Many more connectors:** about 120 ready-made ones now (was about 75), each checked: Basecamp, Craft, Shortcut, Jotform, Fathom, Otter.ai, Krisp, Whimsical, Picsart, HeyGen, DigitalOcean, Railway, Heroku, Lovable, Postman, PlanetScale, Sanity, Replicate, DeepWiki, Kaggle, Interactive Brokers, Paddle, Alpha Vantage, CoinGecko, Scite, Consensus, Mapbox, beehiiv, Bitly, Porkbun and more. Xero, Zendesk, ElevenLabs and a few others are listed with why they can't be connected.
+- **Browse shows every category at once**, like Claude's directory: the popular ones first, then each category with its first few and **Show all**.
+
 **Fixed**
 - **Connectors window:** the Yours / Browse switch and “Add your own” were squeezed into small squares; the check mark of a long name stays right after it.
 - **Logos in Connectors:** each service shows its own logo (from Simple Icons) instead of a letter, where one exists; mail has an envelope.

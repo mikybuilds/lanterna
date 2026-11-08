@@ -2075,16 +2075,28 @@ function openConnectors(tab) {
     return query.toLowerCase().split(/\s+/).every(w => hay.includes(w));
   };
 
+  // the start page, like Claude's directory: the popular ones, then every category with its first few
+  const inCat = k => { const l = C.catalog.filter(c => c.cat === k); return [...l.filter(c => c.auth !== "closed"), ...l.filter(c => c.auth === "closed")]; };
+  const catSection = (k, n) => {
+    const l = inCat(k);
+    return l.length ? `<div class="cn-bar"><h3>${esc(t(n))} <span class="cn-count">${l.length}</span></h3>
+        ${l.length > 6 ? `<button class="link cn-all" data-cat="${k}">${t("Show all")} →</button>` : ""}</div>
+      <div class="cn-grid">${l.slice(0, 6).map(card).join("")}</div>` : "";
+  };
+
   function paintBrowse() {
+    const home = !query && !cat && !all;
     const ready = C.catalog.filter(c => (!cat || c.cat === cat) && match(c));
     const open = ready.filter(c => c.auth !== "closed"), closed = ready.filter(c => c.auth === "closed");
-    const show = query || cat || all ? [...open, ...closed] : CONN_POPULAR.map(id => C.catalog.find(c => c.id === id)).filter(Boolean);
+    const show = !home ? [...open, ...closed] : CONN_POPULAR.map(id => C.catalog.find(c => c.id === id)).filter(Boolean);
     const total = C.catalog.filter(c => c.auth !== "closed").length;
     body.innerHTML = `<div class="cn-bar"><h3>${esc(query ? t("Ready to connect") : cat ? t(C.categories[cat]) : all ? t("All connectors") : t("Popular connectors"))}
         <span class="cn-count">${query || cat ? show.length : total}</span></h3>
       <select class="field cn-cat" id="cn-cat"><option value="">${esc(t("All categories"))}</option>${Object.entries(C.categories).map(([k, n]) => `<option value="${k}" ${k === cat ? "selected" : ""}>${esc(t(n))}</option>`).join("")}</select>
-      ${!query && !cat && !all ? `<button class="link cn-all" id="cn-all">${t("Show all")} →</button>` : ""}</div>
+      ${home ? `<button class="link cn-all" id="cn-all">${t("Show all")} →</button>` : ""}</div>
       ${show.length ? `<div class="cn-grid">${show.map(card).join("")}</div>` : `<p class="faint">${esc(t("No ready-made connector with these words."))}</p>`}
+      ${home ? Object.entries(C.categories).map(([k, n]) => catSection(k, n)).join("")
+        + `<p class="muted cn-more-hint">${esc(t("Didn't find it? Type its name in Search: Lanterna also looks in the public MCP catalog, which has thousands more servers made by other people."))}</p>` : ""}
       ${query ? `<div class="cn-bar"><h3>${esc(t("From the public MCP catalog"))}</h3></div>
         <p class="muted cn-warn">${esc(t("Made by other people and not checked by Lanterna. Add only what you trust: what a tool is asked goes to its maker."))}</p>
         <div class="cn-grid" id="cn-reg">${reg.items.map(regCard).join("")}</div>
@@ -2095,6 +2107,7 @@ function openConnectors(tab) {
     sel.onchange = () => { cat = sel.value; paint(); };
     const allBtn = $("#cn-all", body);
     if (allBtn) allBtn.onclick = () => { all = true; paint(); };
+    body.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; paint(); body.scrollTop = 0; });
     const mo = $("#cn-more", body);
     if (mo) mo.onclick = more;
     const ask = $("#cn-ask", body);
