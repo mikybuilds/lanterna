@@ -31,17 +31,24 @@ WINGET_COMMON = ["--source", "winget", "--accept-source-agreements", "--disable-
 SHOW_MAX = 15
 
 
+def _words(text: str) -> list[str]:
+    return re.findall(r"[^\W_]+", (text or "").lower())
+
+
 def match_score(query: str, name: str, pid: str, about: str = "") -> int:
     """0 = this is the program asked for, 1 = its name or id has the words, 2 = only its description has them,
-    3 = none of that (a loose match: a different program)."""
+    3 = none of that (a loose match: a different program). A word counts only at the start of a word: "htop" is
+    in pcp-htop, but not in org.dupot.beatmatchtopass ("Beat And Match To Pass", which Flatpak finds for it)."""
     q = " ".join(str(query or "").lower().split())
-    n, i, a = (name or "").lower(), (pid or "").lower(), (about or "").lower()
-    if q in (n, i, i.rsplit(".", 1)[-1]) or n.replace(" ", "") == q.replace(" ", ""):
+    n, i = (name or "").lower(), (pid or "").lower()
+    joined = "".join(_words(q))                          # "gnome tweaks" is gnome-tweaks, "libre office" LibreOffice
+    if q in (n, i, i.rsplit(".", 1)[-1]) or (joined and joined == "".join(_words(n))):
         return 0
-    words = q.split()
-    if words and all(w in n or w in i for w in words):
+    words, own = _words(q), _words(name) + _words(pid)
+    if words and all(any(t.startswith(w) for t in own) for w in words):
         return 1
-    if words and all(w in n or w in i or w in a for w in words):
+    told = own + _words(about)
+    if words and all(any(t.startswith(w) for t in told) for w in words):
         return 2
     return 3
 
@@ -192,19 +199,28 @@ class Apps:
         return code == 0 and "install ok installed" in out
 
     # -- looking up
+    def _flatpak_found(self, text: str) -> list[dict]:
+        code, out = self.run(["flatpak", "search", "--columns=name,application,version,remotes,description", text])
+        rows = []
+        for line in out.splitlines():
+            c = [x.strip() for x in line.split("\t")]
+            if len(c) >= 3 and PKG_ID.match(c[1]):
+                rows.append({"name": c[0], "id": c[1], "version": c[2], "source": "flatpak",
+                             "where": c[3] if len(c) > 3 and c[3] else "Flatpak", "about": c[4] if len(c) > 4 else ""})
+        return rows
+
     def _found(self, m: str, q: str) -> list[dict]:
-        """One manager's search, as rows: name, id, version, source, where (the remote or repository), about."""
+        """One manager's search, as rows: name, id, version, source, where (the remote or repository), about.
+        dnf and apt get each word on its own: gnome-tweaks has "gnome" and "tweaks", not the phrase "gnome tweaks".
+        Flatpak takes one text: the phrase, else its longest word (search() keeps what has all the words)."""
+        words = q.split()
         if m == "flatpak":
-            code, out = self.run(["flatpak", "search", "--columns=name,application,version,remotes,description", q])
-            rows = []
-            for line in out.splitlines():
-                c = [x.strip() for x in line.split("\t")]
-                if len(c) >= 3 and PKG_ID.match(c[1]):
-                    rows.append({"name": c[0], "id": c[1], "version": c[2], "source": m,
-                                 "where": c[3] if len(c) > 3 and c[3] else "Flatpak", "about": c[4] if len(c) > 4 else ""})
+            rows = self._flatpak_found(" ".join(words))
+            if not rows and len(words) > 1:
+                rows = self._flatpak_found(max(words, key=len))
             return rows
         if m == "dnf":
-            code, out = self.run(["dnf", "search", q])
+            code, out = self.run(["dnf", "search", *words])
             rows, seen = [], set()
             for line in out.splitlines():
                 r = DNF_ROW.match(line)
@@ -213,7 +229,7 @@ class Apps:
                     rows.append({"name": r.group(1), "id": r.group(1), "version": "", "source": m,
                                  "where": "system packages", "about": r.group(3).strip()})
             return rows
-        code, out = self.run(["apt", "search", "--names-only", q])
+        code, out = self.run(["apt", "search", "--names-only", *words])
         lines, rows = out.splitlines(), []
         for i, line in enumerate(lines):
             r = APT_ROW.match(line)
@@ -224,8 +240,8 @@ class Apps:
         return rows
 
     def search(self, query: str, source: str = "") -> str:
-        q = str(query or "").strip()[:80]
-        if not q or q.startswith("-"):
+        q = " ".join(w for w in str(query or "").split() if not w.startswith("-"))[:80].strip()  # never an option
+        if not q:
             raise WorkError("Say what program to look for.")
         m = self._need(source)
         if m == "winget":

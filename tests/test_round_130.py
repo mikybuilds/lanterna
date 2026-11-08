@@ -30,15 +30,20 @@ UI = Path(apps.__file__).parent / "ui"
 # ---------------------------------------------------------------- a Fedora: Flathub and Fedora's remote, both system-wide
 REMOTES = "flathub\tFlathub\tsystem,filtered\nfedora\tFedora Flatpaks\tsystem,oci\n"
 FP_SEARCH = {                # as on the laptop: the search shows Fedora's VLC, "org.videolan.vlc"
-    "htop": "Beat And Match To Pass\tio.github.beat\t1.0\tflathub\tSomething else entirely\n",
+    "htop": "Beat And Match To Pass\torg.dupot.beatmatchtopass\t1.11.1\tflathub\tBeat them all\n",
+    "tweaks": "Pantheon Tweaks\tio.github.pantheon_tweaks.pantheon-tweaks\t2.1.0\tflathub\tSystem settings panel for Pantheon\n",
     "vlc": ("Pause Click plugin for VLC\torg.videolan.VLC.Plugin.pause_click\t1.0\tflathub\tPause on click\n"
             "VLC\torg.videolan.vlc\t3.0.21\tfedora\tVLC media player\n"),
 }
-REMOTE_APPS = {"flathub": ("com.spotify.Client", "io.github.beat", "org.videolan.VLC"), "fedora": ("org.videolan.vlc",)}
+REMOTE_APPS = {"flathub": ("com.spotify.Client", "org.dupot.beatmatchtopass", "org.videolan.VLC"),
+               "fedora": ("org.videolan.vlc",)}
 DNF_SEARCH = {               # dnf5 into a pipe, as on the laptop: a tab after the name
     "htop": ("Updating and loading repositories:\nRepositories loaded.\nMatched fields: name (exact)\n"
-             " htop.x86_64\tInteractive process viewer\nMatched fields: summary\n"
-             " btop.x86_64\tModern and colorful command line resource monitor that shows usage and stats\n"),
+             " htop.x86_64\tInteractive process viewer\nMatched fields: name\n"
+             " pcp-htop.x86_64\tPerformance Co-Pilot (PCP) interactive process viewer\n"),
+    "gnome tweaks": ("Updating and loading repositories:\nRepositories loaded.\nMatched fields: name, summary\n"
+                     " gnome-tweaks.noarch\tCustomize advanced GNOME 3 options\n"
+                     " mousetweaks.x86_64\tMouse accessibility support for the GNOME desktop\n"),
 }
 VLC_INFO = "\nVLC - VLC media player\n\n          ID: org.videolan.VLC\n     Version: 3.0.21\n     License: GPL-2.0+\n"
 HTOP_INFO = "Name            : htop\nVersion         : 3.4.1\nSummary         : Interactive process viewer\nLicense : GPL-2.0\n"
@@ -59,8 +64,8 @@ class Fedora:
             return (0, VLC_INFO.replace("org.videolan.VLC", args[4])) if ok else (1, f"error: Can't find ref {args[4]}")
         if args[:2] == ["flatpak", "list"]:
             return 0, self.flatpaks
-        if args[:2] == ["dnf", "search"]:
-            return 0, DNF_SEARCH.get(args[-1], "No matches found.\n")
+        if args[:2] == ["dnf", "search"]:                  # each word is an argument of its own
+            return 0, DNF_SEARCH.get(" ".join(args[2:]), "No matches found.\n")
         if args[:2] == ["dnf", "info"]:
             return (0, HTOP_INFO) if args[2] == "htop" else (1, "No matching packages to list")
         if args[:2] == ["rpm", "-q"]:
@@ -79,12 +84,28 @@ def test_the_search_looks_everywhere_and_drops_loose_matches():
     a = linux(Fedora())
     out = a.search("htop")
     assert "htop — id htop, source dnf (system packages): Interactive process viewer" in out
-    assert "Beat And Match" not in out and "btop" not in out and "(2 loose matches" in out
+    assert "Beat And Match" not in out and "(1 loose matches" in out
+    assert out.index("- htop — id htop") < out.index("- pcp-htop — id pcp-htop")           # htop's own build: kept
     out = a.search("vlc")                     # the program itself first, then what only has its name in it
     assert out.index("VLC — id org.videolan.vlc, source flatpak (fedora), version 3.0.21") < out.index("Pause Click")
     nothing = a.search("zzzz")
     assert nothing.startswith("Nothing found for 'zzzz' (flatpak, dnf)") and "don't install a different program" in nothing
     assert "dnf" in linux(Fedora()).search("htop", "dnf") and "flatpak" not in linux(Fedora()).search("htop", "dnf")
+
+
+def test_two_words_find_a_program_named_with_a_dash():
+    run = Fedora()
+    out = linux(run).search("gnome tweaks")                    # as a phrase, neither dnf nor Flatpak found anything
+    assert out.splitlines()[1] == ("- gnome-tweaks — id gnome-tweaks, source dnf (system packages): "
+                                   "Customize advanced GNOME 3 options")
+    assert "mousetweaks" not in out and "Pantheon" not in out and "(2 loose matches" in out
+    assert ["dnf", "search", "gnome", "tweaks"] in run.calls
+    assert [c[-1] for c in run.calls if c[:2] == ["flatpak", "search"]] == ["gnome tweaks", "tweaks"]
+    run = Fedora()
+    assert "- htop — id htop" in linux(run).search("htop --installroot=/tmp")            # a word is never an option
+    assert ["dnf", "search", "htop"] in run.calls and not any("--installroot=/tmp" in c for c in run.calls)
+    with pytest.raises(WorkError, match="Say what program"):
+        linux(Fedora()).search("--help")
 
 
 def test_dnf_rows_in_every_format():
@@ -102,7 +123,14 @@ def test_match_score():
     assert apps.match_score("vlc", "VLC", "org.videolan.VLC") == 0
     assert apps.match_score("vlc", "Pause Click plugin for VLC", "org.videolan.VLC.Plugin.pause_click") == 1
     assert apps.match_score("video editor", "Kdenlive", "org.kde.kdenlive", "Video editor by KDE") == 2
-    assert apps.match_score("htop", "Beat And Match To Pass", "io.github.beat", "Something else entirely") == 3
+    # Flatpak finds it for "htop" because its id has "beatmatcHTOPass" in it: a word counts only at a word's start
+    assert apps.match_score("htop", "Beat And Match To Pass", "org.dupot.beatmatchtopass", "Beat them all") == 3
+    assert apps.match_score("htop", "pcp-htop", "pcp-htop") == 1
+    assert apps.match_score("vlc", "libvlcpp-devel", "libvlcpp-devel", "Development files for libvlcpp") == 3
+    assert apps.match_score("vlc", "OBS VLC plugin", "com.obsproject.Studio.Plugin.VLCVideo") == 1
+    assert apps.match_score("7-zip", "7-Zip", "7zip.7zip") == 0 and apps.match_score("zip", "7-Zip", "7zip.7zip") == 1
+    assert apps.match_score("gnome tweaks", "gnome-tweaks", "gnome-tweaks") == 0
+    assert apps.match_score("libre office", "LibreOffice", "org.libreoffice.LibreOffice") == 0
 
 
 def test_a_flatpak_installs_from_the_remote_and_installation_that_have_it():
