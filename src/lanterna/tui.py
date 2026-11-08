@@ -146,6 +146,34 @@ def L(app) -> str:
 
 # ---------------------------------------------------------------------------------------------- dialogs
 
+
+_OL_ITEM = re.compile(r"^(\s{0,3})(\d{1,4})([.)])(\s+)")
+
+
+def count_on(text: str) -> str:
+    """Some models write "1." before every item and put text between the items, so every item is its own list
+    and shows 1, 1, 1. A "1." that starts a list right after a one-item list counts on instead (like the window)."""
+    out, fence, last, items, inside, gap = [], False, 0, 0, False, False
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        m = None if fence else _OL_ITEM.match(line)
+        if m:
+            n = int(m.group(2))
+            if not inside:
+                if n == 1 and items == 1 and last:
+                    n = last + 1
+                    line = f"{m.group(1)}{n}{m.group(3)}{m.group(4)}" + line[m.end():]
+                items = 0
+            inside, gap, last, items = True, False, n, items + 1
+        elif not line.strip():
+            gap = True
+        elif inside and gap and not line.startswith(("  ", "\t")):
+            inside = False                       # text after a blank line ends the list
+        out.append(line)
+    return "\n".join(out)
+
+
 class AskForm(Vertical):
     """The mini-questionnaire before a big task: options to tick, "Other" to type; the answers go as a message."""
 
@@ -2020,7 +2048,7 @@ class _ChatScreen(Screen):
             else:
                 if m.get("second"):
                     log.mount(Static("👥 " + t("Second opinion", L(self.app)), classes="msg-note", markup=False))
-                log.mount(Markdown(m["content"], classes="msg-bot"))
+                log.mount(Markdown(count_on(m["content"]), classes="msg-bot"))
                 if m.get("sent"):
                     log.mount(sent_box(m["sent"], L(self.app)))
         for card in self.app.api.cards(tid):              # changes still waiting for Confirm
@@ -2296,7 +2324,7 @@ class _ChatScreen(Screen):
         gap = min(1.0, len(self._text) / 4000)
         if self._dirty and self._bot is not None and ("final" in r or r.get("done")
                                                       or time.monotonic() - getattr(self, "_drawn_at", 0.0) >= gap):
-            await self._bot.update(self._text)
+            await self._bot.update(count_on(self._text))
             log.scroll_end(animate=False)
             self._dirty, self._drawn_at = False, time.monotonic()
         if r.get("done"):

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **Lists in your messages:** in the message box, Shift+Enter on a line like “1. …” starts “2. ” by itself (“- …” gives the next “- ”); Shift+Enter on an empty item ends the list. Sent, such lines show as a real list, like in Claude or ChatGPT; everything else in your message stays exactly as you typed it.
+
+**Fixed**
+- **Numbered lists showed 1, 1, 1:** when an answer had text between the items (“1. Film … Vibe: … 2. Film …”), every item started a new list from 1. The numbers now continue, lines under an item stay with it, and when a model writes “1.” before every item, Lanterna counts on. The terminal app counts on too.
+
 ## 1.1.2 — Update now works when GitHub's download link doesn't
 
 **Fixed**

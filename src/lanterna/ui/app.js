@@ -416,35 +416,78 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;"
 const icon = (id, cls = "i") => `<svg class="${cls}"><use href="#i-${id}"/></svg>`;
 const h = html => { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstElementChild; };
 
-function md(text) {
-  // safe, minimal Markdown: everything is escaped first
-  const blocks = String(text).split(/```/);
+function md(text, plain = false) {
+  // safe, minimal Markdown: everything is escaped first. plain (your own messages): only lists and line breaks.
+  const blocks = plain ? [String(text)] : String(text).split(/```/);
+  let lastOl = 0, lastOlItems = 0;          // "1. A … text … 1. B" (each item its own list): keep counting
   return blocks.map((b, i) => {
     if (i % 2) { const code = b.replace(/^[\w+-]*\n/, ""); return `<pre><code>${esc(code.replace(/\n$/, ""))}</code></pre>`; }
     const lines = esc(b).split("\n");
-    let html = "", list = null;
-    const inline = s => s
+    let html = "", list = null, start = 1, num = 0, blank = false;
+    const items = [];
+    const inline = plain ? s => s : s => s
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a data-href="$2">$1</a>')
       .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a data-href="$2">$2</a>');
-    const close = () => { if (list) { html += `</${list}>`; list = null; } };
+    const close = () => {
+      if (!list) return;
+      html += `<${list}${list === "ol" && start !== 1 ? ` start="${start}"` : ""}>${items.map(x => `<li>${x}</li>`).join("")}</${list}>`;
+      if (list === "ol") { lastOl = num; lastOlItems = items.length; }
+      list = null; items.length = 0;
+    };
+    const item = (kind, body, n) => {
+      if (list !== kind) {
+        close(); list = kind;
+        // the model wrote "1." before every item and text between them: count on instead of 1, 1, 1
+        start = kind === "ol" ? (n === 1 && lastOlItems === 1 && lastOl ? lastOl + 1 : n) : 1;
+        num = start - 1;
+      }
+      if (kind === "ol") num = list === "ol" && items.length ? num + 1 : start;
+      items.push(inline(body));
+    };
     let para = [];
     const flush = () => { if (para.length) { html += `<p>${inline(para.join("<br>"))}</p>`; para = []; } };
     for (const ln of lines) {
       let m;
-      if ((m = ln.match(/^\s*[-*•]\s+(.*)/))) { flush(); if (list !== "ul") { close(); html += "<ul>"; list = "ul"; } html += `<li>${inline(m[1])}</li>`; }
-      else if ((m = ln.match(/^\s*\d+[.)]\s+(.*)/))) { flush(); if (list !== "ol") { close(); html += "<ol>"; list = "ol"; } html += `<li>${inline(m[1])}</li>`; }
-      else if ((m = ln.match(/^#{1,4}\s+(.*)/))) { flush(); close(); html += `<h3>${inline(m[1])}</h3>`; }
-      else if (!ln.trim()) { flush(); close(); }
+      if ((m = ln.match(/^\s*[-*•]\s+(.*)/))) { flush(); item("ul", m[1]); }
+      else if ((m = ln.match(/^\s*(\d{1,4})[.)]\s+(.*)/))) { flush(); item("ol", m[2], +m[1]); }
+      else if (!plain && (m = ln.match(/^#{1,4}\s+(.*)/))) { flush(); close(); html += `<h3>${inline(m[1])}</h3>`; }
+      else if (!ln.trim()) { flush(); blank = true; continue; }
+      // a line under an item belongs to it; in your own messages only an indented one does
+      else if (list && (/^\s{2,}\S/.test(ln) || (!blank && !plain))) { items[items.length - 1] += (blank ? "<br><br>" : "<br>") + inline(ln.trim()); }
       else { close(); para.push(ln); }
+      blank = false;
     }
     flush(); close();
     return html;
   }).join("");
 }
 
+// your own message: shown as typed, but lines like "1. …" or "- …" become a real list
+const LIST_LINE = /^\s*(?:[-*•]|\d{1,4}[.)])\s+\S/m;
+
+
+// Shift+Enter in the message box on a "1. …" or "- …" line starts the next item ("2. ", "- ");
+// on an empty item it ends the list. Ctrl+Z undoes it like typing.
+function listEnter(box) {
+  const at = box.selectionStart;
+  if (at !== box.selectionEnd) return false;
+  const from = box.value.lastIndexOf("\n", at - 1) + 1;
+  const line = box.value.slice(from, at);
+  const m = line.match(/^(\s*)(?:(\d{1,4})([.)])|([-*•]))(\s+)(.*)$/);
+  if (!m) return false;
+  box.focus();
+  if (!m[6].trim()) {                                    // an empty item: end the list, keep the empty line
+    box.setSelectionRange(from, at);
+    if (!document.execCommand("delete")) box.setRangeText("", from, at, "end");
+    return true;
+  }
+  const next = "\n" + m[1] + (m[2] ? `${+m[2] + 1}${m[3]}` : m[4]) + " ";
+  document.execCommand("insertText", false, next) || box.setRangeText(next, at, at, "end");
+  return true;
+}
 
 // ---------------------------------------------------------------- tools, files, reminders
 const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the web", read_page: "Reading a page",
@@ -863,7 +906,10 @@ function renderMain() {
     if (inp.value) inp.style.height = Math.min(inp.scrollHeight, 200) + "px";
     $("#send").disabled = (!inp.value.trim() && !pending.length) || busy; };
   inp.oninput = fit;
-  inp.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+  inp.onkeydown = e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+    else if (e.key === "Enter" && e.shiftKey && listEnter(inp)) { e.preventDefault(); fit(); }
+  };
   $("#send").onclick = send;
   $("#mic").onclick = micClick;
   if (recording) $("#mic").classList.add("rec");
@@ -1216,7 +1262,9 @@ function showEmpty() {
 
 function addUser(text) {
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg user"></div>`); el.textContent = text; $("#msgs").append(el); return el;
+  const el = h(`<div class="msg user"></div>`);
+  if (LIST_LINE.test(text)) { el.classList.add("rich"); el.innerHTML = md(text, true); } else el.textContent = text;
+  $("#msgs").append(el); return el;
 }
 
 function sentBox(lines) {
