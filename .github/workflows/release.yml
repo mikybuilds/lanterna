@@ -56,7 +56,10 @@ jobs:
         run: |
           python tools/release_notes.py $env:VERSION > notes.md      # only this version's part of CHANGELOG.md
           if ((Get-Item notes.md).Length -lt 20) { throw "no CHANGELOG.md entry for $env:VERSION" }
-          $pre = if ($env:VERSION -match '[a-z]') { @("--prerelease") } else { @() }
-          $title = if ($pre) { "Lanterna $env:VERSION (test version)" } else { "Lanterna $env:VERSION" }
-          gh release create "${{ github.ref_name }}" "dist\Lanterna-Setup-$env:VERSION.exe" "dist\Lanterna-$env:VERSION-portable-windows.zip" `
-            --title $title --notes-file notes.md @pre
+          $files = @("dist\Lanterna-Setup-$env:VERSION.exe", "dist\Lanterna-$env:VERSION-portable-windows.zip")
+          if ($env:VERSION -match '[a-z]') {          # a test version: a pre-release, never offered as an update
+            gh release create "${{ github.ref_name }}" @files --title "Lanterna $env:VERSION (test version)" --notes-file notes.md --prerelease
+          } else {
+            gh release create "${{ github.ref_name }}" @files --title "Lanterna $env:VERSION" --notes-file notes.md
+          }
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
