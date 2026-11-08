@@ -8,8 +8,11 @@
 - **Search the public MCP Registry** from Browse, shown apart from the checked ones, with who made each server.
 - **Mail**: Gmail, ukr.net, iCloud, Yahoo, Zoho or any IMAP mail through an app password. Lanterna can list, read (without marking as read), sort into folders or labels, save drafts and send; every change waits for Confirm.
 - **When a service can't be connected** (Gmail's own connector, Slack, Figma…), Connectors says why and offers another way, and Lanterna can look for a connector or a workaround itself when you ask it to work with a service.
+- **Sync without a password**: just your Google account; other devices only need to sign in. The copy is then only as safe as that account, so API keys stay on each device.
+- **Forgot your sync password? Start over** (also `lanterna sync reset`): the copy in Google Drive is made again from your devices; no chat is lost.
 
 **Fixed**
+- **Sync after the copy was deleted:** a device that still had the old password could put the old copy back. Now it waits for the new password instead.
 - **Memory read oddly:** facts came out as “They like teen movies” and showed asterisks (*Fear*). New facts are written like notes (“Likes teen movies.”), and Markdown marks no longer show in Settings → Memory, also on facts saved before (the saved text itself isn't changed).
 
 ## 1.1.3 — More free services, Cerebras gone, lists that keep counting

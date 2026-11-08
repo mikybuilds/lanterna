@@ -2869,13 +2869,15 @@ async function syncPanel(box, onReady) {
   if (onReady && st.phase === "ready" && st.last) return onReady();
   const errText = { password: t("Wrong password."), short: t("At least 8 characters."),
     changed: t("The sync password was changed on another device. Enter the new one."),
+    gone: t("The copy in Google Drive was deleted on another device. Enter the new password from that device, or set sync up again here."),
+    has_password: t("The copy in Google Drive has a password. Enter it, or start over if you forgot it."),
     signed_out: t("You were signed out. Sign in again to keep syncing."),
     scope: t("Google didn't give Lanterna the permission it needs. Sign in again and leave the box for Lanterna's own folder ticked.") };
   const err = st.error ? `<p class="sync-err">${esc(errText[st.error] || t("Couldn't sync: {error}", { error: st.error }))}</p>` : "";
   const again = ms => setTimeout(() => syncPanel(box, onReady), ms);
   if (st.phase === "off") {
     box.innerHTML = `<p class="muted sync-p">${onReady ? "" : t("Sign in with Google to see your chats on all your devices.")}
-      ${t("Lanterna uses only a hidden folder of its own in your Google Drive. Your chats, settings and API keys there are encrypted with a password only you know.")}</p>
+      ${t("Lanterna uses only a hidden folder of its own in your Google Drive. You choose next: a sync password only you know, or just your Google account.")}</p>
       ${err}<button class="btn primary${onReady ? "" : " small"}" id="sync-in">${t("Sign in with Google")}</button>`;
     $("#sync-in", box).onclick = async () => { await api.sync_sign_in(); syncPanel(box, onReady); };
   } else if (st.phase === "waiting") {
@@ -2895,20 +2897,27 @@ async function syncPanel(box, onReady) {
       <p class="muted sync-p">${intro}</p>${err}
       <div class="keyrow"><div class="wrap"><input class="field" type="password" id="sync-pw" autocomplete="new-password" placeholder="${t("Sync password")}"></div>
       <button class="btn primary" id="sync-ok" style="height:48px">${t("Continue")}</button></div>
-      <button class="btn ghost small" id="sync-out">${t("Sign out")}</button>`;
-    const go = async () => {
-      const b = $("#sync-ok", box); b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
-      await api.sync_password($("#sync-pw", box).value);
-      syncPanel(box, onReady); if (!onReady) refreshThreads();
-    };
+      ${st.cloud ? "" : `<div class="sync-open"><button class="btn ghost small" id="sync-open">${t("Sync without a password")}</button>
+        <p class="muted sync-p">${t("Just your Google account: other devices only need to sign in. Anyone who gets into that account could read the chats, so API keys aren't synced this way: you add them on each device.")}</p></div>`}
+      <div class="sync-actions">${st.cloud ? `<button class="btn ghost small" id="sync-reset">${t("Forgot your password? Start over")}</button>` : ""}
+      <button class="btn ghost small" id="sync-out">${t("Sign out")}</button></div>`;
+    const busy = id => { const b = $(id, box); b.disabled = true; b.innerHTML = `<span class="spinner"></span>`; };
+    const done = () => { syncPanel(box, onReady); if (!onReady) refreshThreads(); };
+    const go = async () => { busy("#sync-ok"); await api.sync_password($("#sync-pw", box).value); done(); };
     $("#sync-ok", box).onclick = go;
     $("#sync-pw", box).onkeydown = e => { if (e.key === "Enter") go(); };
+    if (!st.cloud) $("#sync-open", box).onclick = async () => { busy("#sync-open"); await api.sync_no_password(); done(); };
+    if (st.cloud) $("#sync-reset", box).onclick = async () => {
+      if (!confirm(t("Delete the copy in Google Drive and set sync up again? The chats on your devices stay and go into the new copy. Other devices will then need the new password, or nothing if you sync without one."))) return;
+      busy("#sync-reset"); await api.sync_start_over(); syncPanel(box, onReady);
+    };
     $("#sync-out", box).onclick = async () => { await api.sync_sign_out(false); syncPanel(box, onReady); };
     $("#sync-pw", box).focus();
   } else {
     const when = st.last ? new Date(st.last * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
     box.innerHTML = `<p class="sync-who">${st.account ? t("Signed in as {account}", { account: esc(st.account) }) : t("Signed in with Google")}</p>
       <p class="muted sync-p">${st.phase === "syncing" ? `<span class="spinner"></span>${t("Syncing…")}` : when ? t("Last synced at {time}", { time: when }) : ""}</p>${err}
+      ${st.no_password ? `<p class="muted sync-p">${t("Without a password: API keys stay on each device.")}</p>` : ""}
       <div class="sync-actions"><button class="btn ghost small" id="sync-now">${icon("refresh")} ${t("Sync now")}</button>
       <button class="btn ghost small" id="sync-out">${t("Sign out")}</button>
       <button class="btn ghost small danger" id="sync-del">${t("Sign out and delete the copy in Google Drive")}</button></div>`;

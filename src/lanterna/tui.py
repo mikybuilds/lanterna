@@ -1672,6 +1672,8 @@ class SyncBox(Vertical):
             yield Button(t("Sign in with Google", lang), id="syncin", variant="primary")
             yield Button(t("Cancel", lang), id="synccancel")
             yield Button(t("Sync now", lang), id="syncnow")
+            yield Button(t("Sync without a password", lang), id="syncopen")
+            yield Button(t("Forgot your password? Start over", lang), id="syncreset")
             yield Button(t("Sign out", lang), id="syncout")
             yield Button(t("Sign out and delete the copy in Google Drive", lang), id="syncdel", variant="error")
 
@@ -1685,29 +1687,34 @@ class SyncBox(Vertical):
         ph = "syncing" if self._sync_working else st["phase"]
         errs = {"password": "Wrong password.", "short": "At least 8 characters.",
                 "changed": "The sync password was changed on another device. Enter the new one.",
+                "gone": "The copy in Google Drive was deleted on another device. Enter the new password from that device, or set sync up again here.",
+                "has_password": "The copy in Google Drive has a password. Enter it, or start over if you forgot it.",
                 "signed_out": "You were signed out. Sign in again to keep syncing.",
                 "scope": "Google didn't give Lanterna the permission it needs. Sign in again and leave the box for Lanterna's own folder ticked."}
         who = t("Signed in as {account}", lang, account=st["account"]) if st["account"] else t("Signed in with Google", lang)
         if ph == "off":
             info = ("" if self.first else t("Sign in with Google to see your chats on all your devices.", lang) + " ") + t(
-                "Lanterna uses only a hidden folder of its own in your Google Drive. Your chats, settings and API keys there are encrypted with a password only you know.", lang)
+                "Lanterna uses only a hidden folder of its own in your Google Drive. You choose next: a sync password only you know, or just your Google account.", lang)
         elif ph == "waiting":
             info = t("Finish signing in in your browser…", lang)
         elif ph == "password":
             info = who + "\n" + (t("Enter the sync password you chose on your other device.", lang) if st["cloud"] else
                                   t("Choose a sync password (at least 8 characters). You will need it on your other devices.", lang)
-                                  + " " + t("If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.", lang))
+                                  + " " + t("If you forget it, the chats on your devices stay, but the copy in Google Drive can't be opened.", lang)
+                                  + "\n" + t("Just your Google account: other devices only need to sign in. Anyone who gets into that account could read the chats, so API keys aren't synced this way: you add them on each device.", lang))
         elif ph == "syncing":
             info = who + "\n" + t("Syncing…", lang)
         else:
             when = time.strftime("%H:%M", time.localtime(st["last"])) if st["last"] else ""
-            info = who + ("\n" + t("Last synced at {time}", lang, time=when) if when else "")
+            info = who + ("\n" + t("Last synced at {time}", lang, time=when) if when else "") + (
+                "\n" + t("Without a password: API keys stay on each device.", lang) if st.get("no_password") else "")
         self.query_one("#syncinfo", Static).update(info)
         e = st["error"]
         self.query_one("#syncerr", Static).update(
             "" if not e else t(errs[e], lang) if e in errs else t("Couldn't sync: {error}", lang, error=e))
         self.query_one("#syncpwrow").display = ph == "password"
         show = {"syncin": ph == "off", "synccancel": ph == "waiting", "syncnow": ph in ("ready", "error"),
+                "syncopen": ph == "password" and not st["cloud"], "syncreset": ph == "password" and bool(st["cloud"]),
                 "syncout": ph in ("password", "ready", "error"), "syncdel": ph in ("ready", "error")}
         for bid, on in show.items():
             self.query_one(f"#{bid}", Button).display = on
@@ -1727,6 +1734,20 @@ class SyncBox(Vertical):
         pw = self.query_one("#syncpw", Input).value
         self.query_one("#syncpw", Input).value = ""
         self._sync_job(lambda: self.app.api.sync_password(pw))
+
+    @on(Button.Pressed, "#syncopen")
+    def _sync_open(self) -> None:
+        self._sync_job(self.app.api.sync_no_password)
+
+    @on(Button.Pressed, "#syncreset")
+    def _sync_reset(self, ev: Button.Pressed) -> None:
+        if not getattr(self, "_reset_armed", False):        # second press confirms
+            self._reset_armed = True
+            ev.button.label = t("Delete the copy in Google Drive and set sync up again? The chats on your devices stay and go into the new copy. Other devices will then need the new password, or nothing if you sync without one.", L(self.app))
+            return
+        self._reset_armed = False
+        ev.button.label = t("Forgot your password? Start over", L(self.app))
+        self._sync_job(self.app.api.sync_start_over)
 
     @on(Button.Pressed, "#syncnow")
     def _sync_now(self) -> None:

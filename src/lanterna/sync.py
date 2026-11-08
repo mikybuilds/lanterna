@@ -7,6 +7,10 @@ How it works
 - Chats, memory, reminders, the name/language, the main settings and the API keys of the model services are
   kept there as ONE file, encrypted with AES-256-GCM. The key comes from a sync password the user chooses
   (scrypt), so Google cannot read any of it. Sign-in tokens (Google, GitHub) are never synced.
+- Or, if the user chooses so, without a password: a random key is kept in a second file in the same hidden folder,
+  so signing in with Google is enough on every device. Then the copy is only as safe as the Google account, so the
+  API keys are NOT synced in this mode (each device keeps its own).
+- Forgot the password? Start over: the copy in Drive is deleted (chats on the devices stay) and made again.
 - The same sign-in can also give the Google Drive connector its permission (drive.file: only files Lanterna
   created), so a new device needs one sign-in for both.
 - The sign-in token and the derived key stay in the system's secure vault on each device.
@@ -42,7 +46,9 @@ REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 DRIVE = "https://www.googleapis.com/drive/v3"
 UPLOAD = "https://www.googleapis.com/upload/drive/v3"
 FILE_NAME = "lanterna-sync.bin"
+KEY_FILE = "lanterna-sync-key.json"              # only without a password: the copy's key, next to it
 VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT = "google-sync-token", "google-sync-key", "google-sync-account"
+VAULT_MODE = "google-sync-mode"                  # "open" = synced without a password on this device
 MAGIC = b"LNT1"
 # Settings that follow the user to every device (folders and local models belong to one computer).
 PREFS = ("mode", "provider", "models", "auto_cloud", "update_check", "pc_access", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory")
@@ -50,7 +56,7 @@ SIGN_IN_TIMEOUT = 300
 
 
 class SyncError(Exception):
-    """kind: auth | password | network | cancelled | other"""
+    """kind: auth | password | network | cancelled | gone (the file was deleted) | other"""
 
     def __init__(self, kind: str, message: str = ""):
         super().__init__(message or kind)
@@ -221,26 +227,31 @@ class Drive:
             raise SyncError("network", str(e)) from e
         if r.status_code in (401, 403):
             raise SyncError("auth", f"Google Drive: {r.status_code}")
+        if r.status_code == 404 and method == "GET":
+            raise SyncError("gone", "Google Drive: the file is gone")
         if r.status_code >= 400 and not (method == "DELETE" and r.status_code == 404):
             raise SyncError("other", f"Google Drive: {r.status_code} {r.text[:120]}")
         return r
 
-    def find(self) -> str:
-        r = self._call("GET", f"{DRIVE}/files", params={"spaces": "appDataFolder", "q": f"name='{FILE_NAME}'",
+    def find_all(self, name: str = FILE_NAME) -> list[str]:
+        r = self._call("GET", f"{DRIVE}/files", params={"spaces": "appDataFolder", "q": f"name='{name}'",
                                                         "fields": "files(id,modifiedTime)", "orderBy": "modifiedTime desc"})
-        files = r.json().get("files", [])
-        return files[0]["id"] if files else ""
+        return [f["id"] for f in r.json().get("files", [])]
+
+    def find(self, name: str = FILE_NAME) -> str:
+        files = self.find_all(name)
+        return files[0] if files else ""
 
     def download(self, fid: str) -> bytes:
         return self._call("GET", f"{DRIVE}/files/{fid}", params={"alt": "media"}).content
 
-    def upload(self, blob: bytes, fid: str = "") -> str:
+    def upload(self, blob: bytes, fid: str = "", name: str = FILE_NAME) -> str:
         if fid:
             self._call("PATCH", f"{UPLOAD}/files/{fid}", params={"uploadType": "media"}, content=blob,
                        headers={"Content-Type": "application/octet-stream"})
             return fid
         boundary = "lanterna" + secrets.token_hex(8)
-        meta = json.dumps({"name": FILE_NAME, "parents": ["appDataFolder"]}).encode()
+        meta = json.dumps({"name": name, "parents": ["appDataFolder"]}).encode()
         body = (f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".encode() + meta +
                 f"\r\n--{boundary}\r\nContent-Type: application/octet-stream\r\n\r\n".encode() + blob +
                 f"\r\n--{boundary}--".encode())
@@ -297,6 +308,7 @@ class Syncer:
         self.url = ""                                  # the sign-in page, for "open in another browser"
         self._cancel = threading.Event()
         self._fid, self._synced_changes, self._remote_fp = "", -1, ""
+        self._may_create = False                       # only a password (or none) just chosen here makes a new copy
         self.extra_scope = ""                          # e.g. the Drive connector's scope, asked in the same sign-in
         self.on_token = None                           # (refresh_token, account, granted scopes) after a sign-in
         self.on_sign_out = None                        # (refresh_token) after sign-out
@@ -309,9 +321,14 @@ class Syncer:
     def signed_in() -> bool:
         return bool(_vault_get(VAULT_TOKEN))
 
+    @staticmethod
+    def no_password() -> bool:
+        return _vault_get(VAULT_MODE) == "open"
+
     def status(self) -> dict:
         return {"phase": self.phase, "account": self.account, "error": self.error, "last": self.last,
-                "cloud": self.cloud_exists, "url": self.url if self.phase == "waiting" else ""}
+                "cloud": self.cloud_exists, "url": self.url if self.phase == "waiting" else "",
+                "no_password": self.no_password() and self.phase not in ("off", "password")}
 
     def _drive(self) -> Drive:
         tok = _vault_get(VAULT_TOKEN)
@@ -352,7 +369,7 @@ class Syncer:
                 _vault_set(VAULT_ACCOUNT, self.account)
             self._fid = d.find()
             self.cloud_exists = bool(self._fid)
-            self.phase = "password"
+            self.phase = "ready" if self._fid and self._adopt_open(d) else "password"
             if self.on_token:
                 try:
                     self.on_token(tok["refresh_token"], self.account, granted)
@@ -362,6 +379,70 @@ class Syncer:
             self.phase, self.error = ("off", "" if e.kind == "cancelled" else str(e)) if not self.signed_in() else ("password", "")
         except Exception as e:                       # never leave the UI waiting
             self.phase, self.error = "off", str(e)[:200]
+        if self.phase == "ready":                    # a copy without a password: the Google sign-in was enough
+            self.sync()
+
+    def _adopt_open(self, d: Drive) -> bool:
+        """The copy was made without a password: take its key from the hidden folder (True), or False."""
+        kid = d.find(KEY_FILE)
+        if not kid:
+            return False
+        try:
+            k = json.loads(d.download(kid))
+            salt, key = base64.b64decode(k["salt"]), base64.b64decode(k["key"])
+        except (ValueError, KeyError, TypeError):
+            return False
+        if len(salt) != 16 or len(key) != 32:
+            return False
+        fid = d.find()
+        if fid:
+            blob = d.download(fid)
+            if salt_of(blob) != salt:
+                return False
+            decrypt(blob, key)                               # raises if it doesn't open
+        _vault_set(VAULT_KEY, base64.b64encode(salt + key).decode())
+        _vault_set(VAULT_MODE, "open")
+        return True
+
+    def use_no_password(self) -> dict:
+        """Sync with the Google account alone. Joins a copy made that way, or makes a new one if there is none."""
+        try:
+            d = self._drive()
+            self._fid = d.find()
+            if self._fid:
+                if not self._adopt_open(d):
+                    self.cloud_exists, self.error = True, "has_password"
+                    return self.status()
+            else:
+                salt, key = os.urandom(16), os.urandom(32)
+                for kid in d.find_all(KEY_FILE):              # a left-over key of an earlier copy
+                    d.delete(kid)
+                d.upload(json.dumps({"v": 1, "salt": base64.b64encode(salt).decode(),
+                                     "key": base64.b64encode(key).decode()}).encode(), name=KEY_FILE)
+                _vault_set(VAULT_KEY, base64.b64encode(salt + key).decode())
+                _vault_set(VAULT_MODE, "open")
+                self._may_create = True
+            self.phase, self.error = "ready", ""
+        except SyncError as e:
+            self.error = str(e)[:200]
+            return self.status()
+        return self.sync()
+
+    def start_over(self) -> dict:
+        """Forgot the password: deletes the copy in Google Drive (chats on the devices stay); then a new password,
+        or none, makes it again from this device. Other devices are asked for the new one."""
+        try:
+            d = self._drive()
+            for name in (FILE_NAME, KEY_FILE):
+                for fid in d.find_all(name):
+                    d.delete(fid)
+        except SyncError as e:
+            self.error = str(e)[:200]
+            return self.status()
+        _vault_del(VAULT_KEY)
+        _vault_del(VAULT_MODE)
+        self._fid, self.cloud_exists, self.phase, self.error, self.last = "", False, "password", "", 0.0
+        return self.status()
 
     def set_password(self, password: str) -> dict:
         """First device: creates the cloud copy with this password. Other devices: checks it opens the copy."""
@@ -371,7 +452,10 @@ class Syncer:
             return self.status()
         try:
             d = self._drive()
-            self._fid = self._fid or d.find()
+            self._fid = d.find()
+            if self._fid and self._adopt_open(d):            # made without a password: nothing to check
+                self.phase, self.error = "ready", ""
+                return self.sync()
             if self._fid:
                 blob = d.download(self._fid)
                 key = derive_key(password, salt_of(blob))
@@ -380,7 +464,9 @@ class Syncer:
             else:
                 salt = os.urandom(16)
                 key = derive_key(password, salt)
+                self._may_create = True
             _vault_set(VAULT_KEY, base64.b64encode(salt + key).decode())
+            _vault_del(VAULT_MODE)
             self.phase, self.error = "ready", ""
         except SyncError as e:
             self.error = e.kind if e.kind == "password" else str(e)
@@ -392,15 +478,15 @@ class Syncer:
         if tok and delete_cloud:
             try:
                 d = self._drive()
-                fid = self._fid or d.find()
-                if fid:
-                    d.delete(fid)
+                for name in (FILE_NAME, KEY_FILE):
+                    for fid in d.find_all(name):
+                        d.delete(fid)
             except SyncError as e:
                 self.error = str(e)
                 return self.status()
         if tok:
             revoke(tok, self.http)
-        for name in (VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT):
+        for name in (VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT, VAULT_MODE):
             _vault_del(name)
         if tok and self.on_sign_out:
             self.on_sign_out(tok)
@@ -421,6 +507,8 @@ class Syncer:
         """API keys of the model services stored on this device (not environment variables), with when they
         last changed; a removed key is kept as "" so the removal reaches the other devices too."""
         from .providers import PROVIDERS
+        if self.no_password():                               # only as safe as the Google account: keys stay here
+            return {}
         stamps = getattr(self.settings, "keys_at", {}) or {}
         out = {}
         for pid, p in PROVIDERS.items():
@@ -442,7 +530,7 @@ class Syncer:
                 if k in p:
                     setattr(s, k, p[k])
             s.prefs_at, changed = p["at"], True
-        for pid, kv in merged.get("keys", {}).items():
+        for pid, kv in ({} if self.no_password() else merged.get("keys", {})).items():
             if pid not in PROVIDERS:                         # a service that closed, or one this version doesn't know
                 continue
             mine = local["keys"].get(pid, {})
@@ -473,13 +561,31 @@ class Syncer:
             self.phase = "syncing"
             d = self._drive()
             self._fid = self._fid or d.find()
-            remote = empty()
+            blob = b""
             if self._fid:
-                blob = d.download(self._fid)
-                if salt_of(blob) != salt:                    # the copy was made again with another password
-                    _vault_del(VAULT_KEY)
-                    self.phase, self.error = "password", "changed"
-                    return self.status()
+                try:
+                    blob = d.download(self._fid)
+                except SyncError as e:
+                    if e.kind != "gone":
+                        raise
+                    self._fid = d.find()
+                    blob = d.download(self._fid) if self._fid else b""
+            if not self._fid and not self._may_create:      # deleted on another device: don't bring it back
+                _vault_del(VAULT_KEY)
+                _vault_del(VAULT_MODE)
+                self.phase, self.error, self.cloud_exists = "password", "gone", False
+                return self.status()
+            remote = empty()
+            if blob:
+                if salt_of(blob) != salt:                    # the copy was made again (another password, or none)
+                    if self._adopt_open(d):
+                        sk = base64.b64decode(_vault_get(VAULT_KEY))
+                        salt, key = sk[:16], sk[16:]
+                    else:
+                        _vault_del(VAULT_KEY)
+                        _vault_del(VAULT_MODE)
+                        self.phase, self.error = "password", "changed"
+                        return self.status()
                 remote = decrypt(blob, key)
             local = {**self.store.export_sync(), "profile": self._profile(), "prefs": self._prefs(), "keys": self._keys()}
             merged = merge(local, remote)
@@ -493,12 +599,13 @@ class Syncer:
                     self.settings.save()
             if fingerprint(merged) != fingerprint(remote) or not self._fid:
                 self._fid = d.upload(encrypt(merged, key, salt), self._fid)
+            self._may_create = False
             self.cloud_exists = True
             self._synced_changes = self.store.changes
             self.last, self.phase, self.error = time.time(), "ready", ""
         except SyncError as e:
             if e.kind == "auth":
-                for name in (VAULT_TOKEN, VAULT_KEY):
+                for name in (VAULT_TOKEN, VAULT_KEY, VAULT_MODE):
                     _vault_del(name)
                 self.phase, self.error = "off", "signed_out"
             elif e.kind == "password":

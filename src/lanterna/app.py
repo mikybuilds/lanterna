@@ -354,6 +354,14 @@ class Api:
     def sync_now(self) -> dict:
         return self.syncer.sync()
 
+    def sync_no_password(self) -> dict:
+        """Sync with the Google account alone (the API keys then stay on each device)."""
+        return self.syncer.use_no_password()
+
+    def sync_start_over(self) -> dict:
+        """Forgot the sync password: deletes the copy in Google Drive; chats on the devices stay."""
+        return self.syncer.start_over()
+
     def sync_sign_out(self, delete_cloud: bool = False) -> dict:
         return self.syncer.sign_out(bool(delete_cloud))
 

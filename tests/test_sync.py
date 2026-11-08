@@ -28,6 +28,8 @@ class FakeGoogle:
 
     def __init__(self):
         self.files: dict[str, bytes] = {}
+        self.names: dict[str, str] = {}
+        self.made = 0
         self.calls: list[str] = []
         self.revoked: list[str] = []
 
@@ -51,10 +53,14 @@ class FakeGoogle:
             return httpx.Response(200, json={"user": {"emailAddress": "anna@example.com"}})
         if m == "GET" and path.endswith("/drive/v3/files"):
             assert req.url.params["spaces"] == "appDataFolder"
-            return httpx.Response(200, json={"files": [{"id": i} for i in self.files]})
+            want = req.url.params.get("q", "").split("'")[1] if "'" in req.url.params.get("q", "") else ""
+            return httpx.Response(200, json={"files": [{"id": i} for i in self.files
+                                                       if not want or self.names.get(i, sync.FILE_NAME) == want]})
         if m == "POST" and "/upload/" in path:
             assert b'"parents": ["appDataFolder"]' in req.content
-            fid = f"f{len(self.files) + 1}"
+            self.made += 1
+            fid = f"f{self.made}"
+            self.names[fid] = json.loads(req.content.split(b"\r\n\r\n", 1)[1].split(b"\r\n--", 1)[0])["name"]
             self.files[fid] = req.content.split(b"application/octet-stream\r\n\r\n", 1)[1].rsplit(b"\r\n--", 1)[0]
             return httpx.Response(200, json={"id": fid})
         fid = path.rsplit("/", 1)[1]
@@ -62,7 +68,7 @@ class FakeGoogle:
             self.files[fid] = req.content
             return httpx.Response(200, json={"id": fid})
         if m == "GET":
-            return httpx.Response(200, content=self.files[fid])
+            return httpx.Response(200, content=self.files[fid]) if fid in self.files else httpx.Response(404)
         if m == "DELETE":
             self.files.pop(fid, None)
             return httpx.Response(204)
@@ -356,3 +362,139 @@ def test_terminal_app_asks_for_google_first(tmp_path, vault, monkeypatch):
     a.settings.onboarded, a.settings.mode, a.settings.sync_asked = True, "local", False
     asyncio.run(existing_install())
     assert a.settings.sync_asked
+
+
+# ---------------------------------------------------------------- forgot the password · no password
+@pytest.fixture
+def vaults(monkeypatch):
+    """A vault per device: `vaults.on("pc")` makes the next calls use that device's vault."""
+    class V(dict):
+        now = "pc"
+
+        def on(self, name):
+            self.now = name
+            return self
+
+        def box(self):
+            return self.setdefault(self.now, {})
+    v = V()
+    monkeypatch.setattr(keys, "get_key", lambda n: v.box().get(n))
+    monkeypatch.setattr(keys, "set_key", lambda n, k: v.box().__setitem__(n, k))
+    monkeypatch.setattr(keys, "delete_key", lambda n: v.box().pop(n, None))
+    monkeypatch.setattr(keys, "stored_key", lambda n: v.box().get(n) or "")
+    monkeypatch.setattr(sync, "derive_key", lambda pw, salt: (pw.encode() * 32)[:32])
+    monkeypatch.setattr(sync, "sign_in", lambda *a_, **k: {"refresh_token": "rt-1"})
+    return v
+
+
+def _titles(store):
+    return {x["title"] for x in store.threads()}
+
+
+def test_forgot_password_start_over_keeps_every_chat(tmp_path, vaults):
+    google = FakeGoogle()
+    a_store, _, a = device(tmp_path, "pc", google, None, None)
+    b_store, _, b = device(tmp_path, "laptop", google, None, None)
+    a_store.add(a_store.new_thread("From the PC"), "user", "hi")
+    b_store.add(b_store.new_thread("From the laptop"), "user", "hi")
+    vaults.on("pc")
+    a._sign_in()
+    a.set_password("old-password-1")
+    vaults.on("laptop")
+    b._sign_in()
+    assert b.set_password("old-password-1")["phase"] == "ready"
+
+    # nobody remembers it now: the PC starts over
+    vaults.on("pc")
+    st = a.start_over()
+    assert st["phase"] == "password" and st["cloud"] is False and google.files == {}
+    assert sync.VAULT_KEY not in vaults["pc"] and sync.VAULT_TOKEN in vaults["pc"]      # still signed in
+    # the laptop syncs meanwhile: it must not bring the old copy back with the old password
+    vaults.on("laptop")
+    st = b.sync()
+    assert st["phase"] == "password" and st["error"] == "gone" and google.files == {}
+    # a new password on the PC; the laptop joins with it, and every chat is there
+    vaults.on("pc")
+    assert a.set_password("new-password-2")["phase"] == "ready" and len(google.files) == 1
+    vaults.on("laptop")
+    assert b.set_password("old-password-1")["error"] == "password"
+    assert b.set_password("new-password-2")["phase"] == "ready"
+    assert _titles(b_store) == {"From the PC", "From the laptop"}
+    vaults.on("pc")
+    a.sync()
+    assert _titles(a_store) == {"From the PC", "From the laptop"}
+
+
+def test_sync_without_a_password(tmp_path, vaults):
+    google = FakeGoogle()
+    a_store, _, a = device(tmp_path, "pc", google, None, None)
+    b_store, _, b = device(tmp_path, "laptop", google, None, None)
+    a_store.add(a_store.new_thread("From the PC"), "user", "hi")
+    b_store.add(b_store.new_thread("From the laptop"), "user", "hi")
+    vaults.on("pc")
+    vaults.box()["groq"] = "gsk_pc_key"
+    a._sign_in()
+    assert a.status()["phase"] == "password" and not a.status()["no_password"]
+    st = a.use_no_password()
+    assert st["phase"] == "ready" and st["no_password"] and len(google.files) == 2
+    copy = next(google.files[f] for f in google.files if google.names[f] == sync.FILE_NAME)
+    key_file = json.loads(next(google.files[f] for f in google.files if google.names[f] == sync.KEY_FILE))
+    sk = __import__("base64").b64decode(vaults["pc"][sync.VAULT_KEY])
+    data = sync.decrypt(copy, sk[16:])
+    assert data["keys"] == {} and b"gsk_pc_key" not in copy                  # API keys never go to the cloud this way
+    assert __import__("base64").b64decode(key_file["key"]) == sk[16:]
+
+    # the laptop: signing in with Google is enough
+    vaults.on("laptop")
+    vaults.box()["groq"] = "gsk_laptop_key"
+    b._sign_in()
+    assert b.status()["phase"] == "ready" and b.status()["no_password"]
+    assert _titles(b_store) == {"From the PC", "From the laptop"}
+    assert vaults["laptop"]["groq"] == "gsk_laptop_key"                     # its own key stays its own
+
+    # a copy with a password can't be joined without it
+    google2 = FakeGoogle()
+    c_store, _, c = device(tmp_path, "third", google2, None, None)
+    vaults.on("third")
+    c._sign_in()
+    c.set_password("secret-pass-1")
+    vaults.on("fourth")
+    d_store, _, d = device(tmp_path, "fourth", google2, None, None)
+    d._sign_in()
+    assert d.status()["phase"] == "password" and d.status()["cloud"]
+    assert d.use_no_password()["error"] == "has_password"
+
+
+def test_a_device_follows_when_the_copy_is_made_again_without_a_password(tmp_path, vaults):
+    google = FakeGoogle()
+    a_store, _, a = device(tmp_path, "pc", google, None, None)
+    b_store, _, b = device(tmp_path, "laptop", google, None, None)
+    vaults.on("pc")
+    a._sign_in()
+    a.set_password("old-password-1")
+    vaults.on("laptop")
+    b._sign_in()
+    b.set_password("old-password-1")
+    b_store.add(b_store.new_thread("Laptop only"), "user", "hi")
+    vaults.on("pc")
+    a.start_over()
+    a.use_no_password()
+    vaults.on("laptop")
+    st = b.sync()                                    # its old copy is gone; the new one has no password
+    assert st["phase"] == "ready" and st["no_password"] and "Laptop only" in _titles(b_store)
+    vaults.on("pc")
+    a.sync()
+    assert "Laptop only" in _titles(a_store)
+    a.sign_out(delete_cloud=True)
+    assert google.files == {} and sync.VAULT_MODE not in vaults["pc"]
+
+
+def test_window_and_terminal_offer_both_ways():
+    from pathlib import Path
+
+    from lanterna import gui, tui
+    assert {"sync_no_password", "sync_start_over"} <= gui.METHODS
+    js = (Path(gui.__file__).parent / "ui" / "app.js").read_text(encoding="utf-8")
+    assert "api.sync_no_password()" in js and "api.sync_start_over()" in js and 'id="sync-reset"' in js
+    src = Path(tui.__file__).read_text(encoding="utf-8")
+    assert "#syncopen" in src and "#syncreset" in src

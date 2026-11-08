@@ -369,7 +369,7 @@ def update_cmd(s: Settings, now: bool = False) -> int:
 
 
 def sync_cmd(s: Settings, action: str) -> int:
-    """lanterna sync: status · in (sign in with Google) · now · out (sign out) · out --delete."""
+    """lanterna sync: status · in (sign in with Google) · now · open (no password) · reset (forgot the password) · out · out-delete."""
     import time as _time
     from .app import Api
     lang, api = s.lang, Api(scheduler=False)
@@ -395,6 +395,16 @@ def sync_cmd(s: Settings, action: str) -> int:
                 break
     elif action == "now":
         st = api.sync_now()
+    elif action == "open":
+        st = api.sync_no_password()
+    elif action == "reset":
+        if st["phase"] == "off":
+            console.print(t("Sign in with Google to see your chats on all your devices.", lang) + "  lanterna sync in", highlight=False)
+            return 1
+        st = api.sync_start_over()
+        if not st["error"]:
+            console.print(t("Choose a sync password (at least 8 characters). You will need it on your other devices.", lang)
+                          + "  lanterna sync in · lanterna sync open", highlight=False)
     elif action in ("out", "out-delete"):
         st = api.sync_sign_out(action == "out-delete")
     if st["phase"] == "off":
@@ -469,7 +479,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("doctor", help="check what works: keys, internet, sync, folders, programs, local models")
     sub.add_parser("bug", help="report a bug: see the text, then send it from your mail app or GitHub")
     sy = sub.add_parser("sync", help="sign in with Google and keep the same chats on all your devices")
-    sy.add_argument("action", nargs="?", default="status", choices=["status", "in", "now", "out", "out-delete"])
+    sy.add_argument("action", nargs="?", default="status", choices=["status", "in", "now", "open", "reset", "out", "out-delete"])
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
     lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
