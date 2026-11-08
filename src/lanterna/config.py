@@ -51,6 +51,8 @@ class Settings:
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     chat_roles: dict = field(default_factory=dict)  # {"thread id": "tutor" | "translator" | "proofreader"}
     instructions: str = ""                 # the user's own instructions for every chat (Settings → Chats)
+    backup_dir: str = ""                   # where the weekly encrypted backup goes ("" = Documents\Lanterna backups)
+    backup_last: float = 0                 # when the last automatic backup was made
     profile_at: float = 0                  # when name or language last changed (newest wins when syncing)
     prefs_at: float = 0                    # when the synced settings (sync.PREFS) last changed
     keys_at: dict = field(default_factory=dict)   # {"service": when its API key was saved or removed}

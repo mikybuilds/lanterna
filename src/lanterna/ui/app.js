@@ -1542,6 +1542,8 @@ function openSettings() {
       <textarea class="field" id="instructions" rows="4" maxlength="1500" placeholder="${esc(t("Your instructions (optional)"))}">${esc(S.settings.instructions || "")}</textarea>
       <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><button class="btn ghost small" id="instr-save">${icon("check")} ${t("Save")}</button><small class="muted" id="instr-left"></small></div>
       <p class="muted" style="margin:10px 0 0;font-size:13.5px">${t("A role changes how Lanterna answers in one chat: Tutor, Translator or Proofreader. Pick it with the 🎭 button under the message box.")}</p>
+      <h4 style="margin-top:22px">${t("Backups")}</h4>
+      <div id="backup-set"></div>
       <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
       <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
       <div id="voice-set">
@@ -1639,6 +1641,7 @@ function openSettings() {
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
     }
     $("#backup-all", body).onclick = async () => savedToast(await api.export_all());
+    paintBackup($("#backup-set", body));
     const ins = $("#instructions", body), left = () => { $("#instr-left", body).textContent = `${ins.value.length} / 1500`; };
     ins.oninput = left; left();
     $("#instr-save", body).onclick = async () => { S = await api.save_settings({ instructions: ins.value }); ins.value = S.settings.instructions; left(); toast(t("Saved")); };
@@ -2077,6 +2080,89 @@ async function paintLimit() {
 }
 
 let newChatFolder;      // a folder picked for a chat that has no messages yet (applied when it is created)
+// ---------------------------------------------------------------- encrypted weekly backups (Settings → Chats)
+const BACKUP_ERR = { password: "The password is wrong.", format: "This file isn't a Lanterna backup, or it is damaged.",
+  folder: "Lanterna can't write to this folder. Choose another one.", no_key: "Set a backup password first." };
+async function paintBackup(box) {
+  if (!box) return;
+  const s = await api.backup_status();
+  const when = s.last ? new Date(s.last * 1000).toLocaleString() : "";
+  box.innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:13.5px">${esc(t("Once a week Lanterna saves all chats, memory, reminders and regular tasks in one encrypted file. The last {n} are kept. With the password you can open a backup on any computer; without it nobody can, not even Lanterna.", { n: s.keep }))}</p>
+    ${s.on ? `<div class="note ok">${icon("check")}<span>${esc(t("Weekly backups are on."))}${when ? " " + esc(t("Last one: {when}", { when })) : ""}</span></div>`
+      : `<div class="note">${icon("lock")}<span>${esc(t("Set a password to turn on weekly backups. Lanterna keeps only a key made from it, in the Windows secure store, like your API keys. If you forget the password, the backups can't be opened."))}</span></div>`}
+    <div class="row-field bk-pw"><input class="field" type="password" id="bk-pw" autocomplete="new-password" placeholder="${esc(s.on ? t("New password") : t("Password (at least {n} characters)", { n: s.min }))}">
+      <input class="field" type="password" id="bk-pw2" autocomplete="new-password" placeholder="${esc(t("The same password again"))}">
+      <button class="btn ${s.on ? "ghost" : "primary"} small" id="bk-set">${esc(s.on ? t("Change password") : t("Turn on"))}</button></div>
+    <p class="sync-err" id="bk-err"></p>
+    <div class="row-field"><span>${esc(t("Folder"))}</span><input class="field" id="bk-dir" value="${esc(s.folder)}">
+      <button class="btn ghost small" id="bk-dir-save">${esc(t("Save"))}</button>${s.custom ? `<button class="btn ghost small" id="bk-dir-def">${esc(t("Default"))}</button>` : ""}</div>
+    <div class="bk-acts">${s.on ? `<button class="btn ghost small" id="bk-now">${icon("save")} ${esc(t("Back up now"))}</button>` : ""}
+      ${s.files.length ? `<button class="btn ghost small" id="bk-open">${icon("folder")} ${esc(t("Show backups ({n})", { n: s.files.length }))}</button>` : ""}
+      <button class="btn ghost small" id="bk-restore">${icon("refresh")} ${esc(t("Restore from a backup…"))}</button>
+      ${s.on ? `<button class="btn ghost small" id="bk-off">${icon("x")} ${esc(t("Turn off backups"))}</button>` : ""}</div>
+    <input type="file" id="bk-file" accept=".lanterna-backup,.json" hidden>
+    <div id="bk-ask" hidden><p class="muted" style="margin:8px 0 6px;font-size:13.5px">${esc(t("This backup was made with another password (or on another computer). Type its password:"))}</p>
+      <div class="row-field"><input class="field" type="password" id="bk-open-pw" autocomplete="off"><button class="btn primary small" id="bk-open-go">${esc(t("Restore"))}</button></div></div>`;
+  const err = box.querySelector("#bk-err");
+  const say = r => { err.textContent = r && !r.ok ? t(BACKUP_ERR[r.error] || "Something went wrong: {e}", { e: r.message || r.error }) : ""; };
+  box.querySelector("#bk-set").onclick = async () => {
+    const a = box.querySelector("#bk-pw").value, b = box.querySelector("#bk-pw2").value;
+    if (a.length < s.min) { err.textContent = t("The password needs at least {n} characters.", { n: s.min }); return; }
+    if (a !== b) { err.textContent = t("The two passwords are different."); return; }
+    err.textContent = t("Saving the first backup…");
+    const r = await api.backup_set_password(a);
+    if (!r.ok && r.error === "password") { say(r); return; }
+    if (r.ok) toast(t("Backup saved: {name}", { name: r.name }));
+    paintBackup(box).then(() => say(r));
+  };
+  box.querySelector("#bk-dir-save").onclick = async () => {
+    const r = await api.backup_set_folder(box.querySelector("#bk-dir").value);
+    if (!r.ok) { say(r); return; }
+    toast(t("Saved")); paintBackup(box);
+  };
+  const def = box.querySelector("#bk-dir-def");
+  if (def) def.onclick = async () => { await api.backup_set_folder(""); paintBackup(box); };
+  const now = box.querySelector("#bk-now");
+  if (now) now.onclick = async () => {
+    now.disabled = true;
+    const r = await api.backup_now();
+    if (r.ok) toast(t("Backup saved: {name}", { name: r.name }));
+    paintBackup(box).then(() => say(r));
+  };
+  const open = box.querySelector("#bk-open");
+  if (open) open.onclick = () => api.backup_open_folder();
+  const off = box.querySelector("#bk-off");
+  if (off) off.onclick = async () => {
+    if (!confirm(t("Turn off weekly backups? The backups already saved stay in their folder."))) return;
+    await api.backup_off(); paintBackup(box);
+  };
+  const file = box.querySelector("#bk-file");
+  let picked = null;
+  const restore = async pw => {
+    err.textContent = t("Restoring…");
+    const r = await api.backup_restore(picked.name, picked.data, pw || "");
+    if (!r.ok && r.error === "password" && r.sealed) {
+      err.textContent = pw ? t("The password is wrong.") : "";
+      box.querySelector("#bk-ask").hidden = false; box.querySelector("#bk-open-pw").focus(); return;
+    }
+    if (!r.ok) { say(r); return; }
+    err.textContent = ""; box.querySelector("#bk-ask").hidden = true;
+    const n = r.chats + r.messages + r.facts + r.reminders + r.tasks;
+    toast(n ? t("Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.", { c: r.chats, m: r.messages, f: r.facts, r: r.reminders, k: r.tasks })
+      : t("Nothing to restore: everything in this backup is already here."), true);
+    refreshThreads();
+  };
+  box.querySelector("#bk-restore").onclick = () => file.click();
+  file.onchange = () => {
+    const f = file.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { picked = { name: f.name, data: String(rd.result).split(",")[1] || "" }; file.value = ""; restore(""); };
+    rd.readAsDataURL(f);
+  };
+  box.querySelector("#bk-open-go").onclick = () => { if (picked) restore(box.querySelector("#bk-open-pw").value); };
+}
+
 // a role for one chat (Tutor, Translator, Proofreader); the user's own instructions for all are in Settings → Chats
 const ROLES = [["", "No role", "🎭", "Lanterna as usual."],
   ["tutor", "Tutor", "🎓", "Explains step by step and asks you questions instead of giving the answer straight away."],

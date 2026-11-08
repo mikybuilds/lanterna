@@ -28,7 +28,8 @@ SAME = {"ok", "Terminal", "Status", "Version", "Model", "Mode", "Local", "Name",
 PRODUCTS = ("GitHub Models", "Google Drive")          # names, never translated
 ENGLISH_ON_PURPOSE = {"bugpreview"}                   # the bug report is written in English for the developer
 # the first screen asks in several languages at once; "Pause" is also a German word (a chat example says "eine Pause")
-ALLOWED = {"01-language": {"Choose your language", "Choose", "language"}, "03-chat": {"Pause"}}
+ALLOWED = {"01-language": {"Choose your language", "Choose", "language"}, "03-chat": {"Pause"},
+           "04-settings": {"Documents"}}                     # the backup folder path (Documentsanterna backups)
 
 
 def fake_api(home: Path, lang: str, onboarded: bool = True):

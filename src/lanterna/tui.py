@@ -1042,6 +1042,19 @@ class SettingsScreen(ModalScreen[str]):
                 yield Input(placeholder=t("Command or https:// address", lang), id="mcpwhere")
                 yield Input(placeholder=t("Name (optional)", lang), id="mcpname")
                 yield Button(t("Add", lang), id="mcpadd")
+            yield Label(t("Backups", lang), classes="h")
+            yield Static("", id="bkinfo", classes="muted")
+            with Horizontal(classes="keyrow"):
+                yield Input(placeholder=t("Password (at least {n} characters)", lang, n=8), password=True, id="bkpw")
+                yield Input(placeholder=t("The same password again", lang), password=True, id="bkpw2")
+                yield Button(t("Turn on", lang), id="bkset")
+            with Horizontal(classes="keyrow"):
+                yield Button(t("Back up now", lang), id="bknow")
+                yield Button(t("Turn off backups", lang), id="bkoff")
+            with Horizontal(classes="keyrow"):
+                yield Input(placeholder=t("Backup file path (.lanterna-backup or .json)", lang), id="bkfile")
+                yield Input(placeholder=t("Its password (if it was made elsewhere)", lang), password=True, id="bkfilepw")
+                yield Button(t("Restore", lang), id="bkrestore")
             yield Label(t("Instructions and roles", lang), classes="h")
             yield Static(t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”", lang), classes="muted")
             yield TextArea(self.app.api.settings.instructions, id="instructions")
@@ -1119,6 +1132,7 @@ class SettingsScreen(ModalScreen[str]):
         self._paint_wd()
         self._paint_voice()
         self._paint_tts()
+        self._paint_backup()
         self._paint_mcp()
         self._paint_limits()
         self._paint_drive()
@@ -1274,6 +1288,55 @@ class SettingsScreen(ModalScreen[str]):
             self._paint_mcp()
         self.app.push_screen(ConfirmScreen(ask, t("Add", lang)), done)
 
+    def _paint_backup(self) -> None:
+        """Settings → Backups: on or off, the folder, the last one."""
+        import datetime as dt
+        lang, s = L(self.app), self.app.api.backup_status()
+        text = (t("Weekly backups are on.", lang) + (" " + t("Last one: {when}", lang, when=dt.datetime.fromtimestamp(s["last"]).strftime("%Y-%m-%d %H:%M")) if s["last"] else "")
+                if s["on"] else t("Set a password to turn on weekly backups. Lanterna keeps only a key made from it, in the Windows secure store, like your API keys. If you forget the password, the backups can't be opened.", lang))
+        self.query_one("#bkinfo", Static).update(text + "\n" + t("Folder", lang) + ": " + s["folder"])
+        self.query_one("#bkset", Button).label = t("Change password", lang) if s["on"] else t("Turn on", lang)
+        self.query_one("#bknow", Button).display = s["on"]
+        self.query_one("#bkoff", Button).display = s["on"]
+
+    def _backup_button(self, bid: str) -> None:
+        import base64
+        lang = L(self.app)
+        errs = {"password": "The password is wrong.", "format": "This file isn't a Lanterna backup, or it is damaged.",
+                "folder": "Lanterna can't write to this folder. Choose another one.", "no_key": "Set a backup password first."}
+        if bid == "bkset":
+            a, b = self.query_one("#bkpw", Input), self.query_one("#bkpw2", Input)
+            if len(a.value) < 8:
+                self.app.notify(t("The password needs at least {n} characters.", lang, n=8), severity="warning")
+                return
+            if a.value != b.value:
+                self.app.notify(t("The two passwords are different.", lang), severity="warning")
+                return
+            r = self.app.api.backup_set_password(a.value)
+            a.value = b.value = ""
+        elif bid == "bknow":
+            r = self.app.api.backup_now()
+        elif bid == "bkoff":
+            r = self.app.api.backup_off()
+        else:                                                  # bkrestore
+            box, pw = self.query_one("#bkfile", Input), self.query_one("#bkfilepw", Input)
+            p = Path(box.value.strip().strip('"')).expanduser()
+            if not p.is_file():
+                self.app.notify(t("There is no such file.", lang), severity="warning")
+                return
+            r = self.app.api.backup_restore(p.name, base64.b64encode(p.read_bytes()).decode(), pw.value)
+            pw.value = ""
+            if r.get("ok"):
+                n = sum(r[k] for k in ("chats", "messages", "facts", "reminders", "tasks"))
+                self.app.notify(t("Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.", lang,
+                                  c=r["chats"], m=r["messages"], f=r["facts"], r=r["reminders"], k=r["tasks"]) if n
+                                else t("Nothing to restore: everything in this backup is already here.", lang), timeout=10)
+        if not r.get("ok"):
+            self.app.notify(t(errs.get(r.get("error"), "Something went wrong: {e}"), lang, e=r.get("error", "")), severity="error")
+        elif r.get("name"):
+            self.app.notify(t("Backup saved: {name}", lang, name=r["name"]), timeout=6)
+        self._paint_backup()
+
     def _paint_tts(self) -> None:
         """Settings → Reading aloud: Piper's download, or that it is ready."""
         lang, v = L(self.app), self.app.api.tts_status()
@@ -1396,6 +1459,8 @@ class SettingsScreen(ModalScreen[str]):
                                         "morning_city": self.query_one("#morningcity", Input).value})
             self.query_one("#morningat", Input).value = self.app.api.settings.morning_at
             self.app.notify(t("Saved", L(self.app)), timeout=3)
+        elif bid in ("bkset", "bknow", "bkoff", "bkrestore"):
+            self._backup_button(bid)
         elif bid == "instrsave":
             self.app.api.save_settings({"instructions": self.query_one("#instructions", TextArea).text})
             self.app.notify(t("Saved", L(self.app)), timeout=3)

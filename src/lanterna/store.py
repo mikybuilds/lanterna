@@ -355,5 +355,76 @@ class Store:
                 db.execute("UPDATE reminders SET done=0, due=? WHERE id=?", (next_due(row[1], row[2], time.time()), row[0]))
         return n
 
+    def restore(self, data: dict) -> dict:
+        """Brings back from a backup what this database doesn't have: chats (a deleted one comes back as a chat
+        again), their messages, memory, reminders and regular tasks. Nothing here is removed or changed; messages
+        taken back on purpose (Retry, Edit) in a chat that is still here stay away. Returns counts."""
+        out = {"chats": 0, "messages": 0, "facts": 0, "reminders": 0, "tasks": 0}
+        now = time.time()
+        with self._lock, self._db:
+            db = self._db
+            gone = {r[0] for r in db.execute("SELECT uid FROM deleted")}
+
+            def alias(uid: str) -> str:
+                # a deleted thing comes back under a new id that sync doesn't delete again; the same one each time,
+                # so restoring the same backup twice adds nothing
+                while uid in gone:
+                    uid = "re-" + uid
+                return uid
+            ids = {r[0]: r[1] for r in db.execute("SELECT uid, id FROM threads")}
+            back: dict[str, int] = {}                        # chats made again from the backup
+            for uid, t in (data.get("threads") or {}).items():
+                if alias(uid) in ids:
+                    ids[uid] = ids[alias(uid)]
+                    continue
+                created = t.get("created") or now
+                back[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated) VALUES (?,?,?,?,?)",
+                                       (alias(uid), str(t.get("title") or ""), t.get("title_at") or 0, created,
+                                        created)).lastrowid
+                out["chats"] += 1
+            have = {r[0] for r in db.execute("SELECT uid FROM messages")}
+            for uid, m in sorted((data.get("messages") or {}).items(), key=lambda kv: kv[1].get("at") or 0):
+                tid = back.get(m.get("thread")) or ids.get(m.get("thread"))
+                if not tid or alias(uid) in have or (uid in gone and m.get("thread") not in back):
+                    continue
+                if m.get("role") not in ("user", "assistant"):
+                    continue
+                db.execute("INSERT INTO messages(uid, thread, role, content, model, at) VALUES (?,?,?,?,?,?)",
+                           (alias(uid), tid, m["role"], str(m.get("content") or ""),
+                            str(m.get("model") or ""), m.get("at") or now))
+                db.execute("UPDATE threads SET updated=max(coalesce(updated,0), ?) WHERE id=?", (m.get("at") or now, tid))
+                out["messages"] += 1
+            have = {r[0] for r in db.execute("SELECT uid FROM facts")}
+            texts = {str(r[0]).casefold() for r in db.execute("SELECT text FROM facts")}
+            for uid, f in (data.get("facts") or {}).items():
+                text = str(f.get("text") or "").strip()
+                if not text or alias(uid) in have or text.casefold() in texts:
+                    continue
+                db.execute("INSERT INTO facts(uid, text, at) VALUES (?,?,?)", (alias(uid), text, f.get("at") or now))
+                texts.add(text.casefold())
+                out["facts"] += 1
+            have = {r[0] for r in db.execute("SELECT uid FROM reminders")}
+            for uid, r in (data.get("reminders") or {}).items():
+                if alias(uid) in have or not r.get("text") or not r.get("due"):
+                    continue
+                db.execute("INSERT INTO reminders(uid, text, due, done, created, changed, repeat) VALUES (?,?,?,?,?,?,?)",
+                           (alias(uid), str(r["text"]), float(r["due"]), int(bool(r.get("done"))),
+                            r.get("created") or now, now, r.get("repeat") or ""))
+                out["reminders"] += 1
+            for row in db.execute("SELECT id, due, repeat FROM reminders WHERE done=1 AND repeat!=''").fetchall():
+                db.execute("UPDATE reminders SET done=0, due=? WHERE id=?", (next_due(row[1], row[2], now), row[0]))
+            mine = {(r[0], r[1], r[2]) for r in db.execute("SELECT text, every, at FROM tasks")}
+            for tk in data.get("tasks") or []:
+                k = (str(tk.get("text") or ""), str(tk.get("every") or "day"), str(tk.get("at") or "08:00"))
+                if not k[0] or k in mine:
+                    continue
+                db.execute("INSERT INTO tasks(text, every, at, day, only_if, next, paused, created) VALUES (?,?,?,?,?,?,?,?)",
+                           (*k, int(tk.get("day") or 0), str(tk.get("only_if") or ""), now + 60, int(bool(tk.get("paused"))), now))
+                mine.add(k)
+                out["tasks"] += 1
+            if any(out.values()):
+                self.changes += 1
+        return out
+
     def close(self) -> None:
         self._db.close()

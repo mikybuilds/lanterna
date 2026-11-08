@@ -546,3 +546,11 @@ details.sent li { margin: 2px 0; }
 /* a picture copied a moment ago, offered in the quick window */
 .copied.pic .cp-pic { margin: 6px 0 8px; }
 .copied.pic .cp-pic img { display: block; max-width: 100%; max-height: 140px; border-radius: 10px; border: 1px solid var(--line-2); object-fit: contain; background: var(--surface); }
+
+/* backups (Settings → Chats) */
+.bk-pw { flex-wrap: wrap; }
+.bk-pw .field { flex: 1 1 160px; min-width: 0; }
+.bk-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#bk-err:empty { display: none; }
+.note.ok { color: var(--green); }
+.note.ok .i { color: var(--green); }

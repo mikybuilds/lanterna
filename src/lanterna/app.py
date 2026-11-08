@@ -906,6 +906,108 @@ class Api:
         self._saved.add(str(p))
         return {"ok": True, "path": str(p), "name": p.name}
 
+    # ---------------------------------------------------------------- encrypted backups (Settings → Chats → Backups)
+    def _backup_folder(self):
+        from pathlib import Path
+
+        from . import backup
+        if self.settings.backup_dir:
+            return Path(self.settings.backup_dir).expanduser()
+        return backup.default_folder(self.places.folders().get("documents"))
+
+    def backup_status(self) -> dict:
+        from . import backup
+        folder = self._backup_folder()
+        files = backup.ours(folder)
+        return {"on": backup.stored() is not None, "folder": str(folder), "custom": bool(self.settings.backup_dir),
+                "last": self.settings.backup_last, "files": [{"name": p.name, "at": p.stat().st_mtime} for p in files],
+                "keep": backup.KEEP, "min": backup.MIN_PASSWORD}
+
+    def backup_set_password(self, password: str) -> dict:
+        """Turns weekly backups on (or changes the password). Only a key made from it is kept, in the secure store;
+        the first backup is made right away."""
+        from . import backup
+        try:
+            backup.set_password(str(password or ""))
+        except backup.BackupError as e:
+            return {"ok": False, "error": e.kind}
+        r = self.backup_now()
+        return {**r, "status": self.backup_status()}
+
+    def backup_off(self) -> dict:
+        """Stops the weekly backups. The files already made stay where they are."""
+        from . import backup
+        backup.forget()
+        return {"ok": True, "status": self.backup_status()}
+
+    def backup_now(self) -> dict:
+        from . import backup
+        try:
+            p = backup.write(self.store, self._backup_folder())
+        except backup.BackupError as e:
+            return {"ok": False, "error": e.kind}
+        except OSError as e:
+            return {"ok": False, "error": "folder", "message": str(e)[:200]}
+        self.settings.backup_last = time.time()
+        self.settings.save()
+        self._saved.add(str(p))
+        return {"ok": True, "path": str(p), "name": p.name, "status": self.backup_status()}
+
+    def backup_set_folder(self, path: str = "") -> dict:
+        """An empty path means the default: the folder "Lanterna backups" in Documents."""
+        from pathlib import Path
+        path = str(path or "").strip().strip('"')
+        if path:
+            p = Path(path).expanduser()
+            if not p.is_absolute() or p.is_file() or (not p.exists() and not p.parent.is_dir()):
+                return {"ok": False, "error": "folder"}
+            path = str(p)
+        self.settings.backup_dir = path
+        self.settings.save()
+        return {"ok": True, "status": self.backup_status()}
+
+    def backup_open_folder(self) -> bool:
+        from . import backup, pcfiles
+        folder = self._backup_folder()
+        if not folder.is_dir():
+            return False
+        files = backup.ours(folder)
+        pcfiles._open_in_file_manager(files[0] if files else folder)
+        return True
+
+    def check_backup(self, now: float | None = None) -> str:
+        """Once a week, when a backup password is set: a new encrypted backup ("" = none was due)."""
+        from . import backup
+        now = time.time() if now is None else now
+        if backup.stored() is None or not backup.due(self.settings.backup_last, now):
+            return ""
+        r = self.backup_now()
+        if not r["ok"]:                                     # try again in a day, not every 15 seconds
+            self.settings.backup_last = now - backup.EVERY + 24 * 3600
+            self.settings.save()
+            return ""
+        return r["path"]
+
+    def backup_restore(self, name: str, data: str, password: str = "") -> dict:
+        """Brings back chats, memory, reminders and regular tasks from a backup file (encrypted, or an older plain
+        JSON one). Nothing here is removed or changed."""
+        import base64
+        import binascii
+
+        from . import backup
+        try:
+            blob = base64.b64decode(str(data or ""), validate=False)
+        except (binascii.Error, ValueError):
+            return {"ok": False, "error": "format"}
+        if len(blob) > 300 * 1024 * 1024:
+            return {"ok": False, "error": "format"}
+        try:
+            snap = backup.read(blob, str(password or ""))
+        except backup.BackupError as e:
+            return {"ok": False, "error": e.kind, "sealed": backup.is_sealed(blob)}
+        counts = self.store.restore(snap.get("data") or {})
+        return {"ok": True, "saved": snap.get("saved", ""), **counts}
+
     def show_saved(self, path: str) -> bool:
         """Opens the folder of a file Lanterna has just saved (only those: the window can't open any path)."""
         from pathlib import Path
@@ -1517,6 +1619,7 @@ class Api:
                 self.check_tasks()
                 self.check_morning()
                 if time.time() - last_check > 3600:
+                    self.check_backup()
                     last_check = time.time()
                     self.maintenance()
             except Exception:                               # noqa: BLE001  keep the scheduler alive
