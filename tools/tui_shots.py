@@ -114,7 +114,7 @@ async def shoot(lang: str, out: Path) -> list[str]:
         app.save_screenshot(filename=f"{name}.svg", path=str(out))
         text = screen_text(app)
         for key, rx in leftovers:
-            if key not in ALLOWED.get(name, ()) and rx.search(text):
+            if key not in next((v for k, v in ALLOWED.items() if name.startswith(k)), ()) and rx.search(text):
                 problems.append(f"{lang}/{name}: English text on screen: {key!r}")
         if "Traceback" in text or "Error:" in text:
             problems.append(f"{lang}/{name}: an error is shown")
@@ -142,18 +142,31 @@ async def shoot(lang: str, out: Path) -> list[str]:
                        ("06-local", tui.LocalScreen), ("07-history", tui.HistoryScreen),
                        ("08-doctor", tui.DoctorScreen), ("09-about", tui.AboutScreen), ("10-bug", tui.BugScreen),
                        ("11-update", lambda: tui.UpdateScreen(api.check_update())),
-                       ("12-key", lambda: tui.KeyScreen("gemini"))]
+                       ("12-key", lambda: tui.KeyScreen("gemini")),
+                       ("13-connectors", lambda: tui.ConnectorsScreen("browse")),
+                       ("14-connectors-yours", lambda: tui.ConnectorsScreen("yours")),
+                       ("15-mail", tui.MailScreen)]
             for name, make in screens:
                 try:
                     await app.push_screen(make())
                     await pilot.pause(1.0)
                     await snap(app, pilot, name)
+                    if name == "04-settings":                     # every tab of Settings
+                        tabs = app.screen.query_one("#settabs", tui.TabbedContent)
+                        for tab, _label in tui.SET_TABS[1:]:
+                            tabs.active = f"st-{tab}"
+                            await pilot.pause(0.5)
+                            await snap(app, pilot, f"04-settings-{tab}")
                     app.pop_screen()
                     await pilot.pause(0.1)
                 except Exception as e:  # noqa: BLE001 - report every broken screen, keep going
                     problems.append(f"{lang}/{name}: {type(e).__name__}: {e}")
                     while app.screen is not chat and len(app.screen_stack) > 1:
                         app.pop_screen()
+            app.action_command_palette()                          # the menu with every command
+            await pilot.pause(1.0)
+            await snap(app, pilot, "16-menu")
+            app.pop_screen()
     return problems
 
 

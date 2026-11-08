@@ -672,6 +672,13 @@ _T.update({
     "Just your Google account: other devices only need to sign in. Anyone who gets into that account could read the chats, so API keys aren't synced this way: you add them on each device.": {"uk": "Лише акаунт Google: на інших пристроях достатньо увійти. Хто потрапить у цей акаунт, зможе прочитати чати, тому API-ключі так не синхронізуються: їх додаєш на кожному пристрої.", "it": "Solo il tuo account Google: sugli altri dispositivi basta accedere. Chi entra in quell'account potrebbe leggere le chat, quindi così le chiavi API non si sincronizzano: le aggiungi su ogni dispositivo."},
     "Forgot your password? Start over": {"uk": "Забув пароль? Почати заново", "it": "Password dimenticata? Ricomincia"},
     "Without a password: API keys stay on each device.": {"uk": "Без пароля: API-ключі залишаються на кожному пристрої.", "it": "Senza password: le chiavi API restano su ogni dispositivo."},
+    "All commands": {"uk": "Усі команди", "it": "Tutti i comandi"},
+    "Menu": {"uk": "Меню", "it": "Menu"},
+    "Type to find a command…": {"uk": "Почни писати, щоб знайти команду…", "it": "Scrivi per trovare un comando…"},
+    "No tools yet.": {"uk": "Інструментів поки немає.", "it": "Ancora nessuno strumento."},
+    "Enter sends · Ctrl+P: all commands · Ctrl+N: new chat · /file and a path: attach a file": {"uk": "Enter — надіслати · Ctrl+P — усі команди · Ctrl+N — нова розмова · /file і шлях — додати файл", "it": "Invio invia · Ctrl+P: tutti i comandi · Ctrl+N: nuova chat · /file e un percorso: allega un file"},
+    "Enter: choose · Tab: next · Esc: close": {"uk": "Enter — вибрати · Tab — далі · Esc — закрити", "it": "Invio: scegli · Tab: avanti · Esc: chiudi"},
+    "Tab: next · ←/→: tabs · Esc: close": {"uk": "Tab — далі · ←/→ — вкладки · Esc — закрити", "it": "Tab: avanti · ←/→: schede · Esc: chiudi"},
     "Name new chats automatically": {"uk": "Давати назви новим чатам", "it": "Dai un nome alle nuove chat"},
     "After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.": {"uk": "Після першої відповіді швидка онлайн-модель (або локальна в локальному режимі) дає чату коротку назву. Один маленький додатковий запит.", "it": "Dopo la prima risposta, un modello online veloce (o quello locale in modalità Locale) dà alla chat un nome breve. Una piccola richiesta in più."},
 })

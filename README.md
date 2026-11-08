@@ -94,7 +94,7 @@ More free services can be added any time in Settings → Models (each needs its 
 
 Lanterna only ever uses free models, so a key never costs you money. Cerebras and GitHub Models were removed when they stopped being free.
 
-In a terminal `lanterna` opens a full-screen app (chats on the left, Ctrl+N new chat, Ctrl+S settings, Ctrl+O models). `lanterna chat` gives a simple line-by-line chat.
+In a terminal `lanterna` opens a full-screen app: chats on the left with **Connectors**, **Settings** and **All commands** under them, and only the main keys at the bottom (Ctrl+N new chat, Ctrl+P menu, Ctrl+S settings, Ctrl+O models, Ctrl+Q quit). **Ctrl+P** (or F1) opens a menu with every command and its key: start typing to find one. Settings has tabs like the window (←/→ to switch) and opens on the tab you left. `lanterna chat` gives a simple line-by-line chat.
 
 <p align="center"><img src="docs/screen-terminal.png" width="720" alt="Lanterna in a terminal"></p>
 
@@ -146,7 +146,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - **Programs:** search, install, update and uninstall with `winget` on Windows and `dnf` / Flatpak on Linux. The card shows the program, publisher, version, source and the exact command; the install starts only after Confirm.
 - **Settings:** only a fixed list of safe actions — theme, power plan, apps that start with the computer, opening a Settings page — plus a read-only check-up (free disk space, memory, what is using the processor). Lanterna never runs any other command.
 - File names and the files it opens go to the model in use, like a message (nowhere in Local mode).
-- **What Lanterna did** (sidebar; `Ctrl+H` in the terminal app): every confirmed change on this computer, newest first, with **Undo** where possible — files come back from folders and the Recycle Bin, a setting switches back, an installed program is removed again. Kept on this device only (`history.json`, last 300).
+- **What Lanterna did** (sidebar; F9 or the Ctrl+P menu in the terminal app): every confirmed change on this computer, newest first, with **Undo** where possible — files come back from folders and the Recycle Bin, a setting switches back, an installed program is removed again. Kept on this device only (`history.json`, last 300).
 - **Optional, off by default** (Settings → Computer): a **weekly tidy-up** of Downloads (a chat with a sort card; nothing moves before Confirm) and **help freeing disk space** (what takes space, plus a note when the disk is almost full; things go only to the Recycle Bin, after Confirm).
 
 ## Limits and updates

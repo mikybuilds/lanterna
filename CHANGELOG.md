@@ -9,9 +9,11 @@
 - **Mail**: Gmail, ukr.net, iCloud, Yahoo, Zoho or any IMAP mail through an app password. Lanterna can list, read (without marking as read), sort into folders or labels, save drafts and send; every change waits for Confirm.
 - **When a service can't be connected** (Gmail's own connector, Slack, Figma…), Connectors says why and offers another way, and Lanterna can look for a connector or a workaround itself when you ask it to work with a service.
 - **Sync without a password**: just your Google account; other devices only need to sign in. The copy is then only as safe as that account, so API keys stay on each device.
+- **An easier terminal app (Linux):** **Ctrl+P** (or F1, or ☰ in the sidebar) opens a menu with every command and its key, in your language: type a few letters to find one. The bottom line shows only five keys. Connectors, Settings and All commands are buttons under the chats. Settings is in tabs like the window and opens where you left it. **Connectors** with Yours and Browse, mail included, now work in the terminal too. An empty chat says how to send, attach and find commands.
 - **Forgot your sync password? Start over** (also `lanterna sync reset`): the copy in Google Drive is made again from your devices; no chat is lost.
 
 **Fixed**
+- **Terminal keys that Linux terminals take for themselves:** "What Lanterna did" is now F9 (Ctrl+H is Backspace in many terminals; it still works where the terminal sends it). Enter in the mail form goes to the next field instead of trying to connect.
 - **Sync after the copy was deleted:** a device that still had the old password could put the old copy back. Now it waits for the new password instead.
 - **Memory read oddly:** facts came out as “They like teen movies” and showed asterisks (*Fear*). New facts are written like notes (“Likes teen movies.”), and Markdown marks no longer show in Settings → Memory, also on facts saved before (the saved text itself isn't changed).
 

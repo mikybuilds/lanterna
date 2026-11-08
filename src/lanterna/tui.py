@@ -16,8 +16,11 @@ from textual.containers import Center, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen, Screen
 from textual.theme import Theme
+from textual.app import SystemCommand
+from textual.command import CommandPalette, DiscoveryHit, Hit, Hits, Provider
 from textual.widgets import (Button, Checkbox, Collapsible, DataTable, Footer, Input, Label, ListItem, ListView, LoadingIndicator,
-                             Markdown, ProgressBar, Select, Static, TextArea)
+                             Markdown, OptionList, ProgressBar, Select, Static, TabbedContent, TabPane, TextArea)
+from textual.widgets.option_list import Option
 
 from pathlib import Path
 
@@ -119,6 +122,24 @@ Button:focus { text-style: bold; }
 #lmodels { height: auto; }
 .modes { height: auto; width: 100%; }
 .modes Button { margin: 0 1 0 0; }
+#sidefoot { height: auto; border-top: solid $panel; padding-top: 1; }
+.sidebtn { width: 100%; height: 1; min-width: 0; border: none; background: $surface; color: $text-muted;
+           content-align: left middle; text-align: left; padding: 0 1; margin: 0; text-style: none; }
+.sidebtn:hover, .sidebtn:focus { background: $panel; color: $text; }
+.hint { color: $text-muted; margin: 1 0 0 0; width: 100%; content-align: center middle; }
+.bigdialog { width: 110; max-width: 100%; height: 90%; max-height: 90%; }
+.dlghead { height: 1; width: 100%; margin-bottom: 1; }
+.dlgtitle { text-style: bold; color: $primary; width: auto; }
+.dlgkeys { width: 1fr; content-align: right middle; text-align: right; }
+.bigdialog TabbedContent { height: 1fr; }
+.bigdialog TabPane { padding: 0; height: 1fr; }
+.setpane { height: 1fr; padding: 0 1 0 0; }
+.setpane > .h:first-child { margin-top: 0; }
+#cn-list, #cn-mine { height: 1fr; border: none; background: $surface; }
+#cn-about, #cn-mineinfo { height: auto; min-height: 2; margin-top: 1; }
+#cn-q { width: 1fr; }
+#cn-cat { width: 34; }
+#choices { height: auto; max-height: 16; margin-top: 1; }
 """
 
 
@@ -1016,148 +1037,187 @@ class AboutScreen(ModalScreen[None]):
         self.dismiss(None)
 
 
+SET_TABS = [("general", "General"), ("models", "Models"), ("memory", "Memory and reminders"), ("chats", "Chats"),
+            ("voice", "Voice"), ("pc", "Computer and tools"), ("account", "Account")]
+
+
 class SettingsScreen(ModalScreen[str]):
-    """Returns "lang" when the language changed (the app then rebuilds its screens)."""
+    """Returns "lang" when the language changed (the app then rebuilds its screens). In tabs, like the window."""
 
     BINDINGS = [Binding("escape", "close", show=False)]
 
+    def __init__(self, tab: str = ""):
+        super().__init__()
+        self.tab = tab if tab in dict(SET_TABS) else ""
+
+    @on(TabbedContent.TabActivated, "#settabs")
+    def _tab_seen(self, ev: TabbedContent.TabActivated) -> None:
+        self.app._set_tab = (ev.pane.id or "st-general")[3:]           # opens on the same tab next time
+
+    @on(Button.Pressed, "#openconn")
+    def _open_connectors(self) -> None:
+        self.dismiss("")
+        if hasattr(self.app.screen, "action_connectors"):
+            self.app.screen.action_connectors()
+
     def compose(self) -> ComposeResult:
         lang = L(self.app)
-        with VerticalScroll(classes="dialog"):
-            yield Label(t("Language", lang), classes="h")
-            for row in lang_rows():
-                with Horizontal(classes="row"):
-                    for code, name in row:
-                        yield Button(name, id=f"lang-{code}", variant="primary" if code == lang else "default")
-            yield Label(t("Name", lang), classes="h")
-            with Horizontal(classes="keyrow"):
-                yield Input(self.app.api.settings.name, id="name")
-                yield Button(t("Save", lang), id="savename")
-            mode = self.app.api.settings.mode
-            yield Label(t("Mode", lang), classes="h")
-            with Horizontal(classes="modes"):
-                for m, name in (("cloud", "Cloud"), ("local", "Local"), ("auto", "Auto")):
-                    yield Button(t(name, lang), id=f"mode-{m}", variant="primary" if m == mode else "default")
-            if mode == "auto":
-                yield Checkbox(t("Send hard questions to the cloud", lang), self.app.api.settings.auto_cloud, id="autocloud")
-                yield Static(t("Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.", lang),
-                             classes="muted")
-            if mode != "cloud":
-                yield Button(t("Local models", lang), id="localmodels")
-            yield Label(t("Keys", lang), classes="h")
-            yield Vertical(id="keys")
-            yield Label(t("Memory", lang), classes="h")
-            yield Vertical(id="facts")
-            with Horizontal(classes="keyrow"):
-                yield Input(placeholder=t("Add a fact", lang), id="newfact")
-                yield Button(t("Add", lang), id="addfact")
-            yield Label(t("Reminders", lang), classes="h")
-            yield Vertical(id="rems")
-            st = self.app.api.settings
-            yield Checkbox(t("Morning summary", lang), st.morning, id="morning")
-            yield Static(t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.", lang), classes="muted")
-            with Horizontal(classes="keyrow"):
-                yield Input(st.morning_at, placeholder="08:00", id="morningat")
-                yield Input(st.morning_city, placeholder=t("City for the weather (optional)", lang), id="morningcity")
-                yield Button(t("Save", lang), id="morningsave")
-                yield Button(t("Show it now", lang), id="morningshow")
-            yield Label(t("Regular tasks", lang), classes="h")
-            yield Static(t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.", lang), classes="muted")
-            yield Vertical(id="tasks")
-            yield Label(t("MCP servers", lang), classes="h")
-            yield Static(t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.", lang), classes="muted")
-            yield Button("", id="mcptoggle")
-            yield Vertical(id="mcplist")
-            yield Vertical(id="mcppresets")
-            with Horizontal(classes="keyrow", id="mcpaddrow"):
-                yield Input(placeholder=t("Command or https:// address", lang), id="mcpwhere")
-                yield Input(placeholder=t("Name (optional)", lang), id="mcpname")
-                yield Button(t("Add", lang), id="mcpadd")
-            yield Label(t("Backups", lang), classes="h")
-            yield Static("", id="bkinfo", classes="muted")
-            with Horizontal(classes="keyrow"):
-                yield Input(placeholder=t("Password (at least {n} characters)", lang, n=8), password=True, id="bkpw")
-                yield Input(placeholder=t("The same password again", lang), password=True, id="bkpw2")
-                yield Button(t("Turn on", lang), id="bkset")
-            with Horizontal(classes="keyrow"):
-                yield Button(t("Back up now", lang), id="bknow")
-                yield Button(t("Turn off backups", lang), id="bkoff")
-            with Horizontal(classes="keyrow"):
-                yield Input(placeholder=t("Backup file path (.lanterna-backup or .json)", lang), id="bkfile")
-                yield Input(placeholder=t("Its password (if it was made elsewhere)", lang), password=True, id="bkfilepw")
-                yield Button(t("Restore", lang), id="bkrestore")
-            yield Label(t("Instructions and roles", lang), classes="h")
-            yield Static(t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”", lang), classes="muted")
-            yield TextArea(self.app.api.settings.instructions, id="instructions")
-            yield Button(t("Save", lang), id="instrsave")
-            yield Static(t("F6 changes the role of the open chat: Tutor, Translator, Proofreader or none.", lang), classes="muted")
-            yield Label(t("Working folder", lang), classes="h")
-            yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
-                         + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
-            yield Static("", id="wdinfo")
-            with Horizontal(classes="keyrow"):
-                yield Input(self.app.api.settings.work_dir, placeholder=t("Folder path", lang), id="wdpath")
-                yield Button(t("Save", lang), id="wdsave")
-                yield Button(t("Stop using it", lang), id="wdoff")
-            yield Label(t("Limits", lang), classes="h")
-            yield Static("", id="limits", classes="muted")
-            yield Label(t("Computer", lang), classes="h")
-            yield Checkbox(t("Let Lanterna help with this computer", lang), self.app.api.settings.pc_access, id="pcaccess")
-            yield Static(t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.", lang), classes="muted")
-            yield Checkbox(t("Weekly tidy-up of Downloads", lang), self.app.api.settings.tidy_weekly, id="tidyweekly")
-            yield Static(t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.", lang), classes="muted")
-            yield Checkbox(t("Help free up disk space", lang), self.app.api.settings.space_help, id="spacehelp")
-            yield Static(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.", lang), classes="muted")
-            yield Label(t("Chats", lang), classes="h")
-            yield Checkbox(t("Name new chats automatically", lang), self.app.api.settings.ai_titles, id="aititles")
-            yield Static(t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.", lang), classes="muted")
-            yield Checkbox(t("Suggest what to ask next", lang), self.app.api.settings.follow_ups, id="followups")
-            yield Static(t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.", lang), classes="muted")
-            yield Checkbox(t("Remember long chats", lang), self.app.api.settings.compact_chats, id="compactchats")
-            yield Static(t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.", lang), classes="muted")
-            yield Checkbox(t("Ask before big tasks", lang), self.app.api.settings.ask_first, id="askfirst")
-            yield Static(t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.", lang), classes="muted")
-            yield Checkbox(t("Learn about me from chats", lang), self.app.api.settings.auto_memory, id="automemory")
-            yield Static(t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.", lang), classes="muted")
-            yield Label(t("Voice input", lang), classes="h")
-            yield Static(t("Press the microphone next to the message box (or F2), speak, and press it again: your words appear in the box.", lang), classes="muted")
-            with Horizontal(classes="modes"):
-                for eng, label in (("off", "Off"), ("groq", "Online (Groq Whisper)"), ("local", "On this computer (whisper.cpp)")):
-                    yield Button(("● " if self.app.api.settings.voice == eng else "") + t(label, lang), id=f"voice-{eng}")
-            yield Static("", id="voiceinfo", classes="muted")
-            yield Button(t("Download ({mb} MB)", lang, mb="…"), id="voiceget")
-            yield Label(t("Reading aloud", lang), classes="h")
-            yield Static(t("F3 reads the last answer aloud; F3 again stops. Code and links are skipped.", lang), classes="muted")
-            with Horizontal(classes="modes"):
-                for eng, label in (("off", "Off"), ("system", "System voice (spd-say)"), ("piper", "Piper (natural voices)")):
-                    yield Button(("● " if self.app.api.settings.tts == eng else "") + t(label, lang), id=f"tts-{eng}")
-            yield Static("", id="ttsinfo", classes="muted")
-            yield Button(t("Download ({mb} MB)", lang, mb="…"), id="ttsget")
-            yield Checkbox(t("Read each new answer aloud", lang), self.app.api.settings.tts_auto, id="ttsauto")
-            yield Button(t("Save a backup of all chats", lang), id="backupall")
-            yield Static(t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.", lang), classes="muted")
-            yield Label(t("Updates", lang), classes="h")
-            yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
-            yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
-            yield Label(t("Account and sync", lang), classes="h")
-            yield SyncBox()
-            yield Label(t("Connectors", lang), classes="h")
-            yield Static("", id="gdinfo", classes="muted")
-            with Horizontal(classes="row"):
-                yield Button(t("Connect", lang) + " Google Drive", id="gdon", variant="primary")
-                yield Button(t("Cancel", lang), id="gdcancel")
-                yield Button(t("Disconnect", lang), id="gdoff")
-            yield Static("", id="ghinfo", classes="muted")
-            with Horizontal(classes="row"):
-                yield Button(t("Connect", lang) + " GitHub", id="ghon", variant="primary")
-                yield Button(t("Cancel", lang), id="ghcancel")
-                yield Button(t("Disconnect", lang), id="ghoff")
-            yield Label(t("Models", lang), classes="h")
-            yield Button(t("Show models", lang), id="models")
+        with Vertical(classes="dialog bigdialog"):
+            with Horizontal(classes="dlghead"):
+                yield Label("⚙ " + t("Settings", lang), classes="dlgtitle")
+                yield Label(t("Tab: next · ←/→: tabs · Esc: close", lang), classes="muted dlgkeys")
+            with TabbedContent(initial=f"st-{self.tab or getattr(self.app, '_set_tab', '') or 'general'}", id="settabs"):
+                with TabPane(t("General", lang), id="st-general"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Language", lang), classes="h")
+                        for row in lang_rows():
+                            with Horizontal(classes="row"):
+                                for code, name in row:
+                                    yield Button(name, id=f"lang-{code}", variant="primary" if code == lang else "default")
+                        yield Label(t("Name", lang), classes="h")
+                        with Horizontal(classes="keyrow"):
+                            yield Input(self.app.api.settings.name, id="name")
+                            yield Button(t("Save", lang), id="savename")
+                        mode = self.app.api.settings.mode
+                        yield Label(t("Mode", lang), classes="h")
+                        with Horizontal(classes="modes"):
+                            for m, name in (("cloud", "Cloud"), ("local", "Local"), ("auto", "Auto")):
+                                yield Button(t(name, lang), id=f"mode-{m}", variant="primary" if m == mode else "default")
+                        if mode == "auto":
+                            yield Checkbox(t("Send hard questions to the cloud", lang), self.app.api.settings.auto_cloud, id="autocloud")
+                            yield Static(t("Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.", lang),
+                                         classes="muted")
+                        if mode != "cloud":
+                            yield Button(t("Local models", lang), id="localmodels")
+                        yield Label(t("Updates", lang), classes="h")
+                        yield Checkbox(t("Check for a new version when Lanterna starts", lang), self.app.api.settings.update_check, id="updcheck")
+                        yield Static(t("A plain request to the project's release page, nothing about you.", lang), classes="muted")
+                with TabPane(t("Models", lang), id="st-models"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Keys", lang), classes="h")
+                        yield Vertical(id="keys")
+                        yield Label(t("Models", lang), classes="h")
+                        yield Button(t("Show models", lang), id="models")
+                        yield Label(t("Limits", lang), classes="h")
+                        yield Static("", id="limits", classes="muted")
+                with TabPane(t("Memory and reminders", lang), id="st-memory"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Memory", lang), classes="h")
+                        yield Vertical(id="facts")
+                        with Horizontal(classes="keyrow"):
+                            yield Input(placeholder=t("Add a fact", lang), id="newfact")
+                            yield Button(t("Add", lang), id="addfact")
+                        yield Label(t("Reminders", lang), classes="h")
+                        yield Vertical(id="rems")
+                        st = self.app.api.settings
+                        yield Checkbox(t("Morning summary", lang), st.morning, id="morning")
+                        yield Static(t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.", lang), classes="muted")
+                        with Horizontal(classes="keyrow"):
+                            yield Input(st.morning_at, placeholder="08:00", id="morningat")
+                            yield Input(st.morning_city, placeholder=t("City for the weather (optional)", lang), id="morningcity")
+                            yield Button(t("Save", lang), id="morningsave")
+                            yield Button(t("Show it now", lang), id="morningshow")
+                        yield Label(t("Regular tasks", lang), classes="h")
+                        yield Static(t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.", lang), classes="muted")
+                        yield Vertical(id="tasks")
+                with TabPane(t("Chats", lang), id="st-chats"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Chats", lang), classes="h")
+                        yield Checkbox(t("Name new chats automatically", lang), self.app.api.settings.ai_titles, id="aititles")
+                        yield Static(t("After the first answer, a fast online model (or the local one in Local mode) gives the chat a short name. One small extra request.", lang), classes="muted")
+                        yield Checkbox(t("Suggest what to ask next", lang), self.app.api.settings.follow_ups, id="followups")
+                        yield Static(t("Up to 3 buttons under an answer with follow-up questions, written by a fast online model (not Gemini, and not in Local mode). One small extra request per answer.", lang), classes="muted")
+                        yield Checkbox(t("Remember long chats", lang), self.app.api.settings.compact_chats, id="compactchats")
+                        yield Static(t("When a chat gets long, a fast model writes a short summary of its older part, so Lanterna still remembers it. The summary stays on this device. One small extra request every 10 messages.", lang), classes="muted")
+                        yield Checkbox(t("Ask before big tasks", lang), self.app.api.settings.ask_first, id="askfirst")
+                        yield Static(t("Before a big task (a program, a plan, a project) the model may first ask you 1-4 short questions with options. Your answers become its instructions.", lang), classes="muted")
+                        yield Checkbox(t("Learn about me from chats", lang), self.app.api.settings.auto_memory, id="automemory")
+                        yield Static(t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.", lang), classes="muted")
+                        yield Label(t("Instructions and roles", lang), classes="h")
+                        yield Static(t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”", lang), classes="muted")
+                        yield TextArea(self.app.api.settings.instructions, id="instructions")
+                        yield Button(t("Save", lang), id="instrsave")
+                        yield Static(t("F6 changes the role of the open chat: Tutor, Translator, Proofreader or none.", lang), classes="muted")
+                        yield Label(t("Working folder", lang), classes="h")
+                        yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
+                                     + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
+                        yield Static("", id="wdinfo")
+                        with Horizontal(classes="keyrow"):
+                            yield Input(self.app.api.settings.work_dir, placeholder=t("Folder path", lang), id="wdpath")
+                            yield Button(t("Save", lang), id="wdsave")
+                            yield Button(t("Stop using it", lang), id="wdoff")
+                        yield Label(t("Backups", lang), classes="h")
+                        yield Static("", id="bkinfo", classes="muted")
+                        with Horizontal(classes="keyrow"):
+                            yield Input(placeholder=t("Password (at least {n} characters)", lang, n=8), password=True, id="bkpw")
+                            yield Input(placeholder=t("The same password again", lang), password=True, id="bkpw2")
+                            yield Button(t("Turn on", lang), id="bkset")
+                        with Horizontal(classes="keyrow"):
+                            yield Button(t("Back up now", lang), id="bknow")
+                            yield Button(t("Turn off backups", lang), id="bkoff")
+                        with Horizontal(classes="keyrow"):
+                            yield Input(placeholder=t("Backup file path (.lanterna-backup or .json)", lang), id="bkfile")
+                            yield Input(placeholder=t("Its password (if it was made elsewhere)", lang), password=True, id="bkfilepw")
+                            yield Button(t("Restore", lang), id="bkrestore")
+                        yield Button(t("Save a backup of all chats", lang), id="backupall")
+                        yield Static(t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.", lang), classes="muted")
+                with TabPane(t("Voice", lang), id="st-voice"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Voice input", lang), classes="h")
+                        yield Static(t("Press the microphone next to the message box (or F2), speak, and press it again: your words appear in the box.", lang), classes="muted")
+                        with Horizontal(classes="modes"):
+                            for eng, label in (("off", "Off"), ("groq", "Online (Groq Whisper)"), ("local", "On this computer (whisper.cpp)")):
+                                yield Button(("● " if self.app.api.settings.voice == eng else "") + t(label, lang), id=f"voice-{eng}")
+                        yield Static("", id="voiceinfo", classes="muted")
+                        yield Button(t("Download ({mb} MB)", lang, mb="…"), id="voiceget")
+                        yield Label(t("Reading aloud", lang), classes="h")
+                        yield Static(t("F3 reads the last answer aloud; F3 again stops. Code and links are skipped.", lang), classes="muted")
+                        with Horizontal(classes="modes"):
+                            for eng, label in (("off", "Off"), ("system", "System voice (spd-say)"), ("piper", "Piper (natural voices)")):
+                                yield Button(("● " if self.app.api.settings.tts == eng else "") + t(label, lang), id=f"tts-{eng}")
+                        yield Static("", id="ttsinfo", classes="muted")
+                        yield Button(t("Download ({mb} MB)", lang, mb="…"), id="ttsget")
+                        yield Checkbox(t("Read each new answer aloud", lang), self.app.api.settings.tts_auto, id="ttsauto")
+                with TabPane(t("Computer and tools", lang), id="st-pc"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Computer", lang), classes="h")
+                        yield Checkbox(t("Let Lanterna help with this computer", lang), self.app.api.settings.pc_access, id="pcaccess")
+                        yield Static(t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.", lang), classes="muted")
+                        yield Checkbox(t("Weekly tidy-up of Downloads", lang), self.app.api.settings.tidy_weekly, id="tidyweekly")
+                        yield Static(t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.", lang), classes="muted")
+                        yield Checkbox(t("Help free up disk space", lang), self.app.api.settings.space_help, id="spacehelp")
+                        yield Static(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.", lang), classes="muted")
+                        yield Label(t("Connectors", lang), classes="h")
+                        yield Button("🔌 " + t("Open Connectors", lang), id="openconn", variant="primary")
+                        yield Static("", id="gdinfo", classes="muted")
+                        with Horizontal(classes="row"):
+                            yield Button(t("Connect", lang) + " Google Drive", id="gdon", variant="primary")
+                            yield Button(t("Cancel", lang), id="gdcancel")
+                            yield Button(t("Disconnect", lang), id="gdoff")
+                        yield Static("", id="ghinfo", classes="muted")
+                        with Horizontal(classes="row"):
+                            yield Button(t("Connect", lang) + " GitHub", id="ghon", variant="primary")
+                            yield Button(t("Cancel", lang), id="ghcancel")
+                            yield Button(t("Disconnect", lang), id="ghoff")
+                        yield Label(t("MCP servers", lang), classes="h")
+                        yield Static(t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.", lang), classes="muted")
+                        yield Button("", id="mcptoggle")
+                        yield Vertical(id="mcplist")
+                        yield Vertical(id="mcppresets")
+                        with Horizontal(classes="keyrow", id="mcpaddrow"):
+                            yield Input(placeholder=t("Command or https:// address", lang), id="mcpwhere")
+                            yield Input(placeholder=t("Name (optional)", lang), id="mcpname")
+                            yield Button(t("Add", lang), id="mcpadd")
+                with TabPane(t("Account", lang), id="st-account"):
+                    with VerticalScroll(classes="setpane"):
+                        yield Label(t("Account and sync", lang), classes="h")
+                        yield SyncBox()
             with Horizontal(classes="row"):
                 yield Button(t("Close", lang), id="close", variant="primary")
 
     def on_mount(self) -> None:
+        self.tab = self.tab or getattr(self.app, "_set_tab", "") or "general"
+        self.query_one("#settabs", TabbedContent).active = f"st-{self.tab}"
         self._fill_keys()
         self._fill_memory()
         self._paint_wd()
@@ -1946,6 +2006,456 @@ class OnboardScreen(Screen):
 
 
 # ---------------------------------------------------------------------------------------------- chat
+class ChoiceScreen(ModalScreen[str]):
+    """A short list of things to do; returns the chosen id ("" when closed)."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def __init__(self, title: str, choices: list[tuple[str, str]], text: str = ""):
+        super().__init__()
+        self.title_text, self.choices, self.text = title, choices, text
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="dialog"):
+            yield Label(self.title_text, classes="h", markup=False)
+            if self.text:
+                yield Static(self.text, classes="muted", markup=False)
+            yield OptionList(*(Option(label, id=cid) for cid, label in self.choices), id="choices")
+            with Horizontal(classes="row"):
+                yield Button(t("Cancel", L(self.app)), id="no")
+
+    def on_mount(self) -> None:
+        self.query_one("#choices", OptionList).focus()
+
+    @on(OptionList.OptionSelected, "#choices")
+    def _picked(self, ev: OptionList.OptionSelected) -> None:
+        self.dismiss(ev.option.id or "")
+
+    @on(Button.Pressed, "#no")
+    def action_close(self) -> None:
+        self.dismiss("")
+
+
+class ValuesScreen(ModalScreen[dict]):
+    """Asks for the values a connector needs (a key, a token); they go only to the system's secure vault."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def __init__(self, title: str, fields: list[dict]):
+        super().__init__()
+        self.title_text, self.fields = title, fields
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with Vertical(classes="dialog"):
+            yield Label(self.title_text, classes="h", markup=False)
+            for i, f in enumerate(self.fields):
+                yield Label(t("Key or token", lang) if f["name"] == "token" else f["name"], markup=False)
+                if f.get("about"):
+                    yield Static(f["about"], classes="muted", markup=False)
+                yield Input(password=bool(f.get("secret", True)), id=f"val{i}")
+            yield Static(t("Kept in the system's secure store, not in files.", lang), classes="muted")
+            with Horizontal(classes="row"):
+                yield Button(t("Add", lang), id="ok", variant="primary")
+                yield Button(t("Cancel", lang), id="no")
+
+    @on(Button.Pressed, "#ok")
+    @on(Input.Submitted)
+    def _ok(self) -> None:
+        vals = {f["name"]: self.query_one(f"#val{i}", Input).value.strip() for i, f in enumerate(self.fields)}
+        if all(vals.values()):
+            self.dismiss(vals)
+
+    @on(Button.Pressed, "#no")
+    def action_close(self) -> None:
+        self.dismiss({})
+
+
+MAIL_ERRS = {"auth": "The mail service didn't accept the address or the app password. Check that it is an app password, not your usual one.",
+             "network": "Couldn't reach the mail server. Check the server name and your internet.",
+             "address": "Check the email address.", "password": "Paste the app password.",
+             "server": "Check the server names.", "vault": "The system's secure store isn't available."}
+
+
+class MailScreen(ModalScreen[bool]):
+    """Mail over IMAP with an app password (Gmail, ukr.net, iCloud, Yahoo, Zoho or any other)."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def compose(self) -> ComposeResult:
+        lang, st = L(self.app), self.app.api.mail_status()
+        self.presets = {p["id"]: p for p in st["presets"]}
+        with VerticalScroll(classes="dialog"):
+            yield Label(t("Connect mail", lang), classes="h")
+            yield Static(t("Lanterna connects to your mailbox with an app password: a separate password your mail service makes just for Lanterna. You can revoke it there any time. It is kept only in the system's secure store.", lang), classes="muted")
+            yield Label(t("Mail service", lang))
+            yield Select([(t(p["name"], lang), pid) for pid, p in self.presets.items()], value=st.get("preset") or "gmail",
+                         allow_blank=False, id="mlpreset")
+            yield Label(t("Email address", lang))
+            yield Input(st.get("address", ""), placeholder="you@example.com", id="mladdr")
+            yield Label(t("App password", lang))
+            yield Input(password=True, id="mlpw")
+            yield Static("", id="mlhow", classes="muted", markup=False)
+            with Vertical(id="mlservers"):
+                yield Label(t("Servers", lang))
+                with Horizontal(classes="keyrow"):
+                    yield Input(placeholder="imap.example.com", id="mlimap")
+                    yield Input("993", id="mlimapport")
+                with Horizontal(classes="keyrow"):
+                    yield Input(placeholder="smtp.example.com", id="mlsmtp")
+                    yield Input("465", id="mlsmtpport")
+            yield Static(t("Lanterna reads without marking letters as read. Sorting, drafts and sending happen only after you confirm a card.", lang), classes="muted")
+            yield Static("", id="mlerr", classes="bad", markup=False)
+            with Horizontal(classes="row"):
+                yield Button(t("Connect", lang), id="mlok", variant="primary")
+                yield Button(t("Cancel", lang), id="no")
+
+    def on_mount(self) -> None:
+        self._paint()
+        self.query_one("#mladdr", Input).focus()
+
+    @on(Select.Changed, "#mlpreset")
+    def _paint(self) -> None:
+        lang = L(self.app)
+        p = self.presets.get(self.query_one("#mlpreset", Select).value) or {}
+        self.query_one("#mlhow", Static).update(t(p.get("how", ""), lang) + (f"\n{p['help']}" if p.get("help") else ""))
+        self.query_one("#mlservers").display = p.get("id") == "other"
+
+    @on(Input.Submitted)
+    def _enter(self, ev: Input.Submitted) -> None:
+        if ev.input.id == "mladdr" or (ev.input.id == "mlpw" and self.query_one("#mlservers").display):
+            self.focus_next()                                 # Enter goes on to the next field
+        elif ev.input.id in ("mlpw", "mlsmtpport"):
+            self._go()
+        else:
+            self.focus_next()
+
+    @on(Button.Pressed, "#mlok")
+    def _go(self) -> None:
+        q = lambda i: self.query_one(i, Input).value.strip()            # noqa: E731
+        form = {"preset": self.query_one("#mlpreset", Select).value, "address": q("#mladdr"),
+                "password": self.query_one("#mlpw", Input).value, "imap": q("#mlimap"), "imap_port": q("#mlimapport"),
+                "smtp": q("#mlsmtp"), "smtp_port": q("#mlsmtpport")}
+        self.query_one("#mlok", Button).disabled = True
+        self.query_one("#mlerr", Static).update(t("Connecting…", L(self.app)))
+        self._connect(form)
+
+    @work(thread=True, exclusive=True, group="mail")
+    def _connect(self, form: dict) -> None:
+        r = self.app.api.mail_connect(form)
+        self.app.call_from_thread(self._done, r)
+
+    def _done(self, r: dict) -> None:
+        lang = L(self.app)
+        self.query_one("#mlok", Button).disabled = False
+        if r.get("ok"):
+            self.app.notify(t("Mail connected: {a}", lang, a=r.get("address", "")), timeout=6)
+            self.dismiss(True)
+            return
+        self.query_one("#mlerr", Static).update(
+            t(MAIL_ERRS[r["error"]], lang) if r.get("error") in MAIL_ERRS else t("Couldn't do it: {error}", lang, error=r.get("message") or r.get("error")))
+
+    @on(Button.Pressed, "#no")
+    def action_close(self) -> None:
+        self.dismiss(False)
+
+
+class ConnectorsScreen(ModalScreen[None]):
+    """Connectors, like the window: Yours (what is connected) and Browse (ready-made ones + the public catalog)."""
+
+    BINDINGS = [Binding("escape", "close", show=False)]
+
+    def __init__(self, tab: str = "browse"):
+        super().__init__()
+        self.tab = tab
+        self.reg: list[dict] = []
+        self.shown: dict[str, dict] = {}
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with Vertical(classes="dialog bigdialog"):
+            with Horizontal(classes="dlghead"):
+                yield Label("🔌 " + t("Connectors", lang), classes="dlgtitle")
+                yield Label(t("Enter: choose · Tab: next · Esc: close", lang), classes="muted dlgkeys")
+            with TabbedContent(initial=f"cn-{self.tab}", id="cntabs"):
+                with TabPane(t("Yours", lang), id="cn-yours"):
+                    yield OptionList(id="cn-mine")
+                    yield Static("", id="cn-mineinfo", classes="muted", markup=False)
+                with TabPane(t("Browse", lang), id="cn-browse"):
+                    with Horizontal(classes="keyrow"):
+                        yield Input(placeholder="🔎 " + t("Search", lang), id="cn-q")
+                        yield Select([(t(v, lang), k) for k, v in self.app.api.connectors()["categories"].items()],
+                                     prompt=t("All categories", lang), id="cn-cat")
+                    yield OptionList(id="cn-list")
+                    yield Static("", id="cn-about", classes="muted", markup=False)
+            with Horizontal(classes="row"):
+                yield Button(t("Close", lang), id="close", variant="primary")
+
+    def on_mount(self) -> None:
+        self._load()
+        self.set_interval(2.0, self._tick)
+        self.query_one("#cn-q" if self.tab == "browse" else "#cn-mine").focus()
+
+    def _load(self) -> None:
+        self.C = self.app.api.connectors()
+        self._paint_browse()
+        self._paint_mine()
+
+    def _tick(self) -> None:                                # a browser sign-in finishing, a server starting
+        st = self.app.api.mcp_status()
+        sig = [(s["id"], s["state"], s["signing"], s["sign_error"], len(s["tools"])) for s in st["servers"]]
+        if sig != getattr(self, "_sig", None):
+            self._sig = sig
+            self._load()
+
+    # -- Browse
+    def _paint_browse(self) -> None:
+        lang = L(self.app)
+        q = self.query_one("#cn-q", Input).value.strip().lower()
+        cat = self.query_one("#cn-cat", Select).value
+        cat = cat if isinstance(cat, str) else ""             # nothing picked: Select.NULL
+        words = q.split()
+        items = [c for c in self.C["catalog"] if (not cat or c["cat"] == cat)
+                 and all(w in " ".join([c["name"], c["by"], c["about"], t(c["about"], lang), c.get("why") or ""]).lower() for w in words)]
+        items.sort(key=lambda c: c["auth"] == "closed")
+        ol = self.query_one("#cn-list", OptionList)
+        keep = ol.highlighted
+        ol.clear_options()
+        self.shown = {}
+        for c in items:
+            mark = "✓" if c["added"] else "✕" if c["auth"] == "closed" else "+"
+            name = t(c["name"], lang) if c["builtin"] else c["name"]
+            self.shown[c["id"]] = c
+            ol.add_option(Option(f"{mark} {name}  ·  {t(c['about'], lang) if c['about'] else t('Unavailable', lang)}", id=c["id"]))
+        if self.reg:
+            ol.add_option(None)
+            for i, e in enumerate(self.reg):
+                self.shown[f"reg{i}"] = e
+                ol.add_option(Option(f"{'✓' if e.get('added') else '🌐'} {e['name']}  ·  {t('Made by {who}', lang, who=e['by'])}"
+                                     + (f" · {t('through {host}', lang, host=e['through'])}" if e.get("through") else ""), id=f"reg{i}"))
+        if not ol.option_count:
+            ol.add_option(Option(t("No ready-made connector with these words.", lang), id="none", disabled=True))
+        if keep is not None and keep < ol.option_count:
+            ol.highlighted = keep
+        elif items:                                           # the first one's description shows at once
+            ol.highlighted = 0
+        self._about()
+
+    @on(Input.Changed, "#cn-q")
+    def _typed(self) -> None:
+        self.reg = []
+        self._paint_browse()
+        if getattr(self, "_q_timer", None):
+            self._q_timer.stop()
+        if len(self.query_one("#cn-q", Input).value.strip()) >= 2:
+            self._q_timer = self.set_timer(0.6, self._search)
+
+    @on(Select.Changed, "#cn-cat")
+    def _cat(self) -> None:
+        self._paint_browse()
+
+    @on(Input.Submitted, "#cn-q")
+    def _to_list(self) -> None:
+        ol = self.query_one("#cn-list", OptionList)
+        ol.focus()
+        if ol.highlighted is None and ol.option_count:
+            ol.highlighted = 0
+
+    @work(thread=True, exclusive=True, group="registry")
+    def _search(self) -> None:
+        q = self.app.call_from_thread(lambda: self.query_one("#cn-q", Input).value.strip())
+        r = self.app.api.connectors_search(q)
+        self.app.call_from_thread(self._found, q, r)
+
+    def _found(self, q: str, r: dict) -> None:
+        if q == self.query_one("#cn-q", Input).value.strip():
+            self.reg = r.get("registry") or []
+            self._paint_browse()
+
+    @on(OptionList.OptionHighlighted, "#cn-list")
+    def _about(self) -> None:
+        lang, ol = L(self.app), self.query_one("#cn-list", OptionList)
+        c = self.shown.get(ol.get_option_at_index(ol.highlighted).id) if ol.highlighted is not None else None
+        if not c:
+            self.query_one("#cn-about", Static).update("")
+            return
+        if c.get("registry"):
+            text = (c.get("about") or "") + "\n" + t("Made by other people and not checked by Lanterna. Add only what you trust: what a tool is asked goes to its maker.", lang)
+        elif c["auth"] == "closed":
+            alt = next((x for x in self.C["catalog"] if x["id"] == c.get("instead")), None)
+            text = t(c["why"], lang) + (f"\n{t('Use {name}', lang, name=t(alt['name'], lang) if alt['builtin'] else alt['name'])} → Enter" if alt else "")
+        else:
+            text = t(c["about"], lang) + "\n" + (t("Made by the service itself", lang) if c.get("official") else t("Made by {who}", lang, who=c["by"]))
+        self.query_one("#cn-about", Static).update(text)
+
+    @on(OptionList.OptionSelected, "#cn-list")
+    def _picked(self, ev: OptionList.OptionSelected) -> None:
+        c = self.shown.get(ev.option.id or "")
+        if not c:
+            return
+        if c.get("registry"):
+            return self._add_entry(c, {})
+        if c["auth"] == "closed":
+            alt = next((x for x in self.C["catalog"] if x["id"] == c.get("instead")), None)
+            return self._open(alt) if alt else self.app.notify(t(c["why"], L(self.app)), timeout=8)
+        self._open(c)
+
+    def _open(self, c: dict) -> None:
+        lang = L(self.app)
+        if c["builtin"] == "mail":
+            return self.app.push_screen(MailScreen(), lambda ok: self._load())
+        if c["builtin"]:                                    # Google Drive, GitHub: in Settings
+            self.dismiss()
+            return self.app.screen.action_settings("pc") if hasattr(self.app.screen, "action_settings") else None
+        if c["added"]:
+            return self.app.notify(t("Added {name}.", lang, name=c["name"]), timeout=4)
+        self._with_mcp(lambda: self._add(c))
+
+    def _with_mcp(self, then) -> None:
+        if self.app.api.mcp_status()["enabled"]:
+            return then()
+
+        def done(yes: bool) -> None:
+            if yes:
+                self.app.api.mcp_enable(True)
+                then()
+        lang = L(self.app)
+        self.app.push_screen(ConfirmScreen(t("MCP servers are made by other people. A program server runs with your rights (files, internet); what a tool is asked goes to that server; a server can send text that tries to trick the assistant. Lanterna asks before every call. Turn on?", lang), t("Turn on", lang)), done)
+
+    def _add(self, c: dict) -> None:
+        lang, r = L(self.app), self.app.api.connector_add(c["id"])
+        if not r.get("ok"):
+            return self.app.notify(t("Couldn't do it: {error}", lang, error=r.get("error")), severity="error", timeout=8)
+        self.app.notify(t("A sign-in page for {name} opened in your browser. Sign in there and come back.", lang, name=c["name"])
+                        if c["auth"] == "oauth" else t("Added {name}.", lang, name=c["name"]), timeout=10)
+        self._load()
+        self.query_one("#cntabs", TabbedContent).active = "cn-yours"
+
+    def _add_entry(self, e: dict, values: dict) -> None:
+        if not values and not self.app.api.mcp_status()["enabled"]:
+            return self._with_mcp(lambda: self._add_entry(e, values))
+        self.app.notify(t("Connecting…", L(self.app)), timeout=3)
+        self._entry_job(e, values)
+
+    @work(thread=True, exclusive=True, group="entry")
+    def _entry_job(self, e: dict, values: dict) -> None:
+        r = self.app.api.connector_add_entry(e, values)
+        self.app.call_from_thread(self._entry_done, e, values, r)
+
+    def _entry_done(self, e: dict, values: dict, r: dict) -> None:
+        lang = L(self.app)
+        if r.get("ok"):
+            self.app.notify(t("Added {name}.", lang, name=e["name"]), timeout=6)
+            self.reg = [x for x in self.reg if x is not e]
+            self._load()
+            self.query_one("#cntabs", TabbedContent).active = "cn-yours"
+            return
+        need = ([{"name": "token", "secret": True, "about": t("This server wants a key or token. Make one on its website and paste it here.", lang)}]
+                if r.get("error") == "token" else
+                [x for x in e.get("env") or [] if x["name"] in (r.get("missing") or [])] if r.get("error") == "values" else [])
+        if need:
+            return self.app.push_screen(ValuesScreen(e["name"], need),
+                                        lambda vals: self._add_entry(e, {**values, **vals}) if vals else None)
+        self.app.notify(t("Couldn't do it: {error}", lang, error=r.get("error")), severity="error", timeout=8)
+
+    # -- Yours
+    def _paint_mine(self) -> None:
+        lang, C = L(self.app), self.C
+        ol = self.query_one("#cn-mine", OptionList)
+        keep = ol.highlighted
+        ol.clear_options()
+        self.mine: dict[str, dict] = {}
+        mail = C["mail"]
+        built = [("mail", "📬 " + t("Mail", lang), mail["address"] if mail["connected"] else t("Not connected", lang)),
+                 ("gdrive", "📁 Google Drive", t("Connected", lang) if C["drive"].get("phase") == "ready" else t("Not connected", lang)),
+                 ("github", "🐙 GitHub", t("Connected", lang) if C["github"].get("phase") == "ready" else t("Not connected", lang))]
+        ol.add_option(Option(t("Built into Lanterna", lang), disabled=True))
+        for bid, name, state in built:
+            self.mine[bid] = {"builtin": bid}
+            ol.add_option(Option(f"  {name}  ·  {state}", id=bid))
+        servers = C["mcp"]["servers"]
+        ol.add_option(None)
+        ol.add_option(Option(t("Added by you", lang), disabled=True))
+        for s in servers:
+            self.mine[s["id"]] = s
+            ol.add_option(Option(f"  🧩 {s['name']}  ·  {self._state(s)}", id=s["id"]))
+        if not servers:
+            ol.add_option(Option("  " + t("Nothing here yet. Find a connector in Browse and press +.", lang).replace("+", "Enter"), disabled=True))
+        if keep is not None and keep < ol.option_count:
+            ol.highlighted = keep
+        self.query_one("#cn-mineinfo", Static).update(
+            "" if C["mcp"]["enabled"] or not servers else t("MCP servers are turned off, so these connectors don't work now.", lang))
+
+    def _state(self, s: dict) -> str:
+        lang = L(self.app)
+        if not s["on"]:
+            return t("Off", lang)
+        if s["sign_error"]:
+            return t("Sign-in failed: {error}", lang, error=s["sign_error"])
+        if s["signing"]:
+            return t("Waiting for you to sign in in the browser…", lang)
+        if s["state"] == "signin":
+            return t("Sign in to use it", lang)
+        if s["state"] == "ready":
+            return t("Ready · {n} tools", lang, n=len(s["tools"]))
+        if s["state"] == "error":
+            return t("Didn't start: {error}", lang, error=s["error"])
+        return t("Connecting…", lang)
+
+    @on(OptionList.OptionSelected, "#cn-mine")
+    def _mine_picked(self, ev: OptionList.OptionSelected) -> None:
+        lang, x = L(self.app), self.mine.get(ev.option.id or "")
+        if not x:
+            return
+        if x.get("builtin") == "mail":
+            if not self.C["mail"]["connected"]:
+                return self.app.push_screen(MailScreen(), lambda ok: self._load())
+
+            def off(yes: bool) -> None:
+                if yes:
+                    self.app.api.mail_disconnect()
+                    self._load()
+            return self.app.push_screen(ConfirmScreen(t("Disconnect mail? The app password is removed from this computer.", lang), t("Disconnect", lang)), off)
+        if x.get("builtin"):
+            self.dismiss()
+            return self.app.screen.action_settings("pc") if hasattr(self.app.screen, "action_settings") else None
+        s = x
+        acts = []
+        if s["auth"] == "oauth":
+            acts += [("cancel", t("Cancel", lang))] if s["signing"] else [("signin", t("Sign in", lang))]
+            if s["state"] in ("ready", "error") and not s["signing"]:
+                acts.append(("signout", t("Sign out", lang)))
+        acts += [("toggle", t("Pause" if s["on"] else "Resume", lang)), ("tools", t("Tools", lang)), ("remove", t("Remove", lang))]
+        self.app.push_screen(ChoiceScreen(s["name"], acts, self._state(s)), lambda a: self._mine_act(s, a))
+
+    def _mine_act(self, s: dict, act: str) -> None:
+        lang, api = L(self.app), self.app.api
+        if act == "signin":
+            r = api.mcp_sign_in(s["id"])
+            self.app.notify(t("A sign-in page for {name} opened in your browser. Sign in there and come back.", lang, name=s["name"])
+                            if r.get("ok") else t("Couldn't do it: {error}", lang, error=r.get("error")), timeout=10)
+        elif act == "cancel":
+            api.mcp_sign_cancel(s["id"])
+        elif act == "signout":
+            api.mcp_sign_out(s["id"])
+        elif act == "toggle":
+            api.mcp_update(s["id"], {"on": not s["on"]})
+        elif act == "tools":
+            names = "\n".join("• " + x["name"] for x in s["tools"]) or t("No tools yet.", lang)
+            return self.app.push_screen(ChoiceScreen(s["name"] + " · " + t("Tools", lang), [], names))
+        elif act == "remove":
+            def rm(yes: bool) -> None:
+                if yes:
+                    api.mcp_remove(s["id"])
+                    self._load()
+            return self.app.push_screen(ConfirmScreen(t("Remove {name}? Its sign-in is removed from this computer too.", lang, name=s["name"]), t("Remove", lang)), rm)
+        self._load()
+
+    @on(Button.Pressed, "#close")
+    def action_close(self) -> None:
+        self.dismiss()
+
+
 class _ChatScreen(Screen):
     def __init__(self):
         super().__init__()
@@ -1967,6 +2477,10 @@ class _ChatScreen(Screen):
                 yield Button("+ " + t("New chat", lang), id="newchat", variant="primary")
                 yield Input(placeholder="🔎 " + t("Search chats", lang), id="findchats")
                 yield ListView(id="threads")
+                with Vertical(id="sidefoot"):
+                    yield Button("🔌 " + t("Connectors", lang), id="sb-conn", classes="sidebtn")
+                    yield Button("⚙  " + t("Settings", lang), id="sb-set", classes="sidebtn")
+                    yield Button("☰  " + t("All commands", lang), id="sb-menu", classes="sidebtn")
             with Vertical(id="main"):
                 with Horizontal(id="topbar"):
                     yield Label(t("New chat", lang), id="chattitle")
@@ -1974,7 +2488,19 @@ class _ChatScreen(Screen):
                 yield VerticalScroll(id="log")
                 yield Label("", id="attached")
                 yield Input(placeholder=t("Message Lanterna…", lang), id="composer")
-        yield Footer()
+        yield Footer(show_command_palette=False)
+
+    @on(Button.Pressed, "#sb-conn")
+    def _sb_conn(self) -> None:
+        self.action_connectors()
+
+    @on(Button.Pressed, "#sb-set")
+    def _sb_set(self) -> None:
+        self.action_settings()
+
+    @on(Button.Pressed, "#sb-menu")
+    def _sb_menu(self) -> None:
+        self.app.action_command_palette()
 
     def on_mount(self) -> None:
         threads = self.app.api.threads()
@@ -2094,6 +2620,8 @@ class _ChatScreen(Screen):
         log.mount(Vertical(Label(t("Try one:", lang), classes="muted"),
                            *(Button(t(idea, lang), id=f"idea{i}", classes="idea") for i, idea in enumerate(ideas)),
                            classes="welcome sugg"))
+        log.mount(Static(t("Enter sends · Ctrl+P: all commands · Ctrl+N: new chat · /file and a path: attach a file", lang),
+                         classes="hint", markup=False))
 
     @on(Button.Pressed, ".idea")
     def _idea(self, ev: Button.Pressed) -> None:
@@ -2479,7 +3007,7 @@ class _ChatScreen(Screen):
         self.query_one("#attached", Label).update("  ".join(f"📎 {Path(f).name}" for f in self._files))
 
     # dialogs -----------------------------------------------------------------
-    def action_settings(self) -> None:
+    def action_settings(self, tab: str = "") -> None:
         def done(res: str) -> None:
             if res == "lang":
                 self.app.switch_screen(make_chat_screen(L(self.app)))
@@ -2489,7 +3017,17 @@ class _ChatScreen(Screen):
             else:
                 self._load_model_label()
 
-        self.app.push_screen(SettingsScreen(), done)
+        self.app.push_screen(SettingsScreen(tab), done)
+
+    def action_connectors(self, tab: str = "") -> None:
+        tab = tab or ("browse" if not self.app.api.mcp_status()["servers"] and not self.app.api.mail_status()["connected"] else "yours")
+        self.app.push_screen(ConnectorsScreen(tab))
+
+    def action_doctor(self) -> None:
+        self.app.push_screen(DoctorScreen())
+
+    def action_bug(self) -> None:
+        self.app.push_screen(BugScreen())
 
     def action_models(self) -> None:
         self.app.push_screen(ModelsScreen(), lambda _r: self._load_model_label())
@@ -2507,35 +3045,90 @@ def sent_box(lines: list[str], lang: str) -> Collapsible:
                        title="🔒 " + t("What went to the model", lang), collapsed=True, classes="sent")
 
 
+# Everything the chat screen can do: (label, action, keys). All of it is in the menu (Ctrl+P), searchable;
+# only the first few show at the bottom. Keys that terminals take for themselves have a second key
+# (Ctrl+H is Backspace in many Linux terminals, F1 is the terminal's own help in some).
+CHAT_COMMANDS = [
+    ("New chat", "new_chat", "Ctrl+N"),
+    ("All commands", "app.command_palette", "Ctrl+P"),
+    ("Settings", "settings", "Ctrl+S"),
+    ("Models", "models", "Ctrl+O"),
+    ("Quit", "app.quit", "Ctrl+Q"),
+    ("Private chat", "private_chat", "F7"),
+    ("Attach a file or photo", "attach", "Ctrl+F"),
+    ("Retry", "retry", "Ctrl+R"),
+    ("Edit", "edit_last", "Ctrl+E"),
+    ("Second opinion", "second_opinion", "F4"),
+    ("Role of this chat", "next_role", "F6"),
+    ("Save chat", "save_chat", "Ctrl+X"),
+    ("Delete chat", "delete_chat", "Ctrl+D"),
+    ("Voice input", "voice", "F2"),
+    ("Read aloud", "read_aloud", "F3"),
+    ("Connectors", "connectors", ""),
+    ("What Lanterna did", "history", "F9"),
+    ("Check Lanterna", "doctor", ""),
+    ("Found a bug?", "bug", ""),
+    ("About", "about", ""),
+]
+FOOTER_KEYS = {"new_chat", "app.command_palette", "settings", "models", "app.quit"}
+_KEYS = {"Ctrl+N": "ctrl+n", "Ctrl+P": "ctrl+p", "Ctrl+S": "ctrl+s", "Ctrl+O": "ctrl+o", "Ctrl+Q": "ctrl+q", "F7": "f7",
+         "Ctrl+F": "ctrl+f", "Ctrl+R": "ctrl+r", "Ctrl+E": "ctrl+e", "F4": "f4", "F6": "f6", "Ctrl+X": "ctrl+x",
+         "Ctrl+D": "ctrl+d", "F2": "f2", "F3": "f3", "F9": "f9"}
+
+
 def make_chat_screen(lang: str) -> Screen:
     """Builds the chat screen with footer key hints in the chosen language."""
-    bindings = [
-        Binding("ctrl+n", "new_chat", t("New chat", lang), priority=True),
-        Binding("ctrl+d", "delete_chat", t("Delete chat", lang), priority=True),
-        Binding("ctrl+s", "settings", t("Settings", lang), priority=True),
-        Binding("ctrl+f", "attach", t("Attach", lang), priority=True),
-        Binding("ctrl+o", "models", t("Models", lang), priority=True),
-        Binding("ctrl+r", "retry", t("Retry", lang), priority=True),
-        Binding("f4", "second_opinion", t("Second opinion", lang), priority=True),
-        Binding("f6", "next_role", t("Role", lang), priority=True),
-        Binding("f7", "private_chat", t("Private chat", lang), priority=True),
-        Binding("ctrl+e", "edit_last", t("Edit", lang), priority=True),
-        Binding("ctrl+x", "save_chat", t("Save chat", lang), priority=True),
-        Binding("f2", "voice", t("Voice input", lang), priority=True),
-        Binding("f3", "read_aloud", t("Read aloud", lang), priority=True),
-        Binding("ctrl+h", "history", t("What Lanterna did", lang), priority=True),
-        Binding("f1", "about", t("About", lang), priority=True),
-        Binding("ctrl+q", "app.quit", t("Quit", lang), priority=True),
-    ]
+    bindings = [Binding(_KEYS[k], action, t("Menu" if action == "app.command_palette" else label, lang),
+                        show=action in FOOTER_KEYS, key_display=k, priority=True)
+                for label, action, k in CHAT_COMMANDS if k]
+    bindings += [Binding("ctrl+h", "history", show=False, priority=True),          # where the terminal sends it
+                 Binding("f1", "app.command_palette", show=False, priority=True)]
     return type("ChatScreen", (_ChatScreen,), {"BINDINGS": bindings})()
+
+
+class _MenuCommands(Provider):
+    """The menu's commands in our own order (the most used first, Quit last), not sorted by name."""
+
+    async def discover(self) -> Hits:
+        for name, help_text, callback, discover in self.app.get_system_commands(self.screen):
+            if discover:
+                yield DiscoveryHit(name, callback, help=help_text)
+
+    async def search(self, query: str) -> Hits:
+        matcher = self.matcher(query)
+        for name, help_text, callback, *_ in self.app.get_system_commands(self.screen):
+            if (score := matcher.match(name)) > 0:
+                yield Hit(score, matcher.highlight(name), callback, help=help_text)
 
 
 # ---------------------------------------------------------------------------------------------- app
 class LanternaApp(App):
     CSS = CSS
     TITLE = "Lanterna"
-    ENABLE_COMMAND_PALETTE = False
+    ENABLE_COMMAND_PALETTE = True
+    COMMAND_PALETTE_BINDING = "ctrl+p"
+    COMMANDS = {_MenuCommands}
     BINDINGS = [Binding("f8", "snooze", show=False, priority=True)]   # "snooze 10 min" on the last reminder
+
+    def action_command_palette(self) -> None:
+        """The menu with every command (Ctrl+P, F1, or ☰ in the sidebar); only over the chat, not over a dialog."""
+        if isinstance(self.screen, _ChatScreen) and not CommandPalette.is_open(self):
+            self.push_screen(CommandPalette(placeholder=t("Type to find a command…", L(self)), id="--command-palette"))
+
+    def get_system_commands(self, screen: Screen):
+        if not isinstance(screen, _ChatScreen):
+            return
+        lang = L(self)
+        for label, action, key in CHAT_COMMANDS:
+            if action in ("app.command_palette", "app.quit"):
+                continue
+            yield SystemCommand(t(label, lang), key, getattr(screen, f"action_{action}"))
+            if action == "connectors":
+                yield SystemCommand(t("Connect mail", lang), "", lambda: self.push_screen(MailScreen()))
+        for tab, label in SET_TABS:
+            if tab != "general":
+                yield SystemCommand(t("Settings", lang) + " → " + t(label, lang), "", lambda tab=tab: screen.action_settings(tab))
+        yield SystemCommand(t("Quit", lang), "Ctrl+Q", self.action_quit)
 
     def __init__(self, api: Api | None = None, force_setup: bool = False):
         super().__init__()
