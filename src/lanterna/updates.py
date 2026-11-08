@@ -27,6 +27,7 @@ from . import HOMEPAGE, __version__
 # The project page is <host>/<owner>/<repo>; its release list lives on api.<host>.
 _REPO = "/".join(HOMEPAGE.rstrip("/").split("/")[-2:])
 _API = HOMEPAGE.rstrip("/").replace("//", "//api.", 1).rsplit("/", 2)[0]
+_ASSETS = f"{_API}/repos/{_REPO}/releases/assets/"
 
 
 def _parts(v: str) -> tuple[int, ...]:
@@ -51,6 +52,9 @@ def check(transport: httpx.BaseTransport | None = None) -> dict:
             out["notes"] = release_notes(str(data.get("body") or ""), out["latest"])
             assets = [a for a in data.get("assets") or [] if isinstance(a, dict) and a.get("name") and a.get("browser_download_url")]
             out["assets"] = {str(a["name"]): str(a["browser_download_url"]) for a in assets}
+            # the same files through the API: used when the usual download link fails (it answered 504 for hours
+            # on 8 November 2026 while the API served the files fine)
+            out["api_assets"] = {str(a["name"]): str(a["url"]) for a in assets if str(a.get("url") or "").startswith(_ASSETS)}
             out["digests"] = {str(a["name"]): str(a["digest"]) for a in assets
                               if str(a.get("digest") or "").startswith("sha256:")}
     except (httpx.HTTPError, ValueError, AttributeError):
@@ -58,8 +62,14 @@ def check(transport: httpx.BaseTransport | None = None) -> dict:
     return out
 
 
+def _plain(line: str) -> str:
+    """A changelog line without Markdown marks (**bold**, `code`, [text](link))."""
+    line = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", line)
+    return re.sub(r"\*\*|__|`", "", line).strip()
+
+
 def release_notes(body: str, version: str, limit: int = 6) -> list[str]:
-    """The first few "- " lines of this version's section in the release text (the changelog)."""
+    """The first few "- " lines of this version's section in the release text (the changelog), as plain text."""
     out, inside = [], False
     for line in body.splitlines():
         if line.startswith("## "):
@@ -67,7 +77,7 @@ def release_notes(body: str, version: str, limit: int = 6) -> list[str]:
                 break
             inside = bool(version) and line[3:].strip().split(" ")[0] == version
         elif inside and line.lstrip().startswith("- "):
-            out.append(line.strip()[2:].strip())
+            out.append(_plain(line.strip()[2:]))
     return out[:limit]
 
 
@@ -121,7 +131,9 @@ def setup_asset(info: dict) -> dict | None:
     digest = (info.get("digests") or {}).get(name, "")
     if not (latest and info.get("newer") and digest and url.startswith(f"{HOMEPAGE}/releases/download/")):
         return None
-    return {"version": latest, "name": name, "url": url, "sha256": digest.split(":", 1)[1].lower()}
+    mirror = (info.get("api_assets") or {}).get(name, "")
+    return {"version": latest, "name": name, "url": url, "sha256": digest.split(":", 1)[1].lower(),
+            **({"mirror": mirror} if mirror.startswith(_ASSETS) else {})}
 
 
 def cleanup(older_than: float = 60.0) -> None:
@@ -199,6 +211,10 @@ def restart_args() -> list[str]:
     return [sys.executable, "-m", "lanterna.cli", *sys.argv[1:]]
 
 
+class _ServerSide(RuntimeError):
+    """The download failed on the server's side or on the way: worth trying the other address."""
+
+
 class Updater:
     """phase: idle · downloading · installing · restart (pipx: installed, start again) · error. The UI polls status()."""
 
@@ -244,22 +260,42 @@ class Updater:
             self.phase, self.error = "error", str(e)[:200] or e.__class__.__name__
 
     def download(self, asset: dict) -> Path:
+        """The usual link first; when GitHub's side fails (5xx, 429, no connection), the same file through the API.
+        Either way the file must match the SHA-256 from the release."""
+        tries = [(asset["url"], {})]
+        if str(asset.get("mirror") or "").startswith(_ASSETS):
+            tries.append((asset["mirror"], {"Accept": "application/octet-stream"}))
+        err: Exception | None = None
+        for url, extra in tries:
+            try:
+                return self._fetch(asset, url, extra)
+            except _ServerSide as e:
+                err = e
+        raise RuntimeError(str(err))
+
+    def _fetch(self, asset: dict, url: str, extra: dict) -> Path:
         self.folder.mkdir(parents=True, exist_ok=True)
         dest = self.folder / asset["name"]
         part = dest.with_suffix(".part")
         sha = hashlib.sha256()
-        with httpx.Client(timeout=60, follow_redirects=True, transport=self.transport,
-                          headers={"User-Agent": "Lanterna"}) as c, c.stream("GET", asset["url"]) as r:
-            if r.status_code != 200:
-                raise RuntimeError(f"download failed: HTTP {r.status_code}")
-            self.total = int(r.headers.get("content-length") or 0)
-            with open(part, "wb") as f:
-                for chunk in r.iter_bytes(256 * 1024):
-                    self.done += len(chunk)
-                    if self.done > MAX_SETUP:
-                        raise RuntimeError("the file is too big")
-                    sha.update(chunk)
-                    f.write(chunk)
+        self.done = self.total = 0
+        try:
+            with httpx.Client(timeout=60, follow_redirects=True, transport=self.transport,
+                              headers={"User-Agent": "Lanterna", **extra}) as c, c.stream("GET", url) as r:
+                if r.status_code >= 500 or r.status_code == 429:
+                    raise _ServerSide(f"download failed: HTTP {r.status_code}")
+                if r.status_code != 200:
+                    raise RuntimeError(f"download failed: HTTP {r.status_code}")
+                self.total = int(r.headers.get("content-length") or 0)
+                with open(part, "wb") as f:
+                    for chunk in r.iter_bytes(256 * 1024):
+                        self.done += len(chunk)
+                        if self.done > MAX_SETUP:
+                            raise RuntimeError("the file is too big")
+                        sha.update(chunk)
+                        f.write(chunk)
+        except httpx.TransportError as e:
+            raise _ServerSide(f"download failed: {e.__class__.__name__}") from e
         if sha.hexdigest() != asset["sha256"]:
             part.unlink(missing_ok=True)
             raise RuntimeError("the downloaded file is damaged (checksum mismatch)")

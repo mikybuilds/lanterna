@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- **Update now works when GitHub's download link doesn't:** on 8 November 2026 GitHub's usual release download link answered “HTTP 504” for every release, so Update now stopped with “download failed”. Lanterna now takes the same file through GitHub's API in that case, and it is still checked against the release's SHA-256 before it runs.
+- **What's new** in the update notice shows plain text, without `**` marks.
+
 ## 1.1.1 — GitHub Models is gone
 
 **Fixed**
