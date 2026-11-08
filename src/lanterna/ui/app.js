@@ -2012,7 +2012,18 @@ let connTab = "browse";
 const CONN_POPULAR = ["mail", "gdrive-builtin", "notion", "github-builtin", "canva", "atlassian", "linear", "asana",
   "dropbox", "zapier", "airtable", "miro", "clickup", "stripe", "supabase", "vercel"];
 
-function connLogo(name) {
+const LOGO_ALIAS = { gdrive: "gdrive-builtin", github: "github-builtin" };
+function connLogo(name, id) {
+  const lg = typeof LOGOS !== "undefined" && LOGOS[LOGO_ALIAS[id] || id];
+  if (lg) {                                  // the service's own mark (Simple Icons), in its color
+    const [hex, d] = lg;
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const dark = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.28;   // black marks: light on the dark card
+    return `<span class="cn-logo img" style="background:rgba(${r},${g},${b},.14);border-color:rgba(${r},${g},${b},.35)" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="${dark ? "var(--text)" : "#" + hex}" d="${d}"/></svg></span>`;
+  }
+  if (id === "mail") return `<span class="cn-logo img mail" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+      stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 6 8-6"/></svg></span>`;
   const ch = ((name || "").match(/[\p{L}\p{N}]/u) || ["?"])[0].toUpperCase();
   let hue = 0;
   for (const c of name || "") hue = (hue * 31 + c.charCodeAt(0)) % 360;
@@ -2048,7 +2059,7 @@ function openConnectors(tab) {
     const right = closed ? `<span class="cn-badge">${t("Unavailable")}</span>`
       : c.added ? `<span class="cn-added" title="${esc(t("Added"))}">${icon("check")}</span>`
       : `<button class="cn-add" data-add="${esc(c.id)}" title="${esc(t("Add"))}" aria-label="${esc(t("Add"))} ${esc(c.name)}">${icon("plus")}</button>`;
-    return `<div class="cn-card${closed ? " closed" : ""}" data-c="${esc(c.id)}">${connLogo(c.name)}
+    return `<div class="cn-card${closed ? " closed" : ""}" data-c="${esc(c.id)}">${connLogo(c.name, c.id)}
       <div class="cn-txt"><b>${esc(c.name)}${c.official && !closed ? ` <span class="cn-ok" title="${esc(t("Made by the service itself"))}">${icon("check")}</span>` : ""}</b>
         <small class="cn-about">${esc(closed ? t(c.why) : c.about)}</small>
         <small class="faint">${esc(t("Made by {who}", { who: c.by }))}</small></div>${right}</div>`;
@@ -2103,8 +2114,8 @@ function openConnectors(tab) {
     paint();
   }
 
-  function row(id, name, sub, buttons, extra = "") {
-    return `<div class="cn-row" data-s="${esc(id)}">${connLogo(name)}<div class="cn-txt"><b>${esc(name)}</b><small>${sub}</small>${extra}</div>
+  function row(id, name, sub, buttons, extra = "", logoId = "") {
+    return `<div class="cn-row" data-s="${esc(id)}">${connLogo(name, logoId || id)}<div class="cn-txt"><b>${esc(name)}</b><small>${sub}</small>${extra}</div>
       <div class="cn-btns">${buttons}</div></div>`;
   }
 
@@ -2130,7 +2141,7 @@ function openConnectors(tab) {
       ${row("gdrive", "Google Drive", d.phase === "ready" ? esc(d.account || t("Connected")) : esc(t("Not connected")), `<button class="btn ghost small" data-b="set">${t(d.phase === "ready" ? "Settings" : "Connect")}</button>`)}
       ${row("github", "GitHub", g.phase === "ready" ? esc(g.login || t("Connected")) : esc(t("Not connected")), `<button class="btn ghost small" data-b="set">${t(g.phase === "ready" ? "Settings" : "Connect")}</button>`)}
       <div class="cn-bar"><h3>${t("Added by you")} <span class="cn-count">${servers.length}</span></h3></div>
-      ${servers.length ? servers.map(s => row(s.id, s.name, label(s), sBtns(s))).join("")
+      ${servers.length ? servers.map(s => row(s.id, s.name, label(s), sBtns(s), "", s.catalog)).join("")
         : `<p class="faint">${esc(t("Nothing here yet. Find a connector in Browse and press +."))} <button class="link" id="cn-go">${t("Browse")} →</button></p>`}`;
     const on = $("#cn-on", body);
     if (on) on.onclick = () => mcpRisks(async () => { await api.mcp_enable(true); refresh(); });

@@ -262,8 +262,10 @@ python tools/scan_secrets.py --history               # make sure no key, e-mail 
 lanterna-gui --browser                               # window UI in your browser (dev server on 127.0.0.1)
 ```
 
-Windows build: `powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1` (also makes Setup.exe when Inno Setup 6 is installed). Releases: bump `__version__`, add a `CHANGELOG.md` entry, push a tag `vX.Y.Z` — the release workflow tests, builds and publishes the installer.
+Windows build: `powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1` (also makes Setup.exe when Inno Setup 6 is installed). Releases: bump `__version__`, add a `CHANGELOG.md` entry, push a tag `vX.Y.Z` — the release workflow tests, builds and publishes the installer. Test versions: set `__version__` to `X.Y.Zb1` and push only the tag `vX.Y.Zb1` (not `main`): it becomes a pre-release with the Unreleased notes, which the app never offers as an update. On Linux it installs with `pipx install --force` and the install address from above with the tag added after an at sign; the next release updates it as usual.
 
 ## Licence
 
 MIT © 2026 mikybuilds
+
+Service logos in Connectors come from Simple Icons (CC0 1.0); they are trademarks of their owners and only show which service a connector is for.

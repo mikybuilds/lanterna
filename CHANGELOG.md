@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- **Connectors window:** the Yours / Browse switch and “Add your own” were squeezed into small squares; the check mark of a long name stays right after it.
+- **Logos in Connectors:** each service shows its own logo (from Simple Icons) instead of a letter, where one exists; mail has an envelope.
+
 ## 1.1.5 — Open things, change the look, do it on its own when you ask
 
 **New**

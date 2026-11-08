@@ -31,7 +31,11 @@ _ASSETS = f"{_API}/repos/{_REPO}/releases/assets/"
 
 
 def _parts(v: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in re.findall(r"\d+", v)[:3]) or (0,)
+    """1.1.6 > 1.1.6b2 > 1.1.6b1 > 1.1.5: a test version (beta) comes before its release."""
+    m = re.match(r"\s*v?(\d+)\.(\d+)\.(\d+)\s*(?:[-.]?(?:a|b|beta|rc)\.?(\d+))?", str(v or ""), re.I)
+    if m:
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3))) + ((0, int(m.group(4))) if m.group(4) else (1, 0))
+    return tuple(int(x) for x in re.findall(r"\d+", str(v or ""))[:3]) or (0,)
 
 
 def newer(latest: str, current: str = __version__) -> bool:

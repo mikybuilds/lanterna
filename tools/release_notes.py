@@ -23,4 +23,10 @@ def section(text: str, version: str) -> str:
 if __name__ == "__main__":
     changelog = Path(__file__).resolve().parents[1] / "CHANGELOG.md"
     sys.stdout.reconfigure(encoding="utf-8")
-    sys.stdout.write(section(changelog.read_text(encoding="utf-8"), sys.argv[1]))
+    text, version = changelog.read_text(encoding="utf-8"), sys.argv[1]
+    notes = section(text, version)
+    if not notes and any(c.isalpha() for c in version):          # a test version (1.1.6b1): what is not released yet
+        body = section(text, "Unreleased")
+        notes = (f"## {version} — test version\n\nFor testing before the release; the app doesn't offer it as an "
+                 "update.\n" + body.split("\n", 1)[1]) if body else ""
+    sys.stdout.write(notes)
