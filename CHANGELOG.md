@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.6 — About 120 connectors, honest replies, the right program installed
 
 **New**
 - **Many more connectors:** about 120 ready-made ones now (was about 75), each checked: Basecamp, Craft, Shortcut, Jotform, Fathom, Otter.ai, Krisp, Whimsical, Picsart, HeyGen, DigitalOcean, Railway, Heroku, Lovable, Postman, PlanetScale, Sanity, Replicate, DeepWiki, Kaggle, Interactive Brokers, Paddle, Alpha Vantage, CoinGecko, Scite, Consensus, Mapbox, beehiiv, Bitly, Porkbun and more. Xero, Zendesk, ElevenLabs and a few others are listed with why they can't be connected.
