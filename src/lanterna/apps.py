@@ -32,7 +32,9 @@ SHOW_MAX = 15
 
 
 def _words(text: str) -> list[str]:
-    return re.findall(r"[^\W_]+", (text or "").lower())
+    """The words of a name, id or description: "LibreOffice" and "NeoHtop" are two words each, "Splashtop" one."""
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ", text or "")
+    return re.findall(r"[^\W_]+", text.lower())
 
 
 def match_score(query: str, name: str, pid: str, about: str = "") -> int:
@@ -42,7 +44,7 @@ def match_score(query: str, name: str, pid: str, about: str = "") -> int:
     q = " ".join(str(query or "").lower().split())
     n, i = (name or "").lower(), (pid or "").lower()
     joined = "".join(_words(q))                          # "gnome tweaks" is gnome-tweaks, "libre office" LibreOffice
-    if q in (n, i, i.rsplit(".", 1)[-1]) or (joined and joined == "".join(_words(n))):
+    if q in (n, i, i.rsplit(".", 1)[-1]) or (joined and joined in ("".join(_words(n)), "".join(_words(i.rsplit(".", 1)[-1])))):
         return 0
     words, own = _words(q), _words(name) + _words(pid)
     if words and all(any(t.startswith(w) for t in own) for w in words):
@@ -239,21 +241,29 @@ class Apps:
                              "where": "system packages", "about": about})
         return rows
 
+    def _winget_found(self, text: str) -> tuple[int, str, list[dict]]:
+        code, out = self.run(["winget", "search", "--query", text, *WINGET_COMMON])
+        # its Match column says why a row came up ("Tag: htop", "Moniker: 7zip"), like a description; an empty
+        # one means a part of the name or id ("htop" in Splashtop), so the words decide as they do on Linux
+        return code, out, [{**r, "about": r.get("extra", "")} for r in parse_table(out)]
+
     def search(self, query: str, source: str = "") -> str:
         q = " ".join(w for w in str(query or "").split() if not w.startswith("-"))[:80].strip()  # never an option
         if not q:
             raise WorkError("Say what program to look for.")
         m = self._need(source)
         if m == "winget":
-            code, out = self.run(["winget", "search", "--query", q, *WINGET_COMMON])
-            rows = parse_table(out)
+            code, out, rows = self._winget_found(q)
+            if " " in q and not any(match_score(q, r["name"], r["id"], r["about"]) == 0 for r in rows):
+                seen = {r["id"] for r in rows}       # winget looks for the phrase: "libre office" missed LibreOffice
+                rows += [r for r in self._winget_found(q.replace(" ", ""))[2] if r["id"] not in seen]
             if not rows:
                 return f"Nothing found in the winget catalog for '{q}'." + (
                     "" if code == 0 or "No package" in out else f" (winget said: {out.strip()[-200:]})")
-            return "winget catalog:\n" + "\n".join(f"- {r['name']} — id {r['id']}, version {r.get('version', '?')}"
-                                                     for r in rows[:15])
-        looked = self._sources(source)
-        rows = [r for s in looked for r in self._found(s, q)]
+            looked = ["winget"]
+        else:
+            looked = self._sources(source)
+            rows = [r for s in looked for r in self._found(s, q)]
         for r in rows:
             r["score"] = match_score(q, r["name"], r["id"], r["about"])
         good = sorted((r for r in rows if r["score"] < 3), key=lambda r: r["score"])   # stable: Flatpak, then the system's
@@ -262,11 +272,17 @@ class Apps:
             return (f"Nothing found for '{q}' ({', '.join(looked)}). " + (
                 f"{loose} loose matches were left out: their name and description don't have these words, so they are "
                 "other programs. " if loose else "") + "Tell the user; don't install a different program instead.")
-        lines = [f"- {r['name']} — id {r['id']}, source {r['source']} ({r['where']})"
-                 + (f", version {r['version']}" if r["version"] else "") + (f": {r['about'][:100]}" if r["about"] else "")
-                 for r in good[:SHOW_MAX]]
-        return (f"Found for '{q}' in {', '.join(looked)}, closest first. To install one, pass its id and source to "
-                "app_install:\n" + "\n".join(lines)
+        if m == "winget":
+            head = "winget catalog, closest first:"
+            lines = [f"- {r['name']} — id {r['id']}, version {r.get('version') or '?'}"
+                     + (f" ({r['about']})" if r["about"] else "") for r in good[:SHOW_MAX]]
+        else:
+            head = (f"Found for '{q}' in {', '.join(looked)}, closest first. To install one, pass its id and source "
+                    "to app_install:")
+            lines = [f"- {r['name']} — id {r['id']}, source {r['source']} ({r['where']})"
+                     + (f", version {r['version']}" if r["version"] else "") + (f": {r['about'][:100]}" if r["about"] else "")
+                     for r in good[:SHOW_MAX]]
+        return (head + "\n" + "\n".join(lines)
                 + (f"\n({len(good) - SHOW_MAX} more not shown.)" if len(good) > SHOW_MAX else "")
                 + (f"\n({loose} loose matches without these words were left out.)" if loose else ""))
 

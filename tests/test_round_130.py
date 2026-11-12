@@ -4,7 +4,8 @@
   to offer "Beat And Match To Pass"), says where each result comes from; a Flatpak installs from the remote that has it, in that
   remote's installation (Fedora's Flathub is system-wide: "--user flathub" failed); nothing is installed "again".
   Seen on the laptop: dnf5 writes a tab after a package's name; Fedora's VLC is org.videolan.vlc and Flathub's is
-  org.videolan.VLC, so with either one installed VLC is installed.
+  org.videolan.VLC, so with either one installed VLC is installed. On Windows winget's search also finds "htop"
+  inside "Splashtop": the same rule keeps only what has the words, winget's Match column counting as a description.
 - A reply that only looked things up but says "installing…, I'll let you know" gets the warning too.
 - The tool lines under a reply say what was looked for, in the user's language.
 - A reply after a reply is a second opinion only when it was one; no theme card that changes nothing; Undo isn't
@@ -179,6 +180,52 @@ WINGET_LIST = """Name    Id         Version Source
 ------------------------------------
 7-Zip   7zip.7zip  26.05   winget
 """
+
+
+WINGET_HTOP = "\n".join(                 # winget on the Windows PC: "htop" also found Splashtop's programs
+    [f"{'Name':<41}{'Id':<43}{'Version':<10}Match", "-" * 115]
+    + [f"{n:<41}{i:<43}{v:<10}{m}" for n, i, v, m in (
+        ("htop-win", "faratech.htop-win", "0.2.15", "Moniker: htop"),
+        ("NeoHtop", "abdenasser.NeoHtop", "1.2.0", "Tag: htop"),
+        ("wtop", "Cingano.wtop", "1.2.0", "Tag: htop"),
+        ("Splashtop SOS - On-Demand Remote Support", "Splashtop.SOS", "3.8.6.3", ""),
+        ("Splashtop Business", "Splashtop.SplashtopBusiness", "3.8.601.0", ""),
+        ("wtop", "michaelsanford.wtop", "1.3.1", "Tag: htop-alternative"))]) + "\n"
+
+
+def test_windows_search_keeps_only_what_has_the_words():
+    a = apps.Apps(Actions(), runner=lambda args, timeout=0: (0, WINGET_HTOP), platform="win32",
+                  which=lambda n: "C:/winget.exe" if n == "winget" else None)
+    out = a.search("htop")
+    assert "Splashtop" not in out and "(2 loose matches" in out          # "htop" was only inside "Splashtop"
+    assert out.splitlines()[1] == "- htop-win — id faratech.htop-win, version 0.2.15 (Moniker: htop)"
+    assert out.index("- NeoHtop — id abdenasser.NeoHtop") < out.index("- wtop — id Cingano.wtop, version 1.2.0 (Tag: htop)")
+    assert apps.match_score("htop", "NeoHtop", "abdenasser.NeoHtop") == 1          # "NeoHtop" is two words
+    assert apps.match_score("office", "LibreOffice", "TheDocumentFoundation.LibreOffice") == 1
+    assert apps.match_score("htop", "Splashtop Business", "Splashtop.SplashtopBusiness") == 3
+
+
+def winget_table(*rows):
+    return "\n".join([f"{'Name':<41}{'Id':<43}{'Version':<10}Match", "-" * 115]
+                     + [f"{n:<41}{i:<43}{v:<10}{m}" for n, i, v, m in rows]) + "\n"
+
+
+def test_windows_two_words_for_a_one_word_name():
+    found = {"libre office": winget_table(("Adressen", "WilhelmHappe.Adressen", "1.2.9", "Tag: libre office")),
+             "libreoffice": winget_table(("LibreOffice", "TheDocumentFoundation.LibreOffice", "26.8.3.1", ""),
+                                         ("Adressen", "WilhelmHappe.Adressen", "1.2.9", "Tag: libreoffice"))}
+    asked = []
+
+    def run(args, timeout=0):
+        asked.append(args[args.index("--query") + 1])
+        return 0, found.get(asked[-1], "No package found matching input criteria.")
+    a = apps.Apps(Actions(), runner=run, platform="win32", which=lambda n: "C:/winget.exe" if n == "winget" else None)
+    out = a.search("libre office")                   # as a phrase winget found only a program tagged with it
+    assert asked == ["libre office", "libreoffice"] and out.count("- Adressen —") == 1     # once, not twice
+    assert out.splitlines()[1] == "- LibreOffice — id TheDocumentFoundation.LibreOffice, version 26.8.3.1"
+    asked.clear()
+    found["visual studio code"] = winget_table(("Microsoft Visual Studio Code", "Microsoft.VisualStudioCode", "1.106", ""))
+    assert "Microsoft.VisualStudioCode" in a.search("visual studio code") and asked == ["visual studio code"]
 
 
 def test_windows_doesnt_reinstall_either():
