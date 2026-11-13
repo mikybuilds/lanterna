@@ -6,6 +6,7 @@
 - **Your documents stay whole.** Lanterna writes only plain text, so it no longer puts text into a Word, Excel, PDF or picture file (a new one wouldn't open, an old one would break); it offers a .md or .txt file instead, which Word and LibreOffice open too. Adding to the end of a file now keeps a copy of the old one, with Undo, as rewriting it does. Two copies made in the same second no longer overwrite each other.
 - **For screen readers and the keyboard.** NVDA, Narrator and Orca now hear "Thinking…", the answer, a change waiting for Confirm and errors, and who wrote each message; every button that is only a picture has a name. Ctrl+N starts a new chat and Ctrl+K goes to the chat search (with any keyboard layout); Esc closes the chat list in a narrow window.
 - **Stop.** While Lanterna answers, the send button turns into Stop (Esc does the same, in the terminal too). The answer ends where it is and the words written so far stay in the chat; stopped before a word, no empty answer is kept.
+- **Bigger text, clearer pale text.** Ctrl+= and Ctrl+− make the chat text bigger or smaller and Ctrl+0 brings it back (any keyboard layout), or choose it in Settings → General → Text size, from 90 to 150 %. It is kept on this computer, and everything in the chat grows with it, the cards waiting for Confirm too. Pale text (dates, hints, labels) is easier to read now: at least 4.5:1 against every background, it was about 3:1.
 
 ## 1.1.7 — A lantern that thinks with you, a window that moves
 

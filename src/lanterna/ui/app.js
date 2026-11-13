@@ -419,6 +419,9 @@ const STR = {
   "A change is waiting for your Confirm.": { uk: "Зміна чекає, поки ти натиснеш «Підтвердити».", it: "Una modifica aspetta la tua conferma." },
   "Stop (Esc)": { uk: "Зупинити (Esc)", it: "Ferma (Esc)" },
   "Stopped.": { uk: "Зупинено.", it: "Fermata." },
+  "Text size": { uk: "Розмір тексту", it: "Dimensione del testo" },
+  "Text size: {n}%": { uk: "Розмір тексту: {n}%", it: "Dimensione del testo: {n}%" },
+  "Ctrl+= and Ctrl+− change it too.": { uk: "Ще можна натиснути Ctrl+= або Ctrl+−.", it: "Funzionano anche Ctrl+= e Ctrl+−." },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -1760,6 +1763,34 @@ async function send(retryText) {
   step();
 }
 
+// ---------------------------------------------------------------- bigger text (kept on this computer)
+const TEXT_SIZES = [0.9, 1, 1.15, 1.3, 1.5];
+let textScale = (() => { try { const v = +localStorage.getItem("text-scale"); return TEXT_SIZES.includes(v) ? v : 1; } catch (e) { return 1; } })();
+
+function setTextScale(v, say) {
+  textScale = TEXT_SIZES.includes(v) ? v : 1;
+  document.documentElement.style.setProperty("--text-scale", String(textScale));
+  try { localStorage.setItem("text-scale", String(textScale)); } catch (e) { /* only for this time */ }
+  if (!say) return;
+  document.querySelectorAll(".toast.size").forEach(x => x.remove());     // pressed again: one notice, not a pile
+  toast(t("Text size: {n}%", { n: Math.round(textScale * 100) }));
+  const all = document.querySelectorAll(".toast");
+  if (all.length) all[all.length - 1].classList.add("size");
+}
+setTextScale(textScale);
+
+// Ctrl+= / Ctrl++ bigger, Ctrl+− smaller, Ctrl+0 as it was: also over a dialog, with any keyboard layout
+function sizeKey(e) {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
+  const i = TEXT_SIZES.indexOf(textScale);
+  if (e.code === "Equal" || e.code === "NumpadAdd") setTextScale(TEXT_SIZES[Math.min(i + 1, TEXT_SIZES.length - 1)], true);
+  else if (e.code === "Minus" || e.code === "NumpadSubtract") setTextScale(TEXT_SIZES[Math.max(i - 1, 0)], true);
+  else if ((e.code === "Digit0" || e.code === "Numpad0") && !e.shiftKey) setTextScale(1, true);
+  else return false;
+  e.preventDefault();
+  return true;
+}
+
 // ---------------------------------------------------------------- screen readers and keys
 // a screen reader (NVDA, Narrator, Orca) says these words without moving the user away from where they are
 function announce(text) {
@@ -1776,6 +1807,7 @@ function windowKeys() {
   if (window.__winKeys || QUICK) return;
   window.__winKeys = true;
   document.addEventListener("keydown", e => {
+    if (sizeKey(e)) return;
     if (document.querySelector(".veil:not(.closing)") || !$("#input")) return;     // a dialog is open
     const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
     if (ctrl && e.code === "KeyN") { e.preventDefault(); openThread(null); }
@@ -1805,7 +1837,7 @@ function dialog(title, html, onClose) {
 
 // Settings are long: tabs by topic on top (they stay in view) and a box that finds a setting by its words
 const SET_TABS = [
-  ["general", "General", ["Language", "Name", "Mode", "Local models", "Updates"]],
+  ["general", "General", ["Language", "Text size", "Name", "Mode", "Local models", "Updates"]],
   ["models", "Models", ["Services", "Limits", "Free models right now"]],
   ["memory", "Memory and reminders", ["Memory", "Reminders", "Regular tasks"]],
   ["chats", "Chats", ["Working folder", "Chats", "Instructions and roles", "Backups"]],
@@ -1867,6 +1899,9 @@ function openSettings() {
     body.innerHTML = `
       <h4>${t("Language")}</h4>
       <div class="seg" id="seg">${Object.entries(S.langs).map(([k, n]) => `<button data-l="${k}" class="${k === LANG ? "on" : ""}">${n}</button>`).join("")}</div>
+      <h4 style="margin-top:22px">${t("Text size")}</h4>
+      <div class="seg" id="seg-size">${TEXT_SIZES.map(v => `<button data-size="${v}" class="${v === textScale ? "on" : ""}" aria-pressed="${v === textScale}">${Math.round(v * 100)}%</button>`).join("")}</div>
+      <p class="muted" style="margin:6px 0 0;font-size:13px">${t("Ctrl+= and Ctrl+− change it too.")}</p>
       <h4 style="margin-top:22px">${t("Name")}</h4>
       <div class="keyrow"><div class="wrap"><input class="field" id="set-name" maxlength="40" value="${esc(S.settings.name || "")}"></div><button class="btn ghost" id="save-name" style="height:48px">${t("Save")}</button></div>
       <h4 style="margin-top:22px">${t("Mode")}</h4>
@@ -2025,6 +2060,10 @@ function openSettings() {
       });
     });
     body.querySelectorAll("#seg-mode [data-mode]").forEach(b => b.onclick = async () => { S = await api.save_settings({ mode: b.dataset.mode }); paint(); });
+    body.querySelectorAll("#seg-size [data-size]").forEach(b => b.onclick = () => {
+      setTextScale(+b.dataset.size);
+      body.querySelectorAll("#seg-size [data-size]").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+    });
     const ac = $("#auto-cloud", body);
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
     const pa = $("#pc-access", body);

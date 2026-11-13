@@ -11,10 +11,16 @@
   Ctrl+K goes to the chat search (by the key's place, so a Ukrainian layout works too), Esc closes the chat list.
 - Stop: while Lanterna answers, the send button is Stop (and Esc stops it, in the terminal too). The words written
   so far stay in the chat; stopped before a word, no empty answer is kept.
+- Bigger text: Ctrl+= / Ctrl+− / Ctrl+0 (by the key's place, any layout) or Settings → General → Text size, from
+  90 to 150 %, kept on this computer. Everything in the chat grows with it, the cards waiting for Confirm too.
+  Pale text is easier to read: at least 4.5:1 against every background (it was about 3:1).
 """
 import asyncio
+import json
 import re
+import shutil
 import sqlite3
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -337,6 +343,106 @@ def test_the_window_turns_send_into_stop():
     assert ".send.stop {" in css
 
 
+# ---------------------------------------------------------------- bigger text, clearer pale text
+def _luminance(color: str) -> float:
+    def part(h):
+        c = int(h, 16) / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (part(color[i:i + 2]) for i in (1, 3, 5))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast(a: str, b: str) -> float:
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_pale_text_is_easy_to_read_on_every_background():
+    css = (UI / "style.css").read_text(encoding="utf-8")
+    root = dict(re.findall(r"^\s*--([a-z0-9-]+):\s*(#[0-9A-Fa-f]{6});", css[:css.index("}")], re.M))
+    assert _contrast("#5E677D", root["surface-2"]) < 3.2                     # how pale it was
+    for fg in ("text", "muted", "faint"):
+        for bg in ("bg", "side", "surface", "surface-2"):
+            assert _contrast(root[fg], root[bg]) >= 4.5, (fg, bg, round(_contrast(root[fg], root[bg]), 2))
+    focused = re.search(r"\.box:focus-within textarea::placeholder \{ color: (#[0-9A-Fa-f]{6}); \}", css).group(1)
+    assert "background: var(--surface)" in css[css.index(".box {"):css.index("}", css.index(".box {"))]
+    assert _contrast(focused, root["surface"]) >= 4.5
+
+
+def _sizes(stored, presses=()):
+    """Runs the text-size code of app.js in node with a pretend page: what it set, kept and showed."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    js = (UI / "app.js").read_text(encoding="utf-8")
+    parts = "\n".join([re.search(r"^const TEXT_SIZES = .*$", js, re.M).group(0), re.search(r"^let textScale = .*$", js, re.M).group(0),
+                       _fn(js, "function setTextScale("), "setTextScale(textScale);", _fn(js, "function sizeKey(")])
+    code = """(() => {
+  const store = STORED, props = {}, live = [];
+  const localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  const toast = text => { const o = { text, cls: new Set(["toast"]), remove() { live.splice(live.indexOf(o), 1); } };
+    o.classList = { add: c => o.cls.add(c) }; live.push(o); };
+  const document = { documentElement: { style: { setProperty: (k, v) => { props[k] = v; } } },
+    querySelectorAll: sel => live.filter(o => sel.split(".").filter(Boolean).every(c => o.cls.has(c))) };
+  const t = (s, o) => s.replace("{n}", o ? o.n : "");
+  PARTS
+  const first = props["--text-scale"];
+  toast("Saved.");
+  const keys = PRESSES.map(([code, more]) => {
+    const e = { code, ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, ...more, held: false, preventDefault() { this.held = true; } };
+    const used = sizeKey(e);
+    return [used, e.held, textScale];
+  });
+  process.stdout.write(JSON.stringify({ first, keys, props, store, toasts: live.map(o => o.text) }));
+})();"""
+    code = (code.replace("STORED", json.dumps({} if stored is None else {"text-scale": stored}))
+            .replace("PRESSES", json.dumps([[c, m] for c, m in presses])).replace("PARTS", parts))
+    r = subprocess.run([node, "-e", code], capture_output=True, text=True, timeout=60, encoding="utf-8")
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
+@pytest.mark.parametrize("stored, scale", [("1.3", "1.3"), ("1.5", "1.5"), ("7", "1"), ("abc", "1"), (None, "1")])
+def test_the_text_size_is_kept_on_this_computer(stored, scale):
+    out = _sizes(stored)
+    assert out["first"] == scale and out["store"]["text-scale"] == scale
+    assert out["toasts"] == ["Saved."]                                       # opening the window says nothing
+
+
+def test_ctrl_plus_and_minus_change_the_text_size():
+    presses = [("Equal", {}), ("Minus", {}), ("Equal", {"shiftKey": True}), ("Equal", {}),     # Ctrl++ is Ctrl+Shift+= too
+               ("Minus", {}), ("Digit0", {}), ("NumpadSubtract", {}), ("NumpadSubtract", {}), ("NumpadAdd", {}),
+               ("Digit0", {"shiftKey": True}), ("KeyA", {}), ("Equal", {"ctrlKey": False}),
+               ("Equal", {"altKey": True}),                                     # AltGr on a Polish or German keyboard
+               ("Equal", {"ctrlKey": False, "metaKey": True})]                  # Cmd on a Mac
+    out = _sizes("1.3", presses)
+    assert out["keys"] == [[True, True, 1.5], [True, True, 1.3], [True, True, 1.5], [True, True, 1.5],
+                           [True, True, 1.3], [True, True, 1], [True, True, 0.9], [True, True, 0.9], [True, True, 1],
+                           [False, False, 1], [False, False, 1], [False, False, 1], [False, False, 1], [True, True, 1.15]]
+    assert out["props"]["--text-scale"] == "1.15" and out["store"]["text-scale"] == "1.15"
+    assert out["toasts"] == ["Saved.", "Text size: 115%"]                    # one notice, not a pile; others stay
+
+
+def test_the_text_size_is_in_settings_and_the_whole_chat_follows_it():
+    js = (UI / "app.js").read_text(encoding="utf-8")
+    assert '["general", "General", ["Language", "Text size",' in js
+    assert 'id="seg-size"' in js and 'aria-pressed="${v === textScale}"' in js and "setTextScale(+b.dataset.size)" in js
+    keys = _fn(js, "function windowKeys(")
+    assert keys.index("if (sizeKey(e)) return;") < keys.index(".veil:not(.closing)")     # also over a dialog
+    css = (UI / "style.css").read_text(encoding="utf-8")
+    assert "--text-scale: 1;" in css
+
+    def rule(sel):
+        i = css.index(sel)
+        return css[i:css.index("}", i)]
+    for sel in (".msgs {", ".box textarea {"):
+        assert "font-size: calc(15px * var(--text-scale))" in rule(sel), sel
+    for sel in (".md h1, .md h2, .md h3 {", ".md code {", ".md pre code {", ".msg.bot .meta {", ".think {", ".thinks {",
+                ".thinks summary::before {", "details.sent {", ".tool {", ".cc-h {", ".cc-meta {", ".cc-prev {", ".cc-q {",
+                ".cc-desc {", ".cc-lbl {", ".ask-other {", ".cc .btn.small, .ask .btn.small {"):
+        assert not re.search(r"font(?:-size)?:[^;]*\d(?:\.\d+)?px", rule(sel)), sel
+
+
 # ---------------------------------------------------------------- the terminal
 pytest.importorskip("textual")
 from textual.widgets import Input, Label, ListView  # noqa: E402
@@ -424,5 +530,6 @@ def test_new_strings_are_translated_everywhere():
             assert i18n.catalog(lang).get(s), (lang, s)
     js = (UI / "app.js").read_text(encoding="utf-8")
     for s in ("Pinned", "Chat options", "Pin to top", "Unpin", "Rename", "Send", "Lanterna answered:",
-              "A change is waiting for your Confirm.", "Stop (Esc)", "Stopped."):
+              "A change is waiting for your Confirm.", "Stop (Esc)", "Stopped.", "Text size", "Text size: {n}%",
+              "Ctrl+= and Ctrl+− change it too."):
         assert re.search(r'^\s*"' + re.escape(s) + r'": \{ uk: "', js, re.M), s
