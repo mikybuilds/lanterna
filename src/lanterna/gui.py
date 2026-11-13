@@ -22,7 +22,7 @@ from .app import Api
 
 UI = Path(__file__).with_name("ui")
 METHODS = {"state", "connectors", "connectors_search", "connector_add", "connector_add_entry", "mcp_sign_in", "mcp_sign_cancel", "mcp_sign_out", "mail_status", "mail_connect", "mail_disconnect", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "search_chats", "second_opinion", "snooze_reminder", "morning_preview", "tts_status", "tts_setup", "tts_setup_cancel", "tts_say", "new_thread",
-           "messages", "rename_thread", "pin_thread", "wait_title", "wait_follow_ups", "edit_last", "export_chat", "wait_memory", "export_all", "show_saved", "delete_thread", "send", "poll", "stop_answer", "facts", "add_fact", "delete_fact",
+           "messages", "rename_thread", "pin_thread", "wait_title", "wait_follow_ups", "edit_last", "export_chat", "wait_memory", "export_all", "show_saved", "delete_thread", "send", "check_private", "poll", "stop_answer", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
            "pull_model", "pulls", "cancel_pull", "check_update", "update_notice", "update_install", "update_status", "limits",
            "cards", "pc_undo", "chat_folder", "set_chat_folder", "chat_role", "set_chat_role", "forget_private", "mcp_presets", "mcp_add_preset", "mcp_update_preset", "backup_status", "backup_set_password", "backup_off", "backup_now", "backup_set_folder", "backup_open_folder", "backup_restore", "choose_folder", "check_folder", "limit_now", "action_confirm", "action_cancel", "workdir", "pick_folder", "set_workdir",

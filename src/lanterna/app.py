@@ -164,7 +164,7 @@ class Api:
             "model": self._router.current.label if self._router and self._router.current else "",
         }
 
-    _BOOLS = {"onboarded", "auto_cloud", "update_check", "sync_asked", "pc_access", "tidy_weekly", "space_help",
+    _BOOLS = {"onboarded", "auto_cloud", "update_check", "warn_private", "sync_asked", "pc_access", "tidy_weekly", "space_help",
               "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told",
               "hotkey_moved", "copied_text", "morning", "tts_auto"}
 
@@ -1663,6 +1663,36 @@ class Api:
             self.settings.chat_dirs[key] = r["path"]
         self.settings.save()
         return {"ok": True, **self.chat_folder(tid)}
+
+    # ---------------------------------------------------------------- private data, before it goes online
+    _PRIVATE = {"card": "Card number", "iban": "IBAN", "key": "Key or token", "pin": "PIN or CVV code", "password": "Password"}
+
+    def check_private(self, text: str) -> dict:
+        """A card number, IBAN, password, PIN or key in a message for an online model: what to warn about, and the
+        message with them hidden. Nothing when it stays on this computer, or when the warning is off. Looked at here,
+        nothing is sent anywhere for it."""
+        from . import sensitive
+        s = self.settings
+        if not s.warn_private or s.mode == "local":
+            return {"found": []}
+        finds = sensitive.find(text or "")
+        service = self._online_service() if finds else ""
+        if not service:
+            return {"found": []}
+        return {"found": [{"kind": f.kind, "what": t(self._PRIVATE[f.kind], s.lang), "hint": f.hint} for f in finds],
+                "masked": sensitive.mask(text, finds), "service": service, "maybe": s.mode == "auto"}
+
+    def _online_service(self) -> str:
+        """The online service a message would go to ("" = none: only models on this computer)."""
+        try:
+            router = self._get_router()
+        except ProviderError:
+            return ""
+        first = [router.current] if router.current else []
+        for c in first + list(router.candidates):
+            if not PROVIDERS[c.provider].local:
+                return PROVIDERS[c.provider].name
+        return ""
 
     # ---------------------------------------------------------------- the limit bar (under the message box)
     def limit_now(self) -> dict:

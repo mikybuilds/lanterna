@@ -51,7 +51,8 @@ VAULT_TOKEN, VAULT_KEY, VAULT_ACCOUNT = "google-sync-token", "google-sync-key", 
 VAULT_MODE = "google-sync-mode"                  # "open" = synced without a password on this device
 MAGIC = b"LNT1"
 # Settings that follow the user to every device (folders and local models belong to one computer).
-PREFS = ("mode", "provider", "models", "auto_cloud", "update_check", "pc_access", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory")
+PREFS = ("mode", "provider", "models", "auto_cloud", "update_check", "pc_access", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory",
+         "warn_private")
 SIGN_IN_TIMEOUT = 300
 
 

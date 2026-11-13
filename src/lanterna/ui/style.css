@@ -410,6 +410,9 @@ body.busy .chip i::after { animation: ping 1.6s cubic-bezier(0, 0, .2, 1) infini
 .mcp-risk li { margin: 6px 0; }
 .mcp-risk pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .dlg-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+.pv-list { list-style: none; padding-left: 0 !important; }
+.pv-list li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.pv-list code { font: 13px var(--mono); color: var(--amber-2); background: var(--amber-soft); padding: 1px 7px; border-radius: 6px; }
 /* the quick-question window: just the chat */
 body.quick .shell { grid-template-columns: 1fr; }
 body.quick .side, body.quick .top .menu, body.quick .under .fold-wrap, body.quick .under .hint,

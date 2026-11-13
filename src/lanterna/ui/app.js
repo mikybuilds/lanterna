@@ -617,6 +617,7 @@ async function watchAlerts() {
 let S = null;          // backend state
 let thread = null;     // current thread id
 let busy = false;
+let privateOpen = false;      // the "private data, send it online?" question is on the screen
 let live = null;              // the answer being written: {tid, el, sw}, so a redrawn chat can show it again
 
 async function boot() {
@@ -1351,6 +1352,28 @@ function chatMenu(x, anchor, at) {
   };
 }
 
+// a card number, IBAN, password, PIN or key in a message for an online model: say what and where, offer to hide it
+function privateDialog(w) {
+  return new Promise(done => {
+    let pick = null;
+    const say = w.maybe ? "This message seems to have private data, and it may go to {service}, outside this computer:"
+      : "This message seems to have private data, and it goes to {service}, outside this computer:";
+    const v = dialog(t("Send this to an online model?"), `<section class="mcp-risk pv">
+      <p id="pv-say">${esc(t(say, { service: w.service }))}</p>
+      <ul class="pv-list">${w.found.map(f => `<li><b>${esc(f.what)}</b>${f.hint ? ` <code>${esc(f.hint)}</code>` : ""}</li>`).join("")}</ul>
+      <p class="muted">${esc(t("Lanterna can send •••• in their place: the model can still help without them."))}</p>
+      <div class="dlg-btns"><button class="btn ghost small" id="pv-no">${esc(t("Cancel"))}</button>
+        <button class="btn ghost small" id="pv-send">${esc(t("Send as it is"))}</button>
+        <button class="btn primary small" id="pv-hide">${esc(t("Hide and send"))}</button></div></section>`, () => done(pick));
+    v.querySelector(".dialog").setAttribute("aria-describedby", "pv-say");    // a screen reader says why it asks
+    const close = () => v.querySelector("header button").click();
+    $("#pv-hide", v).onclick = () => { pick = "hide"; close(); };
+    $("#pv-send", v).onclick = () => { pick = "send"; close(); };
+    $("#pv-no", v).onclick = close;
+    $("#pv-hide", v).focus();
+  });
+}
+
 function renameChat(x) {
   const back = () => setTimeout(() => { const b = $(`#threads .th[data-id="${x.id}"]`); if (b) b.focus(); }, 0);
   const v = dialog(t("Rename chat"), `<section class="mcp-risk">
@@ -1631,11 +1654,20 @@ function paintToEnd() {
 async function send(retryText) {
   const inp = $("#input");
   const retry = typeof retryText === "object" && retryText !== null && retryText.retry === true;
-  const text = retry ? retryText.text : inp.value.trim();
+  let text = retry ? retryText.text : inp.value.trim();
   const files = retry ? retryText.files : pending;
   const again = retry && retryText.again === true;     // answer the last question again: the server replaces it
   const second = retry && retryText.second === true;   // the same question to another model, under the first answer
-  if ((!text && !files.length && !again && !second) || busy) return;
+  if ((!text && !files.length && !again && !second) || busy || privateOpen) return;
+  if (!retry && text) {                                // a card number, password or key for an online model: ask first
+    privateOpen = true;
+    let w = { found: [] };
+    try { w = await api.check_private(text); } catch (e) { /* the check never stops a message */ }
+    const pick = w.found && w.found.length ? await privateDialog(w) : "send";
+    privateOpen = false;
+    if (!pick || busy) { inp.focus(); return; }          // back to the message, to change it
+    if (pick === "hide") text = w.masked;
+  }
   if (!retry) { const sb = $("#send"); sb.classList.remove("fly"); void sb.offsetWidth; sb.classList.add("fly"); }   // the arrow flies off
   setBusy(true);
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
@@ -1908,6 +1940,8 @@ function openSettings() {
       <div class="seg" id="seg-mode">${["cloud", "local", "auto"].map(m => `<button data-mode="${m}" class="${m === S.settings.mode ? "on" : ""}">${t({ cloud: "Cloud", local: "Local", auto: "Auto" }[m])}</button>`).join("")}</div>
       ${S.settings.mode === "auto" ? `<label class="check"><input type="checkbox" id="auto-cloud" ${S.settings.auto_cloud ? "checked" : ""}>
         <span><b>${t("Send hard questions to the cloud")}</b><small>${t("Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.")}</small></span></label>` : ""}
+      ${S.settings.mode !== "local" ? `<label class="check"><input type="checkbox" id="warn-private" ${S.settings.warn_private !== false ? "checked" : ""}>
+        <span><b>${t("Warn before private data goes online")}</b><small>${t("A card number, IBAN, password, PIN or key in your message: Lanterna asks first and can hide it. The check runs on this computer.")}</small></span></label>` : ""}
       ${S.settings.mode !== "cloud" ? `<h4 style="margin-top:22px">${t("Local models")}</h4>
         <div id="picks"></div><div class="card local-card" id="local"></div>` : ""}
       <h4 style="margin-top:22px">${t("Services")}</h4>
@@ -2066,6 +2100,8 @@ function openSettings() {
     });
     const ac = $("#auto-cloud", body);
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };
+    const wp = $("#warn-private", body);
+    if (wp) wp.onchange = async () => { S = await api.save_settings({ warn_private: wp.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
     for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"], ["#ask-first", "ask_first"], ["#auto-memory", "auto_memory"]]) {

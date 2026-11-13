@@ -1349,3 +1349,29 @@ _T.update({
     "Stop the answer": {"uk": "Зупинити відповідь", "it": "Ferma la risposta"},
     "Stopped.": {"uk": "Зупинено.", "it": "Fermata."},
 })
+
+# Private data before it goes online (1.1.8): for the window too (its t() falls back to these)
+_T.update({
+    "Card number": {"uk": "Номер картки", "it": "Numero della carta"},
+    "IBAN": {"uk": "IBAN", "it": "IBAN"},
+    "Key or token": {"uk": "Ключ або токен", "it": "Chiave o token"},
+    "PIN or CVV code": {"uk": "PIN або CVV-код", "it": "PIN o codice CVV"},
+    "Password": {"uk": "Пароль", "it": "Password"},
+    "Send this to an online model?": {"uk": "Надіслати це онлайн-моделі?", "it": "Inviarlo a un modello online?"},
+    "This message seems to have private data, and it goes to {service}, outside this computer:": {
+        "uk": "Схоже, у повідомленні є приватні дані, а воно піде до {service}, за межі цього комп'ютера:",
+        "it": "Questo messaggio sembra contenere dati privati e va a {service}, fuori da questo computer:"},
+    "This message seems to have private data, and it may go to {service}, outside this computer:": {
+        "uk": "Схоже, у повідомленні є приватні дані, а воно може піти до {service}, за межі цього комп'ютера:",
+        "it": "Questo messaggio sembra contenere dati privati e può andare a {service}, fuori da questo computer:"},
+    "Lanterna can send •••• in their place: the model can still help without them.": {
+        "uk": "Lanterna може надіслати •••• замість них: модель допоможе й без цього.",
+        "it": "Lanterna può mandare •••• al loro posto: il modello può aiutarti lo stesso."},
+    "Hide and send": {"uk": "Сховати й надіслати", "it": "Nascondi e invia"},
+    "Send as it is": {"uk": "Надіслати як є", "it": "Invia così com'è"},
+    "Warn before private data goes online": {"uk": "Попереджати, перш ніж приватні дані підуть онлайн",
+                                             "it": "Avvisa prima che i dati privati vadano online"},
+    "A card number, IBAN, password, PIN or key in your message: Lanterna asks first and can hide it. The check runs on this computer.": {
+        "uk": "Номер картки, IBAN, пароль, PIN чи ключ у повідомленні: Lanterna спершу спитає і може їх сховати. Перевірка йде на цьому комп'ютері.",
+        "it": "Un numero di carta, un IBAN, una password, un PIN o una chiave nel messaggio: Lanterna chiede prima e può nasconderli. Il controllo avviene su questo computer."},
+})

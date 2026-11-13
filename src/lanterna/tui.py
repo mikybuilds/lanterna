@@ -1129,6 +1129,11 @@ class SettingsScreen(ModalScreen[str]):
                             yield Checkbox(t("Send hard questions to the cloud", lang), self.app.api.settings.auto_cloud, id="autocloud")
                             yield Static(t("Long questions, proofs, code and analysis go to a bigger online model. Private chats: turn it off.", lang),
                                          classes="muted")
+                        if mode != "local":
+                            yield Checkbox(t("Warn before private data goes online", lang), self.app.api.settings.warn_private,
+                                           id="warnprivate")
+                            yield Static(t("A card number, IBAN, password, PIN or key in your message: Lanterna asks first and can hide it. The check runs on this computer.", lang),
+                                         classes="muted")
                         if mode != "cloud":
                             yield Button(t("Local models", lang), id="localmodels")
                         yield Label(t("Updates", lang), classes="h")
@@ -1748,6 +1753,10 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#autocloud")
     def _auto_cloud(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"auto_cloud": ev.value})
+
+    @on(Checkbox.Changed, "#warnprivate")
+    def _warn_private(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"warn_private": ev.value})
 
     def action_close(self) -> None:
         self.dismiss("")
@@ -2901,7 +2910,29 @@ class _ChatScreen(Screen):
         if self._stream:
             self.app.notify(t("Wait for the reply to finish.", L(self.app)))
             return
-        ev.input.value = ""
+        w = self.app.api.check_private(text) if text else {"found": []}
+        if not w.get("found"):
+            self._send_now(text)
+            return
+        lang = L(self.app)
+        say = ("This message seems to have private data, and it may go to {service}, outside this computer:" if w.get("maybe")
+               else "This message seems to have private data, and it goes to {service}, outside this computer:")
+        lines = [t(say, lang, service=w["service"])] + [f"• {f['what']}" + (f"  {f['hint']}" if f["hint"] else "") for f in w["found"]]
+        lines += ["", t("Lanterna can send •••• in their place: the model can still help without them.", lang)]
+
+        def picked(choice: str | None) -> None:
+            if choice == "hide":
+                self._send_now(w["masked"])
+            elif choice == "send":
+                self._send_now(text)
+            else:                                         # Cancel: the message stays in the box, to change it
+                self.query_one("#composer", Input).focus()
+        self.app.push_screen(ChoiceScreen(t("Send this to an online model?", lang),
+                                          [("hide", t("Hide and send", lang)), ("send", t("Send as it is", lang))],
+                                          "\n".join(lines)), picked)
+
+    def _send_now(self, text: str) -> None:
+        self.query_one("#composer", Input).value = ""
         log = self.query_one("#log", VerticalScroll)
         log.query(".follow").remove()                     # old follow-up ideas go when you write
         log.query(AskForm).remove()
