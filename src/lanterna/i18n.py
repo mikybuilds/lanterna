@@ -1334,3 +1334,18 @@ _T.update({
     "Preparing changes to the look": {"uk": "Готую зміни вигляду", "it": "Preparo le modifiche all'aspetto"},
     "Preparing the theme": {"uk": "Готую тему", "it": "Preparo il tema"},
 })
+
+
+# Rename and pin chats (1.1.8)
+_T.update({
+    "Rename chat": {"uk": "Перейменувати розмову", "it": "Rinomina la chat"},
+    "Pin chat": {"uk": "Закріпити розмову", "it": "Fissa la chat"},
+    "Unpin chat": {"uk": "Відкріпити розмову", "it": "Non fissare più la chat"},
+    "Chat name": {"uk": "Назва розмови", "it": "Nome della chat"},
+    "Unpinned.": {"uk": "Відкріплено.", "it": "Non è più fissata."},
+    "Pinned to the top of the list.": {"uk": "Закріплено вгорі списку.", "it": "Fissata in cima all'elenco."},
+    "the old version is saved in {path}": {"uk": "стару версію збережено в {path}",
+                                           "it": "la versione precedente è salvata in {path}"},
+    "Stop the answer": {"uk": "Зупинити відповідь", "it": "Ferma la risposta"},
+    "Stopped.": {"uk": "Зупинено.", "it": "Fermata."},
+})

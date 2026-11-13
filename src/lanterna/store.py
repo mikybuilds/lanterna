@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, text TEXT NOT NULL, ev
 """
 # columns added for sync (older databases get them on open)
 _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
-                      "summary_upto INTEGER NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
+                      "summary_upto INTEGER NOT NULL DEFAULT 0", "pinned INTEGER NOT NULL DEFAULT 0",
+                      "pinned_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0",
                                                    "repeat TEXT NOT NULL DEFAULT ''"]}
 MAX_FACTS = 60
@@ -132,13 +133,14 @@ class Store:
                                     (new_uid(), title, now if title else 0, now, now)).lastrowid
 
     def threads(self) -> list[dict]:
-        return self._q("SELECT id, title, updated FROM threads ORDER BY updated DESC")
+        """The chat list: pinned chats first, then the newest."""
+        return self._q("SELECT id, title, updated, pinned FROM threads ORDER BY pinned DESC, updated DESC")
 
     def thread(self, tid: int) -> dict | None:
         if tid < 0:
             p = self._private.get(tid)
             return {"id": tid, "title": p["title"], "updated": p["updated"], "private": True} if p else None
-        r = self._q("SELECT id, title, updated FROM threads WHERE id=?", (tid,))
+        r = self._q("SELECT id, title, updated, pinned FROM threads WHERE id=?", (tid,))
         return r[0] if r else None
 
     def rename(self, tid: int, title: str) -> None:
@@ -147,6 +149,11 @@ class Store:
                 self._private[tid]["title"] = title.strip()[:80]
             return
         self._q("UPDATE threads SET title=?, title_at=? WHERE id=?", (title.strip()[:80], time.time(), tid))
+
+    def pin(self, tid: int, on: bool = True) -> None:
+        """Keeps a chat at the top of the list (synced; the newer pin or unpin wins). Private chats aren't kept."""
+        if tid > 0:
+            self._q("UPDATE threads SET pinned=?, pinned_at=? WHERE id=?", (1 if on else 0, time.time(), tid))
 
     def summary(self, tid: int) -> tuple[str, int]:
         """A long chat's summary of its older part and how many of its first messages it covers."""
@@ -353,8 +360,9 @@ class Store:
             q = lambda sql: [dict(r) for r in self._db.execute(sql)]   # noqa: E731
             tuid = {r["id"]: r["uid"] for r in q("SELECT id, uid FROM threads")}
             return {
-                "threads": {r["uid"]: {"title": r["title"], "title_at": r["title_at"], "created": r["created"]}
-                            for r in q("SELECT uid, title, title_at, created FROM threads")},
+                "threads": {r["uid"]: {"title": r["title"], "title_at": r["title_at"], "created": r["created"],
+                                       **({"pinned": r["pinned"], "pinned_at": r["pinned_at"]} if r["pinned_at"] else {})}
+                            for r in q("SELECT uid, title, title_at, created, pinned, pinned_at FROM threads")},
                 "messages": {r["uid"]: {"thread": tuid[r["thread"]], "role": r["role"], "content": r["content"],
                                         "model": r["model"], "at": r["at"]}
                              for r in q("SELECT uid, thread, role, content, model, at FROM messages") if r["thread"] in tuid},
@@ -381,12 +389,17 @@ class Store:
                         n += 1
             ids = {r[0]: r[1] for r in db.execute("SELECT uid, id FROM threads")}
             for uid, t in snap.get("threads", {}).items():
+                pin, pin_at = 1 if t.get("pinned") else 0, t.get("pinned_at") or 0
                 if uid in ids:
                     n += db.execute("UPDATE threads SET title=?, title_at=? WHERE uid=? AND title_at<?",
                                     (t["title"], t["title_at"], uid, t["title_at"])).rowcount
+                    if pin_at:
+                        n += db.execute("UPDATE threads SET pinned=?, pinned_at=? WHERE uid=? AND pinned_at<?",
+                                        (pin, pin_at, uid, pin_at)).rowcount
                 elif uid not in gone:
-                    ids[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated) VALUES (?,?,?,?,?)",
-                                          (uid, t["title"], t["title_at"], t["created"], t["created"])).lastrowid
+                    ids[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated, pinned, pinned_at)"
+                                          " VALUES (?,?,?,?,?,?,?)", (uid, t["title"], t["title_at"], t["created"],
+                                                                      t["created"], pin, pin_at)).lastrowid
                     n += 1
             have = {r[0] for r in db.execute("SELECT uid FROM messages")}
             for uid, m in sorted(snap.get("messages", {}).items(), key=lambda kv: kv[1]["at"] or 0):
@@ -439,9 +452,11 @@ class Store:
                     ids[uid] = ids[alias(uid)]
                     continue
                 created = t.get("created") or now
-                back[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated) VALUES (?,?,?,?,?)",
-                                       (alias(uid), str(t.get("title") or ""), t.get("title_at") or 0, created,
-                                        created)).lastrowid
+                back[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated, pinned, pinned_at)"
+                                       " VALUES (?,?,?,?,?,?,?)", (alias(uid), str(t.get("title") or ""),
+                                                                   t.get("title_at") or 0, created, created,
+                                                                   1 if t.get("pinned") else 0,
+                                                                   t.get("pinned_at") or 0)).lastrowid
                 out["chats"] += 1
             have = {r[0] for r in db.execute("SELECT uid FROM messages")}
             for uid, m in sorted((data.get("messages") or {}).items(), key=lambda kv: kv[1].get("at") or 0):

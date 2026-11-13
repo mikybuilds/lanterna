@@ -25,7 +25,7 @@ from typing import Callable
 
 from . import quiet
 from .files import DOC_EXT, IMAGE_EXT, FileError, prepare_one
-from .workspace import NEVER_WRITE, WAITING, WorkError
+from .workspace import NEVER_WRITE, WAITING, WorkError, check_text
 
 PLACES = ("downloads", "desktop", "documents", "pictures", "videos", "music")
 LIST_LIMIT = 200
@@ -743,6 +743,7 @@ class Places:
             p = p.with_suffix(".txt")
         if p.suffix.lower() in NEVER_WRITE:
             raise WorkError(f"Lanterna doesn't create {p.suffix} files: the system could run them.")
+        check_text(p)
         text = str(text or "")
         if len(text) > WRITE_LIMIT:
             raise WorkError("That is too long for one file.")
@@ -889,7 +890,7 @@ def place_tools(pl: Places) -> list:
         Tool("pc_write", "Create a new text file on this computer, in one of the user's folders (Desktop, Documents, "
              "Downloads…): a note, a list, a command or code for the user to open and copy. Use this whenever the "
              "user asks for a file on the desktop or in a folder of theirs — not Google Drive. Never overwrites a "
-             "file. " + card,
+             "file. Plain text only (.txt, .md, .csv, code): not Word, Excel or PDF. " + card,
              _obj({"place": place, "path": {"type": "string", "description": "file name, e.g. notes.txt"}, "text": s},
                   ["place", "path", "text"]),
              lambda place, path, text: pl.propose_write(place, path, text), "📝"),

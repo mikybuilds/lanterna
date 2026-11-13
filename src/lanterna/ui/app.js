@@ -405,6 +405,20 @@ const STR = {
   "Connected as {account}": { uk: "Підключено як {account}", it: "Collegato come {account}" },
   "Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.": { uk: "Помічник зможе створювати папки й зберігати файли у твоєму Google Drive після того, як ти підтвердиш кожну дію. Він бачить тільки те, що створив сам.", it: "L'assistente potrà creare cartelle e salvare file nel tuo Google Drive, dopo che confermi ogni azione. Vede solo ciò che ha creato lui." },
   "Google Drive was disconnected. Connect it again.": { uk: "Google Drive відключено. Підключи його знову.", it: "Google Drive è stato scollegato. Collegalo di nuovo." },
+  // the chat list: a "⋯" menu on every chat (pin, rename, delete)
+  "Pinned": { uk: "Закріплені", it: "Fissate" },
+  "Chat options": { uk: "Дії з розмовою", it: "Opzioni della chat" },
+  "Pin to top": { uk: "Закріпити вгорі", it: "Fissa in alto" },
+  "Unpin": { uk: "Відкріпити", it: "Non fissare più" },
+  "Rename": { uk: "Перейменувати", it: "Rinomina" },
+  "Rename chat": { uk: "Перейменувати розмову", it: "Rinomina la chat" },
+  "Chat name": { uk: "Назва розмови", it: "Nome della chat" },
+  // for screen readers (NVDA, Narrator, Orca): buttons with a name, and what happens is said aloud
+  "Send": { uk: "Надіслати", it: "Invia" },
+  "Lanterna answered:": { uk: "Відповідь Lanterna:", it: "Risposta di Lanterna:" },
+  "A change is waiting for your Confirm.": { uk: "Зміна чекає, поки ти натиснеш «Підтвердити».", it: "Una modifica aspetta la tua conferma." },
+  "Stop (Esc)": { uk: "Зупинити (Esc)", it: "Ferma (Esc)" },
+  "Stopped.": { uk: "Зупинено.", it: "Fermata." },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -573,7 +587,7 @@ function toast(text, sticky = false, action = null) {
     b.onclick = async () => { b.disabled = true; try { await action.run(); } finally { close(); } };
     el.querySelector("span").after(b);
   }
-  const stack = $("#toasts") || document.body.appendChild(h(`<div id="toasts"></div>`));
+  const stack = $("#toasts") || document.body.appendChild(h(`<div id="toasts" role="status" aria-live="polite"></div>`));
   stack.append(el);
   if (sticky) return;
   // a thin line runs out at the bottom; the pointer over the notice holds it (and the line) until it leaves
@@ -916,11 +930,11 @@ function renderMain() {
   app.innerHTML = `<div class="shell">
     <aside class="side">
       <div class="brand"><img src="logo.svg" alt=""><b>Lanterna</b></div>
-      <div class="newrow"><button class="btn ghost newchat" id="new">${icon("plus")} ${t("New chat")}</button>
+      <div class="newrow"><button class="btn ghost newchat" id="new" title="${esc(t("New chat"))} (Ctrl+N)" aria-keyshortcuts="Control+N">${icon("plus")} ${t("New chat")}</button>
         <button class="btn ghost newpriv" id="new-private" title="${esc(t("Private chat: not saved, memory not used"))}">${icon("incog")}</button></div>
       <label class="find"><span class="find-ic">${icon("search")}</span><input id="find" type="search" autocomplete="off" spellcheck="false"
-        placeholder="${t("Search chats")}" aria-label="${t("Search chats")}"><button id="find-x" hidden title="${t("Close")}">${icon("x")}</button></label>
-      <nav class="threads" id="threads"></nav>
+        placeholder="${t("Search chats")}" aria-label="${t("Search chats")}" aria-keyshortcuts="Control+K"><button id="find-x" hidden title="${t("Close")}" aria-label="${esc(t("Close"))}">${icon("x")}</button><kbd class="find-key" aria-hidden="true">Ctrl K</kbd></label>
+      <nav class="threads" id="threads" aria-label="${esc(t("Chats"))}"></nav>
       <div class="side-foot">
         <button id="open-connectors">${icon("plug")} ${t("Connectors")}</button>
         <button id="open-history">${icon("history")} ${t("What Lanterna did")}</button>
@@ -929,16 +943,16 @@ function renderMain() {
       </div>
     </aside>
     <main class="main">
-      <div class="top"><button class="menu" id="menu">${icon("menu")}</button><div class="title" id="title">Lanterna</div><div class="chip" id="model" hidden><i></i><span></span></div><button class="iconbtn" id="save-chat" title="${esc(t("Save chat"))}" hidden>${icon("save")}</button></div>
+      <div class="top"><button class="menu" id="menu" title="${esc(t("Chats"))}" aria-label="${esc(t("Chats"))}">${icon("menu")}</button><div class="title" id="title" role="heading" aria-level="1">Lanterna</div><div class="chip" id="model" hidden><i></i><span></span></div><button class="iconbtn" id="save-chat" title="${esc(t("Save chat"))}" hidden>${icon("save")}</button></div>
       <div class="scroll" id="scroll"><div class="msgs" id="msgs"></div></div>
       <div class="composer">
         <button class="to-end" id="to-end" title="${esc(t("To the latest message"))}" aria-label="${esc(t("To the latest message"))}">${icon("down")}</button>
         <div class="files" id="files" hidden></div>
-        <div class="box"><button class="attach" id="attach" title="${t("Attach a file or photo")}">${icon("clip")}</button>
+        <div class="box"><button class="attach" id="attach" title="${esc(t("Attach a file or photo"))}" aria-label="${esc(t("Attach a file or photo"))}">${icon("clip")}</button>
           <input type="file" id="file" multiple hidden>
-          <textarea id="input" rows="1" placeholder="${t("Message Lanterna…")}"></textarea>
-          <button class="mic" id="mic" title="${esc(t("Voice input (F2)"))}">${icon("mic")}</button>
-          <button class="send" id="send" disabled title="Send">${icon("send")}</button></div>
+          <textarea id="input" rows="1" placeholder="${t("Message Lanterna…")}" aria-label="${esc(t("Message Lanterna…"))}"></textarea>
+          <button class="mic" id="mic" title="${esc(t("Voice input (F2)"))}" aria-label="${esc(t("Voice input (F2)"))}">${icon("mic")}</button>
+          <button class="send" id="send" disabled title="${esc(t("Send"))}" aria-label="${esc(t("Send"))}">${icon("send")}</button></div>
         <div class="under">
           <button class="lim" id="lim" hidden><span class="lim-track"><i></i></span><span class="lim-tx"></span></button>
           <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button><button class="fold role-btn none" id="role-btn" title="${esc(t("Role of this chat"))}"><b class="role-ic">🎭</b><span></span>${icon("down", "i caret")}</button></div>
@@ -946,9 +960,11 @@ function renderMain() {
         </div>
       </div>
     </main>
+    <div class="sr-only" id="sr-say" aria-live="polite" aria-atomic="true"></div>
   </div>`;
   $("#new").onclick = () => openThread(null);
   $("#new-private").onclick = () => { if (!busy) openThread(null, true); };
+  windowKeys();
   setupFind();
   $("#open-settings").onclick = openSettings;
   $("#open-about").onclick = openAbout;
@@ -960,13 +976,13 @@ function renderMain() {
     // empty box: natural one-line height (measuring before layout gives a huge scrollHeight)
     inp.style.height = "auto";
     if (inp.value) inp.style.height = Math.min(inp.scrollHeight, 200) + "px";
-    $("#send").disabled = (!inp.value.trim() && !pending.length) || busy; };
+    $("#send").disabled = busy ? !!(live && live.stopping) : !inp.value.trim() && !pending.length; };
   inp.oninput = fit;
   inp.onkeydown = e => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
     else if (e.key === "Enter" && e.shiftKey && listEnter(inp)) { e.preventDefault(); fit(); }
   };
-  $("#send").onclick = send;
+  $("#send").onclick = () => (busy ? stopAnswer() : send());
   $("#mic").onclick = micClick;
   if (recording) $("#mic").classList.add("rec");
   if (!window.__micKey) {
@@ -1143,6 +1159,27 @@ function setTitle(text) {
 function setBusy(on) {
   busy = on;
   document.body.classList.toggle("busy", on);
+  // while it answers, the send button is Stop (Esc does the same)
+  const b = $("#send");
+  if (!b) return;
+  b.classList.toggle("stop", on);
+  b.classList.remove("stopping");
+  if (!on) b.classList.remove("fly");                 // the arrow comes back quietly
+  b.innerHTML = icon(on ? "stop" : "send");
+  const name = on ? t("Stop (Esc)") : t("Send");
+  b.title = name;
+  b.setAttribute("aria-label", name);
+  if (on) b.disabled = false;
+}
+
+// Stop: the answer ends where it is; the words written so far stay. The model is told at once, the page waits
+// for its last word (so the next message comes after it in the chat)
+function stopAnswer() {
+  if (!busy || !live || live.stopping) return;
+  live.stopping = true;
+  const b = $("#send");
+  if (b) { b.classList.add("stopping"); b.disabled = true; }
+  if (live.sid) api.stop_answer(live.sid);            // pressed in its very first moment: send() tells it right after
 }
 
 // the mini-questionnaire before a big task: options as buttons, "Other" as text; the answers go as my next message
@@ -1213,17 +1250,127 @@ async function refreshThreads() {
   const list = await api.threads();
   const q = findQuery();
   if (q.length >= 2) { showFound(q); return list; }
-  const now = Date.now() / 1000, dayStart = new Date().setHours(0, 0, 0, 0) / 1000;
-  const today = list.filter(x => x.updated >= dayStart), older = list.filter(x => x.updated < dayStart);
-  const item = x => `<button class="th ${x.id === thread ? "on" : ""}" data-id="${x.id}"><span>${esc(x.title || t("New chat"))}</span>
-      <i class="del" data-del="${x.id}" title="Delete">${icon("trash")}</i></button>`;
-  $("#threads").innerHTML = (today.length ? `<h6>${t("Today")}</h6>${today.map(item).join("")}` : "") + (older.length ? `<h6>${t("Earlier")}</h6>${older.map(item).join("")}` : "");
-  $("#threads").querySelectorAll(".th").forEach(b => b.onclick = e => {
-    const d = e.target.closest("[data-del]");
-    if (d) { e.stopPropagation(); if (confirm(t("Delete this chat?"))) api.delete_thread(+d.dataset.del).then(() => { if (+d.dataset.del === thread) thread = null; refreshThreads().then(l => openThread(thread || (l[0] && l[0].id) || null)); }); return; }
-    openThread(+b.dataset.id); $(".shell").classList.remove("open");
+  if (chatMenuEl) { listStale = true; return list; }    // not under an open menu: it is drawn again when the menu closes
+  // the list is drawn anew: the chat (or its "⋯") that had the keyboard keeps it
+  const f = document.activeElement, box = $("#threads");
+  const keep = f && box.contains(f) ? (f.dataset.more ? `.th-more[data-more="${f.dataset.more}"]` : f.dataset.id ? `.th[data-id="${f.dataset.id}"]` : "") : "";
+  const dayStart = new Date().setHours(0, 0, 0, 0) / 1000;
+  const pinned = list.filter(x => x.pinned), rest = list.filter(x => !x.pinned);
+  const today = rest.filter(x => x.updated >= dayStart), older = rest.filter(x => x.updated < dayStart);
+  // a chat is two buttons side by side: open it, and its "⋯" menu (a button inside a button can't be reached by Tab)
+  const item = x => `<div class="th-row"><button class="th ${x.id === thread ? "on" : ""}" data-id="${x.id}"${x.id === thread ? ' aria-current="true"' : ""}><span>${esc(x.title || t("New chat"))}</span></button>`
+    + `<button class="th-more" data-more="${x.id}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t("Chat options") + ": " + (x.title || t("New chat")))}" title="${esc(t("Chat options"))}">${icon("dots")}</button></div>`;
+  const group = (name, xs) => xs.length ? `<h6>${name}</h6>${xs.map(item).join("")}` : "";
+  $("#threads").innerHTML = group(t("Pinned"), pinned) + group(t("Today"), today) + group(t("Earlier"), older);
+  const byId = new Map(list.map(x => [x.id, x]));
+  $("#threads").querySelectorAll(".th-row").forEach(row => {
+    const b = row.querySelector(".th"), more = row.querySelector(".th-more"), x = byId.get(+b.dataset.id);
+    b.onclick = () => { openThread(x.id); $(".shell").classList.remove("open"); };
+    more.onclick = e => { e.stopPropagation(); chatMenuEl && chatMenuEl.dataset.id === String(x.id) ? closeChatMenu() : chatMenu(x, more); };
+    // right-click (or the Menu key / Shift+F10) opens the same menu where the pointer is
+    b.oncontextmenu = e => { e.preventDefault(); chatMenu(x, more, e.clientX || e.clientY ? [e.clientX, e.clientY] : null); };
   });
+  const back = keep && box.querySelector(keep);
+  if (back) back.focus({ preventScroll: true });
   return list;
+}
+
+// ---------------------------------------------------------------- a chat's menu: pin, rename, delete
+let chatMenuEl = null, listStale = false;
+
+function closeChatMenu(refocus) {
+  const m = chatMenuEl;
+  if (!m) return;
+  chatMenuEl = null;
+  m._off();
+  if (m._anchor.isConnected) {
+    m._anchor.setAttribute("aria-expanded", "false");
+    m._anchor.closest(".th-row").classList.remove("menu-open");
+    if (refocus) m._anchor.focus();
+  }
+  m.remove();
+  if (listStale) { listStale = false; refreshThreads(); }
+}
+
+function chatMenu(x, anchor, at) {
+  closeChatMenu();
+  const m = h(`<div class="th-menu" role="menu" aria-label="${esc(t("Chat options"))}" data-id="${x.id}">
+    <button role="menuitem" data-act="pin">${icon("pin")}<span>${esc(x.pinned ? t("Unpin") : t("Pin to top"))}</span></button>
+    <button role="menuitem" data-act="rename">${icon("edit")}<span>${esc(t("Rename"))}</span></button>
+    <button role="menuitem" class="danger" data-act="del">${icon("trash")}<span>${esc(t("Delete"))}</span></button></div>`);
+  document.body.append(m);
+  chatMenuEl = m;
+  m._anchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  anchor.closest(".th-row").classList.add("menu-open");
+  // under the "⋯" button (or at the pointer), turned up if there is no room below
+  const r = anchor.getBoundingClientRect(), w = m.offsetWidth, hgt = m.offsetHeight;
+  let left = at ? at[0] : r.right - w, top = at ? at[1] : r.bottom + 4;
+  const up = top + hgt > innerHeight - 8;
+  if (up) top = Math.max(8, (at ? at[1] : r.top - 4) - hgt);
+  left = Math.max(8, Math.min(left, innerWidth - w - 8));
+  m.style.left = left + "px";
+  m.style.top = top + "px";
+  m.style.transformOrigin = `${at ? "0" : "100%"} ${up ? "100%" : "0"}`;
+  const items = [...m.querySelectorAll("button")];
+  items[0].focus({ preventScroll: true });
+  const out = e => { if (!m.contains(e.target) && !anchor.contains(e.target)) closeChatMenu(); };
+  const gone = () => closeChatMenu();
+  const list = $("#threads");
+  document.addEventListener("pointerdown", out, true);
+  addEventListener("resize", gone);
+  addEventListener("blur", gone);
+  list.addEventListener("scroll", gone, { passive: true });
+  m._off = () => {
+    document.removeEventListener("pointerdown", out, true);
+    removeEventListener("resize", gone);
+    removeEventListener("blur", gone);
+    list.removeEventListener("scroll", gone);
+  };
+  m.onkeydown = e => {
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus(); }
+    else if (e.key === "Home" || e.key === "End") { e.preventDefault(); items[e.key === "Home" ? 0 : items.length - 1].focus(); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeChatMenu(true); }
+    else if (e.key === "Tab") closeChatMenu();
+  };
+  m.onclick = async e => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    closeChatMenu(b.dataset.act !== "rename");
+    if (b.dataset.act === "pin") { await api.pin_thread(x.id, !x.pinned); refreshThreads(); }
+    else if (b.dataset.act === "rename") renameChat(x);
+    else if (confirm(t("Delete this chat?"))) {
+      await api.delete_thread(x.id);
+      if (x.id === thread) thread = null;
+      refreshThreads().then(l => openThread(thread || (l[0] && l[0].id) || null));
+    }
+  };
+}
+
+function renameChat(x) {
+  const back = () => setTimeout(() => { const b = $(`#threads .th[data-id="${x.id}"]`); if (b) b.focus(); }, 0);
+  const v = dialog(t("Rename chat"), `<section class="mcp-risk">
+    <label class="cn-field"><b>${esc(t("Chat name"))}</b><input class="field" id="rn-name" maxlength="80" autocomplete="off"></label>
+    <div class="dlg-btns"><button class="btn ghost small" id="rn-no">${esc(t("Cancel"))}</button><button class="btn primary small" id="rn-ok">${esc(t("Save"))}</button></div></section>`, back);
+  const input = $("#rn-name", v), ok = $("#rn-ok", v), close = () => v.querySelector("header button").click();
+  input.value = x.title || "";
+  const check = () => { ok.disabled = !input.value.trim(); };
+  input.oninput = check;
+  check();
+  const save = async () => {
+    const name = input.value.trim();
+    if (!name) return;
+    await api.rename_thread(x.id, name);
+    if (x.id === thread) setTitle(name);
+    close();
+    refreshThreads();
+  };
+  ok.onclick = save;
+  $("#rn-no", v).onclick = close;
+  input.onkeydown = e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); save(); } };
+  input.focus();
+  input.select();
 }
 
 // "Remembered: …" with Undo (the side model added a fact to Memory)
@@ -1359,6 +1506,7 @@ function addUser(text) {
   const e = $(".empty"); if (e) e.remove();
   const el = h(`<div class="msg user"></div>`);
   if (LIST_LINE.test(text)) { el.classList.add("rich"); el.innerHTML = md(text, true); } else el.textContent = text;
+  el.prepend(h(`<span class="sr-only">${esc(t("You"))}: </span>`));
   $("#msgs").append(el); return el;
 }
 
@@ -1370,7 +1518,7 @@ function sentBox(lines) {
 
 function addBot(text, model, sent, second = false) {    // second: a second opinion, with its own small title
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
+  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<span class="sr-only">Lanterna: </span><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
   if (text === null) {      // still working: the lantern is lit (a flash as it lights), sways, flares at each step, goes out at the end
     el.classList.add("live");
     el.querySelector(".md").before(h(`<div class="think"><span class="lamp"><i class="flare"></i>${lamp()}<i class="smoke"></i><i class="smoke"></i></span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
@@ -1486,7 +1634,7 @@ async function send(retryText) {
   const second = retry && retryText.second === true;   // the same question to another model, under the first answer
   if ((!text && !files.length && !again && !second) || busy) return;
   if (!retry) { const sb = $("#send"); sb.classList.remove("fly"); void sb.offsetWidth; sb.classList.add("fly"); }   // the arrow flies off
-  setBusy(true); $("#send").disabled = true;
+  setBusy(true);
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
     thread = (await api.new_thread(privateNext)).id;
@@ -1500,11 +1648,13 @@ async function send(retryText) {
     addUser([text, ...names].filter(Boolean).join(String.fromCharCode(10, 10)));
   }
   const bot = addBot(null, "", null, second);
+  announce(t("Thinking…"));
   const box = bot.querySelector(".md");
   live = { tid: thread, el: bot, sw: null };
   scrollDown(true);
   clearLastActions();
   const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
+  if (live && live.el === bot && r.ok) { live.sid = r.stream; if (live.stopping) api.stop_answer(r.stream); }
   refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) setTitle(th.title); });
   if (!r.ok) {
     setBusy(false); live = null; inp.oninput(); bot.classList.remove("live"); fold(bot.querySelector(".think"));
@@ -1551,6 +1701,7 @@ async function send(retryText) {
     (p.tools || []).slice(tools).forEach(s => chips.insertAdjacentHTML("beforeend", toolChip(s)));
     tools = (p.tools || []).length;
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
+    if ((p.cards || []).length > cards && thread === sentTo) announce(t("A change is waiting for your Confirm."));
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") {             // what it is doing now: a new step fades in
       if ((p.live || "") !== liveSeen) { liveSeen = p.live || ""; writing = false; }    // a new step (a tool in the middle too)
@@ -1562,12 +1713,14 @@ async function send(retryText) {
         motion(think.querySelector(".flare"), [{ opacity: .9, transform: "scale(.4)" }, { opacity: 0, transform: "scale(1.5)" }], 700);   // the flame flares up
       }
     }
-    if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
+    if (p.final !== undefined && p.stopped && !p.final.trim()) { bot.remove(); if (thread === sentTo) announce(t("Stopped.")); }   // stopped before a word
+    else if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
       if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));   // as in an opened chat:
       const sayBtn = !(p.questions && p.questions.length) && addSay(bot, text_);                                 // the buttons in one row
       if (!(p.questions && p.questions.length)) addCopy(bot, text_);
       if (sayBtn && S.settings.tts_auto && thread === sentTo) speak(text_, sayBtn);
-      if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); } }
+      if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); }
+      if (thread === sentTo) announce((p.stopped ? t("Stopped.") + " " : "") + t("Lanterna answered:") + " " + box.innerText); }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown(stick && bot.isConnected);
     if (p.error) {
@@ -1583,6 +1736,7 @@ async function send(retryText) {
         : k === "file" ? p.error.message
         : t("Something went wrong: {e}", { e: p.error.message });
       box.innerHTML = `<div class="err-box">${esc(msg)}</div><button class="btn ghost small" style="margin-top:10px">${icon("refresh")} ${t("Retry")}</button>`;
+      if (thread === sentTo) announce(msg);
       box.querySelector("button").onclick = () => { bot.remove(); send(second ? { retry: true, text: "", files: [], second: true } : { retry: true, text, files, again: true }); };
     }
     if (p.done) {
@@ -1604,6 +1758,31 @@ async function send(retryText) {
     setTimeout(step, 60);
   };
   step();
+}
+
+// ---------------------------------------------------------------- screen readers and keys
+// a screen reader (NVDA, Narrator, Orca) says these words without moving the user away from where they are
+function announce(text) {
+  const el = $("#sr-say");
+  const say = String(text || "").replace(/\s+/g, " ").trim().slice(0, 3000);
+  if (!el || !say) return;
+  el.textContent = "";
+  setTimeout(() => { el.textContent = say; }, 80);          // the same words twice in a row are said again too
+}
+
+// Ctrl+N: a new chat. Ctrl+K: find a chat. Esc: the chat list (in a narrow window) goes away.
+// The keys work by their place on the keyboard, so they work with a Ukrainian layout too.
+function windowKeys() {
+  if (window.__winKeys || QUICK) return;
+  window.__winKeys = true;
+  document.addEventListener("keydown", e => {
+    if (document.querySelector(".veil:not(.closing)") || !$("#input")) return;     // a dialog is open
+    const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+    if (ctrl && e.code === "KeyN") { e.preventDefault(); openThread(null); }
+    else if (ctrl && e.code === "KeyK") { e.preventDefault(); $(".shell").classList.add("open"); const f = $("#find"); f.focus(); f.select(); }
+    else if (e.key === "Escape" && !e.defaultPrevented && $(".shell").classList.contains("open")) { $(".shell").classList.remove("open"); }
+    else if (e.key === "Escape" && !e.defaultPrevented && busy) { e.preventDefault(); stopAnswer(); }
+  });
 }
 
 // ---------------------------------------------------------------- dialogs

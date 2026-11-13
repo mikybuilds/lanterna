@@ -111,6 +111,12 @@ def merge(a: dict, b: dict) -> dict:
             if uid not in rows or (stamp and (row.get(stamp) or 0) > (rows[uid].get(stamp) or 0)):
                 rows[uid] = row
         out[table] = {u: r for u, r in rows.items() if u not in gone}
+    # a pin has its own time: pinning on one device and renaming on the other keeps both
+    ta, tb = a.get("threads", {}), b.get("threads", {})
+    for uid, row in list(out["threads"].items()):
+        pin = max((ta.get(uid) or {}, tb.get(uid) or {}), key=lambda r: r.get("pinned_at") or 0)
+        if (pin.get("pinned_at") or 0) > (row.get("pinned_at") or 0):
+            out["threads"][uid] = {**row, "pinned": pin.get("pinned") or 0, "pinned_at": pin["pinned_at"]}
     out["messages"] = {u: m for u, m in out["messages"].items() if m.get("thread") in out["threads"]}
     for part in ("profile", "prefs"):
         pa, pb = a.get(part, {}), b.get(part, {})

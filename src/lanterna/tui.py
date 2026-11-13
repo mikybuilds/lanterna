@@ -444,6 +444,38 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
+class NameScreen(ModalScreen[str]):
+    """A chat's new name: Enter or Save keeps it, Esc or Cancel leaves the old one."""
+    BINDINGS = [Binding("escape", "no", show=False)]
+
+    def __init__(self, heading: str, value: str):
+        super().__init__()
+        self.heading, self.value = heading, value
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with Vertical(classes="dialog"):
+            yield Label(self.heading, classes="h")
+            yield Input(self.value, placeholder=t("Chat name", lang), max_length=80, id="name")
+            with Horizontal(classes="row"):
+                yield Button(t("Save", lang), id="yes", variant="primary")
+                yield Button(t("Cancel", lang), id="no")
+
+    def on_mount(self) -> None:
+        self.query_one("#name", Input).focus()
+
+    @on(Input.Submitted, "#name")
+    @on(Button.Pressed, "#yes")
+    def _yes(self) -> None:
+        name = self.query_one("#name", Input).value.strip()
+        if name:
+            self.dismiss(name)
+
+    @on(Button.Pressed, "#no")
+    def action_no(self) -> None:
+        self.dismiss("")
+
+
 class UpdateScreen(ModalScreen[None]):
     """A new version is out: what's new and the steps for this kind of install."""
 
@@ -2608,8 +2640,8 @@ class _ChatScreen(Screen):
         async with self._threads_lock:
             lv = self.query_one("#threads", ListView)
             await lv.clear()
-            await lv.extend([ListItem(Label(th["title"] or t("New chat", L(self.app)), markup=False),
-                                      name=str(th["id"]) if th["id"] is not None else "")
+            await lv.extend([ListItem(Label(("📌 " if th.get("pinned") else "") + (th["title"] or t("New chat", L(self.app))),
+                                            markup=False), name=str(th["id"]) if th["id"] is not None else "")
                              for th in threads])
             for i, th in enumerate(threads):
                 if th["id"] == self.tid:
@@ -2823,6 +2855,39 @@ class _ChatScreen(Screen):
 
         self.app.push_screen(ConfirmScreen(t("Delete this chat?", lang), t("Delete", lang)), done)
 
+    def action_stop_answer(self) -> None:
+        """Esc while it answers: the answer ends where it is (what was written stays)."""
+        if self._stream:
+            self.app.api.stop_answer(self._stream)
+
+    def _saved_chat(self) -> dict | None:
+        """The open chat if it is a saved one (a private chat isn't in the list, so it has no name or pin)."""
+        return self.app.api.store.thread(self.tid) if self.tid and self.tid > 0 else None
+
+    def action_rename_chat(self) -> None:
+        th = self._saved_chat()
+        if not th:
+            return
+        tid = th["id"]
+
+        def done(name: str | None) -> None:
+            if name:
+                self.app.api.rename_thread(tid, name)
+                if self.tid == tid:
+                    self.query_one("#chattitle", Label).update(name[:80])
+                self._fill_threads()
+
+        self.app.push_screen(NameScreen(t("Rename chat", L(self.app)), th["title"] or ""), done)
+
+    def action_pin_chat(self) -> None:
+        th = self._saved_chat()
+        if not th:
+            return
+        self.app.api.pin_thread(th["id"], not th["pinned"])
+        self._fill_threads()
+        lang = L(self.app)
+        self.notify(t("Unpinned.", lang) if th["pinned"] else t("Pinned to the top of the list.", lang), timeout=4)
+
     # sending -----------------------------------------------------------------
     @on(Input.Submitted, "#composer")
     def _submit(self, ev: Input.Submitted) -> None:
@@ -2894,6 +2959,16 @@ class _ChatScreen(Screen):
             await log.mount(ActCard(card))
         self._cards_seen = len(r.get("cards", []))
         changed = False
+        if "final" in r and r.get("stopped"):
+            note = Static("⏹ " + t("Stopped.", lang), classes="msg-note", markup=False)
+            if self._bot is None:
+                await log.mount(note)
+            elif r["final"].strip():
+                await log.mount(note, after=self._bot)
+            else:                                        # stopped before a word: no empty answer
+                await log.mount(note, before=self._bot)
+                self._bot.remove()
+                self._bot = None
         if "final" in r:
             self._text, changed = r["final"], True
             self._naming = bool(r.get("titling"))       # a fast model is naming this new chat
@@ -3102,7 +3177,10 @@ CHAT_COMMANDS = [
     ("Second opinion", "second_opinion", "F4"),
     ("Role of this chat", "next_role", "F6"),
     ("Save chat", "save_chat", "Ctrl+X"),
+    ("Rename chat", "rename_chat", ""),
+    ("Pin chat", "pin_chat", ""),
     ("Delete chat", "delete_chat", "Ctrl+D"),
+    ("Stop the answer", "stop_answer", "Esc"),
     ("Voice input", "voice", "F2"),
     ("Read aloud", "read_aloud", "F3"),
     ("Connectors", "connectors", ""),
@@ -3114,7 +3192,7 @@ CHAT_COMMANDS = [
 FOOTER_KEYS = {"new_chat", "app.command_palette", "settings", "models", "app.quit"}
 _KEYS = {"Ctrl+N": "ctrl+n", "Ctrl+P": "ctrl+p", "Ctrl+S": "ctrl+s", "Ctrl+O": "ctrl+o", "Ctrl+Q": "ctrl+q", "F7": "f7",
          "Ctrl+F": "ctrl+f", "Ctrl+R": "ctrl+r", "Ctrl+E": "ctrl+e", "F4": "f4", "F6": "f6", "Ctrl+X": "ctrl+x",
-         "Ctrl+D": "ctrl+d", "F2": "f2", "F3": "f3", "F9": "f9"}
+         "Ctrl+D": "ctrl+d", "F2": "f2", "F3": "f3", "F9": "f9", "Esc": "escape"}
 
 
 def make_chat_screen(lang: str) -> Screen:
@@ -3162,6 +3240,10 @@ class LanternaApp(App):
         lang = L(self)
         for label, action, key in CHAT_COMMANDS:
             if action in ("app.command_palette", "app.quit"):
+                continue
+            if action == "pin_chat" and (screen._saved_chat() or {}).get("pinned"):
+                label = "Unpin chat"
+            if action == "stop_answer" and not screen._stream:  # only while it answers
                 continue
             yield SystemCommand(t(label, lang), key, getattr(screen, f"action_{action}"))
             if action == "connectors":

@@ -30,11 +30,25 @@ SEARCH_BYTES = 2 * 1024 * 1024     # bigger files: only their names are searched
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".idea", ".vs"}
 NEVER_WRITE = {".exe", ".dll", ".com", ".bat", ".cmd", ".ps1", ".psm1", ".vbs", ".vbe", ".js", ".jse", ".wsf",
                ".wsh", ".hta", ".lnk", ".scr", ".msi", ".msp", ".pif", ".reg", ".cpl", ".jar", ".url", ".sys"}
+# files that are not plain text: writing text into them (or after their end) would break them
+NOT_TEXT = {".docx", ".doc", ".dotx", ".rtf", ".xlsx", ".xlsm", ".xls", ".pptx", ".ppt", ".odt", ".ods", ".odp",
+            ".pdf", ".epub", ".pages", ".numbers", ".key", ".zip", ".7z", ".rar", ".gz", ".tar", ".png", ".jpg",
+            ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".ico", ".mp3", ".wav", ".ogg", ".flac",
+            ".m4a", ".mp4", ".mkv", ".avi", ".mov", ".webm", ".iso", ".db", ".sqlite"}
 EXPIRE = 30 * 60                   # an unanswered card stops working after this many seconds
 
 
 class WorkError(Exception):
     pass
+
+
+def check_text(p: Path) -> None:
+    """Lanterna writes plain text only: a Word, Excel or PDF file (or a picture) made of it wouldn't open, and an
+    existing one would break."""
+    if p.suffix.lower() in NOT_TEXT:
+        raise WorkError(f"'{p.name}' is not a plain text file: Lanterna writes only plain text, so a {p.suffix} file "
+                        f"made of it wouldn't open (and an existing one would break). Nothing was changed. Offer to "
+                        f"save the text as '{p.stem}.md' or '{p.stem}.txt' instead: Word and LibreOffice open those too.")
 
 
 def too_broad(p: Path) -> str:
@@ -306,6 +320,7 @@ class Workspace:
     def propose_write(self, path: str, text: str, mode: str = "create") -> str:
         p = self.path(path)
         self._check_target(p)
+        check_text(p)
         text = str(text or "")
         if len(text) > WRITE_LIMIT:
             raise WorkError("That is too long for one file.")
@@ -322,11 +337,12 @@ class Workspace:
         def run() -> str:
             q = self.path(rel)                       # the folder may have changed since
             self._check_target(q)
+            check_text(q)
             backup = ""
             if mode == "create" and q.exists():
                 raise WorkError(f"'{rel}' appeared in the meantime; nothing was changed.")
-            if mode == "replace" and q.exists():
-                backup = _backup(q)
+            if mode in ("replace", "append") and q.exists():
+                backup = _backup(q)                  # adding to the end can be undone too
             q.parent.mkdir(parents=True, exist_ok=True)
             with open(q, "a" if mode == "append" else "w", encoding="utf-8", newline="") as f:
                 f.write(("\n" if mode == "append" and q.exists() and q.stat().st_size else "") + text)
@@ -390,7 +406,10 @@ def _backup(p: Path) -> str:
     """Copies a file about to be replaced into Lanterna's own folder; returns where."""
     d = data_dir() / "file-backups" / time.strftime("%Y-%m-%d")
     d.mkdir(parents=True, exist_ok=True)
-    dest = d / f"{time.strftime('%H%M%S')}-{p.name}"
+    stamp = time.strftime("%H%M%S")
+    dest, n = d / f"{stamp}-{p.name}", 2
+    while dest.exists():               # two copies in one second (an Undo right away, two files of one name): both kept
+        dest, n = d / f"{stamp}-{n}-{p.name}", n + 1
     shutil.copy2(p, dest)
     return str(dest)
 
@@ -410,8 +429,9 @@ def folder_tools(ws: Workspace) -> list:
         Tool("folder_read", f"Read a file from {where} (text, code, Markdown, CSV, PDF, Word). Long files come in parts: "
              "pass `start` to continue.",
              _obj({"path": s, "start": {"type": "integer"}}, ["path"]), lambda path, start=0: ws.read(path, start), "📖"),
-        Tool("folder_write", f"Create or change a text file in {where}. mode: create (new file), replace (rewrite), "
-             "append (add to the end). Call it directly when the user asks for a file: they get a card with a Confirm "
+        Tool("folder_write", f"Create or change a plain text file in {where} (.txt, .md, .csv, code; not Word, Excel "
+             "or PDF). mode: create (new file), replace (rewrite), append (add to the end); a copy of the old file is "
+             "kept, with Undo. Call it directly when the user asks for a file: they get a card with a Confirm "
              "button, so don't ask for permission in text first.",
              _obj({"path": s, "text": s, "mode": {"type": "string", "enum": ["create", "replace", "append"]}},
                   ["path", "text"]),

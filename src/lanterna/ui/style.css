@@ -265,6 +265,13 @@ body.away .embers i { animation-play-state: paused; }   /* the window is in the 
 .find { position: relative; display: flex; align-items: center; margin: 0 14px 6px; }
 .find-ic { position: absolute; left: 11px; color: var(--faint); display: grid; pointer-events: none; }
 .find-ic svg { width: 15px; height: 15px; }
+/* the key for the search box, shown while it is empty and not in use */
+.find-key { position: absolute; right: 9px; padding: 1px 6px; border: 1px solid var(--line-2); border-radius: 6px; font: 600 10.5px/1.5 inherit;
+  font-family: inherit; color: var(--faint); letter-spacing: .02em; pointer-events: none; transition: opacity .15s; }
+.find input:focus ~ .find-key, .find input:not(:placeholder-shown) ~ .find-key { opacity: 0; }
+/* words only for screen readers */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0);
+  clip-path: inset(50%); white-space: nowrap; border: 0; }
 .find input { width: 100%; height: 36px; padding: 0 32px 0 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; outline: none; }
 .find input:focus { border-color: var(--amber-line); }
 .find input::-webkit-search-cancel-button { display: none; }
@@ -288,10 +295,25 @@ body.away .embers i { animation-play-state: paused; }   /* the window is in the 
 /* the open chat: a small lit bar on its left */
 .th.on::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0;
   background: linear-gradient(180deg, var(--amber-2), var(--amber-deep)); box-shadow: 0 0 10px rgba(245, 181, 68, .6); }
-.th .del { opacity: 0; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; color: var(--faint); transition: opacity .15s, color .15s, background .15s; }
-.th:hover .del { opacity: 1; }
-.th .del:hover { color: var(--red); background: rgba(240, 113, 103, .1); }
-.th .del svg { width: 15px; height: 15px; }
+/* a chat's "⋯" button: it shows when the row is pointed at or reached by Tab, and stays while its menu is open */
+.th-row { position: relative; }
+.th-row .th { padding-right: 38px; }
+.th-more { position: absolute; right: 6px; top: 50%; margin-top: -14px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px;
+  color: var(--faint); opacity: 0; transition: opacity .15s, color .15s, background .15s; }
+.th-row:hover .th-more, .th-row:focus-within .th-more, .th-row.menu-open .th-more { opacity: 1; }
+.th-more:hover, .th-row.menu-open .th-more { color: var(--text); background: var(--surface-2); }
+.th-more svg { width: 16px; height: 16px; }
+.th-menu { position: fixed; z-index: 8; min-width: 196px; display: flex; flex-direction: column; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: 0 14px 40px -12px rgba(0, 0, 0, .7);
+  animation: menu-drop .2s var(--ease); }
+.th-menu button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; color: var(--text); text-align: left; }
+.th-menu button svg { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.th-menu button:hover { background: var(--surface-2); }
+.th-menu button:focus-visible { background: var(--surface-2); outline: 2px solid var(--amber); outline-offset: -2px; }
+.th-menu button.danger, .th-menu button.danger svg { color: var(--red); }
+/* a thin line keeps Delete apart from the rest */
+.th-menu button.danger { position: relative; margin-top: 7px; }
+.th-menu button.danger::before { content: ""; position: absolute; left: 4px; right: 4px; top: -4px; height: 1px; background: var(--line); }
 .side-foot { border-top: 1px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
 .side-foot button { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 10px; color: var(--muted); font-size: 13.5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: background .18s, color .18s; }
@@ -500,6 +522,11 @@ body.busy .box::before { animation: breathe 2.6s ease-in-out infinite; }
 .send:hover { transform: translateY(-1px) scale(1.06); box-shadow: 0 10px 24px -6px rgba(245, 181, 68, .9), inset 0 1px 0 rgba(255, 255, 255, .4); }
 .send:active { transform: scale(.9); transition-duration: .08s; }
 .send[disabled] { opacity: .3; pointer-events: none; box-shadow: none; }
+/* while it answers: a quiet square that stops it */
+.send.stop { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
+.send.stop:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--faint); transform: none; }
+.send.stop .i { width: 18px; height: 18px; }
+.send.stopping { opacity: .55; }
 /* sent: the arrow flies off the top and a new one comes up from below */
 .send.fly .i { animation: send-fly .55s var(--ease); }
 @keyframes send-fly { 0% { transform: none; } 40% { transform: translateY(-26px); opacity: 0; } 41% { transform: translateY(22px); opacity: 0; } 100% { transform: none; opacity: 1; } }

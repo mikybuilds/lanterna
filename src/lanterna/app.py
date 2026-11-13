@@ -70,6 +70,8 @@ class _Stream:
         self.parts: list[str] = []         # long files of which only the parts that fit the question went
         self.second = False                # a second opinion: another model, lookups only, no side jobs
         self.sent = ""
+        self.stop = threading.Event()      # the user pressed Stop: the answer ends where it is
+        self.stopped = False
         self.lock = threading.Lock()
 
 
@@ -657,6 +659,11 @@ class Api:
 
     def rename_thread(self, tid: int, title: str) -> bool:
         self.store.rename(int(tid), title)
+        return True
+
+    def pin_thread(self, tid: int, on: bool = True) -> bool:
+        """Keeps a chat at the top of the chat list (or lets it go back among the others)."""
+        self.store.pin(int(tid), bool(on))
         return True
 
     def wait_title(self, tid: int, timeout: float = 10) -> str:
@@ -1451,7 +1458,10 @@ class Api:
                                 ask_header=t("Questions for you:", self.settings.lang),
                                 instructions=self._instructions(tid),
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
-            for p in conv.ask(text, images or None):
+            gen = conv.ask(text, images or None)
+            for p in gen:
+                if st.stop.is_set():
+                    break
                 with st.lock:
                     if isinstance(p, Switched):
                         st.notes.append(p.to.label)
@@ -1466,7 +1476,11 @@ class Api:
                         st.steps.thought(p.text)
                     else:
                         st.pieces.append(p)
-            if not conv.last_reply.strip():
+            gen.close()                                     # Stop: the model's stream is closed too
+            stopped = st.stop.is_set()
+            with st.lock:
+                reply = cut_reply("".join(st.pieces)) if stopped else conv.last_reply
+            if not stopped and not conv.last_reply.strip():
                 raise ProviderError("empty", "the model sent no answer")
             from . import sent
             cur = used_model(router)
@@ -1477,13 +1491,15 @@ class Api:
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
                 len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else []),
                 parts=st.parts, second=st.second, private=private))
-            self.store.add(tid, "assistant", conv.last_reply, cur.label if cur else "", st.sent)
-            if not st.second and not private:               # the first answer already named the chat, etc.
-                self._start_side_jobs(st, tid, router, text, conv.last_reply, first)
-            if self.settings.compact_chats and summary_due(total, upto) and not st.second:
+            if reply.strip():                               # stopped before a word: nothing is kept
+                self.store.add(tid, "assistant", reply, cur.label if cur else "", st.sent)
+            if not stopped and not st.second and not private:   # the first answer already named the chat, etc.
+                self._start_side_jobs(st, tid, router, text, reply, first)
+            if not stopped and self.settings.compact_chats and summary_due(total, upto) and not st.second:
                 threading.Thread(target=self._compact, args=(tid, router, summary, upto, total), daemon=True).start()
             with st.lock:
-                st.pieces = [conv.last_reply]               # final cleaned text replaces the raw stream
+                st.pieces = [reply]                         # final cleaned text replaces the raw stream
+                st.stopped = stopped
                 st.final = True
         except ProviderError as e:
             bugreport.remember_error(e.kind, str(e))
@@ -1501,6 +1517,14 @@ class Api:
             with st.lock:
                 st.done = True
 
+    def stop_answer(self, sid: str) -> bool:
+        """Stop (the button or Esc): the answer ends where it is; the words written so far stay in the chat."""
+        st = self._streams.get(str(sid))
+        if not st:
+            return False
+        st.stop.set()
+        return True
+
     def poll(self, sid: str, offset: int = 0) -> dict:
         st = self._streams.get(sid)
         if not st:
@@ -1512,7 +1536,7 @@ class Api:
                        "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
-                       "model": st.model, "second": st.second}
+                       "model": st.model, "second": st.second, "stopped": st.stopped}
             else:
                 text = "".join(st.pieces)
                 out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
@@ -1959,8 +1983,9 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
         to = t(str(d["to_place"]).title(), lang) + ("" if to in ("", ".") else "/" + to)
     out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang, place=place,
             **{k: str(to if k == "to" else d.get(k, "")) for k in ("path", "to", "name", "repo", "count")})
-    if kind == "write_replace" and "(" in (result or ""):
-        out += " " + result[result.index("("):]
+    saved = " (the old version is saved in "
+    if kind in ("write_replace", "write_append") and saved in (result or ""):
+        out += " (" + t("the old version is saved in {path}", lang, path=result.rsplit(saved, 1)[1].rstrip(")")) + ")"
     return out + (f" — {link}" if link.startswith("https://") else "")
 
 
@@ -2017,6 +2042,20 @@ def card_text(kind: str, d: dict, lang: str) -> str:
 
 _FILE_BLOCK = re.compile(r"\[File: ([^\]\n]+)\]\n```\n.*?\n```(?:\n\[…file cut, too long\])?", re.S)
 _PHOTO = re.compile(r"\[Photo: ([^\]\n]+)\]")
+
+
+_OPEN_MARK = re.compile(r"(?:^|(?<=\s))[*_~`]+\s*$")           # "**" or "`" with nothing after it yet
+_LONE_LINE = re.compile(r"\n[ \t]*(?:[-*+>]|#+|\d+[.)])[ \t]*$")   # a list, heading or quote mark alone on the last line
+
+
+def cut_reply(text: str) -> str:
+    """A stopped answer ends mid-word: its last half-written mark ("**", "- ", "#") goes, so it doesn't show."""
+    text = text.strip()
+    while True:
+        cut = _LONE_LINE.sub("", _OPEN_MARK.sub("", text)).rstrip()
+        if cut == text:
+            return text
+        text = cut
 
 
 def _short_files(text: str) -> str:

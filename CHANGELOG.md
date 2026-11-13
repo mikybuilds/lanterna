@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Rename and pin chats.** Every chat in the list has a "⋯" button (or right-click the chat): Pin to top, Rename, Delete. Pinned chats stay at the top of the list in their own group, and a pin goes to your other computers with sync. The menu works from the keyboard too. In the terminal: Ctrl+P → Rename chat / Pin chat.
+- **Your documents stay whole.** Lanterna writes only plain text, so it no longer puts text into a Word, Excel, PDF or picture file (a new one wouldn't open, an old one would break); it offers a .md or .txt file instead, which Word and LibreOffice open too. Adding to the end of a file now keeps a copy of the old one, with Undo, as rewriting it does. Two copies made in the same second no longer overwrite each other.
+- **For screen readers and the keyboard.** NVDA, Narrator and Orca now hear "Thinking…", the answer, a change waiting for Confirm and errors, and who wrote each message; every button that is only a picture has a name. Ctrl+N starts a new chat and Ctrl+K goes to the chat search (with any keyboard layout); Esc closes the chat list in a narrow window.
+- **Stop.** While Lanterna answers, the send button turns into Stop (Esc does the same, in the terminal too). The answer ends where it is and the words written so far stay in the chat; stopped before a word, no empty answer is kept.
+
 ## 1.1.7 — A lantern that thinks with you, a window that moves
 
 **New**
