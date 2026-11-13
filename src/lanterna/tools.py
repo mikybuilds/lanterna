@@ -20,7 +20,7 @@ from typing import Callable
 
 import httpx
 
-from . import HOMEPAGE, __version__, convert
+from . import HOMEPAGE, __version__, convert, scam
 
 UA = f"Lanterna/{__version__} (+{HOMEPAGE}; open-source assistant)"  # sites like Wikipedia want a contact link
 TIMEOUT = 15.0
@@ -391,6 +391,11 @@ GROUPS = {
                      r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
                      r"cestino|elimina|sort|organi[sz]e|clean ?up|tidy|місц|space|spazio|диск|disk|storage|звільн|free up|libera|"
                      r"сміт|junk|займа|takes up|occupa", re.I),
+    # "is it a scam?": a message, letter or link the user got (any link may be one)
+    "scam": re.compile(r"шахра|ошук|scam|фішинг|phish|підозріл|suspicious|обман|розвод|fraud|truff|betrug|estaf|arnaq|"
+                       r"oszust|мошен|афер|справжн\w* (лист|сайт|смс|sms|повідомл|посилан)|is (this|it) (real|legit|safe)|"
+                       r"безпечн\w* (посилан|сайт|лист|відкри|переход)|можна (відкри|перейти|натиска)|https?://|www\.|"
+                       r"\bbit\.ly", re.I),
     "mail": re.compile(r"пошт|\bлист(?!опад)|inbox|вхідн|e-?mail|\bmail|gmail|ukr\.net|icloud|скриньк|спам|spam|"
                        r"чернетк|draft|надішли|відправ|send|posta|correo|courriel|poczt|почт|письм|\bnewsletter|розсилк", re.I),
     "apps": re.compile(r"встанов|установ|інстал|install|програм|додат|застосун|\bapp|онов|update|upgrade|uninstall|winget|"
@@ -409,7 +414,7 @@ GROUPS = {
 
 
 _CHAT_FILE = re.compile(r"\[File: ([^\]\n]+)\]\n```.*?```", re.S)
-LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page")
+LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page", "scam_check")
 # Tools that only look: they change nothing, open nothing and propose no card. A reply that says it installs or sets
 # something up needs more than these (see chat.false_claim). A tool missing here counts as one that acts.
 READ_ONLY_TOOLS = frozenset((*LOOKUP_TOOLS, "list_reminders", "list_tasks", "search_chats", "read_chat",
@@ -661,7 +666,13 @@ class Toolbox:
             Tool("read_page", "Read the text of a web page (for example a link from web_search or from the user). "
                  "Long pages come back as the parts that fit the question.",
                  _obj({"url": s}, ["url"]),
-                 lambda url: read_page(url, focus=self.focus, limit=self.page_limit), "📄"),
+                 lambda url: scam.refuse(url) or read_page(url, focus=self.focus, limit=self.page_limit), "📄"),
+            Tool("scam_check", "Check a message, e-mail or link the user got for signs of a scam: fake bank, delivery or "
+                 "shop pages, look-alike addresses, short links, urgent requests for card data, codes or money. It works "
+                 "on this computer and opens no link: use it, never read_page, when the user asks whether a message or "
+                 "link is safe or real.",
+                 _obj({"text": {**s, "description": "the whole message or link, exactly as the user gave it"}}, ["text"]),
+                 lambda text: scam.report(text), "🛡", group="scam"),
             Tool("remember", "Save a lasting fact about the user when they share one or ask you to remember something. "
                  "Not for one-time things (today's plans, a single question) — those don't need saving.",
                  _obj({"fact": {**s, "description": "short fact in the language the user writes in, starting with the "

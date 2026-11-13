@@ -1522,9 +1522,17 @@ function showEmpty() {
   $("#msgs").innerHTML = `<div class="empty" style="min-height:calc(100vh - 230px)">
     ${heroLamp()}
     <h2>${name ? t("Hi, {n}!", { n: esc(name) }) : t("Hi!")}</h2><p>${t("What's on your mind?")}</p>
-    <div class="sugg">${sugg.map(s => `<button>${t(s)}</button>`).join("")}</div></div>`;
+    <div class="sugg">${sugg.map(s => `<button>${t(s)}</button>`).join("")}
+      <button data-fill="scam">🛡 ${t("Is this a scam? Check a message or a link")}</button></div></div>`;
   $("#msgs").querySelectorAll(".sugg button").forEach(b => b.onclick = () => {   // one click sends it
-    const i = $("#input"); i.value = b.textContent; i.oninput(); if (!busy) $("#send").click(); else i.focus();
+    const i = $("#input");
+    if (b.dataset.fill) {                                 // the question first: the message or link is pasted after it
+      i.value = t("Is this a scam? ").trim() + String.fromCharCode(10); i.oninput(); i.focus();
+      i.setSelectionRange(i.value.length, i.value.length);
+      toast(t("Paste the message or the link after the question and send it. Lanterna doesn't open the link."));
+      return;
+    }
+    i.value = b.textContent; i.oninput(); if (!busy) $("#send").click(); else i.focus();
   });
 }
 

@@ -1368,6 +1368,14 @@ _T.update({
         "uk": "Lanterna може надіслати •••• замість них: модель допоможе й без цього.",
         "it": "Lanterna può mandare •••• al loro posto: il modello può aiutarti lo stesso."},
     "Hide and send": {"uk": "Сховати й надіслати", "it": "Nascondi e invia"},
+    # «Is this a scam?» (1.1.8)
+    "Checking for signs of a scam": {"uk": "Шукаю ознаки шахрайства", "it": "Cerco segni di truffa"},
+    "Is this a scam? Check a message or a link": {"uk": "Чи це не шахраї? Перевір повідомлення чи посилання",
+                                                   "it": "È una truffa? Controlla un messaggio o un link"},
+    "Is this a scam? ": {"uk": "Чи це не шахраї? ", "it": "È una truffa? "},
+    "Paste the message or the link after the question and send it. Lanterna doesn't open the link.": {
+        "uk": "Встав повідомлення чи посилання після питання й надішли. Lanterna не відкриває посилання.",
+        "it": "Incolla il messaggio o il link dopo la domanda e invia. Lanterna non apre il link."},
     "Send as it is": {"uk": "Надіслати як є", "it": "Invia così com'è"},
     "Warn before private data goes online": {"uk": "Попереджати, перш ніж приватні дані підуть онлайн",
                                              "it": "Avvisa prima che i dati privati vadano online"},

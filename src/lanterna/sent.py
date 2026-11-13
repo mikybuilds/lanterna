@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from urllib.parse import urlparse
 
+from .scam import refuse
+
 FILE_NAMES = {"pc_list", "pc_overview", "pc_find", "pc_duplicates", "pc_space", "pc_folders", "folder_list",
               "folder_search", "drive_list", "github_list", "github_repos"}
 FILE_READ = {"pc_read", "folder_read", "github_read"}
@@ -70,7 +72,7 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
             once("The list of your installed programs")
         elif tool == "web_search":
             once("Search words to DuckDuckGo: {q}", {"q": _arg(args, "query") or _arg(args, "q")})
-        elif tool == "read_page":
+        elif tool == "read_page" and not refuse(_arg(args, "url")):     # a link that looks like a scam is not opened
             once("A web page was opened: {site}", {"site": urlparse(_arg(args, "url")).netloc or "?"})
         elif tool == "search_chats":
             once("Words looked up in your earlier chats on this computer: {q}", {"q": _arg(args, "words")})

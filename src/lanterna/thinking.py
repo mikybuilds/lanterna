@@ -23,6 +23,7 @@ TOOL_TEXT = {
     "weather": ("Checking the weather: {x}", "place"),
     "web_search": ("Searching the web: {x}", "query"),
     "read_page": ("Reading {x}", "url"),
+    "scam_check": ("Checking for signs of a scam", ""),
     "remember": ("Remembering: {x}", "fact"),
     "forget": ("Forgetting: {x}", "fact"),
     "set_reminder": ("Setting a reminder: {x}", "text"),

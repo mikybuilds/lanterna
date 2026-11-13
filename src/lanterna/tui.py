@@ -103,7 +103,7 @@ ModalScreen { align: center middle; background: $background 70%; }
 .sent { margin: 0 8 0 0; padding: 0; border: none; background: transparent; }
 .sent CollapsibleTitle { color: $text-muted; padding: 0; }
 .sugg { height: auto; }
-.idea { margin: 0 0 0 0; min-width: 20; height: 3; }
+.idea, .idea-fill { margin: 0 0 0 0; min-width: 20; height: 3; }
 .histtext { width: 1fr; padding: 1 0 0 0; }
 #histrows { height: auto; }
 .keyrow Label { width: 1fr; padding: 1 0 0 0; }
@@ -2701,9 +2701,21 @@ class _ChatScreen(Screen):
         # built whole, then mounted: adding children to a box that isn't mounted yet fails on slow machines
         log.mount(Vertical(Label(t("Try one:", lang), classes="muted"),
                            *(Button(t(idea, lang), id=f"idea{i}", classes="idea") for i, idea in enumerate(ideas)),
+                           Button("🛡 " + t("Is this a scam? Check a message or a link", lang), id="ideascam", classes="idea-fill"),
                            classes="welcome sugg"))
         log.mount(Static(t("Enter sends · Ctrl+P: all commands · Ctrl+N: new chat · /file and a path: attach a file", lang),
                          classes="hint", markup=False))
+
+    @on(Button.Pressed, ".idea-fill")
+    def _idea_fill(self, ev: Button.Pressed) -> None:
+        """«Is this a scam?»: the question goes in the box, the message or link is pasted after it."""
+        lang = L(self.app)
+        box = self.query_one("#composer", Input)
+        box.value = t("Is this a scam? ", lang)
+        box.focus()
+        box.cursor_position = len(box.value)
+        self.notify(t("Paste the message or the link after the question and send it. Lanterna doesn't open the link.", lang),
+                    timeout=8)
 
     @on(Button.Pressed, ".idea")
     def _idea(self, ev: Button.Pressed) -> None:
