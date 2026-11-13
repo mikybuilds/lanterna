@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+**New**
+- **The lantern from the logo thinks with you.** While the model works, a small lantern before "Thinking…" lights up and dims, and the line shows each step as it comes, with a soft light running over the words. The big lantern on the first screens, the empty chat and About flickers like a real flame, with a few sparks rising from it.
+- **A window that moves, gently:** messages rise in, yours grows out of the message box, the answer is written with an amber caret and the avatar glows while it works. The message box breathes and the top of the window lights up a little while the model works; the send button flies off when you send.
+- **Dialogs and menus** open and close smoothly; **notices** slide in with a thin line that shows how long they stay (it waits while the pointer is over them); **cards** rise in and turn green when done, red when something failed.
+- **Buttons** press down and lift, cards and connectors light up under the pointer, the settings gear turns, and rings go out from the mic while it records.
+- **Copy an answer** with the button next to Read aloud, and **copy code** with the button that shows on a code block.
+- **A round "down" button** over the message box when you scroll up: one click takes you back to the latest message.
+- **Dragging files over the window** says to let go of them to attach them.
+- **It stays light:** only things the graphics card moves by itself, the big lantern stands still while the window is in the background, and everything calms down when the system asks for less motion (Windows: Settings → Accessibility → Visual effects → Animation effects; GNOME: Reduce animation).
+
+**Fixed**
+- **A card coming in could push the chat past the end** while you were reading the answer: the chat now stays at the end.
+- **The folder under the message box could show crossed out** when Lanterna didn't get the chat's folder.
+- **The buttons under a fresh answer** (Read aloud, Retry, Second opinion) were in two rows and in one row after opening the chat again; now always in one.
+
 ## 1.1.6 — About 120 connectors, honest replies, the right program installed
 
 **New**

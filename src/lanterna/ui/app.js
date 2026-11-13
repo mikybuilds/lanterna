@@ -360,6 +360,8 @@ const STR = {
   "Type this code on GitHub:": { uk: "Введи цей код на GitHub:", it: "Inserisci questo codice su GitHub:" },
   "Open GitHub": { uk: "Відкрити GitHub", it: "Apri GitHub" },
   "Copy code": { uk: "Копіювати код", it: "Copia il codice" },
+  "Drop files to attach them": { uk: "Відпусти файли, щоб додати їх", it: "Rilascia i file per allegarli" },
+  "To the latest message": { uk: "До останнього повідомлення", it: "All'ultimo messaggio" },
   "Waiting for GitHub…": { uk: "Чекаю на GitHub…", it: "In attesa di GitHub…" },
   "Choose repositories": { uk: "Вибрати репозиторії", it: "Scegli i repository" },
   "Connected as @{account}": { uk: "Підключено як @{account}", it: "Connesso come @{account}" },
@@ -415,6 +417,26 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const icon = (id, cls = "i") => `<svg class="${cls}"><use href="#i-${id}"/></svg>`;
 const h = html => { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstElementChild; };
+
+// motion: short and light (only what the graphics card moves by itself); none when the system asks for less motion
+const CALM = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+const EASE = "cubic-bezier(.2, .9, .25, 1)";
+const motion = (el, frames, ms = 320) => { if (el && el.animate && !CALM.matches) el.animate(frames, { duration: ms, easing: EASE }); };
+// the logo's lantern drawn in the page (not a picture), so its flame and glass can glow; tile: the whole logo
+const lamp = (tile = false) => `<svg class="lamp-svg" viewBox="${tile ? "0 0 512 512" : "168 64 176 328"}" aria-hidden="true">${tile
+  ? `<rect width="512" height="512" rx="114" fill="url(#lp-tile)"/><circle class="lp-halo" cx="256" cy="282" r="170" fill="url(#lp-halo)"/>` : ""}
+  <path d="M212 146V126a44 44 0 0 1 88 0v20" fill="none" stroke="url(#lp-metal)" stroke-width="18" stroke-linecap="round"/>
+  <rect x="178" y="142" width="156" height="34" rx="13" fill="url(#lp-metal)"/>
+  <rect x="196" y="176" width="120" height="176" rx="42" fill="url(#lp-glass)"/>
+  <ellipse class="lp-glow" cx="256" cy="282" rx="56" ry="76" fill="url(#lp-core)"/>
+  <rect x="196" y="176" width="120" height="176" rx="42" fill="none" stroke="url(#lp-metal)" stroke-width="14"/>
+  <path class="lp-flame" d="M256 214C284 248 298 270 298 294a42 42 0 0 1-84 0C214 270 228 248 256 214Z" fill="url(#lp-flame)"/>
+  <rect x="178" y="350" width="156" height="32" rx="13" fill="url(#lp-metal)"/></svg>`;
+// the big lantern of the first screens, the empty chat and About: its flame flickers and a few sparks rise from it
+const heroLamp = () => `<div class="hero-logo">${lamp(true)}<span class="embers" aria-hidden="true">${"<i></i>".repeat(6)}</span></div>`;
+// while the window is in the background the big lantern stands still (no drawing for nobody); it moves again on return
+addEventListener("blur", () => document.body.classList.add("away"));
+addEventListener("focus", () => document.body.classList.remove("away"));
 
 function md(text, plain = false) {
   // safe, minimal Markdown: everything is escaped first. plain (your own messages): only lists and line breaks.
@@ -552,7 +574,11 @@ function toast(text, sticky = false, action = null) {
   }
   const stack = $("#toasts") || document.body.appendChild(h(`<div id="toasts"></div>`));
   stack.append(el);
-  if (!sticky) setTimeout(close, 6000);
+  if (sticky) return;
+  // a thin line runs out at the bottom; the pointer over the notice holds it (and the line) until it leaves
+  let left = 6000, from = Date.now(), timer = setTimeout(close, left);
+  el.onmouseenter = () => { clearTimeout(timer); left -= Date.now() - from; };
+  el.onmouseleave = () => { from = Date.now(); timer = setTimeout(close, Math.max(left, 1200)); };
 }
 
 async function watchAlerts() {
@@ -606,6 +632,30 @@ document.addEventListener("click", e => {
   if (a) { e.preventDefault(); api.open_url(a.dataset.href); }
 });
 
+// a soft amber light under the pointer on cards and suggestion buttons
+document.addEventListener("pointermove", e => {
+  const el = e.target.closest && e.target.closest(".card, .cn-card, .sugg button, .lang");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--mx", Math.round(e.clientX - r.left) + "px");
+  el.style.setProperty("--my", Math.round(e.clientY - r.top) + "px");
+}, { passive: true });
+
+// "Copied" for a moment on a copy button (a tick instead of the icon)
+function copiedTick(b) {
+  b.classList.add("ok"); b.innerHTML = icon("check");
+  setTimeout(() => { b.classList.remove("ok"); b.innerHTML = icon("copy"); }, 1600);
+}
+
+// a code block in an answer gets a Copy button when the pointer comes over it (answers are redrawn while they come in)
+document.addEventListener("mouseover", e => {
+  const pre = e.target.closest && e.target.closest(".md pre");
+  if (!pre || pre.querySelector(".copy-code")) return;
+  const b = h(`<button class="copy-code" title="${esc(t("Copy code"))}" aria-label="${esc(t("Copy code"))}">${icon("copy")}</button>`);
+  b.onclick = async () => { const code = pre.querySelector("code"); if (await copyText((code || pre).textContent)) copiedTick(b); };
+  pre.append(b);
+});
+
 // ---------------------------------------------------------------- onboarding
 const PROVIDER_INFO = {
   groq: { icon: "bolt", tag: "Fastest", pros: ["Replies almost instantly", "Strong open models (GPT-OSS, Qwen)", "Quick sign-up with Google or GitHub"], cons: ["Smaller daily limit"] },
@@ -617,11 +667,11 @@ function renderOnboard(step) {
   const app = $("#app");
   app.className = "";
   const order = [0, "G", 1, 2, 3, 4], at = order.indexOf(step === "L" ? 3 : step);
-  const dots = `<div class="dots">${order.map((_, i) => `<span class="${i <= at ? "on" : ""}"></span>`).join("")}</div>`;
+  const dots = `<div class="dots">${order.map((_, i) => `<span class="${i < at ? "on" : i === at ? "on now" : ""}"></span>`).join("")}</div>`;
   let body = "";
   if (step === "G") {
     body = `<div class="step">
-      <div class="hero-logo"><img src="logo.svg" alt=""></div>
+      ${heroLamp()}
       <h1>${t("Sign in with Google")}</h1>
       <p class="lead">${t("Your chats, settings and API keys on all your devices. The same sign-in also connects Google Drive.")}
         ${t("Already use Lanterna on another device? Sign in and everything comes over by itself.")}</p>
@@ -631,13 +681,13 @@ function renderOnboard(step) {
     </div>`;
   } else if (step === 0) {
     body = `<div class="step">
-      <div class="hero-logo"><img src="logo.svg" alt=""></div>
+      ${heroLamp()}
       <h1>${t("Choose your language")}</h1><p class="lead">${t("You can change it later in Settings.")}</p>
       <div class="langs">${Object.entries(S.langs).map(([k, v]) => `<button class="lang" data-lang="${k}">${v}<small>${{ en: "Hello", uk: "Привіт", it: "Ciao", de: "Hallo", es: "Hola", fr: "Salut", pl: "Cześć" }[k]}</small></button>`).join("")}</div>
     </div>`;
   } else if (step === 1) {
     body = `<div class="step">
-      <div class="hero-logo"><img src="logo.svg" alt=""></div>
+      ${heroLamp()}
       <div class="wordmark">Lanterna</div>
       <div class="byline">${t("Made by")} <b>${esc(S.author)}</b> · <a class="link" data-href="${S.homepage}">GitHub</a></div>
       <p class="lead">${t("A friendly assistant that runs on free cloud models — or on your own PC.")}</p>
@@ -881,6 +931,7 @@ function renderMain() {
       <div class="top"><button class="menu" id="menu">${icon("menu")}</button><div class="title" id="title">Lanterna</div><div class="chip" id="model" hidden><i></i><span></span></div><button class="iconbtn" id="save-chat" title="${esc(t("Save chat"))}" hidden>${icon("save")}</button></div>
       <div class="scroll" id="scroll"><div class="msgs" id="msgs"></div></div>
       <div class="composer">
+        <button class="to-end" id="to-end" title="${esc(t("To the latest message"))}" aria-label="${esc(t("To the latest message"))}">${icon("down")}</button>
         <div class="files" id="files" hidden></div>
         <div class="box"><button class="attach" id="attach" title="${t("Attach a file or photo")}">${icon("clip")}</button>
           <input type="file" id="file" multiple hidden>
@@ -920,7 +971,7 @@ function renderMain() {
   if (!window.__micKey) {
     window.__micKey = true;
     document.addEventListener("keydown", e => {
-      if (e.key === "F2" && $("#mic") && !document.querySelector(".veil")) { e.preventDefault(); micClick(); }
+      if (e.key === "F2" && $("#mic") && !document.querySelector(".veil:not(.closing)")) { e.preventDefault(); micClick(); }
       else if (e.key === "Escape" && recording) { e.stopImmediatePropagation(); e.preventDefault(); recording = false;
         $("#input").placeholder = t("Message Lanterna…"); $("#mic").classList.remove("rec"); api.voice_cancel(); }
     }, true);
@@ -928,6 +979,9 @@ function renderMain() {
   $("#attach").onclick = () => $("#file").click();
   $("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
   const main = $(".main");
+  main.dataset.drop = t("Drop files to attach them");
+  $("#scroll").addEventListener("scroll", paintToEnd, { passive: true });
+  $("#to-end").onclick = () => { const s = $("#scroll"); s.scrollTo({ top: s.scrollHeight, behavior: CALM.matches ? "auto" : "smooth" }); };
   main.ondragover = e => { e.preventDefault(); main.classList.add("drop"); };
   main.ondragleave = e => { if (e.target === main) main.classList.remove("drop"); };
   main.ondrop = e => { e.preventDefault(); main.classList.remove("drop"); addFiles(e.dataTransfer.files); };
@@ -990,7 +1044,7 @@ function renderQuick() {
   };
   $("#q-open").onclick = () => api.open_in_main(thread);
   $("#q-close").onclick = () => api.quick_hide();
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.querySelector(".veil")) api.quick_hide(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.querySelector(".veil:not(.closing)")) api.quick_hide(); });
 }
 
 // text the user copied a moment ago: one click to translate, explain or fix it (nothing is sent before the click)
@@ -1070,8 +1124,24 @@ window.onShown = tid => {
 function setModel(label) {
   const c = $("#model");
   if (!c) return;
+  const sp = c.querySelector("span"), was = sp.textContent;
   c.hidden = !label;
-  c.querySelector("span").textContent = label || "";
+  sp.textContent = label || "";
+  if (label && was && was !== label) motion(c, [{ opacity: .2, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], 420);
+}
+
+// the chat's name on top: a new one slides in softly
+function setTitle(text) {
+  const el = $("#title");
+  if (!el || el.textContent === text) return;
+  el.textContent = text;
+  motion(el, [{ opacity: 0, transform: "translateY(5px)" }, { opacity: 1, transform: "none" }], 380);
+}
+
+// Lanterna is writing an answer: the page shows it (the message box glows, the model's dot pulses)
+function setBusy(on) {
+  busy = on;
+  document.body.classList.toggle("busy", on);
 }
 
 // the mini-questionnaire before a big task: options as buttons, "Other" as text; the answers go as my next message
@@ -1192,16 +1262,19 @@ async function openThread(id, priv) {
   const msgs = $("#msgs");
   msgs.innerHTML = "";
   document.body.classList.toggle("private", privateNext || (id || 0) < 0);
-  if (!id) { $("#title").textContent = QUICK ? t("Quick question") : privateNext ? t("Private chat") : "Lanterna"; showEmpty(); if (privateNext) msgs.prepend(privBar()); refreshThreads(); $("#input").focus(); return; }
+  if (!id) { setTitle(QUICK ? t("Quick question") : privateNext ? t("Private chat") : "Lanterna"); showEmpty(); if (privateNext) msgs.prepend(privBar()); refreshThreads(); $("#input").focus(); return; }
   const [list, items] = await Promise.all([api.threads(), api.messages(id)]);
   const th = list.find(x => x.id === id);
-  $("#title").textContent = id < 0 ? t("Private chat") : (th && th.title) || t("New chat");
+  setTitle(id < 0 ? t("Private chat") : (th && th.title) || t("New chat"));
   if (!items.length) showEmpty();
   if (id < 0) msgs.prepend(privBar());
   items.forEach(m => {
     if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
     m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent, m.second);
   });
+  // an opened chat comes in as one piece, not every old message on its own
+  msgs.querySelectorAll(".msg").forEach(m => m.classList.add("old"));
+  if (items.length) motion(msgs, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], 360);
   // an answer still coming in this chat: put its live bubble ("Thinking…", switch note, cards) back at the end
   const back = busy && live && live.tid === id && thread === id && items.length && items[items.length - 1].role === "user";
   if (back) { if (live.sw) msgs.append(live.sw); msgs.append(live.el); }
@@ -1273,7 +1346,7 @@ function showEmpty() {
     : ["What's the weather tomorrow?", "Remind me in 20 minutes to take a break", "Explain something simply", "Help me plan my week",
        "Write a short message for me", "Give me an idea for today"];
   $("#msgs").innerHTML = `<div class="empty" style="min-height:calc(100vh - 230px)">
-    <div class="hero-logo"><img src="logo.svg" alt=""></div>
+    ${heroLamp()}
     <h2>${name ? t("Hi, {n}!", { n: esc(name) }) : t("Hi!")}</h2><p>${t("What's on your mind?")}</p>
     <div class="sugg">${sugg.map(s => `<button>${t(s)}</button>`).join("")}</div></div>`;
   $("#msgs").querySelectorAll(".sugg button").forEach(b => b.onclick = () => {   // one click sends it
@@ -1296,10 +1369,30 @@ function sentBox(lines) {
 
 function addBot(text, model, sent, second = false) {    // second: a second opinion, with its own small title
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot${second ? " second" : ""}"><img class="av" src="logo.svg" alt=""><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
-  if (text === null) el.querySelector(".md").before(h(`<div class="think"><span class="think-dot"></span><span class="think-tx">${t("Thinking…")}</span></div>`));
-  else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); }
+  const el = h(`<div class="msg bot${second ? " second" : ""}"><span class="av"><img src="logo.svg" alt=""></span><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
+  if (text === null) {                                   // still thinking: the small lantern lights up and dims
+    el.classList.add("live");
+    el.querySelector(".md").before(h(`<div class="think"><span class="lamp">${lamp()}</span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
+  }
+  else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); addCopy(el, text); }
   $("#msgs").append(el); return el;
+}
+
+function addCopy(el, text) {
+  if (!text || el.querySelector(".copy-ans")) return;
+  const b = h(`<button class="copy-ans" title="${esc(t("Copy"))}" aria-label="${esc(t("Copy"))}">${icon("copy")}</button>`);
+  b.onclick = async () => { if (await copyText(text)) copiedTick(b); };
+  el.querySelector(".body").append(b);
+}
+
+// a line that is no longer needed folds away instead of jumping
+function fold(el) {
+  if (!el || !el.isConnected) return;
+  if (CALM.matches || !el.animate) { el.remove(); return; }
+  const a = el.animate([{ height: el.offsetHeight + "px", opacity: 1 }, { height: "0px", opacity: 0, paddingTop: "0px", paddingBottom: "0px" }],
+    { duration: 240, easing: EASE });
+  el.style.overflow = "hidden";
+  a.onfinish = () => el.remove();
 }
 
 // ---------------------------------------------------------------- reading answers aloud (Settings → Reading aloud)
@@ -1374,6 +1467,13 @@ function addSay(el, text) {
 function scrollDown(force) {
   const s = $("#scroll");
   if (force || s.scrollHeight - s.scrollTop - s.clientHeight < 160) s.scrollTop = s.scrollHeight;
+  paintToEnd();
+}
+
+// the round "down" button over the message box: shown when you've scrolled up away from the latest messages
+function paintToEnd() {
+  const s = $("#scroll"), b = $("#to-end");
+  if (s && b) b.classList.toggle("show", s.scrollHeight - s.scrollTop - s.clientHeight > 260);
 }
 
 async function send(retryText) {
@@ -1384,7 +1484,8 @@ async function send(retryText) {
   const again = retry && retryText.again === true;     // answer the last question again: the server replaces it
   const second = retry && retryText.second === true;   // the same question to another model, under the first answer
   if ((!text && !files.length && !again && !second) || busy) return;
-  busy = true; $("#send").disabled = true;
+  if (!retry) { const sb = $("#send"); sb.classList.remove("fly"); void sb.offsetWidth; sb.classList.add("fly"); }   // the arrow flies off
+  setBusy(true); $("#send").disabled = true;
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
     thread = (await api.new_thread(privateNext)).id;
@@ -1403,9 +1504,9 @@ async function send(retryText) {
   scrollDown(true);
   clearLastActions();
   const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
-  refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) $("#title").textContent = th.title; });
+  refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) setTitle(th.title); });
   if (!r.ok) {
-    busy = false; live = null; inp.oninput();
+    setBusy(false); live = null; inp.oninput(); bot.classList.remove("live"); fold(bot.querySelector(".think"));
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`;
     else if (second && r.error === "no_other") box.innerHTML = `<div class="err-box">${esc(t("No other model is free right now. Add a key for one more free service in Settings → Keys, or try later."))}</div>`;
     else { bot.remove(); if (second) paintLastActions(); }
@@ -1420,7 +1521,7 @@ async function send(retryText) {
   const think = bot.querySelector(".think");
   const thinkDone = steps => {                         // the live line becomes a folded list of the steps
     if (!think.isConnected) return;
-    if (!steps || !steps.length) { think.remove(); return; }
+    if (!steps || !steps.length) { fold(think); return; }
     const d = h(`<details class="thinks"><summary>${esc(t("Thinking · steps: {n}", { n: steps.length }))}</summary>
       <ol>${steps.map(x => `<li class="${x.kind === "tool" ? "st-tool" : "st-think"}">${esc(x.text)}</li>`).join("")}</ol></details>`);
     think.replaceWith(d);
@@ -1428,6 +1529,8 @@ async function send(retryText) {
   const step = async () => {
     let p;
     try { p = await api.poll(r.stream, offset); } catch (e) { p = { done: true, error: { kind: "network", message: String(e) } }; }
+    // at the end before this step: stay at the end, even when a big piece (a card) comes in at once
+    const sc = $("#scroll"), stick = !!sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 160;
     (p.notes || []).slice(notes).forEach((m, i) => {   // one line, updated: not a ladder of "switched to" notes
       let sw = bot.previousElementSibling;
       if (!sw || !sw.classList.contains("switch")) { sw = h(`<div class="switch"></div>`); if (bot.isConnected) bot.before(sw); }
@@ -1441,14 +1544,18 @@ async function send(retryText) {
     tools = (p.tools || []).length;
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     cards = (p.cards || []).length;
-    if (think.isConnected && think.tagName !== "DETAILS") think.querySelector(".think-tx").textContent = p.live || t("Thinking…");
+    if (think.isConnected && think.tagName !== "DETAILS") {             // what it is doing now: a new step fades in
+      const tx = think.querySelector(".think-tx"), now = p.live || t("Thinking…");
+      if (tx.textContent !== now) { tx.firstElementChild.textContent = now; motion(tx, [{ opacity: .3, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], 300); }
+    }
     if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
-      const sayBtn = !(p.questions && p.questions.length) && addSay(bot, text_);
+      if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));   // as in an opened chat:
+      const sayBtn = !(p.questions && p.questions.length) && addSay(bot, text_);                                 // the buttons in one row
+      if (!(p.questions && p.questions.length)) addCopy(bot, text_);
       if (sayBtn && S.settings.tts_auto && thread === sentTo) speak(text_, sayBtn);
-      if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));
       if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); } }
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
-    scrollDown();
+    scrollDown(stick && bot.isConnected);
     if (p.error) {
       const k = p.error.kind;
       const back = p.error.back_in || 0;
@@ -1466,11 +1573,11 @@ async function send(retryText) {
     }
     if (p.done) {
       if (live && live.el === bot) live = null;
-      thinkDone(p.error ? [] : p.steps); busy = false; inp.oninput(); paintLimit();
+      thinkDone(p.error ? [] : p.steps); setBusy(false); bot.classList.remove("live"); inp.oninput(); paintLimit();
       if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
       else if (!p.error && thread === sentTo) paintLastActions();
       if (titling) api.wait_title(sentTo).then(tt => {    // a fast model is naming the new chat
-        refreshThreads(); if (tt && thread === sentTo) $("#title").textContent = tt; });
+        refreshThreads(); if (tt && thread === sentTo) setTitle(tt); });
       if (learning) api.wait_memory(sentTo).then(list => (list || []).forEach(memoryToast));   // memory updated itself
       if (suggesting) api.wait_follow_ups(sentTo).then(list => {   // follow-up buttons under the answer
         if (!list || !list.length || !bot.isConnected || busy || thread !== sentTo) return;
@@ -1488,7 +1595,13 @@ async function send(retryText) {
 // ---------------------------------------------------------------- dialogs
 function dialog(title, html, onClose) {
   const v = h(`<div class="veil"><div class="dialog" role="dialog" aria-label="${esc(title)}"><header><h2>${esc(title)}</h2><button>${icon("x")}</button></header>${html}</div></div>`);
-  const close = () => { v.remove(); document.removeEventListener("keydown", esc_); onClose && onClose(); };
+  const close = () => {                                  // it sinks away for a moment, then it is gone
+    if (v.classList.contains("closing")) return;
+    document.removeEventListener("keydown", esc_);
+    v.classList.add("closing");
+    setTimeout(() => v.remove(), CALM.matches ? 0 : 190);
+    onClose && onClose();
+  };
   const esc_ = e => { if (e.key === "Escape") close(); };
   v.onclick = e => { if (e.target === v) close(); };
   v.querySelector("header button").onclick = close;
@@ -2324,7 +2437,7 @@ function mcpConfirm(list, onYes) {
 
 function openAbout() {
   const v = dialog(t("About"), `<div class="about">
-    <div class="hero-logo"><img src="logo.svg" alt=""></div>
+    ${heroLamp()}
     <div class="wordmark">Lanterna</div>
     <div class="byline">${t("Made by")} <b>${esc(S.author)}</b> · ${t("Version {v}", { v: esc(S.version) })}</div>
     <p class="muted" style="max-width:380px;margin:0 auto 22px">${t("Free and open source (MIT). No ads, no tracking — your chats stay on your computer.")}</p>
@@ -2628,7 +2741,7 @@ async function paintFolder() {
   const name = newChatFolder !== undefined ? (newChatFolder.split(/[\\/]/).filter(Boolean).pop() || newChatFolder) : f.name;
   b.querySelector("span").textContent = path ? (name || path) : t("No folder");
   b.classList.toggle("none", !path);
-  b.classList.toggle("missing", newChatFolder === undefined && f.missing);
+  b.classList.toggle("missing", newChatFolder === undefined && !!f.missing);   // !!: toggle(x, undefined) would flip it
   b.title = path ? t("Folder of this chat") + ": " + path : t("Folder of this chat") + ": " + t("No folder");
   b.dataset.path = path || "";
   b.dataset.def = f.default || "";
@@ -2772,6 +2885,7 @@ function actCard(c) {
       <button class="btn ghost small" data-a="no">${t("Cancel")}</button><button class="btn primary small" data-a="yes">${t("Confirm")}</button></div></div>`);
   const foot = el.querySelector(".cc-foot");
   const done = r => {
+    el.classList.add("st-" + (["done", "cancelled", "failed"].includes(r.state) ? r.state : "expired"));   // the card's colour follows
     const link = (r.result || "").includes("|https://") ? r.result.split("|")[1] : "";
     const msg = r.state === "done" ? "✅ " + esc(r.text || t("Done"))
       : r.state === "cancelled" ? esc(t("Cancelled"))
@@ -3057,7 +3171,7 @@ function checkUpdateOnStart() {
   if (updateAsked) return;
   updateAsked = true;
   setTimeout(() => api.update_notice().then(u => {
-    if (u && u.newer && !document.querySelector(".veil")) showUpdate(u);
+    if (u && u.newer && !document.querySelector(".veil:not(.closing)")) showUpdate(u);
   }).catch(() => {}), 1500);
 }
 
