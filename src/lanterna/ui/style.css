@@ -113,8 +113,28 @@ body.away .embers i { animation-play-state: paused; }   /* the window is in the 
   50% { opacity: .8; transform: translate(-8px, -42px) scale(1); }
   100% { opacity: 0; transform: translate(5px, -88px) scale(.3); }
 }
-/* the small one before "Thinking…": it lights up and dies down, with a flicker at its brightest */
-.lamp { position: relative; flex: none; width: 13px; height: 23px; }
+/* the small one before "Thinking…": it is lit with a flash, lights up and dies down (a flicker at its brightest) and sways a little
+   as if someone carried it; each new step makes it flare; at the end its flame sinks and a wisp of smoke goes up */
+.lamp { position: relative; flex: none; width: 13px; height: 23px; transform-origin: 50% 6%;
+  animation: lamp-in .55s var(--spring) backwards, lamp-sway 3.6s ease-in-out .55s infinite; }
+@keyframes lamp-in { from { opacity: 0; transform: translateY(5px) scale(.5); } }
+@keyframes lamp-sway { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(6deg); } 75% { transform: rotate(-6deg); } }
+.lamp .flare { position: absolute; left: 50%; top: 66%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 230, 170, .85), rgba(245, 181, 68, .28) 38%, transparent 68%); animation: flare .8s ease-out backwards; }
+@keyframes flare { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(1.5); } }
+.lamp .smoke { position: absolute; left: 50%; top: -3px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(214, 220, 232, .6), rgba(214, 220, 232, .18) 45%, transparent 70%); }
+.think.out .lamp { animation-play-state: paused; }                     /* it stops where it was */
+.think.out .lamp::before { animation: lamp-off .5s ease forwards; }
+.think.out .lamp .lp-glow { animation: lamp-off .45s ease forwards; }
+.think.out .lamp .lp-flame { animation: flame-off .45s ease-in forwards; }
+.think.out .lamp .smoke { animation: smoke 1s ease-out .3s forwards; }
+.think.out .lamp .smoke + .smoke { animation: smoke-2 .9s ease-out .48s forwards; }
+.think.out .think-tx { opacity: .5; transition: opacity .5s ease; }
+@keyframes lamp-off { to { opacity: 0; } }
+@keyframes flame-off { 0% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(.15, .08); } }   /* into the wick */
+@keyframes smoke { 0% { opacity: 0; transform: translate(0, 3px) scale(.5); } 25% { opacity: .9; } 100% { opacity: 0; transform: translate(4px, -17px) scale(2.3); } }
+@keyframes smoke-2 { 0% { opacity: 0; transform: translate(0, 3px) scale(.4); } 30% { opacity: .7; } 100% { opacity: 0; transform: translate(-3px, -13px) scale(1.8); } }
 .lamp::before { content: ""; position: absolute; left: 50%; top: 70%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle, rgba(255, 199, 90, .5), rgba(245, 181, 68, .16) 42%, transparent 70%); animation: lamp-halo 2.6s ease-in-out infinite; }
 .lamp .lamp-svg { position: relative; }
@@ -309,14 +329,8 @@ body.busy .chip i::after { animation: ping 1.6s cubic-bezier(0, 0, .2, 1) infini
   border-radius: 18px 18px 6px 18px; white-space: pre-wrap; word-wrap: break-word; transform-origin: 100% 100%; animation-name: msg-user-in;
   box-shadow: 0 10px 24px -18px rgba(0, 0, 0, .9); }
 @keyframes msg-user-in { from { opacity: 0; transform: translateY(18px) scale(.94); } }
-.msg.bot { display: flex; gap: 14px; }
-.msg.bot .av { position: relative; flex: none; width: 30px; height: 30px; margin-top: 2px; }
-.msg.bot .av img { position: relative; display: block; width: 100%; height: 100%; }
-/* the lantern next to an answer is lit while the answer is being written, and goes calm after */
-.msg.bot .av::before { content: ""; position: absolute; inset: -10px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 1s ease;
-  background: radial-gradient(circle, rgba(245, 181, 68, .5), rgba(245, 181, 68, .12) 45%, transparent 70%); }
-.msg.bot.live .av::before { opacity: 1; animation: av-lit 2.6s ease-in-out infinite; }
-@keyframes av-lit { 0%, 100% { opacity: .45; } 45% { opacity: 1; } 60% { opacity: .8; } }
+/* an answer has no picture next to it: only the lantern on its first line while it is being made */
+.msg.bot { display: flex; }
 .msg.bot .body { min-width: 0; flex: 1; }
 .msg.bot .meta { font-size: 12px; color: var(--faint); margin-top: 6px; animation: fade-in .5s ease backwards; }
 .msg.bot .say, .msg.bot .copy-ans { margin-top: 6px; width: 30px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center; color: var(--faint);

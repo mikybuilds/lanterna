@@ -342,6 +342,7 @@ const STR = {
   "Let Lanterna help with this computer": { uk: "Дозволити Lanterna допомагати з цим комп'ютером", it: "Lascia che Lanterna aiuti con questo computer" },
   "Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.": { uk: "Твої папки (Завантаження, Робочий стіл, Документи, Зображення, Відео, Музика), програми й кілька безпечних налаштувань. Дивитися Lanterna може сама; кожна зміна — переміщення, Кошик, встановлення, налаштування — чекає твого «Підтвердити». Назви файлів і файли, які вона відкриває, отримує модель, що зараз працює.", it: "Le tue cartelle (Download, Scrivania, Documenti, Immagini, Video, Musica), i programmi e alcune impostazioni sicure. Lanterna guarda da sola; ogni modifica — spostare, il Cestino, installare, un'impostazione — aspetta la tua conferma. I nomi dei file e i file che apre vanno al modello in uso." },
   "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
+  "Writing the answer…": { uk: "Пишу відповідь…", it: "Sto scrivendo la risposta…" },
   "No folder": { uk: "Без папки", it: "Nessuna cartella" },
   "Push {count} files to {repo}": { uk: "Запушити файлів: {count} у {repo}", it: "Fare push di {count} file su {repo}" },
   "Create the repository {name} on GitHub": { uk: "Створити репозиторій {name} на GitHub", it: "Creare il repository {name} su GitHub" },
@@ -1369,10 +1370,10 @@ function sentBox(lines) {
 
 function addBot(text, model, sent, second = false) {    // second: a second opinion, with its own small title
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot${second ? " second" : ""}"><span class="av"><img src="logo.svg" alt=""></span><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
-  if (text === null) {                                   // still thinking: the small lantern lights up and dims
+  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
+  if (text === null) {      // still working: the lantern is lit (a flash as it lights), sways, flares at each step, goes out at the end
     el.classList.add("live");
-    el.querySelector(".md").before(h(`<div class="think"><span class="lamp">${lamp()}</span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
+    el.querySelector(".md").before(h(`<div class="think"><span class="lamp"><i class="flare"></i>${lamp()}<i class="smoke"></i><i class="smoke"></i></span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
   }
   else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); addCopy(el, text); }
   $("#msgs").append(el); return el;
@@ -1519,12 +1520,19 @@ async function send(retryText) {
   const acts = h(`<div class="ccs"></div>`);
   bot.querySelector(".md").after(acts);
   const think = bot.querySelector(".think");
-  const thinkDone = steps => {                         // the live line becomes a folded list of the steps
+  let liveSeen = "", writing = false;                  // the step on the line; the answer itself is coming in
+  const thinkDone = steps => {                         // the lantern goes out (a wisp of smoke), then the line becomes the list of steps
     if (!think.isConnected) return;
-    if (!steps || !steps.length) { fold(think); return; }
-    const d = h(`<details class="thinks"><summary>${esc(t("Thinking · steps: {n}", { n: steps.length }))}</summary>
-      <ol>${steps.map(x => `<li class="${x.kind === "tool" ? "st-tool" : "st-think"}">${esc(x.text)}</li>`).join("")}</ol></details>`);
-    think.replaceWith(d);
+    const swap = () => {
+      if (!think.isConnected) return;
+      if (!steps || !steps.length) { fold(think); return; }
+      const d = h(`<details class="thinks"><summary>${esc(t("Thinking · steps: {n}", { n: steps.length }))}</summary>
+        <ol>${steps.map(x => `<li class="${x.kind === "tool" ? "st-tool" : "st-think"}">${esc(x.text)}</li>`).join("")}</ol></details>`);
+      think.replaceWith(d);
+    };
+    if (CALM.matches) return swap();
+    think.classList.add("out");
+    setTimeout(swap, 900);
   };
   const step = async () => {
     let p;
@@ -1545,8 +1553,14 @@ async function send(retryText) {
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     cards = (p.cards || []).length;
     if (think.isConnected && think.tagName !== "DETAILS") {             // what it is doing now: a new step fades in
-      const tx = think.querySelector(".think-tx"), now = p.live || t("Thinking…");
-      if (tx.textContent !== now) { tx.firstElementChild.textContent = now; motion(tx, [{ opacity: .3, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], 300); }
+      if ((p.live || "") !== liveSeen) { liveSeen = p.live || ""; writing = false; }    // a new step (a tool in the middle too)
+      if (p.text) writing = true;                                                        // the words of the answer are coming
+      const tx = think.querySelector(".think-tx"), now = writing ? t("Writing the answer…") : p.live || t("Thinking…");
+      if (tx.textContent !== now) {
+        tx.firstElementChild.textContent = now;
+        motion(tx, [{ opacity: .3, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], 300);
+        motion(think.querySelector(".flare"), [{ opacity: .9, transform: "scale(.4)" }, { opacity: 0, transform: "scale(1.5)" }], 700);   // the flame flares up
+      }
     }
     if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
       if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));   // as in an opened chat:

@@ -3,8 +3,9 @@
 ## Unreleased
 
 **New**
-- **The lantern from the logo thinks with you.** While the model works, a small lantern before "Thinking…" lights up and dims, and the line shows each step as it comes, with a soft light running over the words. The big lantern on the first screens, the empty chat and About flickers like a real flame, with a few sparks rising from it.
-- **A window that moves, gently:** messages rise in, yours grows out of the message box, the answer is written with an amber caret and the avatar glows while it works. The message box breathes and the top of the window lights up a little while the model works; the send button flies off when you send.
+- **The lantern from the logo thinks with you.** Answers have no picture next to them any more: while the model works, only a small lantern stands before "Thinking…". It is lit with a flash, lights up and dims, sways a little as if someone carried it and flares at each new step; the line shows each step as it comes (and "Writing the answer…" while it writes), with a soft light running over the words. When the answer is ready, the flame sinks into the wick, a wisp of smoke goes up and the line becomes the list of steps.
+- **The big lantern** on the first screens, the empty chat and About flickers like a real flame, with a few sparks rising from it.
+- **A window that moves, gently:** messages rise in, yours grows out of the message box, the answer is written with an amber caret. The message box breathes and the top of the window lights up a little while the model works; the send button flies off when you send.
 - **Dialogs and menus** open and close smoothly; **notices** slide in with a thin line that shows how long they stay (it waits while the pointer is over them); **cards** rise in and turn green when done, red when something failed.
 - **Buttons** press down and lift, cards and connectors light up under the pointer, the settings gear turns, and rings go out from the mic while it records.
 - **Copy an answer** with the button next to Read aloud, and **copy code** with the button that shows on a code block.
