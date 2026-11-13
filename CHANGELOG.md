@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.7 — A lantern that thinks with you, a window that moves
 
 **New**
 - **The lantern from the logo thinks with you.** Answers have no picture next to them any more: while the model works, only a small lantern stands before "Thinking…". It is lit with a flash, lights up and dims, sways a little as if someone carried it and flares at each new step; the line shows each step as it comes (and "Writing the answer…" while it writes), with a soft light running over the words. When the answer is ready, the flame sinks into the wick, a wisp of smoke goes up and the line becomes the list of steps.
@@ -11,7 +11,7 @@
 - **Copy an answer** with the button next to Read aloud, and **copy code** with the button that shows on a code block.
 - **A round "down" button** over the message box when you scroll up: one click takes you back to the latest message.
 - **Dragging files over the window** says to let go of them to attach them.
-- **It stays light:** only things the graphics card moves by itself, the big lantern stands still while the window is in the background, and everything calms down when the system asks for less motion (Windows: Settings → Accessibility → Visual effects → Animation effects; GNOME: Reduce animation).
+- **It stays light:** the movements are small and short, the big lantern stands still while the window is in the background, and everything calms down when the system asks for less motion (Windows: Settings → Accessibility → Visual effects → Animation effects; GNOME: Reduce animation).
 
 **Fixed**
 - **A card coming in could push the chat past the end** while you were reading the answer: the chat now stays at the end.
