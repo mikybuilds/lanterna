@@ -310,7 +310,7 @@ def test_only_a_real_second_opinion_gets_its_title(tmp_path, monkeypatch):
                   sent.dumps(sent.build("m2", False, 0, False, 0, [], 0, [], second=True)))
     assert [bool(m.get("second")) for m in api.messages(tid)] == [False, False, False, True]
     js = (UI / "app.js").read_text(encoding="utf-8")
-    assert "addBot(m.content, m.model, m.sent, m.second)" in js and "an answer right after an answer" not in js
+    assert "addBot(m.content, m.model, m.sent, m.second, m.sources)" in js and "an answer right after an answer" not in js
 
 
 class Reg:

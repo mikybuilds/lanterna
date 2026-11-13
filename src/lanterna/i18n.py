@@ -1383,3 +1383,12 @@ _T.update({
         "uk": "Номер картки, IBAN, пароль, PIN чи ключ у повідомленні: Lanterna спершу спитає і може їх сховати. Перевірка йде на цьому комп'ютері.",
         "it": "Un numero di carta, un IBAN, una password, un PIN o una chiave nel messaggio: Lanterna chiede prima e può nasconderli. Il controllo avviene su questo computer."},
 })
+
+# «Sources» under a reply: only the pages its tools really opened (1.1.8)
+_T.update({
+    "Sources:": {"uk": "Джерела:", "it": "Fonti:"},
+    "Search results: {n}": {"uk": "Результати пошуку: {n}", "it": "Risultati della ricerca: {n}"},
+    "Only pages Lanterna really opened for this answer, not links the model wrote itself": {
+        "uk": "Лише сторінки, які Lanterna справді відкрила для цієї відповіді, а не посилання, які модель написала сама",
+        "it": "Solo le pagine che Lanterna ha davvero aperto per questa risposta, non i link scritti dal modello"},
+})

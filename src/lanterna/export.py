@@ -9,7 +9,7 @@ import json
 import re
 from pathlib import Path
 
-from . import __version__
+from . import __version__, sources
 from .i18n import t
 
 
@@ -39,6 +39,11 @@ def chat_markdown(title: str, messages: list[dict], lang: str = "en", user: str 
         else:
             who = "Lanterna" + (f" ({m['model']})" if m.get("model") else "")
         out += [f"### {who}" + (f" · {when}" if when else ""), "", str(m["content"]).strip(), ""]
+        src = sources.view(m.get("sources", "")) if m["role"] == "assistant" else {}
+        for kind, head in (("read", t("Sources:", lang)), ("found", t("Search results: {n}", lang, n=len(src.get("found", []))))):
+            if src.get(kind):                          # the links the tools really opened or found
+                out += [f"**{head}**", "", *(f"- [{s['label'].replace('[', '(').replace(']', ')')}](<{s['url']}>)"
+                                             for s in src[kind]), ""]
     return "\n".join(out).rstrip() + "\n"
 
 

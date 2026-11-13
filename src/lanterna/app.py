@@ -70,6 +70,7 @@ class _Stream:
         self.parts: list[str] = []         # long files of which only the parts that fit the question went
         self.second = False                # a second opinion: another model, lookups only, no side jobs
         self.sent = ""
+        self.sources = ""                  # the web pages its tools really opened or found (sources.py)
         self.stop = threading.Event()      # the user pressed Stop: the answer ends where it is
         self.stopped = False
         self.lock = threading.Lock()
@@ -640,7 +641,7 @@ class Api:
 
     def messages(self, tid: int) -> list[dict]:
         """Messages for display: attached file contents are shown as a short 📎 line."""
-        from . import sent
+        from . import sent, sources
         out, lang = [], self.settings.lang
         upto = self.store.summary(int(tid))[1] if self.settings.compact_chats else 0
         for i, m in enumerate(self.store.messages(int(tid))):
@@ -654,6 +655,7 @@ class Api:
                 # notes after a confirmed card, the morning summary and regular tasks come one after another too
                 m["second"] = sent.is_second(raw)
             m["sent"] = sent.view(raw, lang) if m["role"] == "assistant" else []
+            m["sources"] = sources.view(m.get("sources", "")) if m["role"] == "assistant" else {}
             out.append(m)
         return out
 
@@ -1453,6 +1455,8 @@ class Api:
             box = LookupOnly(self.toolbox) if st.second else PrivateBox(self.toolbox) if private else self.toolbox
             if st.second and private:
                 box.store = PrivateBox(self.toolbox).store
+            from .sources import Noted
+            box = Noted(box)                                # «Sources» under the reply: only what the tools opened
             conv = Conversation(router, self.settings.name, history=history[upto:], toolbox=box, summary=summary,
                                 lang=self.settings.lang, ask_first=self.settings.ask_first,
                                 ask_header=t("Questions for you:", self.settings.lang),
@@ -1491,8 +1495,10 @@ class Api:
                 [n for n in st.files if not n.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))],
                 len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else []),
                 parts=st.parts, second=st.second, private=private))
+            from . import sources
+            st.sources = sources.dumps(box.data())
             if reply.strip():                               # stopped before a word: nothing is kept
-                self.store.add(tid, "assistant", reply, cur.label if cur else "", st.sent)
+                self.store.add(tid, "assistant", reply, cur.label if cur else "", st.sent, st.sources)
             if not stopped and not st.second and not private:   # the first answer already named the chat, etc.
                 self._start_side_jobs(st, tid, router, text, reply, first)
             if not stopped and self.settings.compact_chats and summary_due(total, upto) and not st.second:
@@ -1531,9 +1537,9 @@ class Api:
             return {"done": True, "error": {"kind": "other", "message": "unknown stream"}}
         with st.lock:
             if st.final:
-                from . import sent
+                from . import sent, sources
                 out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
-                       "sent": sent.view(st.sent, self.settings.lang), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
+                       "sent": sent.view(st.sent, self.settings.lang), "sources": sources.view(st.sources), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": st.model, "second": st.second, "stopped": st.stopped}

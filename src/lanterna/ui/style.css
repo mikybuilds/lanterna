@@ -830,6 +830,22 @@ details.sent[open] summary { opacity: 1; }
 details.sent ul { margin: 6px 0 0; padding-left: 18px; }
 details.sent li { margin: 2px 0; }
 
+/* «Sources» under a reply: only the pages its tools really opened */
+.srcs { margin-top: 8px; font-size: .833em; color: var(--muted); }
+.srcs-r { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; }
+.srcs-h { margin-right: 2px; }
+.srcs-r > .link, .srcs-r > span[title]:not(.srcs-h) { max-width: 24em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 9px; border: 1px solid var(--line-2); border-radius: 999px; }
+.srcs-r > .link:hover { border-color: var(--amber-line); text-decoration: none; background: var(--amber-soft); }
+details.srcs-s { margin-top: 5px; }
+details.srcs-s summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 5px; opacity: .8; }
+details.srcs-s summary::-webkit-details-marker { display: none; }
+details.srcs-s summary .i { width: 13px; height: 13px; }
+details.srcs-s[open] summary { opacity: 1; }
+details.srcs-s ol { margin: 6px 0 0; padding-left: 22px; }
+details.srcs-s li { margin: 3px 0; overflow-wrap: anywhere; }
+.srcs-site { color: var(--faint); margin-left: 4px; }
+
 /* a second opinion: the same question, another model, right under the first answer */
 .msg.bot.second .body { border-left: 3px solid var(--accent, #e8a33d); padding-left: 12px; }
 .second-tag { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted, #888); margin-bottom: 6px; }

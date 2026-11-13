@@ -101,6 +101,7 @@ ModalScreen { align: center middle; background: $background 70%; }
 .keyrow { height: auto; width: 100%; }
 .histrow { height: auto; width: 100%; }
 .sent { margin: 0 8 0 0; padding: 0; border: none; background: transparent; }
+.srcs { margin: 0 8 0 0; }
 .sent CollapsibleTitle { color: $text-muted; padding: 0; }
 .sugg { height: auto; }
 .idea, .idea-fill { margin: 0 0 0 0; min-width: 20; height: 3; }
@@ -2682,6 +2683,8 @@ class _ChatScreen(Screen):
                 if m.get("second"):
                     log.mount(Static("👥 " + t("Second opinion", L(self.app)), classes="msg-note", markup=False))
                 log.mount(Markdown(count_on(m["content"]), classes="msg-bot"))
+                if m.get("sources"):
+                    log.mount(*sources_box(m["sources"], L(self.app)))
                 if m.get("sent"):
                     log.mount(sent_box(m["sent"], L(self.app)))
         for card in self.app.api.cards(tid):              # changes still waiting for Confirm
@@ -3022,8 +3025,13 @@ class _ChatScreen(Screen):
                 await log.mount(AskForm(r["questions"]), after=self._bot)
             if r.get("model"):
                 self._set_model(r["model"])
+            under = self._bot                            # under the words: the sources, then what went to the model
+            if r.get("sources") and self._bot is not None:
+                parts = sources_box(r["sources"], lang)
+                await log.mount(*parts, after=self._bot)
+                under = parts[-1]
             if r.get("sent") and self._bot is not None:
-                await log.mount(sent_box(r["sent"], lang), after=self._bot)
+                await log.mount(sent_box(r["sent"], lang), after=under)
         elif r.get("text"):
             self._text += r["text"]
             self._offset = r["offset"]
@@ -3196,6 +3204,21 @@ class _ChatScreen(Screen):
 
     def action_history(self) -> None:
         self.app.push_screen(HistoryScreen())
+
+
+def sources_box(src: dict, lang: str) -> list:
+    """Under a reply: the pages its tools really opened (whole links: terminals open them), and, folded, the search
+    results it saw. Never links the model wrote itself."""
+    out: list = []
+    if src.get("read"):
+        out.append(Static(t("Sources:", lang) + "\n" + "\n".join(f"• {s['label']}\n  {s['url']}" for s in src["read"]),
+                          markup=False, classes="muted srcs"))         # the address on its own line: one click opens it
+    if src.get("found"):
+        out.append(Collapsible(Static("\n".join(f"{i}. {s['label']}\n   {s['url']}" for i, s in enumerate(src["found"], 1)),
+                                      markup=False, classes="muted"),
+                               title="🔎 " + t("Search results: {n}", lang, n=len(src["found"])), collapsed=True,
+                               classes="sent"))
+    return out
 
 
 def sent_box(lines: list[str], lang: str) -> Collapsible:

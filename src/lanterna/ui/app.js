@@ -1444,7 +1444,7 @@ async function openThread(id, priv) {
   if (id < 0) msgs.prepend(privBar());
   items.forEach(m => {
     if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
-    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent, m.second);
+    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent, m.second, m.sources);
   });
   // an opened chat comes in as one piece, not every old message on its own
   msgs.querySelectorAll(".msg").forEach(m => m.classList.add("old"));
@@ -1550,9 +1550,21 @@ function sentBox(lines) {
     <ul>${lines.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>`;
 }
 
-function addBot(text, model, sent, second = false) {    // second: a second opinion, with its own small title
+// «Sources» under a reply: only the pages its tools really opened (and, folded, the search results it saw),
+// never links the model wrote itself. The label is short; the whole address shows on hover before a click.
+function sourcesBox(src) {
+  const read = (src && src.read) || [], found = (src && src.found) || [];
+  if (!read.length && !found.length) return "";
+  const link = s => s.url.startsWith("https://")
+    ? `<a class="link" data-href="${esc(s.url)}" title="${esc(s.url)}">${esc(s.label)}</a>`
+    : `<span title="${esc(s.url)}">${esc(s.label)}</span>`;          // the browser opens https links only
+  return `<div class="srcs">${read.length ? `<div class="srcs-r"><span class="srcs-h" title="${esc(t("Only pages Lanterna really opened for this answer, not links the model wrote itself"))}">${esc(t("Sources:"))}</span>${read.map(link).join("")}</div>` : ""}${found.length ? `<details class="srcs-s"><summary>${icon("search")} ${esc(t("Search results: {n}", { n: found.length }))}</summary>
+    <ol>${found.map(s => `<li>${link(s)} <span class="srcs-site">${esc(s.site)}</span></li>`).join("")}</ol></details>` : ""}</div>`;
+}
+
+function addBot(text, model, sent, second = false, sources = null) {    // second: a second opinion, with its own small title
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<span class="sr-only">Lanterna: </span><div class="md"></div>${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
+  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<span class="sr-only">Lanterna: </span><div class="md"></div>${sourcesBox(sources)}${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
   if (text === null) {      // still working: the lantern is lit (a flash as it lights), sways, flares at each step, goes out at the end
     el.classList.add("live");
     el.querySelector(".md").before(h(`<div class="think"><span class="lamp"><i class="flare"></i>${lamp()}<i class="smoke"></i><i class="smoke"></i></span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
@@ -1757,7 +1769,9 @@ async function send(retryText) {
       }
     }
     if (p.final !== undefined && p.stopped && !p.final.trim()) { bot.remove(); if (thread === sentTo) announce(t("Stopped.")); }   // stopped before a word
-    else if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_); if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
+    else if (p.final !== undefined) { text_ = p.final; titling = !!p.titling; suggesting = !!p.suggesting; learning = !!p.learning; box.innerHTML = md(text_);
+      bot.querySelector(".body").insertAdjacentHTML("beforeend", sourcesBox(p.sources));                    // under the words
+      if (p.model) { setModel(p.model); bot.querySelector(".body").insertAdjacentHTML("beforeend", `<div class="meta">${esc(p.model)}</div>`); }
       if (p.sent && p.sent.length) bot.querySelector(".body").insertAdjacentHTML("beforeend", sentBox(p.sent));   // as in an opened chat:
       const sayBtn = !(p.questions && p.questions.length) && addSay(bot, text_);                                 // the buttons in one row
       if (!(p.questions && p.questions.length)) addCopy(bot, text_);

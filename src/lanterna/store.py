@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, text TEXT NOT NULL, ev
 # columns added for sync (older databases get them on open)
 _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
                       "summary_upto INTEGER NOT NULL DEFAULT 0", "pinned INTEGER NOT NULL DEFAULT 0",
-                      "pinned_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''"],
+                      "pinned_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''",
+                                                                 "sources TEXT NOT NULL DEFAULT ''"],
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0",
                                                    "repeat TEXT NOT NULL DEFAULT ''"]}
 MAX_FACTS = 60
@@ -178,19 +179,20 @@ class Store:
             self._tomb("threads", "id=?", (tid,))
             self._db.execute("DELETE FROM threads WHERE id=?", (tid,))
 
-    def add(self, tid: int, role: str, content: str, model: str = "", sent: str = "") -> None:
+    def add(self, tid: int, role: str, content: str, model: str = "", sent: str = "", sources: str = "") -> None:
         now = time.time()
         if tid < 0:
             with self._lock:
                 p = self._private.get(tid)
                 if p is not None:
-                    p["msgs"].append({"role": role, "content": content, "model": model, "at": now, "sent": sent})
+                    p["msgs"].append({"role": role, "content": content, "model": model, "at": now, "sent": sent,
+                                      "sources": sources})
                     p["updated"] = now
             return
         with self._lock, self._db:
             self.changes += 1
-            self._db.execute("INSERT INTO messages(uid, thread, role, content, model, at, sent) VALUES (?,?,?,?,?,?,?)",
-                             (new_uid(), tid, role, content, model, now, sent))
+            self._db.execute("INSERT INTO messages(uid, thread, role, content, model, at, sent, sources) "
+                             "VALUES (?,?,?,?,?,?,?,?)", (new_uid(), tid, role, content, model, now, sent, sources))
             self._db.execute("UPDATE threads SET updated=? WHERE id=?", (now, tid))
 
     def trim_tail(self, tid: int, n: int) -> None:
@@ -212,7 +214,7 @@ class Store:
         if tid < 0:
             with self._lock:
                 return [dict(m) for m in (self._private.get(tid) or {}).get("msgs", [])]
-        return self._q("SELECT role, content, model, at, sent FROM messages WHERE thread=? ORDER BY id", (tid,))
+        return self._q("SELECT role, content, model, at, sent, sources FROM messages WHERE thread=? ORDER BY id", (tid,))
 
     def search(self, query: str, limit: int = 40) -> list[dict]:
         """Chats whose name or messages contain the words (any case, any language), newest first, with a snippet
