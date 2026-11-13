@@ -37,6 +37,7 @@ class Settings:
     auto_cloud: bool = True                # auto mode: send hard questions to online models
     update_check: bool = True              # look for a new version when the app starts
     warn_private: bool = True              # a card number, IBAN, password, PIN or key for an online model: ask first
+    theme: str = "dark"                    # the colors: dark, light or like the system (this computer, not synced)
     ai_titles: bool = True                 # a fast model names each new chat (one small extra request)
     follow_ups: bool = True                # 3 follow-up buttons under an answer (online side model only)
     compact_chats: bool = True             # long chats: a side model summarizes the older part

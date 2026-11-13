@@ -243,6 +243,22 @@ class Desk:
             self.toggle_quick(file)
 
 
+DARK_BG, LIGHT_BG = "#0B0E17", "#F6F4EE"          # --bg of the two themes (ui/style.css)
+
+
+def window_color(theme: str) -> str:
+    """The window's own color, shown before the page draws: the theme's background."""
+    if theme == "system" and sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as k:
+                theme = "light" if winreg.QueryValueEx(k, "AppsUseLightTheme")[0] else "dark"
+        except OSError:
+            pass
+    return LIGHT_BG if theme == "light" else DARK_BG
+
+
 def _cursor_monitor() -> tuple[int, int, int, int] | None:
     """The monitor under the mouse, as a box inside the picture of all screens; None with one screen or off Windows."""
     if sys.platform != "win32":
@@ -293,7 +309,8 @@ def run_window(start_hidden: bool = False) -> int:
     desk_ok = sys.platform == "win32"
     hidden = start_hidden and desk_ok and api.settings.tray
     main = webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=page, width=1120, height=780,
-                                 min_size=(720, 540), background_color="#0B0E17", text_select=True, hidden=hidden)
+                                 min_size=(720, 540), background_color=window_color(api.settings.theme),
+                                 text_select=True, hidden=hidden)
     storage = str(api.store.path.parent / "webview")
     if not desk_ok:
         webview.start(private_mode=False, storage_path=storage)
@@ -304,7 +321,7 @@ def run_window(start_hidden: bool = False) -> int:
     except Exception:                                       # noqa: BLE001
         x = y = None
     quick = webview.create_window("Lanterna", url=str(UI / "index.html") + "#quick", js_api=page, width=640,
-                                  height=470, x=x, y=y, min_size=(420, 320), background_color="#0B0E17",
+                                  height=470, x=x, y=y, min_size=(420, 320), background_color=window_color(api.settings.theme),
                                   text_select=True, hidden=True, on_top=True)
     desk = Desk(api, main, quick)
     desk.main_shown = not hidden

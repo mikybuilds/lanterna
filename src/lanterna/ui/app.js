@@ -623,6 +623,7 @@ let live = null;              // the answer being written: {tid, el, sw}, so a r
 async function boot() {
   document.body.prepend($("#tpl-icons").content.cloneNode(true));
   S = await api.state();
+  if (S.settings.theme && S.settings.theme !== theme) setTheme(S.settings.theme);    // the settings file decides
   LANG = S.settings.lang || "en";
   document.documentElement.lang = LANG;
   if (QUICK) {
@@ -1817,6 +1818,20 @@ async function send(retryText) {
   step();
 }
 
+// ---------------------------------------------------------------- the theme: dark, light or like the system (this computer)
+const THEMES = ["dark", "light", "system"];
+const lightSystem = matchMedia("(prefers-color-scheme: light)");
+let theme = (() => { try { const v = localStorage.getItem("theme"); return THEMES.includes(v) ? v : "dark"; } catch (e) { return "dark"; } })();
+
+function setTheme(v) {
+  theme = THEMES.includes(v) ? v : "dark";
+  document.documentElement.dataset.theme = theme === "system" ? (lightSystem.matches ? "light" : "dark") : theme;
+  try { localStorage.setItem("theme", theme); } catch (e) { /* only for this time */ }
+}
+setTheme(theme);
+lightSystem.addEventListener("change", () => { if (theme === "system") setTheme("system"); });   // the system switched
+window.addEventListener("focus", () => { if (theme === "system") setTheme("system"); });       // switched while away
+
 // ---------------------------------------------------------------- bigger text (kept on this computer)
 const TEXT_SIZES = [0.9, 1, 1.15, 1.3, 1.5];
 let textScale = (() => { try { const v = +localStorage.getItem("text-scale"); return TEXT_SIZES.includes(v) ? v : 1; } catch (e) { return 1; } })();
@@ -1891,7 +1906,7 @@ function dialog(title, html, onClose) {
 
 // Settings are long: tabs by topic on top (they stay in view) and a box that finds a setting by its words
 const SET_TABS = [
-  ["general", "General", ["Language", "Text size", "Name", "Mode", "Local models", "Updates"]],
+  ["general", "General", ["Language", "Text size", "Theme", "Name", "Mode", "Local models", "Updates"]],
   ["models", "Models", ["Services", "Limits", "Free models right now"]],
   ["memory", "Memory and reminders", ["Memory", "Reminders", "Regular tasks"]],
   ["chats", "Chats", ["Working folder", "Chats", "Instructions and roles", "Backups"]],
@@ -1956,6 +1971,8 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Text size")}</h4>
       <div class="seg" id="seg-size">${TEXT_SIZES.map(v => `<button data-size="${v}" class="${v === textScale ? "on" : ""}" aria-pressed="${v === textScale}">${Math.round(v * 100)}%</button>`).join("")}</div>
       <p class="muted" style="margin:6px 0 0;font-size:13px">${t("Ctrl+= and Ctrl+− change it too.")}</p>
+      <h4 style="margin-top:22px">${t("Theme")}</h4>
+      <div class="seg" id="seg-theme">${THEMES.map(v => `<button data-th="${v}" class="${v === theme ? "on" : ""}" aria-pressed="${v === theme}">${t({ dark: "Dark", light: "Light", system: "Like the system" }[v])}</button>`).join("")}</div>
       <h4 style="margin-top:22px">${t("Name")}</h4>
       <div class="keyrow"><div class="wrap"><input class="field" id="set-name" maxlength="40" value="${esc(S.settings.name || "")}"></div><button class="btn ghost" id="save-name" style="height:48px">${t("Save")}</button></div>
       <h4 style="margin-top:22px">${t("Mode")}</h4>
@@ -2119,6 +2136,11 @@ function openSettings() {
     body.querySelectorAll("#seg-size [data-size]").forEach(b => b.onclick = () => {
       setTextScale(+b.dataset.size);
       body.querySelectorAll("#seg-size [data-size]").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+    });
+    body.querySelectorAll("#seg-theme [data-th]").forEach(b => b.onclick = async () => {
+      setTheme(b.dataset.th);                                       // at once; the window's own color follows next start
+      body.querySelectorAll("#seg-theme [data-th]").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+      S = await api.save_settings({ theme });
     });
     const ac = $("#auto-cloud", body);
     if (ac) ac.onchange = async () => { S = await api.save_settings({ auto_cloud: ac.checked }); };

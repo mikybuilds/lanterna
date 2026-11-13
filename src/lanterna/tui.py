@@ -41,6 +41,10 @@ AMBER = "#F5B544"
 THEME = Theme(name="lanterna", primary=AMBER, secondary="#7C8BB5", accent=AMBER, warning="#F0A030",
               error="#E5675C", success="#6CC28A", background="#0B0E17", surface="#121726", panel="#1A2034",
               foreground="#E6E8EF", dark=True)
+# the light theme, as in the window (ui/style.css): warm paper, amber darker where it is text
+LIGHT = Theme(name="lanterna-light", primary="#8A5200", secondary="#5C6680", accent="#8A5200", warning="#8A5200",
+              error="#B3362C", success="#1A6E3F", background="#F6F4EE", surface="#FFFFFF", panel="#EEEBE3",
+              foreground="#1D1B17", dark=False)
 LOGO = "🏮"
 
 CSS = """
@@ -2903,6 +2907,12 @@ class _ChatScreen(Screen):
 
         self.app.push_screen(NameScreen(t("Rename chat", L(self.app)), th["title"] or ""), done)
 
+    def action_toggle_theme(self) -> None:
+        """Light or dark, the same setting as the window's Settings → General → Theme (this computer)."""
+        light = self.app.theme != "lanterna-light"
+        self.app.api.save_settings({"theme": "light" if light else "dark"})
+        self.app.theme = "lanterna-light" if light else "lanterna"
+
     def action_pin_chat(self) -> None:
         th = self._saved_chat()
         if not th:
@@ -3249,6 +3259,7 @@ CHAT_COMMANDS = [
     ("Stop the answer", "stop_answer", "Esc"),
     ("Voice input", "voice", "F2"),
     ("Read aloud", "read_aloud", "F3"),
+    ("Light theme", "toggle_theme", ""),
     ("Connectors", "connectors", ""),
     ("What Lanterna did", "history", "F9"),
     ("Check Lanterna", "doctor", ""),
@@ -3311,6 +3322,8 @@ class LanternaApp(App):
                 label = "Unpin chat"
             if action == "stop_answer" and not screen._stream:  # only while it answers
                 continue
+            if action == "toggle_theme" and self.theme == "lanterna-light":
+                label = "Dark theme"
             yield SystemCommand(t(label, lang), key, getattr(screen, f"action_{action}"))
             if action == "connectors":
                 yield SystemCommand(t("Connect mail", lang), "", lambda: self.push_screen(MailScreen()))
@@ -3326,7 +3339,8 @@ class LanternaApp(App):
 
     def on_mount(self) -> None:
         self.register_theme(THEME)
-        self.theme = "lanterna"
+        self.register_theme(LIGHT)
+        self.theme = "lanterna-light" if self.api.settings.theme == "light" else "lanterna"
         if self.force_setup or not self.api.settings.onboarded:
             self.push_screen(OnboardScreen())
         elif not self.api.settings.sync_asked and self.api.sync_status()["phase"] == "off":

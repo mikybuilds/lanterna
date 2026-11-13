@@ -50,6 +50,8 @@ def _files_in(messages: list[dict]) -> list[str]:
     return names
 
 
+THEMES = ("dark", "light", "system")             # Settings → General → Theme
+
 class _Stream:
     def __init__(self, lang: str = "en"):
         self.pieces: list[str] = []
@@ -172,7 +174,8 @@ class Api:
     def save_settings(self, patch: dict) -> dict:
         from . import shell
         from . import voice
-        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model", "morning_city", "tts"} | self._BOOLS
+        allowed = {"lang", "name", "mode", "provider", "hotkey", "voice", "voice_model", "morning_city", "tts",
+                   "theme"} | self._BOOLS
         from . import speech
         if (patch or {}).get("tts", "off") not in speech.ENGINES:
             patch = {k: v for k, v in patch.items() if k != "tts"}
@@ -183,6 +186,8 @@ class Api:
             patch.pop("voice")
         if patch.get("voice_model", "small") not in voice.MODELS:
             patch.pop("voice_model")
+        if patch.get("theme", "dark") not in THEMES:
+            patch.pop("theme")
         patch = dict(patch or {})
         if "autostart" in patch:                           # lives in Windows (the Run key), not in our settings
             from . import autostart

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lanterna</title>
 <link rel="icon" href="logo.svg">
+<script>/* the theme before the first paint (app.js keeps it in step with Settings) */
+try { var th = localStorage.getItem("theme"); if (th === "system") th = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  document.documentElement.dataset.theme = th === "light" ? "light" : "dark"; } catch (e) { /* dark */ }</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>

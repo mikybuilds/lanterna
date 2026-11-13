@@ -1392,3 +1392,13 @@ _T.update({
         "uk": "Лише сторінки, які Lanterna справді відкрила для цієї відповіді, а не посилання, які модель написала сама",
         "it": "Solo le pagine che Lanterna ha davvero aperto per questa risposta, non i link scritti dal modello"},
 })
+
+# the light theme (1.1.8)
+_T.update({
+    "Theme": {"uk": "Тема", "it": "Tema"},
+    "Dark": {"uk": "Темна", "it": "Scuro"},
+    "Light": {"uk": "Світла", "it": "Chiaro"},
+    "Like the system": {"uk": "Як у системі", "it": "Come il sistema"},
+    "Light theme": {"uk": "Світла тема", "it": "Tema chiaro"},
+    "Dark theme": {"uk": "Темна тема", "it": "Tema scuro"},
+})
