@@ -6,14 +6,15 @@
 
 The launcher opens Lanterna's own window (lanterna-gui) when it can open here: pywebview with the system's GTK
 WebKit (or Qt's WebEngine). Otherwise it opens the full-screen app in the terminal, and `lanterna desktop` says
-which system parts give it the window. Only touches files in the user's own folder (~/.local/share). Nothing
-needs sudo.
+which system parts give it the window (none to install where the system already has them, as Fedora Workstation
+does). Only touches files in the user's own folder (~/.local/share). Nothing needs sudo.
 """
 from __future__ import annotations
 
 import importlib.util
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -72,16 +73,35 @@ def _qt_ready() -> bool:
     return False
 
 
+# what pywebview's GTK part needs, asked of the system's own Python (the one its PyGObject is built for)
+SYSTEM_PY = "/usr/bin/python3"
+_PROBE = ("import gi\ngi.require_version('Gtk', '3.0')\ntry:\n    gi.require_version('WebKit2', '4.1')\n"
+          "except ValueError:\n    gi.require_version('WebKit2', '4.0')\n")
+
+
+def _system_has_parts() -> bool:
+    """The system already has PyGObject and WebKitGTK (Fedora Workstation comes with both); only Lanterna's own
+    Python (pipx) doesn't see them yet."""
+    py = SYSTEM_PY if os.path.exists(SYSTEM_PY) else shutil.which("python3")
+    if not py:
+        return False
+    try:
+        return subprocess.run([py, "-I", "-c", _PROBE], capture_output=True, timeout=20).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def window_ready() -> set[str]:
-    """What Lanterna's own window still needs here; empty: it opens. "pywebview" (the Python package), "gi" (the
-    system's PyGObject, as Lanterna's own Python sees it), "webkit" (the system's WebKitGTK)."""
+    """What Lanterna's own window still needs here; empty: it opens. "pywebview" (the Python package), "gi"
+    (Lanterna's own Python doesn't see the system's PyGObject), "webkit" (the system lacks PyGObject or WebKitGTK:
+    its packages bring both)."""
     need = set() if importlib.util.find_spec("webview") else {"pywebview"}
     if _qt_ready():
         return need
     try:
         import gi
     except ImportError:
-        return need | {"gi", "webkit"}           # (the system's packages bring both)
+        return need | {"gi"} | (set() if _system_has_parts() else {"webkit"})
     try:
         gi.require_version("Gtk", "3.0")
         try:                                     # what pywebview's GTK part asks for
@@ -108,7 +128,7 @@ def window_steps(need: set[str], ids: list[str] | None = None) -> list[str]:
     """The commands that give Lanterna its own window (README → Linux → Its own window). A line starting with "#"
     is said, not run: the system's packages, where Lanterna doesn't know their names."""
     steps = []
-    if need & {"gi", "webkit"}:
+    if "webkit" in need:                         # the system's packages (sudo: only where they are missing)
         known = [PARTS[i] for i in (distro() if ids is None else ids) if i in PARTS]
         steps.append(known[0] if known else "# PyGObject + WebKitGTK 4.1")
     if "gi" in need:                             # Lanterna's Python sees the system's PyGObject only this way

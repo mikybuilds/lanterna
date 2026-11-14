@@ -189,16 +189,35 @@ def run_pipx(args: list[str], timeout: float = PIPX_TIMEOUT) -> tuple[int, str]:
         return 126, str(e)
 
 
-def pipx_update(version: str, runner: Callable[[list[str]], tuple[int, str]] = run_pipx) -> str:
-    """pipx upgrade; if pipx thinks it is up to date (an install pinned to an old tag), reinstall that release."""
+def window_parts() -> tuple[list[str], bool]:
+    """What a pipx reinstall keeps for Lanterna's own window on Linux (`lanterna desktop`): the system's PyGObject
+    and WebKitGTK (--system-site-packages), and pywebview (to inject again)."""
+    if not sys.platform.startswith("linux"):
+        return [], False
+    try:
+        cfg = (Path(sys.prefix) / "pyvenv.cfg").read_text(encoding="utf-8").lower().replace(" ", "")
+    except OSError:
+        cfg = ""
+    import importlib.util
+    system = ["--system-site-packages"] if "include-system-site-packages=true" in cfg else []
+    return system, importlib.util.find_spec("webview") is not None
+
+
+def pipx_update(version: str, runner: Callable[[list[str]], tuple[int, str]] = run_pipx,
+                keep: tuple[list[str], bool] | None = None) -> str:
+    """pipx upgrade; if pipx thinks it is up to date (an install pinned to an old tag), reinstall that release,
+    with what the window needs (keep: window_parts(), asked before the reinstall replaces them)."""
     code, out = runner(["upgrade", "lanterna"])
     if code == 0 and "already at latest" not in out.lower():
         return out
     if code not in (0, 1):
         raise RuntimeError(_tail(out) or f"pipx stopped with code {code}")
-    code, out = runner(["install", "--force", f"git+{HOMEPAGE}@v{version}"])
+    system, webview = window_parts() if keep is None else keep
+    code, out = runner(["install", "--force", *system, f"git+{HOMEPAGE}@v{version}"])
     if code != 0:
         raise RuntimeError(_tail(out) or f"pipx stopped with code {code}")
+    if webview:                                     # (a newer pipx keeps it by itself: then this changes nothing)
+        runner(["inject", "lanterna", "pywebview"])
     return out
 
 

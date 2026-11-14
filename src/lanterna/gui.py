@@ -15,6 +15,7 @@ import shutil
 import sys
 import threading
 import time
+import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -311,20 +312,83 @@ def _no_window() -> int:
     return 1
 
 
-def _linux_window(webview) -> dict:
-    """Linux: the window is "lanterna" to the desktop, so the dock and Alt+Tab show it with the app menu's launcher
-    and icon (desktop.py); and its own icon where a desktop shows that. What webview.start gets for it."""
+def _gnome_style():
+    """GNOME's appearance settings (its dark or light style); None off GNOME."""
     try:
+        from gi.repository import Gio
+        src = Gio.SettingsSchemaSource.get_default()
+        schema = src.lookup("org.gnome.desktop.interface", True) if src else None
+        if schema is not None and schema.has_key("color-scheme"):
+            return Gio.Settings.new("org.gnome.desktop.interface")
+    except Exception:                                       # noqa: BLE001  (not GNOME)
+        pass
+    return None
+
+
+class Frame:
+    """Linux, GTK: the window's frame (its title bar) dark or light like Lanterna's theme; GTK 3 draws it light
+    otherwise, also in GNOME's dark style. "system" follows GNOME's style, and the page's "system" look with it."""
+
+    def __init__(self, Gtk, theme: str):
+        self.Gtk, self.theme = Gtk, theme
+        s = Gtk.Settings.get_default()
+        self.initial = bool(s.get_property("gtk-application-prefer-dark-theme")) if s else False
+        self.gnome = _gnome_style()
+        if self.gnome is not None:                          # switched in GNOME's Settings while Lanterna is open
+            self.gnome.connect("changed::color-scheme", lambda *_: self.apply())
+        self.apply()
+
+    def dark(self) -> bool:
+        if self.theme in ("dark", "light"):
+            return self.theme == "dark"
+        return self.gnome.get_string("color-scheme") == "prefer-dark" if self.gnome is not None else self.initial
+
+    def apply(self) -> bool:
+        s = self.Gtk.Settings.get_default()
+        if s is not None:
+            s.set_property("gtk-application-prefer-dark-theme", self.dark())
+        return False                                        # (as an idle callback: once)
+
+    def follow(self, theme: str) -> None:
+        """The theme changed in Lanterna's Settings (from any thread: GTK's own does the change)."""
+        from gi.repository import GLib
+        self.theme = theme
+        GLib.idle_add(self.apply)
+
+
+def _linux_window(webview, theme: str = "dark") -> tuple[dict, Frame | None]:
+    """Linux: the window is "lanterna" to the desktop, so the dock and Alt+Tab show it with the app menu's launcher
+    and icon (desktop.py); its frame follows Lanterna's theme; and its own icon where a desktop shows that. What
+    webview.start gets for it, and the frame."""
+    frame = None
+    try:
+        import gi
         from gi.repository import GLib
         GLib.set_prgname("lanterna")                        # (before GTK starts)
         GLib.set_application_name("Lanterna")
+        gi.require_version("Gtk", "3.0")                    # what pywebview's GTK part uses
+        from gi.repository import Gtk                       # GTK starts here, as "lanterna"
+        frame = Frame(Gtk, theme)
     except Exception:                                       # noqa: BLE001  (Qt, or no PyGObject)
         pass
     import inspect
     import os
     if os.path.exists("/proc/driver/nvidia"):               # NVIDIA's driver: WebKitGTK's newer drawing stays blank
         os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
-    return {"icon": str(UI / "logo.svg")} if "icon" in inspect.signature(webview.start).parameters else {}
+    extra = {"icon": str(UI / "logo.svg")} if "icon" in inspect.signature(webview.start).parameters else {}
+    return extra, frame
+
+
+def _frame_follows(page: WindowApi, api: Api, frame: Frame) -> None:
+    """The window's frame changes with the theme in Settings."""
+    save = page.save_settings
+
+    def save_settings(self, patch: dict) -> dict:           # (a method: pywebview lists its arguments after self)
+        out = save(patch)
+        if isinstance(patch, dict) and "theme" in patch:
+            frame.follow(api.settings.theme)
+        return out
+    page.save_settings = types.MethodType(save_settings, page)
 
 
 def run_window(start_hidden: bool = False) -> int:
@@ -339,10 +403,12 @@ def run_window(start_hidden: bool = False) -> int:
         from . import shell
         if shell.tell_running_copy():                       # Lanterna already runs: it shows its window instead
             return 0
-    extra = _linux_window(webview) if linux else {}
     api = Api()
+    extra, frame = _linux_window(webview, api.settings.theme) if linux else ({}, None)
     fresh_ui_cache(api.store.path.parent / "webview")
     page = WindowApi(api)
+    if frame is not None:
+        _frame_follows(page, api, frame)
     desk_ok = sys.platform == "win32"
     hidden = start_hidden and desk_ok and api.settings.tray
     main = webview.create_window("Lanterna", url=str(UI / "index.html"), js_api=page, width=1120, height=780,

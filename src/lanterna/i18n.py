@@ -1444,7 +1444,7 @@ _T.update({
         "it": "Installa PyGObject e WebKitGTK 4.1 con il gestore di pacchetti del tuo sistema, poi:"},
     "Lanterna's own window needs a few parts of the system. Until then, type lanterna in a terminal; lanterna "
     "desktop says what to install.": {
-        "uk": "Для власного вікна Lanterna потрібні кілька частин системи. Поки що введи lanterna в терміналі; "
+        "uk": "Для власного вікна Lanterna потрібно кілька частин системи. Поки що введи lanterna в терміналі; "
               "lanterna desktop підкаже, що встановити.",
         "it": "La finestra di Lanterna ha bisogno di alcune parti del sistema. Per ora scrivi lanterna in un "
               "terminale; lanterna desktop dice cosa installare."},

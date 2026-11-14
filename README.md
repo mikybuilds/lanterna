@@ -65,7 +65,7 @@ lanterna desktop
 
 Or just type `lanterna` in any terminal.
 
-**Its own window (optional).** Out of the box Lanterna on Linux is the full-screen app in the terminal. For the window you know from Windows (without its tray and quick window), add the system's PyGObject and WebKitGTK once:
+**Its own window (optional).** Out of the box Lanterna on Linux is the full-screen app in the terminal. For the window you know from Windows (without its tray and quick window), add the system's PyGObject and WebKitGTK once (Fedora Workstation already has both: skip this line; `lanterna desktop` tells you):
 
 | Distribution | Command |
 |---|---|

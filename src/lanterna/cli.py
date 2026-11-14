@@ -539,7 +539,8 @@ def main(argv: list[str] | None = None) -> int:
             console.print("\n" + t("Lanterna opens in the terminal. For its own window:", s.lang))
             parts = t("Install PyGObject and WebKitGTK 4.1 with your system's package manager, then:", s.lang)
             for step in desktop.window_steps(need):       # ("#": the system's packages, where their names aren't known)
-                console.print(f"  [dim]{parts}[/]" if step.startswith("#") else f"  [bold]{escape(step)}[/]")
+                console.print(f"  [dim]{parts}[/]" if step.startswith("#") else f"  [bold]{escape(step)}[/]",
+                              highlight=False)          # commands to copy, not numbers and links in colour
         return 0
     if a.cmd == "key":
         if a.action == "list":
