@@ -487,11 +487,16 @@ def main(argv: list[str] | None = None) -> int:
     lp.add_argument("value", nargs="?", help="model name (pull) or cloud|local|auto (mode)")
     dp = sub.add_parser("desktop", help="add Lanterna to the app menu (Linux: GNOME, KDE…)")
     dp.add_argument("--remove", action="store_true")
+    sub.add_parser("remind", help="show the reminders that are due, then quit (the system timer runs it while "
+                   "Lanterna is closed)")
     k = sub.add_parser("key")
     k.add_argument("action", choices=["set", "list", "delete"])
     k.add_argument("provider", nargs="?", choices=list(PROVIDERS))
     a = ap.parse_args(argv)
 
+    if a.cmd == "remind":                    # quiet: no banner, no first-run questions
+        from . import wake
+        return wake.remind_now()
     s = Settings.load()
     if a.cmd == "about":
         banner(s.lang)
@@ -517,6 +522,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         if a.remove:
             desktop.remove()
+            from . import wake
+            wake.forget()                    # before `pipx uninstall`: the reminder timer goes too
             console.print(t("Removed from the app menu.", s.lang))
             return 0
         desk, _ = desktop.install()

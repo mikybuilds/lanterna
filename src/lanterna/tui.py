@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import sys
 import threading
 import time
 
@@ -29,6 +30,7 @@ from .app import Api, action_title, card_text
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
 from .providers import PROVIDERS
+from .wake import NOTES as WAKES
 
 
 def lang_rows(per: int = 4) -> list[list[tuple[str, str]]]:
@@ -1162,6 +1164,10 @@ class SettingsScreen(ModalScreen[str]):
                         yield Label(t("Reminders", lang), classes="h")
                         yield Vertical(id="rems")
                         st = self.app.api.settings
+                        if sys.platform in WAKES:          # the system starts Lanterna for a moment (wake.py)
+                            yield Checkbox(t("Remind me when Lanterna is closed too", lang), st.remind_closed,
+                                           id="remindclosed")
+                            yield Static(t(WAKES[sys.platform], lang), classes="muted")
                         yield Checkbox(t("Morning summary", lang), st.morning, id="morning")
                         yield Static(t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.", lang), classes="muted")
                         with Horizontal(classes="keyrow"):
@@ -1713,6 +1719,10 @@ class SettingsScreen(ModalScreen[str]):
     @on(Checkbox.Changed, "#morning")
     def _morning(self, ev: Checkbox.Changed) -> None:
         self.app.api.save_settings({"morning": ev.value})
+
+    @on(Checkbox.Changed, "#remindclosed")
+    def _remind_closed(self, ev: Checkbox.Changed) -> None:
+        self.app.api.save_settings({"remind_closed": ev.value})
 
     @on(Checkbox.Changed, "#tidyweekly")
     def _tidy(self, ev: Checkbox.Changed) -> None:

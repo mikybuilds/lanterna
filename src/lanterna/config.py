@@ -68,6 +68,8 @@ class Settings:
     space_help: bool = False               # pc_space tool + a note when the disk is almost full
     local_fallback: bool = True            # cloud mode: a local model answers when online limits run out / offline
     space_last: float = 0
+    remind_closed: bool = True             # reminders come when Lanterna is closed too (the system starts it for a
+                                           # moment, see wake.py; this computer only, not synced)
     morning: bool = False                  # a short note for the day at morning_at (weather, reminders, tasks)
     morning_at: str = "08:00"
     morning_city: str = ""                 # the weather line; "" = no weather

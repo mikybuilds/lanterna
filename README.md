@@ -28,7 +28,7 @@ Running a good model locally needs a strong graphics card. Lanterna lets anyone 
 1. Open the [latest release](../../releases/latest) and download **`Lanterna-Setup-x.y.z.exe`**.
 2. Run it. No admin rights needed; Lanterna appears in the Start menu.
 
-> Windows will say **"Windows protected your PC" / Unknown publisher**: the installer isn't code-signed (signing costs money). Click **More info → Run anyway**. The installer is built from this repository by the [release workflow](.github/workflows/release.yml), so you can check what's inside. Prefer no installer? Take the portable zip from the same release.
+> Windows will say **"Windows protected your PC" / Unknown publisher**: the installer isn't code-signed (signing costs money). Click **More info → Run anyway**. The installer is built from this repository by the [release workflow](.github/workflows/release.yml), so you can check what's inside. Prefer no installer? Take the portable zip from the same release (before you delete its folder, turn off Settings → Memory and reminders → "Remind me when Lanterna is closed too": that takes its task out of Task Scheduler; the installer's uninstall does it itself).
 
 ### Linux
 
@@ -180,7 +180,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 ## What it can do
 
 - **Remember** things you tell it ("remember that I'm allergic to peanuts"). You can see and edit the list in Settings.
-- **Reminders** ("remind me in 20 minutes to stretch", "every weekday at 8 the bus"): a system notification while Lanterna is open, with "Snooze 10 min". They can repeat every day, on weekdays, every week or every month without using a model. Missed ones show up the next time you open it.
+- **Reminders** ("remind me in 20 minutes to stretch", "every weekday at 8 the bus"): a system notification, with "Snooze 10 min" while Lanterna is open. They can repeat every day, on weekdays, every week or every month without using a model. **Also when Lanterna is closed:** at a reminder's time the system starts it for a moment to show it (Windows: a task of your own in Task Scheduler, no admin rights; Linux: a systemd user timer), and one missed while the computer was off comes right after you sign in. Nothing runs in between; with no reminders left the task or timer goes away. Settings → Memory and reminders turns it off.
 - **Search the web** (DuckDuckGo, no key) and read pages, with the site name as the source.
 - **Weather and air quality** for any city (Open-Meteo, no key).
 - **Exchange rates and units**: today's official National Bank of Ukraine rate for about 60 currencies, and exact unit conversions (miles, sotkas, °F…) that work offline.

@@ -93,6 +93,7 @@ class Store:
                     self._db.execute(f"UPDATE {table} SET uid=lower(hex(randomblob(16))) WHERE uid IS NULL")
                     self._db.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS {table}_uid ON {table}(uid)")
         self.changes = 0                     # bumped on every write; sync uses it to know when to upload
+        self.on_reminders = None             # called after a reminder is added, cancelled or snoozed
         # private chats: only in memory (negative ids), never in the database, the sync or a backup
         self._private: dict[int, dict] = {}
         self._next_private = -1
@@ -273,27 +274,49 @@ class Store:
             return self._db.execute("DELETE FROM facts WHERE instr(lc(text), lc(?)) > 0", (text,)).rowcount
 
     # reminders
+    def _reminders_changed(self) -> None:
+        """Tells the app (it moves the alarm that shows them while Lanterna is closed, see wake.py)."""
+        if self.on_reminders:
+            try:
+                self.on_reminders()
+            except Exception:                                # noqa: BLE001  never breaks saving a reminder
+                pass
+
     def add_reminder(self, text: str, due: float, repeat: str = "") -> int:
         repeat = repeat if repeat in REPEATS else ""
         with self._lock, self._db:
             self.changes += 1
             now = time.time()
-            return self._db.execute("INSERT INTO reminders(uid, text, due, created, changed, repeat) VALUES (?,?,?,?,?,?)",
-                                    (new_uid(), text, due, now, now, repeat)).lastrowid
+            rid = self._db.execute("INSERT INTO reminders(uid, text, due, created, changed, repeat) VALUES (?,?,?,?,?,?)",
+                                   (new_uid(), text, due, now, now, repeat)).lastrowid
+        self._reminders_changed()
+        return rid
 
     def reminders(self) -> list[dict]:
         return self._q("SELECT id, text, due, repeat FROM reminders WHERE done=0 ORDER BY due")
 
+    def next_reminder(self) -> float | None:
+        """When the next reminder is due (None: there are none)."""
+        with self._lock:
+            r = self._db.execute("SELECT MIN(due) FROM reminders WHERE done=0").fetchone()
+        return r[0] if r and r[0] is not None else None
+
     def cancel_reminder(self, rid: int) -> bool:
         with self._lock, self._db:
             self.changes += 1
-            return self._db.execute("UPDATE reminders SET done=2, changed=? WHERE id=? AND done=0", (time.time(), rid)).rowcount > 0
+            ok = self._db.execute("UPDATE reminders SET done=2, changed=? WHERE id=? AND done=0", (time.time(), rid)).rowcount > 0
+        self._reminders_changed()
+        return ok
 
     def take_due(self, now: float | None = None) -> list[dict]:
-        """Reminders whose time has come; each is returned once. A one-time one is marked done; a repeating one
+        """Reminders whose time has come; each is returned once, also when two Lanterna programs share the database
+        (the window and the terminal, or the run at a reminder's time while Lanterna is closed): the first one to
+        look takes them, the other waits for it and finds them done. A one-time one is marked done; a repeating one
         moves on to its next time."""
         now = time.time() if now is None else now
         with self._lock, self._db:
+            if not self._db.in_transaction:
+                self._db.execute("BEGIN IMMEDIATE")             # holds the write lock from the look to the mark
             rows = [dict(r) for r in self._db.execute(
                 "SELECT id, text, due, repeat FROM reminders WHERE done=0 AND due<=? ORDER BY due", (now,))]
             for r in rows:
@@ -318,10 +341,14 @@ class Store:
                 return 0
             self.changes += 1
             if r["repeat"] in REPEATS:
-                return self._db.execute("INSERT INTO reminders(uid, text, due, created, changed) VALUES (?,?,?,?,?)",
-                                        (new_uid(), r["text"], now + minutes * 60, now, now)).lastrowid
-            self._db.execute("UPDATE reminders SET due=?, done=0, changed=? WHERE id=?", (now + minutes * 60, now, r["id"]))
-            return r["id"]
+                rid = self._db.execute("INSERT INTO reminders(uid, text, due, created, changed) VALUES (?,?,?,?,?)",
+                                       (new_uid(), r["text"], now + minutes * 60, now, now)).lastrowid
+            else:
+                self._db.execute("UPDATE reminders SET due=?, done=0, changed=? WHERE id=?",
+                                 (now + minutes * 60, now, r["id"]))
+                rid = r["id"]
+        self._reminders_changed()
+        return rid
 
     # regular tasks (this device only: not synced, so two computers never run the same task)
     _TASK_FIELDS = {"text", "every", "at", "day", "only_if", "next", "last", "last_result", "paused", "thread"}

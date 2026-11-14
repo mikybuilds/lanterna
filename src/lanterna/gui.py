@@ -144,6 +144,7 @@ class Desk:
         if self.shell:
             self.shell.stop()
         self.api.mcp.stop_all()
+        self.api.closing()                              # (os._exit skips atexit) the system shows the reminders now
         import os
         os._exit(0)
 
@@ -453,10 +454,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--no-open", action="store_true")
     ap.add_argument("--tray", action="store_true", help="Windows: start hidden in the tray")
+    ap.add_argument("--remind", action="store_true", help="show the reminders that are due, then quit (the system "
+                    "runs this at a reminder's time while Lanterna is closed)")
     ap.add_argument("--selfcheck", metavar="REPORT.json", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
     if a.selfcheck:
         return selfcheck(a.selfcheck)
+    if a.remind:
+        from . import wake
+        return wake.remind_now()
     return run_browser(a.port, not a.no_open) if a.browser else run_window(start_hidden=a.tray)
 
 

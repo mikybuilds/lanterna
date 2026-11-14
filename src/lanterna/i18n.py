@@ -1412,3 +1412,21 @@ _T.update({
         "uk": "документ LibreOffice (заголовки, списки й жирний стануть справжнім форматуванням)",
         "it": "un documento LibreOffice (titoli, elenchi e grassetto diventano vera formattazione)"},
 })
+
+# reminders while Lanterna is closed (1.1.8, wake.py)
+_T.update({
+    "Remind me when Lanterna is closed too": {"uk": "Нагадувати, навіть коли Lanterna закрита",
+                                              "it": "Ricordamelo anche quando Lanterna è chiusa"},
+    "At a reminder's time Windows starts Lanterna for a moment (Task Scheduler) to show it; if the computer was off, "
+    "right after you sign in. Nothing runs in between.": {
+        "uk": "У час нагадування Windows на мить запускає Lanterna (Планувальник завдань), щоб його показати; якщо "
+              "комп'ютер був вимкнений, то одразу після входу. Між нагадуваннями нічого не працює.",
+        "it": "All'ora del promemoria Windows avvia Lanterna per un attimo (Utilità di pianificazione) per mostrarlo; "
+              "se il computer era spento, subito dopo l'accesso. Nel frattempo non gira nulla."},
+    "At a reminder's time the system starts Lanterna for a moment (a systemd timer) to show it; if the computer was "
+    "off, right after it starts. Nothing runs in between.": {
+        "uk": "У час нагадування система на мить запускає Lanterna (таймер systemd), щоб його показати; якщо "
+              "комп'ютер був вимкнений, то одразу після запуску. Між нагадуваннями нічого не працює.",
+        "it": "All'ora del promemoria il sistema avvia Lanterna per un attimo (un timer di systemd) per mostrarlo; "
+              "se il computer era spento, subito dopo l'avvio. Nel frattempo non gira nulla."},
+})

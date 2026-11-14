@@ -1905,6 +1905,13 @@ function dialog(title, html, onClose) {
 }
 
 // Settings are long: tabs by topic on top (they stay in view) and a box that finds a setting by its words
+// Settings → Reminders: what starts Lanterna for a moment at a reminder's time while it is closed (wake.py)
+const WAKES = {
+  win32: "At a reminder's time Windows starts Lanterna for a moment (Task Scheduler) to show it; if the computer was off, right after you sign in. Nothing runs in between.",
+  linux: "At a reminder's time the system starts Lanterna for a moment (a systemd timer) to show it; if the computer was off, right after it starts. Nothing runs in between.",
+};
+const remindNote = on => on ? WAKES[S.platform] : "Reminders pop up while Lanterna is open.";
+
 const SET_TABS = [
   ["general", "General", ["Language", "Text size", "Theme", "Name", "Mode", "Local models", "Updates"]],
   ["models", "Models", ["Services", "Limits", "Free models right now"]],
@@ -1999,8 +2006,10 @@ function openSettings() {
       <div id="facts"></div>
       <div class="keyrow"><div class="wrap"><input class="field" id="fact-new" maxlength="300" placeholder="${t("Add a fact")}"></div><button class="btn ghost" id="fact-add" style="height:48px">${icon("plus")}</button></div>
       <h4 style="margin-top:22px">${t("Reminders")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>
       <div id="rems"></div>
+      ${WAKES[S.platform] ? `<label class="check"><input type="checkbox" id="remind-closed" ${S.settings.remind_closed !== false ? "checked" : ""}>
+        <span><b>${t("Remind me when Lanterna is closed too")}</b><small id="remind-closed-note">${t(remindNote(S.settings.remind_closed !== false))}</small></span></label>`
+        : `<p class="muted" style="margin:6px 0;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>`}
       <label class="check"><input type="checkbox" id="morning" ${S.settings.morning ? "checked" : ""}>
         <span><b>${t("Morning summary")}</b><small>${t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.")}</small></span></label>
       <div class="morning-set" ${S.settings.morning ? "" : "hidden"}>
@@ -2157,6 +2166,11 @@ function openSettings() {
     const ins = $("#instructions", body), left = () => { $("#instr-left", body).textContent = `${ins.value.length} / 1500`; };
     ins.oninput = left; left();
     $("#instr-save", body).onclick = async () => { S = await api.save_settings({ instructions: ins.value }); ins.value = S.settings.instructions; left(); toast(t("Saved")); };
+    const rc = $("#remind-closed", body);
+    if (rc) rc.onchange = async () => {                // the alarm for the next reminder is set or taken away at once
+      S = await api.save_settings({ remind_closed: rc.checked });
+      $("#remind-closed-note", body).textContent = t(remindNote(rc.checked));
+    };
     const mo = $("#morning", body);
     mo.onchange = async () => { S = await api.save_settings({ morning: mo.checked }); $(".morning-set", body).hidden = !mo.checked; };
     $("#morning-at", body).onchange = async e => { S = await api.save_settings({ morning_at: e.target.value }); };

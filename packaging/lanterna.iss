@@ -67,6 +67,11 @@ Filename: "{app}\Lanterna.exe"; Description: "{cm:LaunchProgram,Lanterna}"; Flag
 ; Lanterna's own update runs the installer silently with RELAUNCH=1: open the new version when it is done.
 Filename: "{app}\Lanterna.exe"; Flags: nowait; Check: ShouldRelaunch
 
+[UninstallRun]
+; The Task Scheduler task that shows reminders while Lanterna is closed (Lanterna makes it itself, only while
+; reminders are waiting): the uninstaller removes it too.
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""Lanterna\Reminders"" /F"; Flags: runhidden; RunOnceId: "LanternaReminders"
+
 [Code]
 function ShouldRelaunch: Boolean;
 begin

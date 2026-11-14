@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+import sys
 import threading
 import shutil
 import time
@@ -137,7 +138,12 @@ class Api:
             self.drive.adopt(tok, account) if gdrive.SCOPE_FILE in granted.split() else None)
         self.syncer.on_sign_out = self.drive.forget
         self.syncer.on_change = self._synced_settings
+        self._wake = threading.Event()                        # a reminder changed: the loop moves the alarm at once
+        from . import wake
+        self._wake_ok = wake.allowed()                        # decided now: at exit a test's LANTERNA_HOME is gone
         if scheduler:
+            self.store.on_reminders = self._wake.set
+            atexit.register(self.closing)                     # quitting right after adding one still leaves its alarm
             threading.Thread(target=self._reminder_loop, daemon=True).start()
             threading.Thread(target=self.syncer.loop, daemon=True).start()
             threading.Thread(target=updates.cleanup, daemon=True).start()
@@ -159,7 +165,7 @@ class Api:
     def state(self) -> dict:
         s = self.settings
         return {
-            "version": __version__, "author": AUTHOR, "homepage": HOMEPAGE,
+            "version": __version__, "author": AUTHOR, "homepage": HOMEPAGE, "platform": sys.platform,
             "settings": asdict(s), "langs": LANGS, "first": FIRST_CHOICES, "strings": catalog(s.lang),
             "providers": [{"id": p.id, "name": p.name, "key_url": p.key_url, "local": p.local, "note": p.note,
                            "has_key": bool(keys.get_key(p.id)), "masked": keys.mask(keys.get_key(p.id))}
@@ -169,7 +175,7 @@ class Api:
 
     _BOOLS = {"onboarded", "auto_cloud", "update_check", "warn_private", "sync_asked", "pc_access", "tidy_weekly", "space_help",
               "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told",
-              "hotkey_moved", "copied_text", "morning", "tts_auto"}
+              "hotkey_moved", "copied_text", "morning", "tts_auto", "remind_closed"}
 
     def save_settings(self, patch: dict) -> dict:
         from . import shell
@@ -213,6 +219,8 @@ class Api:
         self.settings.save()
         if {"provider", "mode", "local_fallback"} & set(patch or {}):
             self._router = None                            # chosen service / mode changes the model list
+        if "remind_closed" in (patch or {}):
+            self._wake.set()                               # the loop sets or takes away the alarm at once
         return self.state()
 
     # ---------------------------------------------------------------- keys
@@ -1781,11 +1789,12 @@ class Api:
         return out
 
     def check_reminders(self, now: float | None = None) -> list[dict]:
+        from .wake import LATE, due_line
         due = self.store.take_due(now)
         for r in due:
-            late = (time.time() if now is None else now) - r["due"] > 120
-            r["late"] = late
-            notify("Lanterna ⏰", r["text"] + (f" ({time.strftime('%H:%M', time.localtime(r['due']))})" if late else ""))
+            at = time.time() if now is None else now
+            r["late"] = at - r["due"] > LATE
+            notify("Lanterna ⏰", due_line(r, at))
         if due:
             with self._lock:
                 self._alerts += due
@@ -1968,11 +1977,32 @@ class Api:
                 self._alerts += out
         return out
 
+    def _arm_for_closed(self, closing: bool = False) -> None:
+        """The alarm that shows the next reminder while Lanterna is closed (wake.py); off: taken away."""
+        from . import wake
+        if not self._wake_ok:
+            return
+        try:
+            wake.sync(self.store, self.settings.remind_closed, closing=closing)
+        except Exception:                                   # noqa: BLE001  (sqlite closed at exit, no system tool…)
+            pass
+
+    def closing(self) -> None:
+        """Lanterna is quitting: from now on the system shows the reminders, also one due in a moment."""
+        from . import wake
+        if not self._wake_ok:
+            return
+        wake.gone()
+        self._arm_for_closed(closing=True)
+
     def _reminder_loop(self) -> None:
+        from . import wake
         last_check = 0.0
         while True:
             try:
+                wake.still_here()                           # a run at a reminder's time leaves them to this one
                 self.check_reminders()
+                self._arm_for_closed()
                 self.check_tasks()
                 self.check_morning()
                 if time.time() - last_check > 3600:
@@ -1981,7 +2011,8 @@ class Api:
                     self.maintenance()
             except Exception:                               # noqa: BLE001  keep the scheduler alive
                 pass
-            time.sleep(15)
+            self._wake.wait(15)                             # or sooner, when a reminder was just added or changed
+            self._wake.clear()
 
 
 def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False) -> str:
