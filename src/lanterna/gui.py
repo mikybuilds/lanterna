@@ -297,13 +297,49 @@ class WindowApi:
             setattr(self, name, getattr(api, name))
 
 
-def run_window(start_hidden: bool = False) -> int:
-    import webview
+def _no_window() -> int:
+    """Linux without what the window needs (pywebview, the system's PyGObject and WebKitGTK): says so, also as a
+    notification (the app menu has no terminal to read it in), and how to get it. The terminal app works meanwhile."""
+    from . import desktop
+    from .config import Settings
+    from .i18n import t
+    from .notify import notify
+    msg = t("Lanterna's own window needs a few parts of the system. Until then, type lanterna in a terminal; lanterna "
+            "desktop says what to install.", Settings.load().lang)
+    print(msg, *desktop.window_steps(desktop.window_ready()), sep="\n", file=sys.stderr)
+    notify("Lanterna", msg)
+    return 1
 
+
+def _linux_window(webview) -> dict:
+    """Linux: the window is "lanterna" to the desktop, so the dock and Alt+Tab show it with the app menu's launcher
+    and icon (desktop.py); and its own icon where a desktop shows that. What webview.start gets for it."""
+    try:
+        from gi.repository import GLib
+        GLib.set_prgname("lanterna")                        # (before GTK starts)
+        GLib.set_application_name("Lanterna")
+    except Exception:                                       # noqa: BLE001  (Qt, or no PyGObject)
+        pass
+    import inspect
+    import os
+    if os.path.exists("/proc/driver/nvidia"):               # NVIDIA's driver: WebKitGTK's newer drawing stays blank
+        os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+    return {"icon": str(UI / "logo.svg")} if "icon" in inspect.signature(webview.start).parameters else {}
+
+
+def run_window(start_hidden: bool = False) -> int:
+    linux = sys.platform.startswith("linux")
+    try:
+        import webview
+    except ImportError:
+        if linux:                                           # installed without its `gui` part
+            return _no_window()
+        raise
     if sys.platform == "win32":
         from . import shell
         if shell.tell_running_copy():                       # Lanterna already runs: it shows its window instead
             return 0
+    extra = _linux_window(webview) if linux else {}
     api = Api()
     fresh_ui_cache(api.store.path.parent / "webview")
     page = WindowApi(api)
@@ -314,7 +350,13 @@ def run_window(start_hidden: bool = False) -> int:
                                  text_select=True, hidden=hidden)
     storage = str(api.store.path.parent / "webview")
     if not desk_ok:
-        webview.start(private_mode=False, storage_path=storage)
+        try:
+            webview.start(private_mode=False, storage_path=storage, **extra)
+        except getattr(webview, "WebViewException", RuntimeError):
+            from .desktop import window_ready
+            if linux and window_ready():                    # no GTK WebKit, no Qt WebEngine
+                return _no_window()
+            raise
         return 0
     try:                                                    # the quick window opens in the upper middle of the screen
         scr = webview.screens[0]

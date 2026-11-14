@@ -487,6 +487,8 @@ def main(argv: list[str] | None = None) -> int:
     lp.add_argument("value", nargs="?", help="model name (pull) or cloud|local|auto (mode)")
     dp = sub.add_parser("desktop", help="add Lanterna to the app menu (Linux: GNOME, KDE…)")
     dp.add_argument("--remove", action="store_true")
+    dp.add_argument("--terminal", action="store_true", help="open the full-screen app in the terminal, also where "
+                    "Lanterna's own window would open")
     sub.add_parser("remind", help="show the reminders that are due, then quit (the system timer runs it while "
                    "Lanterna is closed)")
     k = sub.add_parser("key")
@@ -526,8 +528,18 @@ def main(argv: list[str] | None = None) -> int:
             wake.forget()                    # before `pipx uninstall`: the reminder timer goes too
             console.print(t("Removed from the app menu.", s.lang))
             return 0
-        desk, _ = desktop.install()
+        need = set() if a.terminal else desktop.window_ready()      # its own window where it opens, else the terminal
+        desk, _ = desktop.install(window=not a.terminal and not need)
+        if not a.terminal and not need:
+            console.print(f"[green]✓[/] {t('Lanterna is in your app menu now, in its own window. Press Super and type Lanterna.', s.lang)}\n[dim]{desk}[/]")
+            return 0
         console.print(f"[green]✓[/] {t('Lanterna is in your app menu now. Press Super and type Lanterna.', s.lang)}\n[dim]{desk}[/]")
+        if need:
+            from rich.markup import escape
+            console.print("\n" + t("Lanterna opens in the terminal. For its own window:", s.lang))
+            parts = t("Install PyGObject and WebKitGTK 4.1 with your system's package manager, then:", s.lang)
+            for step in desktop.window_steps(need):       # ("#": the system's packages, where their names aren't known)
+                console.print(f"  [dim]{parts}[/]" if step.startswith("#") else f"  [bold]{escape(step)}[/]")
         return 0
     if a.cmd == "key":
         if a.action == "list":

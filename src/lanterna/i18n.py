@@ -1430,3 +1430,22 @@ _T.update({
         "it": "All'ora del promemoria il sistema avvia Lanterna per un attimo (un timer di systemd) per mostrarlo; "
               "se il computer era spento, subito dopo l'avvio. Nel frattempo non gira nulla."},
 })
+
+# Lanterna's own window on Linux (1.1.8, desktop.py, `lanterna desktop`, gui.py)
+_T.update({
+    "Lanterna is in your app menu now, in its own window. Press Super and type Lanterna.": {
+        "uk": "Lanterna тепер у меню програм, у власному вікні. Натисни Super і введи Lanterna.",
+        "it": "Lanterna ora è nel menu delle app, nella sua finestra. Premi Super e scrivi Lanterna."},
+    "Lanterna opens in the terminal. For its own window:": {
+        "uk": "Lanterna відкривається в терміналі. Для власного вікна:",
+        "it": "Lanterna si apre nel terminale. Per avere la sua finestra:"},
+    "Install PyGObject and WebKitGTK 4.1 with your system's package manager, then:": {
+        "uk": "Встанови PyGObject і WebKitGTK 4.1 менеджером пакетів своєї системи, потім:",
+        "it": "Installa PyGObject e WebKitGTK 4.1 con il gestore di pacchetti del tuo sistema, poi:"},
+    "Lanterna's own window needs a few parts of the system. Until then, type lanterna in a terminal; lanterna "
+    "desktop says what to install.": {
+        "uk": "Для власного вікна Lanterna потрібні кілька частин системи. Поки що введи lanterna в терміналі; "
+              "lanterna desktop підкаже, що встановити.",
+        "it": "La finestra di Lanterna ha bisogno di alcune parti del sistema. Per ora scrivi lanterna in un "
+              "terminale; lanterna desktop dice cosa installare."},
+})

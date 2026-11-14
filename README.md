@@ -65,6 +65,24 @@ lanterna desktop
 
 Or just type `lanterna` in any terminal.
 
+**Its own window (optional).** Out of the box Lanterna on Linux is the full-screen app in the terminal. For the window you know from Windows (without its tray and quick window), add the system's PyGObject and WebKitGTK once:
+
+| Distribution | Command |
+|---|---|
+| Fedora | `sudo dnf install python3-gobject webkit2gtk4.1` |
+| Ubuntu, Debian, Linux Mint, Pop!_OS | `sudo apt install python3-gi gir1.2-webkit2-4.1` |
+| Arch, Manjaro | `sudo pacman -S --needed python-gobject webkit2gtk-4.1` |
+
+then let Lanterna use them and put the window in your app menu:
+
+```bash
+pipx install --force --system-site-packages git+https://github.com/mikybuilds/lanterna
+pipx inject lanterna pywebview
+lanterna desktop
+```
+
+`lanterna desktop` says what is still missing if the window can't open yet; `lanterna desktop --terminal` keeps the terminal app in the menu. Your chats and settings stay as they are.
+
 Update: Lanterna tells you when a new version is out; then run `pipx upgrade lanterna` · Remove: `lanterna desktop --remove && pipx uninstall lanterna`
 
 Keys are kept in your system keyring (GNOME Keyring, KWallet). On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
