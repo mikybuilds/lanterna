@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import codecs
 import io
 import re
 import zipfile
@@ -65,8 +66,10 @@ def _docx_text(data: bytes) -> str:
             xml = z.read("word/document.xml").decode("utf-8", "replace")
     except (zipfile.BadZipFile, KeyError) as e:
         raise FileError("this Word file can't be read") from e
+    import html
     xml = re.sub(r"</w:p>", "\n", xml)
-    return re.sub(r"<[^>]+>", "", xml)
+    xml = re.sub(r"<w:tab/>", "\t", re.sub(r"<w:(?:br|cr)\b[^>]*/>", "\n", xml))      # a tab, a line break
+    return html.unescape(re.sub(r"<[^>]+>", "", xml))                                # "R&amp;D" is "R&D"
 
 
 # ------------------------------------------------------------------ office files and books (no extra packages)
@@ -163,11 +166,32 @@ def _odf_text(data: bytes) -> str:
         root = _xml(_zip_read(z, "content.xml"))
     out = []
 
+    def flat(s: str | None) -> str:
+        return re.sub(r"[ \t\r\n]+", " ", s or "")          # spaces in the XML itself count as one (ODF's rule)
+
+    def words(el) -> str:
+        """A paragraph's text with its tabs, runs of spaces and line breaks (elements of their own there; the
+        spaces are marked so that stripping the line keeps them, e.g. a code line's indent)."""
+        bits = [flat(el.text)]
+        for c in el:
+            tag = _local(c.tag)
+            if tag == "tab":
+                bits.append("\t")
+            elif tag == "s":
+                n = next((v for k, v in c.attrib.items() if _local(k) == "c"), "1")
+                bits.append("\x01" * min(int(n) if n.isdigit() else 1, 200))
+            elif tag == "line-break":
+                bits.append("\n")
+            else:
+                bits.append(words(c))
+            bits.append(flat(c.tail))
+        return "".join(bits)
+
     def walk(el) -> None:
         tag = _local(el.tag)
         if tag in ("p", "h"):
-            line = "".join(el.itertext()).strip()
-            if line:
+            line = words(el).strip(" ").replace("\x01", " ").rstrip()
+            if line.strip():
                 out.append(line)
             return
         if tag == "table-row":
@@ -315,10 +339,10 @@ def prepare_full(name: str, data: bytes, focus: str = "", whole: bool = False,
             return (f"[Scanned PDF: {name} — no text layer, so pages 1-{len(urls)}{more} are attached as pictures]",
                     urls, False)
     elif ext in TEXT_EXT or not ext:
-        text = data.decode("utf-8", "replace")
+        text = data.removeprefix(codecs.BOM_UTF8).decode("utf-8", "replace")    # a CSV made for Excel starts with it
     else:
         try:
-            text = data.decode("utf-8")
+            text = data.removeprefix(codecs.BOM_UTF8).decode("utf-8")
         except UnicodeDecodeError as e:
             raise FileError(f"{name}: this file type is not supported yet") from e
     text = text.replace("\r\n", "\n").strip()

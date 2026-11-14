@@ -20,12 +20,14 @@ import sys
 import threading
 import time
 import uuid
+from codecs import BOM_UTF8
 from pathlib import Path
 from typing import Callable
 
 from . import quiet
+from .docmake import DOCS, excel_hint
 from .files import DOC_EXT, IMAGE_EXT, FileError, prepare_one
-from .workspace import NEVER_WRITE, WAITING, WorkError, check_text
+from .workspace import NEVER_WRITE, WAITING, WorkError, check_text, write_new
 
 PLACES = ("downloads", "desktop", "documents", "pictures", "videos", "music")
 LIST_LIMIT = 200
@@ -481,7 +483,7 @@ class Places:
                     "(it would go to the model). The user can open it themselves.")
         try:
             body = prepare_one(p.name, data)[0] if p.suffix.lower() in DOC_EXT else \
-                data[:800_000].decode("utf-8", "replace")
+                data[:800_000].removeprefix(BOM_UTF8).decode("utf-8", "replace")      # (a CSV for Excel starts with it)
         except FileError as e:
             raise WorkError(str(e)) from e
         start = max(0, int(start or 0))
@@ -756,12 +758,14 @@ class Places:
             if q.exists():
                 raise WorkError(f"'{rel}' appeared in the meantime; nothing was changed.")
             q.parent.mkdir(parents=True, exist_ok=True)
-            with open(q, "x", encoding="utf-8", newline="") as f:
-                f.write(text)
+            write_new(q, text)                              # a .docx / .odt becomes a real document
             self.actions.note_undo({"type": "trash", "paths": [str(q)]})
             return f"{place}/{rel} ({q})"
-        self.actions.propose("pc_write", {"place": place, "path": rel, "full": str(p), "preview": text[:1500],
-                                          "chars": len(text), "lines": text.count("\n") + 1 if text else 0}, run)
+        details = {"place": place, "path": rel, "full": str(p), "preview": text[:1500], "chars": len(text),
+                   "lines": text.count("\n") + 1 if text else 0}
+        if p.suffix.lower() in DOCS:
+            details["doc"] = p.suffix.lower()[1:]
+        self.actions.propose("pc_write", details, run)
         return WAITING + f" When confirmed, the file will be at {p}."
 
     def propose_trash(self, place: str, paths: list[str], reason: str = "") -> str:
@@ -887,10 +891,12 @@ def place_tools(pl: Places) -> list:
         Tool("pc_rename", "Rename a file or folder in the user's folders. " + card,
              _obj({"place": place, "path": s, "new_name": s}, ["place", "path", "new_name"]),
              lambda place, path, new_name: pl.propose_rename(place, path, new_name), "✏️"),
-        Tool("pc_write", "Create a new text file on this computer, in one of the user's folders (Desktop, Documents, "
-             "Downloads…): a note, a list, a command or code for the user to open and copy. Use this whenever the "
-             "user asks for a file on the desktop or in a folder of theirs — not Google Drive. Never overwrites a "
-             "file. Plain text only (.txt, .md, .csv, code): not Word, Excel or PDF. " + card,
+        Tool("pc_write", "Create a new file on this computer, in one of the user's folders (Desktop, Documents, "
+             "Downloads…): a note, a list, a letter, a command or code for the user to open and copy. Use this "
+             "whenever the user asks for a file on the desktop or in a folder of theirs — not Google Drive. Never "
+             "overwrites a file. Plain text (.txt, .md, .csv, code) or a Word / LibreOffice document (.docx / .odt: "
+             "write it in Markdown and it becomes real headings, lists and bold); not Excel or PDF."
+             + excel_hint() + " " + card,
              _obj({"place": place, "path": {"type": "string", "description": "file name, e.g. notes.txt"}, "text": s},
                   ["place", "path", "text"]),
              lambda place, path, text: pl.propose_write(place, path, text), "📝"),

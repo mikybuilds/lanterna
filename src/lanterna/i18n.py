@@ -1402,3 +1402,13 @@ _T.update({
     "Light theme": {"uk": "Світла тема", "it": "Tema chiaro"},
     "Dark theme": {"uk": "Темна тема", "it": "Tema scuro"},
 })
+
+# new Word and LibreOffice documents (1.1.8): the card says what the Markdown in its preview becomes
+_T.update({
+    "a Word document (headings, lists and bold become real formatting)": {
+        "uk": "документ Word (заголовки, списки й жирний стануть справжнім форматуванням)",
+        "it": "un documento Word (titoli, elenchi e grassetto diventano vera formattazione)"},
+    "a LibreOffice document (headings, lists and bold become real formatting)": {
+        "uk": "документ LibreOffice (заголовки, списки й жирний стануть справжнім форматуванням)",
+        "it": "un documento LibreOffice (titoli, elenchi e grassetto diventano vera formattazione)"},
+})

@@ -177,9 +177,10 @@ def test_adding_to_a_file_keeps_a_copy_and_can_be_undone(ws):
 
 
 def test_no_text_goes_into_word_excel_or_pdf_files(ws, tmp_path):
+    # (since 1.1.8b6 a new .docx / .odt is made as a real document: test_round_136; an existing one is still never changed)
     before = (ws.root() / "report.docx").read_bytes()
     for name, mode in (("report.docx", "append"), ("report.docx", "replace"), ("new.xlsx", "create"),
-                       ("scan.PDF", "create"), ("photo.jpg", "create"), ("notes.odt", "create")):
+                       ("scan.PDF", "create"), ("photo.jpg", "create"), ("slides.pptx", "create")):
         with pytest.raises(WorkError) as e:
             ws.propose_write(name, "Some text", mode)
         assert "Nothing was changed" in str(e.value) and ".md" in str(e.value)
@@ -202,8 +203,9 @@ def test_the_desktop_writer_refuses_documents_too(tmp_path):
     acts.bind(cards, 3)
     pl = pcfiles.Places(acts, folders=lambda: home, opener=lambda p: None)
     with pytest.raises(WorkError) as e:
-        pl.propose_write("desktop", "Letter.docx", "Dear Anna")
-    assert "Letter.md" in str(e.value) and not cards and not list(home["desktop"].iterdir())
+        pl.propose_write("desktop", "Budget.xlsx", "Food,100")              # (a new Letter.docx is made since 1.1.8b6)
+    assert "Budget.md" in str(e.value) and "Budget.csv" in str(e.value)
+    assert not cards and not list(home["desktop"].iterdir())
     assert "Nothing has been changed" in pl.propose_write("desktop", "Letter.txt", "Dear Anna") and len(cards) == 1
 
 

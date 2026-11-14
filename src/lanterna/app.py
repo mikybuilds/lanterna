@@ -2078,6 +2078,9 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         lines.append(t("MCP server: {s}", lang, s=d.get("server", "")) + " · " +
                      t("a web address" if d.get("kind") == "http" else "a program on this computer", lang))
         lines.append(t("What goes to the server:", lang))
+    elif kind in ("write_new", "pc_write") and d.get("doc"):
+        lines.append(t("a LibreOffice document (headings, lists and bold become real formatting)" if d["doc"] == "odt"
+                       else "a Word document (headings, lists and bold become real formatting)", lang))
     return "\n".join(x for x in lines if x)
 
 

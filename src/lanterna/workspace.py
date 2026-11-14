@@ -15,11 +15,14 @@ import shutil
 import threading
 import time
 import uuid
+from codecs import BOM_UTF8
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from . import docmake
 from .config import data_dir
+from .docmake import BOM, DOCS
 from .files import DOC_EXT, IMAGE_EXT, FileError, prepare_one
 
 READ_LIMIT = 12000                 # characters of a file given to the model at once
@@ -35,6 +38,7 @@ NOT_TEXT = {".docx", ".doc", ".dotx", ".rtf", ".xlsx", ".xlsm", ".xls", ".pptx",
             ".pdf", ".epub", ".pages", ".numbers", ".key", ".zip", ".7z", ".rar", ".gz", ".tar", ".png", ".jpg",
             ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".ico", ".mp3", ".wav", ".ogg", ".flac",
             ".m4a", ".mp4", ".mkv", ".avi", ".mov", ".webm", ".iso", ".db", ".sqlite"}
+SHEETS = {".xlsx", ".xlsm", ".xls", ".ods", ".numbers"}
 EXPIRE = 30 * 60                   # an unanswered card stops working after this many seconds
 
 
@@ -42,13 +46,55 @@ class WorkError(Exception):
     pass
 
 
-def check_text(p: Path) -> None:
-    """Lanterna writes plain text only: a Word, Excel or PDF file (or a picture) made of it wouldn't open, and an
-    existing one would break."""
-    if p.suffix.lower() in NOT_TEXT:
-        raise WorkError(f"'{p.name}' is not a plain text file: Lanterna writes only plain text, so a {p.suffix} file "
-                        f"made of it wouldn't open (and an existing one would break). Nothing was changed. Offer to "
-                        f"save the text as '{p.stem}.md' or '{p.stem}.txt' instead: Word and LibreOffice open those too.")
+def check_text(p: Path, mode: str = "create") -> None:
+    """Lanterna writes plain text, and makes new Word and LibreOffice documents of it (docmake). An existing
+    document is never changed (its formatting would be lost); a file of another kind (Excel, PDF, a picture) made of
+    text wouldn't open, and an existing one would break."""
+    ext = p.suffix.lower()
+    if ext in DOCS:
+        if mode != "create":
+            raise WorkError(f"'{p.name}' already exists, and Lanterna doesn't change Word or LibreOffice documents "
+                            f"(their formatting would be lost). Nothing was changed. Offer to save the text as a new "
+                            f"document, e.g. '{p.stem} (2){p.suffix}', or as '{p.stem}.md'.")
+        return
+    if ext in NOT_TEXT:
+        other = f"'{p.stem}.csv' (a table Excel and LibreOffice open)" if ext in SHEETS else f"'{p.stem}.docx' (Word)"
+        raise WorkError(f"'{p.name}' is not a plain text file: a {p.suffix} file made of text wouldn't open (and an "
+                        f"existing one would break). Nothing was changed. Offer to save it as {other} or "
+                        f"'{p.stem}.md' instead.")
+
+
+def write_new(q: Path, text: str) -> None:
+    """A new file (never over another one): a Word / LibreOffice document is made of the text, a CSV file gets the
+    mark Excel needs to read its letters, anything else is the text itself."""
+    ext = q.suffix.lower()
+    if ext in DOCS:
+        with open(q, "xb") as f:
+            f.write(docmake.build(ext, text))
+        return
+    with open(q, "x", encoding="utf-8", newline="") as f:
+        f.write(docmake.csv_text(text) if ext == ".csv" else text)
+
+
+def _head(p: Path) -> bytes:
+    try:
+        with open(p, "rb") as f:
+            return f.read(3)
+    except OSError:
+        return b""
+
+
+def _ends_open(p: Path) -> bool:
+    """The file has text and its last line doesn't end yet (adding to it starts a new line first)."""
+    try:
+        with open(p, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            if not f.tell():
+                return False
+            f.seek(-1, os.SEEK_END)
+            return f.read(1) not in (b"\n", b"\r")
+    except OSError:
+        return False
 
 
 def too_broad(p: Path) -> str:
@@ -303,7 +349,7 @@ class Workspace:
         if p.suffix.lower() in DOC_EXT:
             body = prepare_one(p.name, p.read_bytes())[0]
         else:
-            body = p.read_bytes()[:WRITE_LIMIT * 4].decode("utf-8", "replace")
+            body = p.read_bytes()[:WRITE_LIMIT * 4].removeprefix(BOM_UTF8).decode("utf-8", "replace")  # (a CSV's mark)
         start = max(0, int(start or 0))
         part = body[start:start + READ_LIMIT]
         more = (f"\n[… {len(body) - start - READ_LIMIT} more characters: call folder_read again with start="
@@ -320,40 +366,56 @@ class Workspace:
     def propose_write(self, path: str, text: str, mode: str = "create") -> str:
         p = self.path(path)
         self._check_target(p)
-        check_text(p)
+        mode = mode if mode in ("create", "replace", "append") else "create"
+        if mode != "create" and not p.exists():
+            mode = "create"
+        check_text(p, mode)
         text = str(text or "")
         if len(text) > WRITE_LIMIT:
             raise WorkError("That is too long for one file.")
-        mode = mode if mode in ("create", "replace", "append") else "create"
         if p.is_dir():
             raise WorkError(f"'{path}' is a folder.")
+        ext = p.suffix.lower()
         if mode == "create" and p.exists():
-            raise WorkError(f"'{self.rel(p)}' already exists. Use mode 'replace' to rewrite it or 'append' to add to it.")
-        if mode != "create" and not p.exists():
-            mode = "create"
+            raise WorkError(f"'{self.rel(p)}' already exists. " + (
+                f"Lanterna doesn't change existing documents: pick another name, e.g. '{p.stem} (2){p.suffix}'."
+                if ext in DOCS else "Use mode 'replace' to rewrite it or 'append' to add to it."))
+        if ext == ".csv" and mode == "append":
+            text = text.lstrip(BOM)                  # the mark belongs only at the very start of the file
         kind = {"create": "write_new", "replace": "write_replace", "append": "write_append"}[mode]
         rel = self.rel(p)
 
         def run() -> str:
             q = self.path(rel)                       # the folder may have changed since
             self._check_target(q)
-            check_text(q)
+            check_text(q, mode)
             backup = ""
             if mode == "create" and q.exists():
                 raise WorkError(f"'{rel}' appeared in the meantime; nothing was changed.")
             if mode in ("replace", "append") and q.exists():
                 backup = _backup(q)                  # adding to the end can be undone too
             q.parent.mkdir(parents=True, exist_ok=True)
-            with open(q, "a" if mode == "append" else "w", encoding="utf-8", newline="") as f:
-                f.write(("\n" if mode == "append" and q.exists() and q.stat().st_size else "") + text)
+            if mode == "create":
+                write_new(q, text)
+            elif mode == "replace":
+                body = docmake.csv_text(text, _head(q) if q.exists() else None) if ext == ".csv" else text  # keeps the old file's mark
+                with open(q, "w", encoding="utf-8", newline="") as f:
+                    f.write(body)
+            else:
+                start = "\n" if _ends_open(q) else ""
+                with open(q, "a", encoding="utf-8", newline="") as f:
+                    f.write(start + text)
             if mode == "create":
                 self.actions.note_undo({"type": "trash", "paths": [str(q)]})
             elif backup:
                 self.actions.note_undo({"type": "restore_backup", "path": str(q), "backup": backup})
             return rel + (f" (the old version is saved in {backup})" if backup else "")
 
-        self.actions.propose(kind, {"path": rel, "folder": str(self._root()), "preview": text[:1500], "chars": len(text),
-                                    "lines": text.count("\n") + 1 if text else 0}, run)
+        details = {"path": rel, "folder": str(self._root()), "preview": text[:1500], "chars": len(text),
+                   "lines": text.count("\n") + 1 if text else 0}
+        if ext in DOCS:
+            details["doc"] = ext[1:]                 # the card says it becomes a Word / LibreOffice document
+        self.actions.propose(kind, details, run)
         return WAITING
 
     def propose_mkdir(self, path: str) -> str:
@@ -429,10 +491,12 @@ def folder_tools(ws: Workspace) -> list:
         Tool("folder_read", f"Read a file from {where} (text, code, Markdown, CSV, PDF, Word). Long files come in parts: "
              "pass `start` to continue.",
              _obj({"path": s, "start": {"type": "integer"}}, ["path"]), lambda path, start=0: ws.read(path, start), "📖"),
-        Tool("folder_write", f"Create or change a plain text file in {where} (.txt, .md, .csv, code; not Word, Excel "
-             "or PDF). mode: create (new file), replace (rewrite), append (add to the end); a copy of the old file is "
-             "kept, with Undo. Call it directly when the user asks for a file: they get a card with a Confirm "
-             "button, so don't ask for permission in text first.",
+        Tool("folder_write", f"Create or change a file in {where}: plain text (.txt, .md, .csv, code), or a new Word "
+             "or LibreOffice document (.docx / .odt: write it in Markdown — # headings, - lists, **bold**, tables — "
+             "and it becomes real formatting; an existing document can't be changed). Not Excel or PDF. mode: create "
+             "(new file), replace (rewrite), append (add to the end); a copy of the old file is kept, with Undo."
+             + docmake.excel_hint() + " Call it directly when the user asks for a file: they get a card with a "
+             "Confirm button, so don't ask for permission in text first.",
              _obj({"path": s, "text": s, "mode": {"type": "string", "enum": ["create", "replace", "append"]}},
                   ["path", "text"]),
              lambda path, text, mode="create": ws.propose_write(path, text, mode), "📝"),

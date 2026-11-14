@@ -3188,6 +3188,8 @@ function actCard(c) {
     if (d.size != null) meta.push((d.size / 1048576).toFixed(1) + " MB");
   } else {
     if (d.folder) meta.push("📁 " + d.folder.split(/[\\/]/).filter(Boolean).pop());
+    if (d.doc) meta.push(d.doc === "odt" ? t("a LibreOffice document (headings, lists and bold become real formatting)")
+      : t("a Word document (headings, lists and bold become real formatting)"));
     if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
   }
   const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
