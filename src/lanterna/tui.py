@@ -1810,6 +1810,8 @@ class SyncBox(Vertical):
 
     def on_mount(self) -> None:
         self._sync_working = False
+        if not self.children:         # closed before its parts were put in (its step left at once): nothing to show
+            return
         self._paint_sync()
         self.set_interval(1.0, self._paint_sync)
 

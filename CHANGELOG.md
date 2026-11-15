@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Leaving the Google step at once no longer closes the terminal app.** When the Google sign-in step (or the sync box in Settings) was closed before it had fully appeared, on a slow computer or with a quick key, the terminal app stopped with an error. Now it just goes on.
+
 ## 1.1.9 — Formulas, tables and quotes in answers
 
 **New**

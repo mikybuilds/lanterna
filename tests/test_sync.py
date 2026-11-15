@@ -364,6 +364,36 @@ def test_terminal_app_asks_for_google_first(tmp_path, vault, monkeypatch):
     assert a.settings.sync_asked
 
 
+def test_google_box_closed_before_it_is_drawn(tmp_path, vault, monkeypatch):
+    """The Google box closed before its parts are put in (its step left at once: on a slow computer the test above
+    did it) closes quietly. Its first paint found none of its parts and the terminal app crashed (NoMatches)."""
+    pytest.importorskip("textual")
+    import asyncio
+    from textual.containers import Vertical
+    from textual.widgets import Button
+    from lanterna.app import Api
+    from lanterna.tui import LanternaApp, SyncBox
+    monkeypatch.setenv("LANTERNA_HOME", str(tmp_path))
+    a = Api(store=Store(tmp_path / "t.db"), scheduler=False)
+    a.settings.update_check = False
+    a.settings.onboarded, a.settings.mode, a.settings.sync_asked = True, "local", True
+
+    async def run():
+        app = LanternaApp(api=a)
+        async with app.run_test(size=(110, 50)) as pilot:
+            await pilot.pause(0.3)
+            holder = Vertical()
+            await app.screen.mount(holder)
+            holder.mount(SyncBox(first=True))
+            holder.remove()                                   # gone before the box put its parts in
+            await pilot.pause(0.3)
+            box = SyncBox()                                   # a box that stays still shows itself
+            await app.screen.mount(box)
+            await pilot.pause(0.1)
+            assert box.query_one("#syncin", Button).display
+    asyncio.run(run())
+
+
 # ---------------------------------------------------------------- forgot the password · no password
 @pytest.fixture
 def vaults(monkeypatch):
