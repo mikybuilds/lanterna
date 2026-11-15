@@ -443,7 +443,7 @@ def run_window(start_hidden: bool = False) -> int:
 
 def ui_stamp() -> str:
     h = hashlib.sha1()
-    for f in ("index.html", "app.js", "style.css", "logo.svg"):
+    for f in ("index.html", "app.js", "style.css", "logo.svg", "katex.js", "katex.css"):
         p = UI / f
         h.update(p.read_bytes() if p.is_file() else b"")
     return h.hexdigest()

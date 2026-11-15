@@ -513,6 +513,18 @@ body.quick .chip:not([hidden]) + #q-shot { margin-left: 6px; }
 .md pre code { background: none; border: 0; padding: 0; font-size: .867em; line-height: 1.55; }
 .md a { color: var(--amber); }
 .md strong { font-weight: 650; color: var(--strong); }
+.md del { color: var(--muted); }
+.md hr { border: 0; border-top: 1px solid var(--line-2); margin: 16px 0; }
+.md blockquote { margin: 0 0 10px; padding: 2px 0 2px 14px; border-left: 3px solid var(--amber-line); }
+/* a table: a wide one scrolls sideways inside the answer */
+.md .tbl { overflow-x: auto; margin: 0 0 10px; }
+.md table { border-collapse: collapse; font-size: .95em; }
+.md th, .md td { border: 1px solid var(--line-2); padding: 6px 12px; text-align: left; vertical-align: top; }
+.md th { background: var(--surface-2); font-weight: 650; color: var(--strong); }
+.md tbody tr:nth-child(even) { background: var(--zebra); }
+/* formulas (KaTeX): one on its own line sits in the middle; a long one scrolls sideways instead of leaving the answer */
+.md .katex-display { margin: 10px 0; padding: 4px 0; overflow-x: auto; overflow-y: hidden; }
+.md .katex-display > .katex { padding: 0 2px; }
 .typing { display: inline-flex; gap: 5px; padding: 10px 0; }
 .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); opacity: .3; animation: blink 1.2s infinite; }
 .typing span:nth-child(2) { animation-delay: .2s; }

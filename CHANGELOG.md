@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Formulas, drawn.** When an answer has a formula (the LaTeX models write: `$…$`, `$$…$$`, `\(…\)`, `\[…\]`), the window now draws it as in a textbook: fractions, roots, powers and indices, Greek letters, sums and integrals, matrices, systems of equations, and chemistry (`\ce{H2SO4}`). A formula on its own line sits in the middle of the answer, and a long one scrolls sideways instead of leaving it. It works offline: KaTeX (MIT license) comes with Lanterna, its fonts too. Money stays money (`$5 and $20` is not a formula), code is never touched, and a formula KaTeX can't read stays as the model wrote it. Copying a drawn formula gives its LaTeX, and screen readers get it as MathML.
+- **Tables, lines and quotes in answers.** A table in an answer is a real table in the window (a wide one scrolls sideways), `---` is a line across, a line that starts with `>` is a quote, and `~~text~~` is crossed out. They showed as signs before.
+- **Formulas as text where they can't be drawn.** In the terminal app a formula becomes text you can read (I = Q/Δt, x = (-b ± √(b² - 4ac))/(2a), SO₄²⁻), and one on its own line keeps its own line. Reading aloud reads that text, not dollar signs and backslashes. A chat's name and the suggested next messages show no LaTeX either.
+
 ## 1.1.8 — Stop, a light theme, real sources, a scam check
 
 **New**

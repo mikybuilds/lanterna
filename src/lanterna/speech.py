@@ -22,6 +22,8 @@ from pathlib import Path
 
 import httpx
 
+from .mathtext import for_speech
+
 ENGINES = ("off", "system", "piper")
 MAX_CHARS = 6000
 
@@ -65,8 +67,8 @@ class SpeechError(Exception):
 
 
 def speakable(text: str) -> str:
-    """The answer as plain sentences to read: no code blocks, links, tables or markdown signs."""
-    t = re.sub(r"```.*?```", " ", text or "", flags=re.S)
+    """The answer as plain sentences to read: no code blocks, links, tables or markdown signs; formulas as text."""
+    t = re.sub(r"```.*?```", " ", for_speech(text or ""), flags=re.S)
     t = re.sub(r"`([^`]*)`", r"\1", t)
     t = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", t)
     t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)

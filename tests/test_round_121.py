@@ -25,12 +25,18 @@ def _grab(name: str) -> str:
     raise AssertionError(name)
 
 
+# md() with what it uses: formulas (tex, cutMath; without KaTeX they stay as written) and tables
+MD_PARTS = [re.search(r"^const TEX = .*$", JS, re.M).group(0), _grab("function tex("),
+            re.search(r"^const moneyLike = .*$", JS, re.M).group(0), _grab("function cutMath("),
+            re.search(r"^const cellsOf = [\s\S]*?;$", JS, re.M).group(0), _grab("function tableAlign("), _grab("function md(")]
+
+
 def _run(code: str):
     node = shutil.which("node")
     if not node:
         pytest.skip("node is not installed")
     esc = re.search(r"^const esc = .*$", JS, re.M).group(0)
-    src = "\n".join([esc, _grab("function md("), re.search(r"^const LIST_LINE = .*$", JS, re.M).group(0), code])
+    src = "\n".join([esc, *MD_PARTS, re.search(r"^const LIST_LINE = .*$", JS, re.M).group(0), code])
     r = subprocess.run([node, "-e", src], capture_output=True, text=True, timeout=60, encoding="utf-8")
     assert r.returncode == 0, r.stderr
     return json.loads(r.stdout)

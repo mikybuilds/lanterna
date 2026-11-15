@@ -8,6 +8,7 @@
 <script>/* the theme before the first paint (app.js keeps it in step with Settings) */
 try { var th = localStorage.getItem("theme"); if (th === "system") th = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   document.documentElement.dataset.theme = th === "light" ? "light" : "dark"; } catch (e) { /* dark */ }</script>
+<link rel="stylesheet" href="katex.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -60,6 +61,7 @@ try { var th = localStorage.getItem("theme"); if (th === "system") th = matchMed
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="currentColor"/></symbol>
   </svg>
 </template>
+<script src="katex.js"></script>
 <script src="logos.js"></script>
 <script src="app.js"></script>
 </body>

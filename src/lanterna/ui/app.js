@@ -456,19 +456,94 @@ const heroLamp = () => `<div class="hero-logo">${lamp(true)}<span class="embers"
 addEventListener("blur", () => document.body.classList.add("away"));
 addEventListener("focus", () => document.body.classList.remove("away"));
 
+// ---------------------------------------------------------------- formulas
+// Models write formulas in LaTeX: $…$ or \(…\) inside a sentence, $$…$$ or \[…\] on a line of their own. KaTeX
+// (ui/katex.js, works offline) draws them; without it, or when the TeX is broken, a formula stays as written.
+const TEX = new Map();                     // drawn formulas: an answer is drawn again with every new piece of it
+function tex(src, display) {
+  const key = (display ? "D" : "I") + src;
+  if (!TEX.has(key)) {
+    let out = null;
+    try {
+      out = katex.renderToString(src, { displayMode: display, throwOnError: true, strict: "ignore", trust: false, maxSize: 20, maxExpand: 300 });
+    } catch (e) { /* no KaTeX, or TeX it can't read */ }
+    if (TEX.size > 500) TEX.clear();
+    TEX.set(key, out);
+  }
+  return TEX.get(key);
+}
+
+// Cuts the formulas out of a piece of an answer: each becomes a mark (n), its drawing goes to found[n],
+// so Markdown doesn't touch the _ * \ | inside. "$5 and $10" stay money: no space right inside a $…$ pair, no letter
+// or digit right before it, no digit right after it, and no word in one that starts with a digit and has a space
+// ("$10, oppure 5$" is money; $3x + 2 = 11$ and $10\text{ metri}$ are formulas). `code` stays as it is. \$ is a $.
+// (The terminal finds them the same way: lanterna/mathtext.py.)
+const moneyLike = body => /^\d/.test(body) && /\s/.test(body) && /\p{L}{3}/u.test(body.replace(/\\[a-zA-Z]+\s*(\{[^{}]*\})?/g, " "));
+function cutMath(s, found) {
+  let out = "", i = 0;
+  const mark = (src, display, raw) => {
+    const html = tex(src.trim(), display);
+    found.push(html === null ? { html: esc(raw), block: false } : { html, block: display });
+    out += `${found.length - 1}`;
+  };
+  const twoLines = body => /\n[ \t]*\n/.test(body);      // a blank line inside: not a formula
+  while (i < s.length) {
+    const c = s[i], d = s[i + 1] || "";
+    if (c === "`") {
+      const run = /^`+/.exec(s.slice(i))[0], end = s.indexOf(run, i + run.length), nl = s.indexOf("\n", i);
+      const stop = end > -1 && (nl < 0 || end < nl) ? end + run.length : i + run.length;
+      out += s.slice(i, stop); i = stop; continue;
+    }
+    if (c === "\\" && d === "$") { out += "$"; i += 2; continue; }
+    if (c === "\\" && (d === "[" || d === "(")) {
+      const end = s.indexOf(d === "[" ? "\\]" : "\\)", i + 2), body = end > -1 ? s.slice(i + 2, end) : "";
+      if (body.trim() && !twoLines(body) && (d === "[" ? !/^[\d\s,;–-]+$/.test(body) : !body.includes("\n"))) {   // \[1\]: a note
+        mark(body, d === "[", s.slice(i, end + 2)); i = end + 2; continue;
+      }
+    }
+    if (c === "$" && d === "$") {
+      const end = s.indexOf("$$", i + 2), body = end > -1 ? s.slice(i + 2, end) : "";
+      if (body.trim() && !twoLines(body)) { mark(body, true, s.slice(i, end + 2)); i = end + 2; continue; }
+      out += "$$"; i += 2; continue;
+    }
+    if (c === "$" && d && !/[\s$]/.test(d) && !/[\w$\\]/.test(s[i - 1] || "")) {
+      let j = i + 1;
+      while (j < s.length && s[j] !== "$" && s[j] !== "\n") j += s[j] === "\\" ? 2 : 1;
+      const body = s.slice(i + 1, j);
+      if (s[j] === "$" && !/\s/.test(s[j - 1]) && !/\d/.test(s[j + 1] || "") && !moneyLike(body)) {
+        mark(body, false, s.slice(i, j + 1)); i = j + 1; continue;
+      }
+    }
+    out += c; i++;
+  }
+  return out;
+}
+
+// a table: a | row |, then a |---|:--:| line with as many cells, then rows; \| is a | inside a cell
+const cellsOf = row => row.trim().replace(/^\|/, "").replace(/\|$/, "").replace(/\\\|/g, "").split("|")
+  .map(c => c.trim().replace(//g, "|"));
+function tableAlign(head, rule) {
+  if (!rule || !head.includes("|") || !rule.includes("|") || !/^[\s|:-]+$/.test(rule)) return null;
+  const al = cellsOf(rule);
+  if (al.length !== cellsOf(head).length || !al.every(c => /^:?-+:?$/.test(c))) return null;
+  return al.map(c => c.endsWith(":") ? (c.startsWith(":") ? "center" : "right") : "");
+}
+
 function md(text, plain = false) {
   // safe, minimal Markdown: everything is escaped first. plain (your own messages): only lists and line breaks.
   const blocks = plain ? [String(text)] : String(text).split(/```/);
   let lastOl = 0, lastOlItems = 0;          // "1. A … text … 1. B" (each item its own list): keep counting
   return blocks.map((b, i) => {
     if (i % 2) { const code = b.replace(/^[\w+-]*\n/, ""); return `<pre><code>${esc(code.replace(/\n$/, ""))}</code></pre>`; }
-    const lines = esc(b).split("\n");
+    const maths = [];
+    const lines = esc(plain ? b : cutMath(b, maths)).split("\n");
     let html = "", list = null, start = 1, num = 0, blank = false;
     const items = [];
     const inline = plain ? s => s : s => s
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+      .replace(/~~([^~\n]+)~~/g, "<del>$1</del>")
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a data-href="$2">$1</a>')
       .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a data-href="$2">$2</a>');
     const close = () => {
@@ -489,11 +564,29 @@ function md(text, plain = false) {
     };
     let para = [];
     const flush = () => { if (para.length) { html += `<p>${inline(para.join("<br>"))}</p>`; para = []; } };
-    for (const ln of lines) {
+    const quote = /^\s{0,3}&gt;\s?(.*)/;
+    for (let k = 0; k < lines.length; k++) {
+      const ln = lines[k];
       let m;
-      if ((m = ln.match(/^\s*[-*•]\s+(.*)/))) { flush(); item("ul", m[1]); }
+      if (!plain && /^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(ln)) { flush(); close(); html += "<hr>"; }          // --- a line
+      else if (!plain && (m = tableAlign(ln, lines[k + 1]))) {
+        flush(); close();
+        const al = m, row = (r, tag) => { const c = cellsOf(r);
+          return `<tr>${al.map((a, j) => `<${tag}${a ? ` style="text-align:${a}"` : ""}>${inline(c[j] || "")}</${tag}>`).join("")}</tr>`; };
+        let body = "";
+        for (k += 2; k < lines.length && lines[k].includes("|") && lines[k].trim(); k++) body += row(lines[k], "td");
+        k--;
+        html += `<div class="tbl"><table><thead>${row(ln, "th")}</thead>${body ? `<tbody>${body}</tbody>` : ""}</table></div>`;
+      }
+      else if (!plain && (m = ln.match(quote))) {                                                          // > a quote
+        flush(); close();
+        const q = [m[1]];
+        while (k + 1 < lines.length && (m = lines[k + 1].match(quote))) { q.push(m[1]); k++; }
+        html += `<blockquote>${inline(q.join("<br>"))}</blockquote>`;
+      }
+      else if ((m = ln.match(/^\s*[-*•]\s+(.*)/))) { flush(); item("ul", m[1]); }
       else if ((m = ln.match(/^\s*(\d{1,4})[.)]\s+(.*)/))) { flush(); item("ol", m[2], +m[1]); }
-      else if (!plain && (m = ln.match(/^#{1,4}\s+(.*)/))) { flush(); close(); html += `<h3>${inline(m[1])}</h3>`; }
+      else if (!plain && (m = ln.match(/^#{1,6}\s+(.*)/))) { flush(); close(); html += `<h3>${inline(m[1])}</h3>`; }
       else if (!ln.trim()) { flush(); blank = true; continue; }
       // a line under an item belongs to it; in your own messages only an indented one does
       else if (list && (/^\s{2,}\S/.test(ln) || (!blank && !plain))) { items[items.length - 1] += (blank ? "<br><br>" : "<br>") + inline(ln.trim()); }
@@ -501,7 +594,9 @@ function md(text, plain = false) {
       blank = false;
     }
     flush(); close();
-    return html;
+    // the formulas back in their places; one of its own line is a block, without the line breaks around it
+    return maths.length ? html.replace(/(<br>)?(\d+)(<br>)?/g, (all, a, n, z) =>
+      maths[n].block ? maths[n].html : (a || "") + maths[n].html + (z || "")) : html;
   }).join("");
 }
 

@@ -25,7 +25,7 @@ from textual.widgets.option_list import Option
 
 from pathlib import Path
 
-from . import AUTHOR, __version__
+from . import AUTHOR, __version__, mathtext
 from .app import Api, action_title, card_text
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
@@ -179,6 +179,11 @@ def L(app) -> str:
 
 
 _OL_ITEM = re.compile(r"^(\s{0,3})(\d{1,4})([.)])(\s+)")
+
+
+def shown(text: str) -> str:
+    """An answer as the terminal shows it: formulas (LaTeX) as plain text (mathtext), lists counted on."""
+    return count_on(mathtext.for_terminal(text))
 
 
 def count_on(text: str) -> str:
@@ -2696,7 +2701,7 @@ class _ChatScreen(Screen):
             else:
                 if m.get("second"):
                     log.mount(Static("👥 " + t("Second opinion", L(self.app)), classes="msg-note", markup=False))
-                log.mount(Markdown(count_on(m["content"]), classes="msg-bot"))
+                log.mount(Markdown(shown(m["content"]), classes="msg-bot"))
                 if m.get("sources"):
                     log.mount(*sources_box(m["sources"], L(self.app)))
                 if m.get("sent"):
@@ -3064,7 +3069,7 @@ class _ChatScreen(Screen):
         gap = min(1.0, len(self._text) / 4000)
         if self._dirty and self._bot is not None and ("final" in r or r.get("done")
                                                       or time.monotonic() - getattr(self, "_drawn_at", 0.0) >= gap):
-            await self._bot.update(count_on(self._text))
+            await self._bot.update(shown(self._text))
             log.scroll_end(animate=False)
             self._dirty, self._drawn_at = False, time.monotonic()
         if r.get("done"):

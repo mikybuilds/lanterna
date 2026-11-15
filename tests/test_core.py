@@ -114,7 +114,9 @@ def test_no_unexpected_domains_in_sources():
                # opening a website in the browser when the user asks (an example for the model, never fetched)
                "www.google.com",
                # names inside the Word documents Lanterna makes (XML namespaces: never fetched)
-               "schemas.openxmlformats.org", "schemas.microsoft.com"}
+               "schemas.openxmlformats.org", "schemas.microsoft.com",
+               # the MathML name in the window's formula drawing (KaTeX, ui/katex.js; never fetched)
+               "www.w3.org"}
     # Connectors: each ready-made connector's own address (checked, made by that service) is reached only after the
     # user adds it; listed in one place, connectors.py, and nowhere else
     from lanterna import connectors

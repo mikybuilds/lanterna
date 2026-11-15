@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterator
 
-from . import AUTHOR, HOMEPAGE, i18n, soul
+from . import AUTHOR, HOMEPAGE, i18n, mathtext, soul
 from .providers import ToolCalls
 from .router import Router, Switched, used_model
 from .tools import READ_ONLY_TOOLS
@@ -303,9 +303,9 @@ TITLE_PROMPT = ("You name chats. Write a short title (3-6 words) for this chat, 
 
 
 def clean_title(raw: str) -> str:
-    """The model's title as one tidy line, or "" if it is unusable."""
+    """The model's title as one tidy line (a formula in it as plain text), or "" if it is unusable."""
     line = next((ln for ln in (raw or "").splitlines() if ln.strip()), "")
-    line = re.sub(r"^\s*(title|назва|titolo)\s*:\s*", "", line, flags=re.I)
+    line = re.sub(r"^\s*(title|назва|titolo)\s*:\s*", "", mathtext.plain(line), flags=re.I)
     line = line.strip().strip("\"'«»“”„*#` ").rstrip(".")
     return line[:60].strip() if 2 <= len(line) <= 80 else ""
 
@@ -335,10 +335,10 @@ FOLLOW_PROMPT = ("Suggest 3 short messages the USER might send next in this chat
 
 
 def clean_follow_ups(raw: str, n: int = 3) -> list[str]:
-    """The model's lines as up to n tidy suggestions."""
+    """The model's lines as up to n tidy suggestions (a formula in one as plain text: they are buttons)."""
     out = []
     for line in (raw or "").splitlines():
-        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip().strip("\"'«»“”„`").strip()
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", mathtext.plain(line)).strip().strip("\"'«»“”„`").strip()
         if 2 <= len(line) <= 90 and line not in out:
             out.append(line)
     return out[:n]
