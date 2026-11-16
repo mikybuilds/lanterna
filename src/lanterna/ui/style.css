@@ -539,7 +539,10 @@ body.quick .chip:not([hidden]) + #q-shot { margin-left: 6px; }
 .copy-code:hover { color: var(--text); }
 .copy-code:active { transform: scale(.88); }
 .md pre code { background: none; border: 0; padding: 0; font-size: .867em; line-height: 1.55; }
-.md a { color: var(--amber); }
+/* a link in an answer: underlined, so it doesn't look like plain text; the hand and a full line under the pointer */
+.md a { color: var(--amber); cursor: pointer; text-decoration: underline; text-decoration-color: var(--amber-line);
+  text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .15s; }
+.md a:hover, .md a:focus-visible { text-decoration-color: currentColor; }
 .md strong { font-weight: 650; color: var(--strong); }
 .md del { color: var(--muted); }
 .md hr { border: 0; border-top: 1px solid var(--line-2); margin: 16px 0; }

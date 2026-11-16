@@ -539,13 +539,24 @@ function md(text, plain = false) {
     const lines = esc(plain ? b : cutMath(b, maths)).split("\n");
     let html = "", list = null, start = 1, num = 0, blank = false;
     const items = [];
+    // a link opens in the browser (the click handler), never inside this window: no href, so it gets the role,
+    // Tab and the address on hover by hand
+    const link = (url, label) => `<a data-href="${url}" title="${url}" role="link" tabindex="0">${label}</a>`;
+    const bare = (all, before, url) => {     // a full stop or a quote right after an address is not part of it
+      const END = /(&quot;|&#39;|[.,;:!?…»”“’‘])$/;
+      let after = "";
+      for (let m = END.exec(url); m && !(m[1] === ";" && /&[\w#]+;$/.test(url)); m = END.exec(url)) {
+        after = m[1] + after; url = url.slice(0, -m[1].length);
+      }
+      return /^https?:\/\/[^/?#]/.test(url) ? before + link(url, url) + after : all;
+    };
     const inline = plain ? s => s : s => s
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
       .replace(/~~([^~\n]+)~~/g, "<del>$1</del>")
-      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a data-href="$2">$1</a>')
-      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a data-href="$2">$2</a>');
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (all, label, url) => link(url, label))
+      .replace(/(^|[\s(«“„‘]|&quot;|&#39;)(https?:\/\/[^\s<)]+)/g, bare);   // also an address in « » or " " quotes
     const close = () => {
       if (!list) return;
       html += `<${list}${list === "ol" && start !== 1 ? ` start="${start}"` : ""}>${items.map(x => `<li>${x}</li>`).join("")}</${list}>`;
@@ -744,6 +755,10 @@ async function boot() {
 
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-href]");
+  if (a) { e.preventDefault(); api.open_url(a.dataset.href); }
+});
+document.addEventListener("keydown", e => {                  // Enter on a link reached with Tab
+  const a = e.key === "Enter" && !e.isComposing && e.target.closest && e.target.closest("a[data-href]");
   if (a) { e.preventDefault(); api.open_url(a.dataset.href); }
 });
 
