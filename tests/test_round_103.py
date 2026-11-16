@@ -83,6 +83,7 @@ def test_router_moves_on_and_rests_the_stuck_model_for_an_hour(server, monkeypat
     assert "".join(x for x in out if isinstance(x, str)) == "Hi there!"
     sw = [x for x in out if isinstance(x, router.Switched)]
     assert sw and sw[0].to.model == "fast" and sw[0].reason == "timeout"
-    assert 3500 < r.resting()["t/stuck"] <= 3600
+    # (≤ an hour; when Windows' clock hasn't ticked since, the subtraction can leave 3600.0000000000005)
+    assert 3500 < r.resting()["t/stuck"] <= 3600.001
     assert [c.model for c in r.available()] == ["fast"]
     r.close()
