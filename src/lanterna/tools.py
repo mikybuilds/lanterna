@@ -410,6 +410,20 @@ GROUPS = {
                       r"pointer|іконк|icon|гучн|volume|нічн|night|не турбу|do not disturb|кастом|custom|вигляд|оформл|look|"
                       r"годинник|clock|\bсам[аеоі]?\b|автоном|on (your|its) own|by yourself|yourself|da solo|selbst|"
                       r"tu mismo|toi-même|sam\b", re.I),
+    # making things: games, little programs, game mods, websites (projects.py) and the task list (plans.py)
+    "make": re.compile(r"\bгр(а|и|у|ою|і)\b|\bігр|міні-?гр|\bмод(и|у|а|ом|ів|ами)?\b|модик|аддон|датапак|плагін|"
+                       r"ресурс-?пак|текстур-?пак|скрипт|програмк|міні-?програм|веб-?сторінк|лендінг|"
+                       r"проєкт|проект|напиш\w* (\w+ )?(програм|код|гр|скрипт|сайт|бот)|"
+                       r"(створ|зроб|розроб)\w* (\w+ )?(програм|гр|сайт|сторінк|мод|скрипт|бот|застосун|додат|калькулятор|"
+                       r"таймер|тест|вікторин)|html|css\b|python|пітон|javascript|\blua\b|minecraft|майнкрафт|"
+                       r"terraria|террарі|roblox|роблокс|godot|unity|\bgames?\b|mini-?games?|\bmods?\b|modding|"
+                       r"add-?ons?\b|datapack|data pack|resource ?pack|texture ?pack|\bplugins?\b|\bscripts?\b|"
+                       r"website|web ?page|landing page|\bprojects?\b|"
+                       r"(make|build|write|create|code|develop)( me)?( an?| the| my| some)? (\w+ )?"
+                       r"(game|app|program|tool|website|page|mod|script|bot|quiz|timer|calculator)|"
+                       r"\bgioc|videogioc|progett|programm|\bsito\b|\bspiel|projekt|webseite|juego|proyecto|"
+                       r"programa|sitio web|\bjeux?\b|projet|\bgr(a|y|ę|ze)\b|\bgier\b|strona www|"
+                       r"\bигр|программ", re.I),
 }
 
 
@@ -421,7 +435,8 @@ READ_ONLY_TOOLS = frozenset((*LOOKUP_TOOLS, "list_reminders", "list_tasks", "sea
                              "folder_list", "folder_search", "folder_read", "drive_list", "github_repos", "github_list",
                              "github_read", "mail_folders", "mail_list", "mail_read", "pc_info", "pc_load", "pc_startup",
                              "pc_power", "pc_look", "pc_space", "pc_folders", "pc_overview", "pc_list", "pc_find",
-                             "pc_read", "pc_duplicates", "app_search", "app_info", "app_installed", "app_updates"))
+                             "pc_read", "pc_duplicates", "app_search", "app_info", "app_installed", "app_updates",
+                             "plan", "project_list", "project_read", "project_check"))
 
 
 class LookupOnly:

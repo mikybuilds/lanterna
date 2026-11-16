@@ -64,6 +64,13 @@ TOOL_TEXT = {
     "pc_look": ("Looking at the look settings", ""),
     "pc_look_set": ("Preparing changes to the look", ""),
     "pc_theme": ("Preparing the theme", ""),
+    "plan": ("Making a plan", ""),
+    "project_write": ("Writing {x}", "path"),
+    "project_edit": ("Fixing {x}", "path"),
+    "project_read": ("Reading {x}", "path"),
+    "project_list": ("Looking at the projects", ""),
+    "project_check": ("Checking the project for mistakes", ""),
+    "project_open": ("Opening the project", ""),
 }
 CYRILLIC = re.compile(r"[Ѐ-ӿ]")
 CYRILLIC_LANGS = ("uk", "ru", "be", "bg", "sr", "mk")

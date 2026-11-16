@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, text TEXT NOT NULL, ev
 # columns added for sync (older databases get them on open)
 _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
                       "summary_upto INTEGER NOT NULL DEFAULT 0", "pinned INTEGER NOT NULL DEFAULT 0",
-                      "pinned_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''",
+                      "pinned_at REAL NOT NULL DEFAULT 0", "plan TEXT NOT NULL DEFAULT ''"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''",
                                                                  "sources TEXT NOT NULL DEFAULT ''"],
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0",
                                                    "repeat TEXT NOT NULL DEFAULT ''"]}
@@ -170,6 +170,23 @@ class Store:
             return
         with self._lock, self._db:
             self._db.execute("UPDATE threads SET summary=?, summary_upto=? WHERE id=?", (text, int(upto), tid))
+
+    def plan(self, tid: int) -> str:
+        """The chat's task list (plans.py keeps its form), "" = none."""
+        if tid < 0:
+            return (self._private.get(tid) or {}).get("plan", "")
+        r = self._q("SELECT plan FROM threads WHERE id=?", (tid,))
+        return r[0]["plan"] if r else ""
+
+    def set_plan(self, tid: int, raw: str) -> None:
+        # not counted as a change, like the summary: a plan belongs to the work going on on this device
+        if tid < 0:
+            with self._lock:
+                if tid in self._private:
+                    self._private[tid]["plan"] = raw
+            return
+        with self._lock, self._db:
+            self._db.execute("UPDATE threads SET plan=? WHERE id=?", (raw or "", tid))
 
     def delete_thread(self, tid: int) -> None:
         if tid < 0:

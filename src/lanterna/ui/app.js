@@ -1535,7 +1535,7 @@ async function openThread(id, priv) {
   const msgs = $("#msgs");
   msgs.innerHTML = "";
   document.body.classList.toggle("private", privateNext || (id || 0) < 0);
-  if (!id) { setTitle(QUICK ? t("Quick question") : privateNext ? t("Private chat") : "Lanterna"); showEmpty(); if (privateNext) msgs.prepend(privBar()); refreshThreads(); $("#input").focus(); return; }
+  if (!id) { setTitle(QUICK ? t("Quick question") : privateNext ? t("Private chat") : "Lanterna"); showEmpty(); if (privateNext) msgs.prepend(privBar()); paintPlan(null); refreshThreads(); $("#input").focus(); return; }
   const [list, items] = await Promise.all([api.threads(), api.messages(id)]);
   const th = list.find(x => x.id === id);
   setTitle(id < 0 ? t("Private chat") : (th && th.title) || t("New chat"));
@@ -1564,6 +1564,7 @@ async function openThread(id, priv) {
   scrollDown(true);
   $("#input").focus();
   paintAuto();
+  loadPlan();
 }
 
 // "Lanterna acts on its own in this chat": a bar over the message box with the time left and Stop
@@ -1580,6 +1581,41 @@ async function paintAuto() {
   el.querySelector("button").onclick = async () => { await api.auto_stop(tid); paintAuto(); };
   if (old) old.replaceWith(el); else $(".composer").prepend(el);
   autoTimer = setTimeout(paintAuto, 30000);
+}
+
+// The task plan of a big job (a game, a program, a mod): its steps over the message box, like Claude's task list.
+// ✓ done, the step Lanterna is on (it glows while the answer is coming), then the next ones. × hides it.
+let planFolded = false, planFor = 0;
+function paintPlan(view, working = false) {
+  const old = $(".plan-box");
+  if (!view || !view.steps || !view.steps.length) { if (old) old.remove(); planFor = 0; return; }
+  const tid = thread, finished = view.done >= view.total;
+  const head = finished ? t("Plan done: {n} of {n}", { n: view.total })
+    : t("Plan: {done} of {total} done", { done: view.done, total: view.total });
+  const el = h(`<section class="plan-box${planFolded ? " folded" : ""}${finished ? " finished" : ""}${working ? " working" : ""}" aria-label="${esc(t("Task plan"))}">
+    <div class="plan-head">
+      <button class="plan-fold" aria-expanded="${!planFolded}">${icon("down", "i caret")}<span>${esc(head)}</span></button>
+      ${view.project ? `<button class="plan-proj" title="${esc(t("Open the project folder"))}">${icon("folder")}<span>${esc(view.project)}</span></button>` : ""}
+      <button class="cp-x plan-x" title="${esc(t("Hide the plan"))}" aria-label="${esc(t("Hide the plan"))}">${icon("x")}</button>
+    </div>
+    <ol class="plan-list">${view.steps.map(s => `<li class="${s.state}"${s.state === "now" ? ' aria-current="step"' : ""}><span class="plan-mk" aria-hidden="true">${s.state === "done" ? icon("check") : ""}</span><span class="plan-tx">${esc(s.text)}</span></li>`).join("")}</ol>
+  </section>`);
+  const fold = el.querySelector(".plan-fold");
+  fold.onclick = () => { planFolded = !planFolded; el.classList.toggle("folded", planFolded); fold.setAttribute("aria-expanded", String(!planFolded)); };
+  const pj = el.querySelector(".plan-proj");
+  if (pj) pj.onclick = async () => { const r = await api.open_project(view.project); if (r && !r.ok) toast(r.error || t("Something went wrong: {e}", { e: "" })); };
+  el.querySelector(".plan-x").onclick = async () => { el.remove(); planFor = 0; await api.clear_plan(tid); };
+  if (old || planFor === tid) el.style.animation = "none";      // only a new plan rises in
+  planFor = tid;
+  if (old) old.replaceWith(el);
+  else { const bar = $(".composer .auto-bar"); bar ? bar.after(el) : $(".composer").prepend(el); }
+}
+function planWorking(on) { const el = $(".plan-box"); if (el) el.classList.toggle("working", on); }
+function planNow() { const el = $(".plan-box .now .plan-tx"); return el ? el.textContent : ""; }
+async function loadPlan() {
+  const tid = thread;
+  const view = tid ? await api.plan(tid) : {};
+  if (tid === thread) paintPlan(view, busy && !!live && live.tid === tid);
 }
 
 // "Edit" under my last message and "Retry" under the last answer (no branches: the old ones are replaced)
@@ -1805,6 +1841,7 @@ async function send(retryText) {
   announce(t("Thinking…"));
   const box = bot.querySelector(".md");
   live = { tid: thread, el: bot, sw: null };
+  if (!second) planWorking(true);                    // its step glows while the answer is coming
   scrollDown(true);
   clearLastActions();
   const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
@@ -1857,6 +1894,12 @@ async function send(retryText) {
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     if ((p.cards || []).length > cards && thread === sentTo) announce(t("A change is waiting for your Confirm."));
     cards = (p.cards || []).length;
+    if (p.plan !== undefined && thread === sentTo) {     // the task plan changed: a step done, the next one going
+      const was = planNow();
+      paintPlan(p.plan, !p.done);
+      const now = planNow();
+      if (now && now !== was) announce(t("Now: {step}", { step: now }));
+    }
     if (think.isConnected && think.tagName !== "DETAILS") {             // what it is doing now: a new step fades in
       if ((p.live || "") !== liveSeen) { liveSeen = p.live || ""; writing = false; }    // a new step (a tool in the middle too)
       if (p.text) writing = true;                                                        // the words of the answer are coming
@@ -1897,6 +1940,7 @@ async function send(retryText) {
     }
     if (p.done) {
       if (live && live.el === bot) live = null;
+      if (thread === sentTo) planWorking(false);
       thinkDone(p.error ? [] : p.steps); setBusy(false); bot.classList.remove("live"); inp.oninput(); paintLimit();
       if (!bot.isConnected && thread === sentTo) openThread(thread);   // the chat was redrawn meanwhile (Settings closed…)
       else if (!p.error && thread === sentTo) paintLastActions();

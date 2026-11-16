@@ -67,6 +67,7 @@ class _Stream:
         self.suggesting = False            # follow-up buttons are coming: the UI asks wait_follow_ups()
         self.learning = False              # a side model looks for facts to remember: the UI asks wait_memory()
         self.questions: list[dict] = []    # the model asked these before a big task (the UI shows a form)
+        self.plan: dict | None = None      # the chat's task plan as it changes (plans.view); None = not touched
         self.error: dict | None = None
         self.files: list[str] = []         # attached file names
         self.used: list[tuple[str, str]] = []   # (tool, arguments) for “what went to the model”
@@ -102,10 +103,15 @@ class Api:
         self.mcp.start()
         import atexit
         atexit.register(self.mcp.stop_all)
+        from . import projects
+        self.projects = projects.Projects()                   # Documents/Lanterna projects (games, programs, mods)
+        self._here = threading.local()                        # the answer this thread is writing (its task plan)
+        make = self._make_tools()
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
                                + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools()
-                               + mailbox.mail_tools(self.mail, self.actions) + [self._connector_tool()] + self.mcp.tools())
+                               + mailbox.mail_tools(self.mail, self.actions) + [self._connector_tool()] + self.mcp.tools()
+                               + make)
         self.actions.on_auto = self._auto_run                 # "do it on your own" in a chat (see _auto_tools)
         self.toolbox.after = self._auto_said
         self._router: Router | None = None
@@ -285,6 +291,48 @@ class Api:
                 tl.group = group
             out += tools
         return out
+
+    # ---------------------------------------------------------------- making things: the task plan and projects
+    def _make_tools(self) -> list:
+        """The chat's task plan (shown over the message box while Lanterna works through it) and Lanterna's own
+        project folder for games, little programs and mods. Made once: they find the chat through the thread."""
+        from . import plans, projects
+
+        def get() -> dict:
+            tid = self.actions.tid()
+            return plans.load(self.store.plan(tid)) if tid else {}
+
+        def put(p: dict) -> None:
+            tid = self.actions.tid()
+            if tid:
+                self.store.set_plan(tid, plans.dumps(p))
+            st = getattr(self._here, "st", None)
+            if st is not None:
+                with st.lock:
+                    st.plan = plans.view(p)
+
+        return [plans.plan_tool(get, put),
+                *projects.project_tools(self.projects, limit=lambda: self.toolbox.page_limit,
+                                        after=lambda out: out + plans.reminder(get()))]
+
+    def plan(self, tid: int) -> dict:
+        """The chat's task plan for the box over the message box ({} = none)."""
+        from . import plans
+        return plans.view(plans.load(self.store.plan(int(tid))))
+
+    def clear_plan(self, tid: int) -> bool:
+        """× on the task plan: it goes away (the model no longer goes on with it)."""
+        self.store.set_plan(int(tid), "")
+        return True
+
+    def open_project(self, name: str) -> dict:
+        """«Open folder» on the task plan of a project."""
+        from .workspace import WorkError
+        try:
+            self.projects.open(str(name or ""))
+            return {"ok": True}
+        except (WorkError, OSError) as e:
+            return {"ok": False, "error": str(e)}
 
     # ---------------------------------------------------------------- acting on its own (in one chat, for a while)
     def _auto_tools(self) -> list:
@@ -1467,7 +1515,15 @@ class Api:
         total = len(history) + 2                            # with this question and its answer
         earlier = min(len(history) - upto, MAX_HISTORY)     # earlier messages that really go to the model
         self.actions.bind(st.cards, tid)
+        self._here.st = st                                  # the plan tool shows its changes in this answer
         try:
+            from . import plans
+            plan = {} if st.second else plans.load(self.store.plan(tid))
+            if plans.finished(plan):                        # a finished plan goes away with the next message
+                self.store.set_plan(tid, "")
+                plan = {}
+                with st.lock:
+                    st.plan = {}
             router = router or self._get_router()
             from .tools import LookupOnly, PrivateBox
             private = tid < 0
@@ -1480,7 +1536,8 @@ class Api:
                                 lang=self.settings.lang, ask_first=self.settings.ask_first,
                                 ask_header=t("Questions for you:", self.settings.lang),
                                 instructions=self._instructions(tid),
-                                auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud)
+                                auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud,
+                                plan_text=plans.for_model(plan) if plan else "")
             gen = conv.ask(text, images or None)
             for p in gen:
                 if st.stop.is_set():
@@ -1489,9 +1546,11 @@ class Api:
                     if isinstance(p, Switched):
                         st.notes.append(p.to.label)
                     elif isinstance(p, ToolUse):
+                        st.used.append((p.name, p.arguments))
+                        if p.name == "plan" and '"steps"' not in (p.arguments or ""):
+                            continue                        # a step marked done: the plan over the message box shows it
                         # the line under the reply says what it did, with what (the search words, the program)
                         st.tools.append(f"{p.label} {tool_step(p.name, p.arguments, self.settings.lang, why=False)}")
-                        st.used.append((p.name, p.arguments))
                         st.steps.tool(p.name, p.arguments)
                     elif isinstance(p, Questions):
                         st.questions = p.items
@@ -1518,6 +1577,13 @@ class Api:
             st.sources = sources.dumps(box.data())
             if reply.strip():                               # stopped before a word: nothing is kept
                 self.store.add(tid, "assistant", reply, cur.label if cur else "", st.sent, st.sources)
+            if (not stopped and not st.second and reply.strip() and any(n == "plan" for n, _ in st.used)
+                    and not conv.out_of_rounds):
+                closed = plans.close_last(plans.load(self.store.plan(tid)))   # the answer was the last step
+                if closed:
+                    self.store.set_plan(tid, plans.dumps(closed))
+                    with st.lock:
+                        st.plan = plans.view(closed)
             if not stopped and not st.second and not private:   # the first answer already named the chat, etc.
                 self._start_side_jobs(st, tid, router, text, reply, first)
             if not stopped and self.settings.compact_chats and summary_due(total, upto) and not st.second:
@@ -1539,6 +1605,7 @@ class Api:
                 st.error = {"kind": "other", "message": str(e)[:300]}
         finally:
             self.actions.bind(None)
+            self._here.st = None
             with st.lock:
                 st.done = True
 
@@ -1567,6 +1634,8 @@ class Api:
                 out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
                        "cards": list(st.cards), **st.steps.view(),
                        "done": st.done, "error": st.error}
+            if st.plan is not None:                         # the task plan changed in this answer
+                out["plan"] = st.plan
         if out["done"]:
             self._streams.pop(sid, None)
         return out

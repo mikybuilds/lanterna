@@ -146,6 +146,11 @@ Button:focus { text-style: bold; }
 #cn-about, #cn-mineinfo { height: auto; min-height: 2; margin-top: 1; }
 #cn-q { width: 1fr; }
 #autobar { height: 1; width: 100%; background: $boost; display: none; }
+#planbox { height: auto; margin: 0 2 0 2; padding: 0 1; border: round $panel-lighten-2; display: none; }
+#planhead { height: 1; }
+#plantitle { width: 1fr; color: $text-muted; text-style: bold; }
+#planopen, #planx { width: auto; min-width: 4; }
+#plansteps { height: auto; }
 #autotext { width: 1fr; color: $warning; padding: 0 1; }
 #autostop { width: auto; min-width: 10; }
 #cn-cat { width: 34; }
@@ -2573,6 +2578,12 @@ class _ChatScreen(Screen):
                     yield Label("", id="model")
                 yield VerticalScroll(id="log")
                 yield Label("", id="attached")
+                with Vertical(id="planbox"):                  # the task plan of a big job (plans.py)
+                    with Horizontal(id="planhead"):
+                        yield Label("", id="plantitle")
+                        yield Button("📁", id="planopen", classes="sidebtn")
+                        yield Button("×", id="planx", classes="sidebtn")
+                    yield Static("", id="plansteps")
                 with Horizontal(id="autobar"):
                     yield Label("", id="autotext")
                     yield Button(t("Stop", lang), id="autostop", classes="sidebtn")
@@ -2623,6 +2634,56 @@ class _ChatScreen(Screen):
         if getattr(self, "tid", None):
             self.app.api.auto_stop(self.tid)
         self._paint_auto()
+
+    def _paint_plan(self, view: dict | None, working: bool = False) -> None:
+        """The task plan over the message box: ✓ done, ▶ the step being done now, ○ the next ones."""
+        from rich.text import Text
+
+        from . import plans
+        box = self.query_one("#planbox")
+        self._plan = view or {}
+        if not view or not view.get("steps"):
+            box.display = False
+            return
+        lang = L(self.app)
+        finished = view["done"] >= view["total"]
+        self.query_one("#plantitle", Label).update(
+            "📋 " + (t("Plan done: {n} of {n}", lang, n=view["total"]) if finished else
+                    t("Plan: {done} of {total} done", lang, done=view["done"], total=view["total"])))
+        opener = self.query_one("#planopen", Button)
+        opener.display = bool(view.get("project"))
+        opener.tooltip = t("Open the project folder", lang)
+        self.query_one("#planx", Button).tooltip = t("Hide the plan", lang)
+        shown_steps, before, after = plans.window(view)
+        out = Text()
+        if before:
+            out.append(f"  ✓ … +{before}\n", style="dim")
+        for s in shown_steps:
+            if s["state"] == "done":
+                out.append("  ✓ ", style="green")
+                out.append(s["text"] + "\n", style="dim strike")
+            elif s["state"] == "now":
+                out.append("  ▶ " if working else "  ▷ ", style="bold yellow")
+                out.append(s["text"] + "\n", style="bold")
+            else:
+                out.append("  ○ " + s["text"] + "\n")
+        if after:
+            out.append(f"  ○ … +{after}\n", style="dim")
+        out.rstrip()
+        self.query_one("#plansteps", Static).update(out)
+        box.display = True
+
+    @on(Button.Pressed, "#planx")
+    def _plan_hide(self) -> None:
+        if getattr(self, "tid", None):
+            self.app.api.clear_plan(self.tid)
+        self._paint_plan(None)
+
+    @on(Button.Pressed, "#planopen")
+    def _plan_open(self) -> None:
+        r = self.app.api.open_project((getattr(self, "_plan", None) or {}).get("project", ""))
+        if not r.get("ok"):
+            self.app.notify(r.get("error") or "", severity="warning")
 
     def _watch_sync(self) -> None:
         """A sync brought chats from another device: show them without a restart."""
@@ -2714,6 +2775,7 @@ class _ChatScreen(Screen):
         for card in self.app.api.cards(tid):              # changes still waiting for Confirm
             log.mount(ActCard(card))
         log.scroll_end(animate=False)
+        self._paint_plan(self.app.api.plan(tid), working=bool(self._stream))
 
     def _welcome(self) -> None:
         lang, name = L(self.app), self.app.api.settings.name
@@ -2775,6 +2837,7 @@ class _ChatScreen(Screen):
         self.query_one("#log", VerticalScroll).remove_children()
         self.query_one("#chattitle", Label).update(t("New chat", L(self.app)))
         self.query_one("#threads", ListView).index = None
+        self._paint_plan(None)
         self._welcome()
         self.query_one("#composer", Input).focus()
 
@@ -3010,6 +3073,8 @@ class _ChatScreen(Screen):
         log.mount(self._bot)
         log.scroll_end(animate=False)
         self._fill_threads()
+        if getattr(self, "_plan", None):
+            self._paint_plan(self._plan, working=True)    # ▶: the step is being done while the answer comes
         self._timer = self.set_interval(0.12, self._poll)
 
     async def _poll(self) -> None:
@@ -3034,6 +3099,10 @@ class _ChatScreen(Screen):
         for card in r.get("cards", [])[self._cards_seen:]:
             await log.mount(ActCard(card))
         self._cards_seen = len(r.get("cards", []))
+        if "plan" in r:                                  # the task plan changed: a step done, the next one going
+            self._paint_plan(r["plan"], working=not r.get("done"))
+        elif r.get("done") and getattr(self, "_plan", None):
+            self._paint_plan(self._plan)                 # the answer ended: no step is being done right now
         changed = False
         if "final" in r and r.get("stopped"):
             note = Static("⏹ " + t("Stopped.", lang), classes="msg-note", markup=False)

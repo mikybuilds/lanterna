@@ -216,6 +216,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 - **Ask about a snip (Windows)**: Win+Shift+S, then the quick-question hotkey: Explain, Translate or Ask about the picture.
 - **Private chat** (🕶, F7 in the terminal app): never written to disk, synced or backed up, no memory used, gone when you leave it.
 - **Encrypted weekly backups** (Settings → Chats → Backups): one AES-256 file a week in Documents\Lanterna backups, the last 4 kept; restore on any computer with the password.
+- **Games, little programs and game mods** ("make me a snake game", "a Minecraft datapack with a new recipe", "a program that renames my photos by date"): when the request is short, Lanterna first asks a few questions, then makes a task list over the message box, like Claude's (the steps, the one it is on now, the ones done) and works through it, up to 12 rounds of tool use per answer; "go on" continues. The files go straight to Documents\Lanterna projects\<project>, without Confirm cards, and nowhere else. Lanterna never runs them, it only checks them for mistakes (Python is compiled, not run; pages, JSON and brackets are checked). Files a double click could run (.exe, .bat, .js, .sh…) are never written: a web game keeps its script inside the HTML file. The 📁 button on the task list opens the folder.
 - **MCP servers (advanced, off by default)**: add outside tools — a program on this computer or an https:// address, or one of four ready-made servers with a fixed version (files or Git in a folder you pick, a web browser, step-by-step thinking). Turning it on first shows the risks, adding a server shows the exact command, and every tool call waits for Confirm unless you allow that tool.
 
 ## Local models (optional)
@@ -253,6 +254,7 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 - **Reading aloud** with Windows voices stays on your PC. Piper is downloaded only when you ask (pinned files checked by SHA-256) and then works offline.
 - **Audio files** you attach are turned into text by the voice input you chose: online with Groq, or on your PC with whisper.cpp.
 - **Snips and copied pictures**: Lanterna looks at the clipboard only when you open the quick window, skips copies marked private, and sends the picture only when you press a button.
+- **Projects** (games, programs, mods) are written only to Documents\Lanterna projects on your computer and are never run by Lanterna; the task list is kept with the chat.
 - **Private chats** live only in memory: never written to disk, synced or put in a backup. The model you ask still gets those messages, as always.
 - **Backups** are encrypted with your password before they are written; the password itself is never stored (only a key made from it, in the system's secure vault), and no API keys or sign-ins go into a backup.
 - **`lanterna ask`** sends your question and what you pipe into it to the model, without your memory, and saves nothing unless you add `--save`.

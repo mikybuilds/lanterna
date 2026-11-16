@@ -29,7 +29,7 @@ PRODUCTS = ("GitHub Models", "Google Drive")          # names, never translated
 ENGLISH_ON_PURPOSE = {"bugpreview"}                   # the bug report is written in English for the developer
 # the first screen asks in several languages at once; "Pause" is also a German word (a chat example says "eine Pause"),
 # and so is "private" (Settings: "Warnen, bevor private Daten online gehen")
-ALLOWED = {"01-language": {"Choose your language", "Choose", "language"}, "03-chat": {"Pause"},
+ALLOWED = {"01-language": {"Choose your language", "Choose", "language"}, "03-chat": {"Pause"}, "17-plan": {"Pause"},
            "04-settings": {"Documents", "private"}}          # the backup folder path: Documents/Lanterna backups
 
 
@@ -168,6 +168,13 @@ async def shoot(lang: str, out: Path) -> list[str]:
             await pilot.pause(1.0)
             await snap(app, pilot, "16-menu")
             app.pop_screen()
+            from lanterna import plans                            # a chat with a task plan over the message box
+            tid = api.new_thread()["id"]
+            api.store.set_plan(tid, plans.dumps(plans.update(
+                {}, steps=["index.html", "style.css", "README.md", "pack.mcmeta", "data/x.json", "LICENSE", "notes.txt"],
+                done=[1, 2], project="Snake")))
+            chat.open_thread(tid)
+            await snap(app, pilot, "17-plan")
     return problems
 
 

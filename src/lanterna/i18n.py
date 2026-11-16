@@ -1452,3 +1452,19 @@ _T.update({
         "it": "La finestra di Lanterna ha bisogno di alcune parti del sistema. Per ora scrivi lanterna in un "
               "terminale; lanterna desktop dice cosa installare."},
 })
+
+# The task plan of a big job and Lanterna's own project folder (1.1.10)
+_T.update({
+    "Plan: {done} of {total} done": {"uk": "План: виконано {done} з {total}", "it": "Piano: {done} su {total} fatti"},
+    "Plan done: {n} of {n}": {"uk": "План виконано: {n} з {n}", "it": "Piano completato: {n} su {n}"},
+    "Task plan": {"uk": "План задач", "it": "Piano delle attività"},
+    "Open the project folder": {"uk": "Відкрити папку проєкту", "it": "Apri la cartella del progetto"},
+    "Hide the plan": {"uk": "Сховати план", "it": "Nascondi il piano"},
+    "Now: {step}": {"uk": "Зараз: {step}", "it": "Ora: {step}"},
+    "Making a plan": {"uk": "Складаю план", "it": "Preparo un piano"},
+    "Writing {x}": {"uk": "Пишу {x}", "it": "Scrivo {x}"},
+    "Fixing {x}": {"uk": "Виправляю {x}", "it": "Correggo {x}"},
+    "Looking at the projects": {"uk": "Дивлюсь проєкти", "it": "Guardo i progetti"},
+    "Checking the project for mistakes": {"uk": "Перевіряю проєкт на помилки", "it": "Controllo se il progetto ha errori"},
+    "Opening the project": {"uk": "Відкриваю проєкт", "it": "Apro il progetto"},
+})

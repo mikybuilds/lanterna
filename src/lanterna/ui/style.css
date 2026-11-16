@@ -310,6 +310,34 @@ body.away .embers i { animation-play-state: paused; }   /* the window is in the 
 .auto-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 6px 8px 6px 12px; border: 1px solid var(--amber-line);
   border-radius: 12px; background: var(--amber-soft); font-size: 13px; }
 .auto-bar span { flex: 1; }
+/* the task plan of a big job over the message box: ✓ done, the step being done now, the next ones */
+.plan-box { max-width: 780px; margin: 0 auto 8px; padding: 6px 8px 8px 10px; border: 1px solid var(--line-2); border-radius: 14px;
+  background: var(--surface); font-size: 13px; animation: rise .4s var(--ease) backwards; }
+.plan-head { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+.plan-fold { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 8px; color: var(--muted);
+  font: 600 12.5px/1.3 var(--font); text-align: left; }
+.plan-fold:hover { color: var(--text); }
+.plan-fold span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-fold .caret { width: 13px; height: 13px; flex: none; transition: transform .2s var(--ease); }
+.plan-box.folded .plan-fold .caret { transform: rotate(-90deg); }
+.plan-box.finished .plan-fold { color: var(--amber); }
+.plan-proj { display: flex; align-items: center; gap: 5px; max-width: 40%; padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--muted); font-size: 12px; }
+.plan-proj:hover { color: var(--text); border-color: var(--amber-line); }
+.plan-proj svg { width: 13px; height: 13px; flex: none; }
+.plan-proj span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-list { list-style: none; margin: 4px 0 0; padding: 0 0 0 4px; max-height: 172px; overflow-y: auto; }
+.plan-box.folded .plan-list { display: none; }
+.plan-list li { display: flex; align-items: flex-start; gap: 9px; padding: 3px 0; color: var(--muted); line-height: 1.4; }
+.plan-mk { flex: none; width: 15px; height: 15px; margin-top: 1.5px; border-radius: 50%; border: 1.5px solid var(--line-2); display: grid; place-items: center; }
+.plan-mk svg { width: 10px; height: 10px; }
+.plan-list li.done { color: var(--faint); }
+.plan-list li.done .plan-tx { text-decoration: line-through; text-decoration-color: var(--line-2); }
+.plan-list li.done .plan-mk { border-color: transparent; background: var(--amber-soft); color: var(--amber); }
+.plan-list li.now { color: var(--text); font-weight: 600; }
+.plan-list li.now .plan-mk { border-color: var(--amber); }
+.plan-list li.now .plan-mk::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+.plan-box.working li.now .plan-mk { animation: glow 1.6s ease-in-out infinite; box-shadow: 0 0 0 3px var(--amber-soft); }
 .copied { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--amber-line); border-radius: 14px; background: var(--amber-soft); }
 .cp-head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--amber); }
 .cp-x { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: var(--faint); }
