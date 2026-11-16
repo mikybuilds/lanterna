@@ -29,7 +29,7 @@ from . import AUTHOR, __version__, mathtext
 from .app import Api, action_title, card_text
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
-from .providers import PROVIDERS
+from .providers import CF_NEED_ACCOUNT, PROVIDERS
 from .wake import NOTES as WAKES
 
 
@@ -276,7 +276,7 @@ class KeyScreen(ModalScreen[bool]):
             yield Static("\n".join([t("1. Sign in or create a free account.", lang),
                                     t("2. Create an API key and copy it.", lang),
                                     t("3. Paste it here.", lang)]), classes="muted")
-            yield Input(placeholder=t("Paste the key here", lang), password=True, id="key")
+            yield Input(placeholder=t(p.key_hint or "Paste the key here", lang), password=True, id="key")
             yield Label("", id="keystatus")
             yield Static(t("Your key stays on this computer, in the system's secure vault.", lang), classes="muted")
             with Horizontal(classes="row"):
@@ -321,6 +321,9 @@ class KeyScreen(ModalScreen[bool]):
             status.set_classes("ok")
             status.update(t("Key works ✓", lang))
             self.set_timer(0.6, self._close_ok)
+        elif res.get("error") == "need_account":               # Cloudflare: the Account ID goes after the token
+            status.set_classes("bad")
+            status.update(t(CF_NEED_ACCOUNT, lang))
         else:
             status.set_classes("bad")
             status.update(t("The key didn't work: {err}", lang, err=res.get("message") or res.get("error")))

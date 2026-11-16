@@ -70,7 +70,7 @@ class Router:
 
     def _cool(self, c: Candidate, e: ProviderError) -> None:
         secs = e.retry_after if e.kind == "rate" and e.retry_after else COOLDOWN.get(e.kind, 60)
-        whole_provider = e.kind in ("auth", "network")
+        whole_provider = e.kind in ("auth", "network") or getattr(e, "whole", False)   # (Cloudflare's day is used)
         if not PROVIDERS[c.provider].local and (e.kind == "timeout" or e.status == 404):
             from .health import HEALTH                   # hung or gone: remembered across restarts, longer each time
             secs = max(secs, HEALTH.bad(c.provider, c.model, "timeout" if e.kind == "timeout" else "gone"))

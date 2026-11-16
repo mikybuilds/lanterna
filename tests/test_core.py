@@ -75,11 +75,12 @@ def test_requests_stay_on_provider_host(pid):
 
     def h(req):
         hosts.append(req.url.host)
-        if req.url.path.endswith("models"):
+        if req.url.path.endswith("models") or req.url.path.endswith("models/search"):
             return httpx.Response(200, json={"data": [{"id": "m"}]})
         return httpx.Response(200, content=sse("ok"))
 
-    c = Client(p, "k", transport=httpx.MockTransport(h))
+    key = "0" * 32 + ":k" if "{account}" in p.base_url else "k"      # Cloudflare: "<account ID>:<API token>"
+    c = Client(p, key, transport=httpx.MockTransport(h))
     c.list_models()
     c.chat("m", [])
     assert set(hosts) == {httpx.URL(p.base_url).host}
@@ -91,6 +92,8 @@ def test_no_unexpected_domains_in_sources():
                # NVIDIA, Z.ai and Cohere: free tiers (keys made by the user)
                "integrate.api.nvidia.com", "build.nvidia.com", "api.z.ai", "z.ai", "api.cohere.ai",
                "dashboard.cohere.com",
+               # Cloudflare Workers AI: free neurons a day (counted by Lanterna, so a paid plan isn't billed either)
+               "api.cloudflare.com", "dash.cloudflare.com",
                "git" "hub.com", "localhost", "127.0.0.1", "ollama.com",
                # keyless tools: weather (Open-Meteo) and web search (DuckDuckGo)
                "api.open-meteo.com", "geocoding-api.open-meteo.com", "air-quality-api.open-meteo.com",

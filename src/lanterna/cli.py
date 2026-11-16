@@ -27,7 +27,7 @@ from .chat import Conversation
 from .config import Settings
 from .discovery import Candidate, get_models
 from .i18n import LANGS, t
-from .providers import PROVIDERS, Client, ProviderError
+from .providers import CF_NEED_ACCOUNT, PROVIDERS, Client, ProviderError, cloudflare_key
 from .router import Router, Switched
 
 console = Console()
@@ -56,12 +56,18 @@ def ask_key(pid: str, lang: str) -> bool:
     if p.note:
         console.print(f"[dim]{t(p.note, lang)}[/]", markup=True, highlight=False)
     hint = t("Create an account, press “Create API key”, copy it and paste it below. It is stored in your system's secure vault.", lang)
-    console.print(f"[dim]{hint}[/]")
+    console.print(f"[dim]{t(p.key_hint, lang) if p.key_hint else hint}[/]")
     for _ in range(3):
         key = getpass.getpass(t("Paste key (hidden)", lang) + ": ").strip()
         if not key:
             return False
         console.print(f"[dim]{t('Checking the key…', lang)}[/]")
+        if pid == "cloudflare":                     # the API token, and the Account ID if Cloudflare doesn't name it
+            key, why = cloudflare_key(key)
+            if why:
+                msg = t(CF_NEED_ACCOUNT, lang) if why == "need_account" else t("The key didn't work: {err}", lang, err=why)
+                console.print(f"[red]{msg}[/]")
+                continue
         try:
             c = Client(p, key)
             c.list_models()

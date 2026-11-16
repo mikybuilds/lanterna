@@ -990,8 +990,10 @@ async function localPanel(box, onChange) {
 }
 
 function keyRow(id) {
+  // a service may say what to paste (Cloudflare: its API token): the box's hint
+  const hint = ((S && S.providers || []).find(x => x.id === id) || {}).key_hint || "Paste your key";
   return `<div class="keyrow" data-key="${id}">
-      <div class="wrap"><input class="field" type="password" placeholder="${t("Paste your key")}" spellcheck="false" autocomplete="off">
+      <div class="wrap"><input class="field" type="password" placeholder="${esc(t(hint))}" spellcheck="false" autocomplete="off">
         <button class="eye" type="button" title="Show">${icon("eye")}</button></div>
       <button class="btn primary chk" style="height:48px">${t("Check")}</button>
     </div><div class="status"></div>`;
@@ -1014,6 +1016,7 @@ function wireKeyRow(root, id, onOk) {
       st.className = "status err";
       st.textContent = r.error === "auth" || r.error === "bad_request" ? t("This key doesn't work. Check that you copied all of it.")
         : r.error === "network" ? t("No internet connection to {p}.", { p: pname(id) })
+        : r.error === "need_account" ? t("Lanterna couldn't find your Account ID. Paste it after the token, with a space: it is on Cloudflare's Workers AI page.")
         : r.error === "bad_reply" ? t("{p} answered, but not the way it should. The service may have changed or closed; try another one.", { p: pname(id) })
         : r.error === "vault" ? t("Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.") : t("Something went wrong: {e}", { e: r.message || r.error });
     }

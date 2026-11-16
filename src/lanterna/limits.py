@@ -40,9 +40,12 @@ def _pacific(now: float) -> dt.datetime:
 
 
 def _day(provider: str, now: float) -> str:
-    """The day a service counts its daily limit in: Gemini by California time, the others by local time."""
+    """The day a service counts its daily limit in: Gemini by California time, Cloudflare by UTC, the others by
+    local time."""
     if provider == "gemini":
         return _pacific(now).strftime("%Y-%m-%d")
+    if provider == "cloudflare":
+        return time.strftime("%Y-%m-%d", time.gmtime(now))
     return time.strftime("%Y-%m-%d", time.localtime(now))
 
 
@@ -51,6 +54,8 @@ def _next_day_in(provider: str, now: float) -> float:
     if provider == "gemini":
         p = _pacific(now)
         return (dt.datetime.combine(p.date() + dt.timedelta(days=1), dt.time()) - p.replace(tzinfo=None)).total_seconds()
+    if provider == "cloudflare":
+        return 86400 - now % 86400
     t = dt.datetime.fromtimestamp(now)
     return (dt.datetime.combine(t.date() + dt.timedelta(days=1), dt.time()) - t).total_seconds()
 

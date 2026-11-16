@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **New free service: Cloudflare Workers AI.** 10,000 free "neurons" a day, a few dozen answers from models like GPT-OSS 120B, Gemma 4 and Qwen3. Add it in Settings → Models with an API token made from Cloudflare's "Workers AI" template: Lanterna finds your Account ID itself (with several accounts, paste the ID after the token). Lanterna counts the neurons on this computer and stops at 9,000, so Cloudflare never costs anything, even on a paid plan, and models that would use the free neurons up in a few answers are left out.
 - **Leaving the Google step at once no longer closes the terminal app.** When the Google sign-in step (or the sync box in Settings) was closed before it had fully appeared, on a slow computer or with a quick key, the terminal app stopped with an error. Now it just goes on.
 
 ## 1.1.9 — Formulas, tables and quotes in answers

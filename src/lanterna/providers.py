@@ -24,7 +24,10 @@ class Provider:
     drop: str = ""                        # models to leave out on this service (not chat, old base models)
     known: tuple[str, ...] = ()           # used when the service has no model list
     pings: int = 3                        # models tried once a day (few for small monthly limits)
+    key_hint: str = ""                    # what to paste, when it isn't just "the key" (the box's hint, translated)
 
+
+CF_API = "https://api.cloudflare.com/client/v4"
 
 PROVIDERS: dict[str, Provider] = {p.id: p for p in [
     Provider("groq", "Groq", "https://api.groq.com/openai/v1", "https://console.groq.com/keys",
@@ -45,6 +48,14 @@ PROVIDERS: dict[str, Provider] = {p.id: p for p in [
     Provider("cohere", "Cohere", "https://api.cohere.ai/compatibility/v1", "https://dashboard.cohere.com/api-keys",
              note="1,000 free requests a month, for personal use only.",
              models_url="https://api.cohere.ai/v1/models?endpoint=chat", pings=1),
+    # Workers AI: the key is "<account ID>:<API token>" (cloudflare_key); 10,000 free neurons a day per account,
+    # counted by Lanterna itself (neurons.py), so a Workers Paid account isn't billed either
+    Provider("cloudflare", "Cloudflare Workers AI", CF_API + "/accounts/{account}/ai/v1",
+             "https://dash.cloudflare.com/?to=/:account/ai/workers-ai",
+             note="10,000 free neurons a day, a few dozen answers. Lanterna stops before they run out, so nothing is charged, even on a paid plan.",
+             models_url=CF_API + "/accounts/{account}/ai/models/search?task=Text%20Generation&per_page=50",
+             drop=r"lora|moonshotai/kimi|zai-org/glm-5|@hf/|llama-2|tinyllama|phi-2|qwen1\.5|-v0\.1$",
+             pings=2, key_hint="Paste the API token (Workers AI template)"),
     Provider("ollama", "Ollama (local)", "http://127.0.0.1:11434/v1", "https://ollama.com/download", needs_key=False, local=True),
 ]}
 
@@ -92,22 +103,35 @@ class Thought:
 class ProviderError(Exception):
     """kind: auth | rate | network | timeout | bad_request | other"""
 
-    def __init__(self, kind: str, message: str, status: int = 0, retry_after: float | None = None):
+    def __init__(self, kind: str, message: str, status: int = 0, retry_after: float | None = None,
+                 whole: bool = False):
         super().__init__(message)
         self.kind, self.status, self.retry_after = kind, status, retry_after
+        self.whole = whole              # the whole service is out (Cloudflare's daily neurons), not just this model
+
+
+# Cloudflare Workers AI's error codes: this model needs Workers Paid (5035), its terms aren't accepted (5016) or it
+# is private (5018, 3041): only that model is out, the key is fine. 3036: the account's free neurons for today are used.
+CF_MODEL_REFUSED = {5035, 5016, 5018, 3041}
+CF_DAY_USED = 3036
 
 
 def _error(resp: httpx.Response) -> ProviderError:
+    code = 0
     try:
         data = resp.json()
         if isinstance(data, list) and data:                  # Gemini wraps errors in a list: [{"error": {...}}]
             data = data[0]
+        if isinstance(data, dict) and not data.get("error") and isinstance(data.get("errors"), list) and data["errors"]:
+            data = {"error": data["errors"][0]}             # Cloudflare: {"errors": [{"code": 3036, "message": …}]}
         msg = data.get("error", {}) if isinstance(data, dict) else data
+        if isinstance(msg, dict) and str(msg.get("code", "")).isdigit():
+            code = int(msg["code"])
         msg = msg.get("message", "") if isinstance(msg, dict) else str(msg or "")
     except ValueError:
         msg = resp.text[:200]
     s = resp.status_code
-    kind = "auth" if s in (401, 403) else "rate" if s == 429 else "bad_request" if s in (400, 404, 422) else "other"
+    kind = "auth" if s in (401, 403) else "rate" if s == 429 else "bad_request" if s in (400, 404, 410, 422) else "other"
     ra = resp.headers.get("retry-after")
     wait = float(ra) if ra and ra.replace(".", "", 1).isdigit() else None
     # Groq: "Please try again in 2.4s" / "in 7m12.5s"; Gemini: "Please retry in 1h31m43.18s" (daily limit)
@@ -115,7 +139,102 @@ def _error(resp: httpx.Response) -> ProviderError:
     if wait is None and m:
         h, mi, sec = re.match(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", m.group(1)).groups()
         wait = int(h or 0) * 3600 + int(mi or 0) * 60 + float(sec)
-    return ProviderError(kind, msg or f"HTTP {s}", s, wait)
+    whole = False
+    if s == 403 and code in CF_MODEL_REFUSED:
+        kind = "bad_request"
+    elif code == CF_DAY_USED or "daily free allocation" in (msg or "").lower():
+        from .neurons import till_tomorrow
+        kind, wait, whole = "rate", wait or till_tomorrow(), True
+    return ProviderError(kind, msg or f"HTTP {s}", s, wait, whole)
+
+
+CF_NEED_ACCOUNT = ("Lanterna couldn't find your Account ID. Paste it after the token, with a space: "
+                   "it is on Cloudflare's Workers AI page.")
+_CF_ID = re.compile(r"^[0-9a-f]{32}$")
+_CF_ID_IN = re.compile(r"(?<![0-9a-f])[0-9a-f]{32}(?![0-9a-f])")
+
+
+def cloudflare_key(text: str, transport: httpx.BaseTransport | None = None) -> tuple[str, str]:
+    """What the user pasted for Cloudflare as Lanterna keeps it: ("<account ID>:<API token>", "").
+    The API token alone is enough when Cloudflare names its one account; the Account ID (32 hex digits) can be
+    pasted too, before or after the token, or both inside a copied command. On a problem ("", why): "need_account"
+    (no single account found: the user adds it), "auth", "network". The token goes only to Cloudflare's API."""
+    found_id = _CF_ID_IN.search((text or "").lower())
+    account = found_id.group(0) if found_id else ""
+    parts = [x.strip("\"'<>") for x in re.split(r"[\s:,;=]+", text or "")]
+    parts = [x for x in parts if x and x.lower() != account and "/" not in x]
+    tokens = [x for x in parts if re.fullmatch(r"[A-Za-z0-9_\-]{20,}", x)]      # API tokens are 40 such characters
+    token = max(tokens or parts, key=len, default="")
+    if not token:
+        return "", "auth"
+    if account:
+        return f"{account}:{token}", ""
+    try:
+        with httpx.Client(timeout=20, transport=transport, headers={"User-Agent": "Lanterna"}) as h:
+            r = h.get(CF_API + "/accounts", params={"per_page": 50}, headers={"Authorization": f"Bearer {token}"})
+    except httpx.HTTPError:
+        return "", "network"
+    if r.status_code == 401:
+        return "", "auth"
+    try:
+        found = [a.get("id") for a in r.json().get("result") or [] if isinstance(a, dict)]
+    except (ValueError, AttributeError):
+        found = []
+    found = [a for a in found if isinstance(a, str) and _CF_ID.match(a)]
+    if r.status_code == 200 and len(found) == 1:
+        return f"{found[0]}:{token}", ""
+    return "", "need_account"
+
+
+def cf_property(m: dict, name: str):
+    """One of a Cloudflare model's properties ("price", "context_window", …) as listed, or None."""
+    for prop in m.get("properties") or []:
+        if isinstance(prop, dict) and prop.get("property_id") == name:
+            return prop.get("value")
+    return None
+
+
+def _cf_price(m: dict) -> tuple[float, float] | None:
+    """USD per million tokens (input, output) from a Cloudflare model's price
+    ([{"unit": "per M input tokens", "price": 0.35, "currency": "USD"}, …]). Anything else (other units, a price of 0,
+    only one of the two): None, so the counter uses a known price or the dearest one instead."""
+    listed, got = cf_property(m, "price"), {}
+    for v in listed if isinstance(listed, list) else []:
+        if not isinstance(v, dict) or isinstance(v.get("price"), bool) or str(v.get("currency") or "USD").upper() != "USD":
+            continue
+        unit = str(v.get("unit") or "").lower()
+        if not re.search(r"\b(m|million)\b.*\btokens?\b", unit) or ("input" in unit) == ("output" in unit):
+            continue
+        try:
+            p = float(v["price"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if p > 0 and p != float("inf"):
+            got["out" if "output" in unit else "in"] = p
+    return (got["in"], got["out"]) if len(got) == 2 else None
+
+
+def _pages(data) -> int:
+    """How many pages a Cloudflare list has (its result_info), at most 5; 1 for the other services."""
+    info = data.get("result_info") if isinstance(data, dict) else None
+    if not isinstance(info, dict):
+        return 1
+    try:
+        n = int(info.get("total_pages") or 0)
+        if not n and info.get("total_count") and info.get("per_page"):
+            n = -(-int(info["total_count"]) // max(1, int(info["per_page"])))
+    except (TypeError, ValueError):
+        return 1
+    return max(1, min(5, n))
+
+
+def _usage(r: httpx.Response) -> dict | None:
+    """The token counts in an answer ({"prompt_tokens": …, "completion_tokens": …}), if it has them."""
+    try:
+        d = r.json()
+    except ValueError:
+        return None
+    return d["usage"] if isinstance(d, dict) and isinstance(d.get("usage"), dict) else None
 
 
 # An online model that hasn't started answering by now is stuck (some new Gemini models hang for minutes):
@@ -129,20 +248,27 @@ class Client:
                  timeout: float = 60.0):
         if provider.needs_key and not key:
             raise ProviderError("auth", f"No API key for {provider.name}")
+        base, self._models_url = provider.base_url, provider.models_url
+        if "{account}" in base:                  # Cloudflare: the key is "<account ID>:<API token>" (cloudflare_key)
+            account, _, key = (key or "").partition(":")
+            if not _CF_ID.match(account.lower()) or not key:
+                raise ProviderError("auth", f"{provider.name} needs the Account ID together with the API token")
+            base, self._models_url = base.format(account=account.lower()), self._models_url.format(account=account.lower())
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         headers["User-Agent"] = "Lanterna"
         self.provider = provider
         self.guessed = False                 # True when the model list came from Provider.known (the service has none)
         self._timeout = timeout
-        self._http = httpx.Client(base_url=provider.base_url, headers=headers, timeout=timeout, transport=transport)
+        self._http = httpx.Client(base_url=base, headers=headers, timeout=timeout, transport=transport)
 
     def close(self) -> None:
         self._http.close()
 
     def raw_models(self) -> list[dict]:
         """The provider's model list as returned (OpenRouter includes prices; others just ids)."""
+        url = self._models_url or "models"
         try:
-            r = self._http.get(self.provider.models_url or "models")
+            r = self._http.get(url)
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
         if r.status_code in (400, 404, 405) and self.provider.known:     # no model list there: the known ones
@@ -155,13 +281,28 @@ class Client:
         except ValueError:                                   # a page or a plain "OK": the service changed or closed
             raise ProviderError("other", f"{self.provider.name} didn't send a list of models: {r.text[:80].strip()!r}",
                                 r.status_code) from None
-        items = data.get("data", data.get("models", [])) if isinstance(data, dict) else data
+        # Cloudflare: {"result": [...], "result_info": {...}}, in pages
+        items = data.get("data", data.get("models", data.get("result", []))) if isinstance(data, dict) else data
+        items = list(items) if isinstance(items, list) else []
+        for page in range(2, _pages(data) + 1):
+            try:
+                more = self._http.get(url, params={"page": page})
+                got = more.json().get("result") if more.status_code == 200 else None
+            except (httpx.HTTPError, ValueError, AttributeError):
+                break
+            if not isinstance(got, list) or not got:
+                break
+            items += got
         out = []
-        for m in items if isinstance(items, list) else []:
+        for m in items:
             if isinstance(m, dict) and (m.get("id") or m.get("name")):
                 m = dict(m)
-                m["id"] = str(m.get("id") or m.get("name")).removeprefix("models/")
+                name = str(m.get("name") or "")
+                # Cloudflare's "id" is a number of its own: the model is called by its name ("@cf/…")
+                m["id"] = (name if name.startswith("@") else str(m.get("id") or name)).removeprefix("models/")
                 out.append(m)
+        if self.provider.id == "cloudflare":
+            self._cf_prices(out)
         keep = re.compile(self.provider.keep, re.I) if self.provider.keep else None
         if self.provider.known and keep and not any(keep.search(m["id"]) for m in out):   # its free ones aren't listed
             self.guessed = True
@@ -173,9 +314,27 @@ class Client:
         keep = re.compile(self.provider.keep, re.I) if self.provider.keep else None
         return [m["id"] for m in self.raw_models() if keep is None or keep.search(m["id"])]
 
+    def _cf_prices(self, models: list[dict]) -> None:
+        """Cloudflare lists each model's price: the neuron counter goes by it (neurons.py)."""
+        try:
+            from . import neurons
+            neurons.remember_prices({m["id"]: p for m in models if (p := _cf_price(m))})
+        except Exception:                                   # noqa: BLE001  known prices (or the dearest) still work
+            pass
+
+    def _meter(self, model: str, body: dict):
+        """Cloudflare: puts aside the neurons this request can cost, or raises when today's free ones can't cover it
+        (neurons.py). The answer's length is capped too: Cloudflare's own cap cuts answers short. Others: None."""
+        if self.provider.id != "cloudflare":
+            return None
+        from . import neurons
+        body.setdefault("max_tokens", neurons.MAX_OUT)
+        return neurons.Call(model, body)
+
     def ping(self, model: str) -> float:
         """Tiny request to check that a model answers right now. Returns seconds; raises ProviderError."""
         body = {"model": model, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 8, "stream": False}
+        meter = self._meter(model, body)                    # (when it breaks off, its hold stays: under a neuron)
         t0 = time.monotonic()
         try:
             r = self._http.post("chat/completions", json=body, timeout=PING_WAIT)
@@ -186,7 +345,12 @@ class Client:
         except httpx.HTTPError as e:
             raise ProviderError("network", str(e)) from e
         if r.status_code != 200:
-            raise _error(r)
+            err = _error(r)
+            if meter:
+                meter.done(None, 0, "out" if err.whole else "refused")
+            raise err
+        if meter:
+            meter.done(_usage(r), len(r.text), "ok")
         return time.monotonic() - t0
 
     def pick_model(self, available: list[str] | None = None) -> str:
@@ -212,6 +376,10 @@ class Client:
             body["tools"], body["tool_choice"] = tools, tool_choice
         if self.provider.id == "gemini":                # short thought summaries, shown while it thinks
             body["extra_body"] = {"google": {"thinking_config": {"include_thoughts": True}}}
+        meter = self._meter(model, body)
+        # for the meter: the token counts the service sends, the characters that came, and how the answer ended
+        # ("broken" unless it ran to the end or was refused: a cut-off answer may have cost the most it can)
+        usage, chars, outcome = None, 0, "broken"
         think = _ThinkFilter()
         calls: dict[int, dict] = {}
         # online services send the headers together with the first piece: a short wait for them, then the usual one
@@ -224,6 +392,7 @@ class Client:
                 if r.status_code != 200:
                     r.read()
                     err = _error(r)
+                    outcome = "out" if err.whole else "refused"
                     self._note(model, r, str(err), err.retry_after)
                     raise err
                 self._note(model, r)
@@ -234,8 +403,11 @@ class Client:
                     if payload == "[DONE]":
                         break
                     try:
-                        d = json.loads(payload)["choices"][0].get("delta") or {}
-                    except (ValueError, KeyError, IndexError, TypeError):
+                        chunk = json.loads(payload)
+                        if isinstance(chunk, dict) and isinstance(chunk.get("usage"), dict):
+                            usage = chunk["usage"]               # (the last piece, on services that send it)
+                        d = chunk["choices"][0].get("delta") or {}
+                    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
                         continue
                     for tc in d.get("tool_calls") or []:
                         slot = calls.setdefault(tc.get("index", len(calls)), {"id": "", "name": "", "arguments": "", "extra": None})
@@ -245,18 +417,27 @@ class Client:
                         fn = tc.get("function") or {}
                         slot["name"] += fn.get("name") or ""
                         slot["arguments"] += fn.get("arguments") or ""
-                    out = think.feed(d.get("content") or "")
-                    inner = think.thought() + str(d.get("reasoning") or d.get("reasoning_content") or "")
+                        chars += len(fn.get("name") or "") + len(fn.get("arguments") or "")
+                    text = d.get("content") or ""
+                    reasoning = str(d.get("reasoning") or d.get("reasoning_content") or "")
+                    chars += len(text) + len(reasoning)
+                    out = think.feed(text)
+                    inner = think.thought() + reasoning
                     if inner:
                         yield Thought(inner)
                     if out:
                         yield out
+            outcome = "ok"
         except (httpx.ConnectError, httpx.ConnectTimeout) as e:   # no way to reach the service at all
+            outcome = "refused"
             raise ProviderError("network", str(e)) from e
         except httpx.TimeoutException as e:                  # this model is stuck; others may be fine
             raise ProviderError("timeout", str(e) or "The model did not answer in time") from e
         except httpx.HTTPError as e:                         # one answer broke off: only this model rests a bit
             raise ProviderError("dropped", str(e) or e.__class__.__name__) from e
+        finally:
+            if meter:
+                meter.done(usage, chars, outcome)
         tail = think.flush()
         if tail:
             yield tail

@@ -1,8 +1,9 @@
 """Finds chat models that are free to use right now and ranks them.
 
 - OpenRouter publishes prices: only models priced 0 (prompt and completion) are taken.
-- Groq, Gemini, Mistral, NVIDIA, Z.ai and Cohere have free tiers per account: their chat models are taken
+- Groq, Gemini, Mistral, NVIDIA, Z.ai, Cohere and Cloudflare have free tiers per account: their chat models are taken
   and the best few are pinged once, so models that are blocked or paid for this account drop out.
+  Cloudflare's free neurons are shared by all its models: only the ones whose answers cost few of them are taken.
 - Models nobody has heard of yet are scored by size and family, so new free models are picked up automatically.
 Results are cached for a day.
 """
@@ -119,8 +120,19 @@ def candidates_for(client: Client) -> list[Candidate]:
             continue
         if pid == "gemini" and not re.search(r"gemini|gemma", mid):
             continue
+        if pid == "cloudflare" and not _cf_worth_it(m):
+            continue
         out.append(Candidate(pid, mid, score(mid), _vision_guess(mid)))
     return out
+
+
+def _cf_worth_it(m: dict) -> bool:
+    """A Cloudflare model whose ordinary answer leaves enough of the day's free neurons (neurons.cheap_enough),
+    with room for Lanterna's requests (instructions and tools are a few thousand tokens, an answer up to 8,192)."""
+    from . import neurons
+    from .providers import cf_property
+    room = str(cf_property(m, "context_window") or "")
+    return neurons.cheap_enough(m["id"]) and not (room.isdigit() and int(room) < 16000)
 
 
 def _check(c: Candidate, client: Client) -> Candidate:

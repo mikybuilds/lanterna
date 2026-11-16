@@ -21,7 +21,7 @@ from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
 from .i18n import LANGS, catalog, t
-from .providers import PROVIDERS, Client, ProviderError, Thought
+from .providers import PROVIDERS, Client, ProviderError, Thought, cloudflare_key
 from .router import Router, Switched, used_model
 from .notify import notify
 from .store import Store
@@ -168,6 +168,7 @@ class Api:
             "version": __version__, "author": AUTHOR, "homepage": HOMEPAGE, "platform": sys.platform,
             "settings": asdict(s), "langs": LANGS, "first": FIRST_CHOICES, "strings": catalog(s.lang),
             "providers": [{"id": p.id, "name": p.name, "key_url": p.key_url, "local": p.local, "note": p.note,
+                           "key_hint": p.key_hint,
                            "has_key": bool(keys.get_key(p.id)), "masked": keys.mask(keys.get_key(p.id))}
                           for p in PROVIDERS.values()],
             "model": self._router.current.label if self._router and self._router.current else "",
@@ -230,6 +231,11 @@ class Api:
         key = (key or "").strip()
         if not p or not p.needs_key or not key:
             return {"ok": False, "error": "empty"}
+        if p.id == "cloudflare":                        # the API token, and the Account ID if Cloudflare doesn't name it
+            key, why = cloudflare_key(key)
+            if why:
+                return {"ok": False, "error": why, "message": {"auth": "Cloudflare didn't accept the token",
+                                                               "network": "No connection to Cloudflare"}.get(why, "")}
         try:
             c = Client(p, key, timeout=20)
             models = c.list_models()

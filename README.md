@@ -85,7 +85,7 @@ lanterna desktop
 
 Update: Lanterna tells you when a new version is out; then run `pipx upgrade lanterna` · Remove: `lanterna desktop --remove && pipx uninstall lanterna`
 
-Keys are kept in your system keyring (GNOME Keyring, KWallet). On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`).
+Keys are kept in your system keyring (GNOME Keyring, KWallet). On a server without a keyring, set the key as an environment variable instead (e.g. `GROQ_API_KEY`; for Cloudflare, `CLOUDFLARE_API_KEY` is the Account ID and the API token joined by a colon).
 
 > Tested automatically on Ubuntu 22.04 and 24.04 on every change. Other distributions use the same steps; if something doesn't work, please [open an issue](../../issues).
 
@@ -109,6 +109,7 @@ More free services can be added any time in Settings → Models (each needs its 
 | NVIDIA | needs a phone number; free for personal use and testing, about 40 requests a minute |
 | Z.ai (GLM) | only its free GLM Flash models are used, so nothing is ever charged |
 | Cohere | 1,000 free requests a month, for personal use only |
+| Cloudflare Workers AI | 10,000 free neurons a day, a few dozen answers; paste an API token made from the "Workers AI" template. Lanterna counts the neurons itself and stops before they run out, so nothing is charged, even on a paid plan |
 
 Lanterna only ever uses free models, so a key never costs you money. Cerebras and GitHub Models were removed when they stopped being free.
 
@@ -183,7 +184,7 @@ Lanterna offers **Sign in with Google** right after you pick the language (you c
 ## Roadmap
 
 - [x] Core, Groq chat in the terminal, secure key storage, personality
-- [x] All free services (Groq, Gemini, OpenRouter, Mistral, NVIDIA, Z.ai, Cohere) and automatic discovery of models that are free right now, with fallback when a limit is reached
+- [x] All free services (Groq, Gemini, OpenRouter, Mistral, NVIDIA, Z.ai, Cohere, Cloudflare) and automatic discovery of models that are free right now, with fallback when a limit is reached
 - [x] Windows app (window with chats, settings, first-run setup)
 - [x] Windows installer (Setup.exe) and portable zip, built by the release workflow
 - [x] Update notice at start with steps for your kind of install (can be turned off)
