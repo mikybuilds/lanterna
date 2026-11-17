@@ -3131,6 +3131,9 @@ class _ChatScreen(Screen):
                 under = parts[-1]
             if r.get("sent") and self._bot is not None:
                 await log.mount(sent_box(r["sent"], lang), after=under)
+        elif r.get("replace"):                           # Lanterna's check: the answer starts again, its words go
+            self._text, self._offset, self._live = r.get("text") or "", r["offset"], ""
+            changed = self._dirty = bool(self._text)     # no words yet: the line shows Lanterna's check instead
         elif r.get("text"):
             self._text += r["text"]
             self._offset = r["offset"]

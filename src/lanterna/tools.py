@@ -34,7 +34,8 @@ class Tool:
     parameters: dict
     run: Callable[..., str]
     label: str                       # short text the UI shows while it runs
-    group: str = ""                  # "" = always offered; otherwise only when the talk is about it (see GROUPS)
+    group: str = ""                  # "" = always offered; otherwise only when the talk is about it (see GROUPS;
+                                     # several groups, "pc apps": when it is about any of them)
 
     def schema(self) -> dict:
         params = self.parameters
@@ -390,7 +391,8 @@ GROUPS = {
                      r"відео|video|музик|music|папк|folder|файл|file|сорт|розклад|розбер|прибер|навед\w* поряд|дублікат|"
                      r"duplicate|кошик|trash|recycle|видали|delete|scaric|scrivania|cartell|ordina|immagini|musica|"
                      r"cestino|elimina|sort|organi[sz]e|clean ?up|tidy|місц|space|spazio|диск|disk|storage|звільн|free up|libera|"
-                     r"сміт|junk|займа|takes up|occupa", re.I),
+                     r"сміт|junk|займа|takes up|occupa|"
+                     r"перенес|перенос|переміст|переміщ|інсталятор|installer|\bmove\b|sposta", re.I),
     # "is it a scam?": a message, letter or link the user got (any link may be one)
     "scam": re.compile(r"шахра|ошук|scam|фішинг|phish|підозріл|suspicious|обман|розвод|fraud|truff|betrug|estaf|arnaq|"
                        r"oszust|мошен|афер|справжн\w* (лист|сайт|смс|sms|повідомл|посилан)|is (this|it) (real|legit|safe)|"
@@ -410,6 +412,8 @@ GROUPS = {
                       r"pointer|іконк|icon|гучн|volume|нічн|night|не турбу|do not disturb|кастом|custom|вигляд|оформл|look|"
                       r"годинник|clock|\bсам[аеоі]?\b|автоном|on (your|its) own|by yourself|yourself|da solo|selbst|"
                       r"tu mismo|toi-même|sam\b", re.I),
+    # a task plan of this chat that isn't finished (chat.Conversation._context): the plan tool stays on
+    "plan": re.compile(r"\(task plan\)"),
     # making things: games, little programs, game mods, websites (projects.py) and the task list (plans.py)
     "make": re.compile(r"\bгр(а|и|у|ою|і)\b|\bігр|міні-?гр|\bмод(и|у|а|ом|ів|ами)?\b|модик|аддон|датапак|плагін|"
                        r"ресурс-?пак|текстур-?пак|скрипт|програмк|міні-?програм|веб-?сторінк|лендінг|"
@@ -520,7 +524,8 @@ class Toolbox:
         """All tools, except groups (the user's folders, programs, the PC) the recent messages don't touch:
         every tool description costs tokens on free plans, and small models choose better from a short list."""
         on = None if context is None else {g for g, rx in GROUPS.items() if rx.search(context)}
-        return [t.schema() for t in self.tools.values() if not t.group or on is None or t.group in on]
+        return [t.schema() for t in self.tools.values()
+                if not t.group or on is None or any(g in on for g in t.group.split())]
 
     def run(self, name: str, arguments: str) -> str:
         tool = self.tools.get(name)

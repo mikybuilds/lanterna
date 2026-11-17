@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ctypes
 import datetime as dt
+import fnmatch
 import hashlib
 import os
 import re
@@ -68,6 +69,41 @@ def category(p: Path | str) -> str:
         if ext in exts:
             return name
     return "Other"
+
+
+# Moving a group of files with one card: a rule says which ones (pc_move)
+WILD = re.compile(r"[*?\[]")
+
+
+def _as_list(x) -> list[str]:
+    """Strings from what a model sends: a list, one string, or "a, b"."""
+    if x is None or x == "":
+        return []
+    items = x if isinstance(x, (list, tuple)) else re.split(r"[,;]", str(x))
+    return [str(i).strip() for i in items if str(i).strip()]
+
+
+def _ext(x: str) -> str:
+    x = x.strip().lower().lstrip("*")
+    return x if x.startswith(".") else "." + x
+
+
+def _kinds(names: list[str]) -> list[str]:
+    """Kinds of files as the model wrote them (any case, or in the user's language) → the categories above."""
+    from .i18n import LANGS, t
+    known = {}
+    for c in CATEGORY_ORDER:
+        for lang in LANGS:
+            known[t(c, lang).lower()] = c
+        known[c.lower()] = c
+    out = []
+    for n in names:
+        c = known.get(n.lower())
+        if not c:
+            raise WorkError(f"Unknown kind '{n}'. Kinds: {', '.join(CATEGORY_ORDER)}.")
+        if c not in out:
+            out.append(c)
+    return out
 
 
 def size_text(n: float) -> str:
@@ -337,6 +373,7 @@ class Places:
         self.undo: dict[str, list[tuple[str, str]]] = {}      # sort id → [(from, to)] for "Undo"
         self.last_undo = (0, 0)
         self._lock = threading.Lock()
+        self._claims: dict[str, set[str]] = {}                # card id → the files it moves (while it waits)
 
     # -- paths
     def folders(self) -> dict[str, Path]:
@@ -539,6 +576,21 @@ class Places:
         return f"Opened {place}/{self.rel(place, p)} in the file manager."
 
     # -- changes (cards)
+    def _claimed(self) -> set[str]:
+        """Files on cards that still wait for the user: a rule doesn't put them on a second card."""
+        out: set[str] = set()
+        for aid, ps in list(self._claims.items()):
+            a = self.actions.get(aid)
+            if a is None or a.state != "pending":
+                self._claims.pop(aid, None)
+            else:
+                out |= ps
+        return out
+
+    def _claim(self, action, files) -> None:
+        if action is not None and getattr(action, "state", "") == "pending":
+            self._claims[action.id] = {str(p) for p in files}
+
     def _files(self, place: str, paths: list[str]) -> list[Path]:
         if not paths:
             raise WorkError("Name at least one file.")
@@ -658,8 +710,12 @@ class Places:
             cat = t(category(x), lang)
             sub = {"date": f"{when:%Y-%m}", "type_date": f"{cat}/{when:%Y}"}.get(by, cat)
             moves.append((x, sub, st.st_size))
+        claimed = self._claimed()
+        taken = sum(str(x) in claimed for x, _, _ in moves)
+        moves = [m for m in moves if str(m[0]) not in claimed]   # a card that waits already has them
         if not moves:
-            return "Nothing to sort here: no loose files" + (" (some are still downloading)" if skipped else "") + "."
+            return ("Nothing to sort here: no loose files" + (" (some are still downloading)" if skipped else "")
+                    + (f" ({taken} are on a card that waits for the user)" if taken else "") + ".")
         if len(moves) > BATCH_LIMIT:
             moves = moves[:BATCH_LIMIT]
         groups: dict[str, list[str]] = {}
@@ -678,30 +734,124 @@ class Places:
             self.undo[sid] = done
             self.actions.note_undo({"type": "moves", "moves": done})
             return f"{len(done)} files sorted into {len(groups)} folders|undo:{sid}"
-        self.actions.propose("pc_sort", details, run)
+        self._claim(self.actions.propose("pc_sort", details, run), [x for x, _, _ in moves])
         return WAITING + f" Plan: {len(plan)} files into {len(groups)} folders: " + ", ".join(
-            f"{k} ({len(v)})" for k, v in sorted(groups.items())) + "."
+            f"{k} ({len(v)})" for k, v in sorted(groups.items())) + "." + (
+            f" {taken} files already on another card that waits were left out." if taken else "")
 
-    def propose_move(self, place: str, paths: list[str], to: str, to_place: str = "") -> str:
-        files = self._files(place, paths)
+    def pick(self, place: str, paths: list[str] | None = None, path: str = "", kinds=None, ext=None,
+             older_than_days: int = 0, name_has: str = "", dest: Path | None = None) -> tuple[list[Path], dict]:
+        """The files a move is about: the ones named in `paths` (inside `place`), and the ones a rule picks in the
+        folder `path`: patterns in `paths` (*.exe, Minecraft*), kinds, endings, age, words in the name. A rule takes
+        files only (a folder moves only when it is named), never ones still downloading or on another waiting card.
+        → (files, {"rule": {...}, "fresh": n, "claimed": n, "unfit": n})."""
+        paths = _as_list(paths)
+        kinds, exts = _kinds(_as_list(kinds)), [_ext(e) for e in _as_list(ext)]
+        try:
+            older = max(0, int(older_than_days or 0))
+        except (TypeError, ValueError):
+            raise WorkError("older_than_days must be a whole number of days.") from None
+        has = str(name_has or "").strip().lower()
+        named = [x for x in paths if not WILD.search(x)]
+        patterns = [x.replace("\\", "/").strip("/") for x in paths if WILD.search(x)]
+        filtered = bool(kinds or exts or older or has)
+        if not paths and not filtered:
+            raise WorkError("Name the files to move, or give a rule: kinds, ext, older_than_days, name_has, or a "
+                            "pattern like *.exe in paths.")
+        base = self.path(place, path)
+        if (patterns or not named) and not base.is_dir():
+            raise WorkError(f"'{path}' is not a folder.")
+        now, out, seen = time.time(), [], set()
+        info = {"fresh": 0, "claimed": 0, "unfit": 0}
+
+        def fits(p: Path, st) -> bool:
+            return ((not kinds or category(p) in kinds) and (not exts or p.suffix.lower() in exts)
+                    and (not older or now - st.st_mtime >= older * 86400) and (not has or has in p.name.lower()))
+
+        for p in self._files(place, named) if named else []:          # named ones: as they are, if they fit
+            if filtered and (p.is_dir() or not fits(p, p.stat())):
+                info["unfit"] += 1
+            elif str(p) not in seen:
+                seen.add(str(p))
+                out.append(p)
+        found: list[Path] = []
+        if patterns:
+            for pat in patterns:
+                sub, _, name = pat.rpartition("/")
+                d = self.path(place, f"{self.rel(place, base)}/{sub}" if sub else self.rel(place, base))
+                if d.is_dir():
+                    found += [x for x in self._visible(d) if fnmatch.fnmatch(x.name.lower(), name.lower())]
+        elif not named:
+            found = list(self._visible(base))
+        claimed = self._claimed() if found else set()
+        for x in sorted(found, key=lambda x: x.name.lower()):
+            try:
+                st = x.stat()
+            except OSError:
+                continue
+            if not x.is_file() or str(x) in seen or (dest is not None and x.parent == dest) or not fits(x, st):
+                continue
+            if x.suffix.lower() in PARTIAL or now - st.st_mtime < FRESH:
+                info["fresh"] += 1                   # maybe still downloading
+            elif str(x) in claimed:
+                info["claimed"] += 1
+            else:
+                seen.add(str(x))
+                out.append(x)
+        info["rule"] = {"patterns": patterns, "kinds": kinds, "ext": exts, "older_than_days": older, "name_has": has}
+        return out[:BATCH_LIMIT], info
+
+    def rule_text(self, rule: dict) -> str:
+        """Which files a rule takes, in the user's language: "Installers · .exe · older than 30 days"."""
+        from .i18n import t
+        lang = self.lang()
+        bits = [", ".join(t(k, lang) for k in rule.get("kinds", [])), ", ".join(rule.get("ext", [])),
+                ", ".join(rule.get("patterns", [])),
+                t("older than {n} days", lang, n=rule["older_than_days"]) if rule.get("older_than_days") else "",
+                t("name has «{x}»", lang, x=rule["name_has"]) if rule.get("name_has") else ""]
+        return " · ".join(b for b in bits if b)
+
+    def propose_move(self, place: str, paths: list[str] | None, to: str, to_place: str = "", path: str = "",
+                     kinds=None, ext=None, older_than_days: int = 0, name_has: str = "") -> str:
         to_place = to_place or place
         dest = self.path(to_place, to)
         if dest.exists() and not dest.is_dir():
             raise WorkError(f"'{to}' is a file, not a folder.")
+        files, info = self.pick(place, paths, path, kinds, ext, older_than_days, name_has, dest)
+        rule = self.rule_text(info["rule"])
+        if not files:
+            why = "; ".join(w for w in (
+                f"{info['fresh']} are still downloading" if info["fresh"] else "",
+                f"{info['claimed']} are already on a card that waits for the user" if info["claimed"] else "",
+                f"{info['unfit']} named ones don't fit the rule" if info["unfit"] else "") if w)
+            raise WorkError(f"No files match{' (' + rule + ')' if rule else ''} in {place}"
+                            f"{'/' + path if path else ''}{': ' + why if why else ''}. Nothing was proposed.")
         for p in files:
             if p.is_dir() and (dest == p or dest.is_relative_to(p)):
                 raise WorkError(f"'{p.name}' can't go inside itself.")
         dest_rel = self.rel(to_place, dest)
         plan = [(self.rel(place, p), p.name if dest_rel == "." else f"{dest_rel}/{p.name}") for p in files]
-        details = {"place": place, "to_place": to_place, "to": self.rel(to_place, dest), "count": len(plan),
+        details = {"place": place, "to_place": to_place, "to": dest_rel, "count": len(plan),
                    "files": [a for a, _ in plan][:40], "size": sum(_size_of(p) for p in files)}
+        if rule:
+            details["rule"] = rule
+        if info["fresh"]:
+            details["skipped"] = info["fresh"]
+        if info["claimed"]:
+            details["claimed"] = info["claimed"]
 
         def run() -> str:
             done = self._move_many(place, plan, to_place)
             self.actions.note_undo({"type": "moves", "moves": done})
             return f"{len(done)} moved to {to_place}/{details['to']}"
-        self.actions.propose("pc_move", details, run)
-        return WAITING
+        self._claim(self.actions.propose("pc_move", details, run), files)
+        names = ", ".join(Path(a).name for a, _ in plan[:10]) + (f" … (+{len(plan) - 10})" if len(plan) > 10 else "")
+        left = "; ".join(x for x in (
+            f"{info['claimed']} already on another card that waits" if info["claimed"] else "",
+            f"{info['fresh']} still downloading" if info["fresh"] else "",
+            f"{info['unfit']} named ones that don't fit the rule" if info["unfit"] else "") if x)
+        return (WAITING + f" The card moves {len(plan)} item(s) to {to_place}/{dest_rel}: {names}."
+                + (f" Left out: {left}." if left else ""))
 
     def propose_rename(self, place: str, path: str, new_name: str) -> str:
         p = self._files(place, [path])[0]
@@ -884,10 +1034,18 @@ def place_tools(pl: Places) -> list:
              _obj({"place": place, "path": s, "by": {"type": "string", "enum": ["type", "date", "type_date"]},
                    "older_than_days": {"type": "integer"}}, ["place"]),
              lambda place, path="", by="type", older_than_days=0: pl.propose_sort(place, path, by, older_than_days), "🗂"),
-        Tool("pc_move", "Move files or folders (paths inside `place`) into folder `to` (inside `to_place`, default "
-             "the same place; created if missing). " + card,
-             _obj({"place": place, "paths": arr, "to": s, "to_place": place}, ["place", "paths", "to"]),
-             lambda place, paths, to, to_place="": pl.propose_move(place, list(paths or []), to, to_place), "📦"),
+        Tool("pc_move", "Move files or folders into folder `to` (inside `to_place`, default the same place; created "
+             "if missing). Name them in `paths` (inside `place`), or give a rule and one card takes every file that "
+             "fits: kinds, ext (endings like .jar), older_than_days, name_has, or patterns in paths (*.exe, "
+             "Minecraft*). path: the subfolder a rule looks in. Files still downloading and files already on another "
+             "card that waits are left out, so for several groups call it once per group, the most specific first. "
+             + card + " Examples: 'all installers to Programs' → place='downloads', kinds=['Installers'], "
+             "to='Programs'; 'the .jar mods to Mods' → ext=['.jar'], to='Mods'.",
+             _obj({"place": place, "paths": arr, "to": s, "to_place": place, "path": s,
+                   "kinds": {"type": "array", "items": {"type": "string", "enum": CATEGORY_ORDER}}, "ext": arr,
+                   "older_than_days": {"type": "integer"}, "name_has": s}, ["place", "to"]),
+             lambda place, to, paths=None, to_place="", path="", kinds=None, ext=None, older_than_days=0, name_has="":
+             pl.propose_move(place, paths, to, to_place, path, kinds, ext, older_than_days, name_has), "📦"),
         Tool("pc_rename", "Rename a file or folder in the user's folders. " + card,
              _obj({"place": place, "path": s, "new_name": s}, ["place", "path", "new_name"]),
              lambda place, path, new_name: pl.propose_rename(place, path, new_name), "✏️"),

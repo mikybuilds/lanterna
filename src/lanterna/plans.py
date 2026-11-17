@@ -18,7 +18,8 @@ STEP_LEN = 120
 
 DESCRIPTION = (
     "Your task list for a bigger job (a game, a program, a mod, a website, a plan, a long text), shown to the user "
-    "as a checklist that updates while you work. Start such a job with plan(steps=[3-8 short steps in the user's "
+    "as a checklist that updates while you work (also for several changes on this computer: one step per card). "
+    "Start such a job with plan(steps=[3-8 short steps in the user's "
     "language]); then do the steps in order, and right after finishing one call plan(done=[its number]) "
     "(you may do that together with the next step's tool call). The first step that isn't done is the one "
     "the user sees as being done now. To change the plan, call plan(steps=[...]) again. project: the folder in "
@@ -174,4 +175,5 @@ def plan_tool(get: Callable[[], dict], put: Callable[[dict], None]):
             return f"Error: {e}"
         put(p)
         return for_model(p)
-    return Tool("plan", DESCRIPTION, SCHEMA, run, "📋", "make")
+    # a big job: making things, or several changes on this computer (sorting, moving, programs)
+    return Tool("plan", DESCRIPTION, SCHEMA, run, "📋", "make pc apps plan")

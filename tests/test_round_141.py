@@ -59,7 +59,7 @@ def test_the_plan_tool_saves_and_shows_each_change():
         saved.update(p)
         shown.append(plans.view(p))
     tool = plans.plan_tool(lambda: dict(saved), put)
-    assert tool.name == "plan" and tool.group == "make"
+    assert tool.name == "plan" and "make" in tool.group.split()
     assert "Next: step 1" in tool.run(steps=["Написати", "Перевірити"])
     assert "Next: step 2" in tool.run(done=[1])
     assert tool.run(done=[9]).startswith("Error:")
@@ -338,7 +338,7 @@ def test_an_unfinished_plan_goes_into_the_prompt_and_keeps_its_rounds():
     "".join(p for p in conv.ask("далі") if isinstance(p, str))
     system = r.seen[0]["msgs"][0]["content"]
     assert "Your task plan in this chat is not finished" in system and "2. [now] B" in system
-    assert "(project plan)" in conv._context("далі") and not conv.out_of_rounds
+    assert "(task plan)" in conv._context("далі") and not conv.out_of_rounds
 
 
 def test_a_check_after_a_change_runs_again():

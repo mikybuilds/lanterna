@@ -117,6 +117,13 @@ class Questions:
     items: list[dict]
 
 
+@dataclass
+class Redo:
+    """Yielded when the reply said something was done (or waits on a card) that no tool did: the words written so far
+    are withdrawn and the model answers again (the UI clears them)."""
+    said: str = ""
+
+
 # ------------------------------------------------------------------ the mini-questionnaire before a big task
 ASK_MARK = "❓"            # starts the saved text of a questionnaire: the next answer must not ask again
 ASK_TOOL = {"type": "function", "function": {
@@ -208,7 +215,13 @@ TOOLS_GUIDE = (
 PC_GUIDE = (
     "This computer: the pc_* tools work with the user's own folders (Downloads, Desktop, Documents, Pictures, Videos, "
     "Music) without any setup. 'Sort / tidy my downloads' = call pc_sort right away (its card shows the whole plan; "
-    "pc_overview is for questions about what is there). A file on the desktop or in one of these folders (a note, a command to copy) = pc_write, never Google Drive. Open a program, a website or a file = pc_open_program / pc_open_site / pc_open_file (immediate). The look (wallpaper, accent, icons, fonts, night light, volume…) = pc_look, then pc_look_set. When the user wants several things done without confirming each one, agree on the plan, then call pc_auto_ask. app_* tools find, "
+    "pc_overview is for questions about what is there). A group of files (all installers, every .jar, files older "
+    "than a month, names with 'minecraft') = one pc_move with a rule (kinds, ext, older_than_days, name_has, or a "
+    "pattern like *.exe in paths): one card lists them all, and it makes the folder `to` itself (no separate "
+    "folder card). The user's own scheme or a job in steps (several groups, folders, programs) = call plan first, "
+    "one step per card, named after it ('Card: installers → Programs', in the user's language); make the cards "
+    "one after another, the most specific group first, and mark each step done when its card is made. Files move "
+    "only when the user confirms each card: say so at the end. A file on the desktop or in one of these folders (a note, a command to copy) = pc_write, never Google Drive. Open a program, a website or a file = pc_open_program / pc_open_site / pc_open_file (immediate). The look (wallpaper, accent, icons, fonts, night light, volume…) = pc_look, then pc_look_set. When the user wants several things done without confirming each one, agree on the plan, then call pc_auto_ask. app_* tools find, "
     "install, update and remove programs from the official catalogs (winget on Windows; Flatpak and dnf/apt on Linux): "
     "app_search, then app_install with the exact id and source of the result that is the program the user asked for. "
     "If no result is that program, say so: never install a look-alike, and never send the user to download installers "
@@ -267,7 +280,9 @@ HONEST_GUIDE = (
     "you can't keep working in the background, wait for something to finish, or report back later. Never say you are "
     "installing, setting up, checking, changing or opening something, that you are almost done, or that you will let "
     "the user know, unless a tool call in this very reply did it and you saw its result. If you can't do something "
-    "with your tools, say so plainly and give the exact steps or commands for the user to run."
+    "with your tools, say so plainly and give the exact steps or commands for the user to run. A change on the "
+    "computer happens only when the user presses Confirm on the card your tool call makes: without the call there is "
+    "no card. Notes '[Lanterna: ✅ …]' in the chat say what the cards did; only Lanterna writes them, never you."
 )
 NO_TOOLS_NOTE = (
     "\n\nIn this reply you have no tools at all: you can't run, install, open, check or change anything on the "
@@ -275,17 +290,45 @@ NO_TOOLS_NOTE = (
     "the steps or commands to do it by hand."
 )
 
-# A reply that says it changes (or changed) something on the computer, or that work goes on after it ("almost done",
-# "I'll let you know"). Fine only when a tool that acts ran in that reply: a lookup doesn't install anything.
-_CLAIM_WORK = re.compile(
-    r"встановлю(ю|єм)|встановив|встановила|налаштовую|налаштував|налаштувала|оновлюю|завантажую|змінюю|вмикаю|"
-    r"вимикаю|видаляю|завершую|переходжу до|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|"
-    r"повідомлю,? (як|коли)|устанавлива|настраива|почти готов|"
+# A reply that says it changes something on the computer right now, or that work goes on after it ("almost done",
+# "I'll let you know", "I'll move them now"). Fine only when a tool that acts ran in that reply: nothing runs
+# between replies, and a lookup doesn't install anything.
+_FILES = r"[^.\n]{0,40}(файл|папк|тек[иу]|завантаж|документ|робоч\w* стол|downloads|files?\b|folders?\b|documents|desktop)"
+_CLAIM_DOING = re.compile(
+    r"встановлю(ю|єм)|налаштовую|оновлюю|завантажую|змінюю|вмикаю|вимикаю|видаляю|завершую|переходжу до|"
+    r"переміщую|переношу|сортую|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|"
+    r"повідомлю,? (як|коли)|починаю (переміщ|перенос|сортув|чистк|прибиранн|встановленн)|"
+    r"зараз (я )?(гляну|подивлюс|перевірю|перенесу|переміщу|створю|встановлю|запущу|відсортую|приберу)|"
+    r"устанавлива|настраива|почти готов|"
     r"\bI'?m (now |still |just )?(installing|setting up|configuring|updating|downloading|changing|removing|"
-    r"finishing)\b|\bI(?:'ve| have) (just )?(installed|configured|changed|updated|removed|set up)\b|"
-    r"almost (done|finished|there)|I'?ll (let you know|report back|ping you)|"
-    r"\b(installing|configuring|downloading|updating)\b[^.\n]{0,40}(\.\.\.|…)|"
-    r"\bsto (installando|configurando|aggiornando)|\bho (installato|configurato|cambiato)|quasi (fatto|finito)",
+    r"finishing|moving|sorting)\b|almost (done|finished|there)|I'?ll (let you know|report back|ping you)|"
+    r"\bI'?ll (now |go ahead and )?(move|sort|install|set up)\b|"
+    r"\b(installing|configuring|downloading|updating|moving)\b[^.\n]{0,40}(\.\.\.|…)|"
+    r"\bsto (installando|configurando|aggiornando|spostando)|quasi (fatto|finito)",
+    re.I)
+# A reply that says a change is done: true only when a tool did it in this reply, or a card was confirmed (✅) since
+# the last answer. Moving and sorting count only with files in the words ("I moved the paragraph" is about text).
+_CLAIM_DONE = re.compile(
+    r"встановив|встановила|налаштував|налаштувала|"
+    r"(перемістив|перемістила|переніс|перенесла|відсортував|відсортувала|прибрав|прибрала)" + _FILES + "|"
+    r"створив (нов\w* )?(папк|теку|файл)|створила (нов\w* )?(папк|теку|файл)|"
+    r"(файли|їх|все|усе) (вже )?(переміщено|перенесено|відсортовано)|"
+    r"^\s*✅\s*(виконано|зроблено|готово|переміщено|перенесено|створено|встановлено|видалено|відсортовано|done|moved|"
+    r"created|installed|sorted|fatto|spostat)|"
+    r"\bI(?:'ve| have) (just )?(installed|configured|changed|updated|removed|set up)\b|"
+    r"\bI(?:'ve| have) (just )?(moved|sorted|organi[sz]ed)" + _FILES + "|"
+    r"\bho (installato|configurato|cambiato|spostato)",
+    re.I | re.M)
+# A reply that sends the user to a card ("press Confirm"): true only when a card is there.
+_CLAIM_CARD = re.compile(
+    r"натисн\w*\s+(на\s+)?(кнопку\s+)?[«\"“']?підтверд|після (того,? як (ти )?)?(натиснеш|підтвердиш)|"
+    r"(як тільки|коли|щойно) (ти )?(підтвердиш|натиснеш)|після (твого )?підтвердження|підтверд\w* (на|у|в) картці|"
+    r"\b(press|click|tap|hit)( on)?( the)?( button)? [\"“«']?confirm|\b(once|after|when) you (press|click|tap|confirm)|"
+    r"confirm (it )?on the card|\b(premi|clicca|tocca)( su)? [\"“«']?conferma|\b(appena|quando|dopo che) (avrai )?confermi|"
+    r"\b(drück|klick|tipp)\w* (auf )?[\"“«']?bestätigen|\b(sobald|nachdem) du (es )?bestätigst|"
+    r"\b(pulsa|haz clic en|toca) [\"“«']?confirmar|\b(cuando|en cuanto) (lo )?confirmes|"
+    r"\b(appuie|clique|appuyez|cliquez)\w* sur [\"“«']?confirmer|\b(dès que|une fois que) tu (auras )?confirm|"
+    r"\b(naciśnij|kliknij|stuknij) [\"“«']?potwierdź|\b(gdy|kiedy) potwierdzisz",
     re.I)
 # A reply that says it is checking or running something: true after a lookup, made up when no tool ran at all.
 _CLAIM_LOOK = re.compile(
@@ -296,26 +339,114 @@ _CLAIM_LOOK = re.compile(
 
 def claims_action(text: str) -> bool:
     """The reply says it is doing (or did) something — fine only if a tool really ran in it."""
-    return bool(_CLAIM_WORK.search(text or "") or _CLAIM_LOOK.search(text or ""))
+    return claims_change(text) or bool(_CLAIM_LOOK.search(text or ""))
 
 
 def claims_change(text: str) -> bool:
-    """The reply says it installs, sets up or changes something, or that it will go on after this reply."""
-    return bool(_CLAIM_WORK.search(text or ""))
+    """The reply says it installs, sets up or changes something, did it, or that it will go on after this reply."""
+    return bool(_CLAIM_DOING.search(text or "") or _CLAIM_DONE.search(text or ""))
 
 
-def false_claim(reply: str, ran: list[str]) -> str:
-    """The warning to show under a reply that claims work it didn't do ("" = none): nothing ran at all, or only
-    tools that look things up while it says it is installing or almost done."""
-    if not ran:
-        return NOTHING_RAN if claims_action(reply) else ""
-    if all(n in READ_ONLY_TOOLS for n in ran) and claims_change(reply):
-        return ONLY_LOOKED
+# what makes a claim about moving or installing true: a card that moves or installs (a folder card doesn't move files)
+_MOVING = re.compile(r"переміщ|перемісти|перенес|перенош|переніс|сортув|відсорту|\bmov|\bsort|spost", re.I)
+_INSTALLING = re.compile(r"встанов|установ|instal", re.I)
+MOVE_TOOLS = frozenset(("pc_move", "pc_sort", "pc_trash", "folder_move", "drive_upload"))
+# "встановив" is also "set" (a reminder, a theme, a wallpaper): these make "I installed / set up …" true, and so does
+# a tool of a connected service (mcp_…); a new folder or a file doesn't
+SETUP_TOOLS = frozenset(("app_install", "app_update", "pc_theme", "pc_look_set", "pc_power_set", "pc_startup_switch",
+                         "pc_auto_ask", "set_reminder"))
+QUIET_TOOLS = frozenset(("ask_user", "remember", "forget", "set_reminder", "cancel_reminder"))   # act, but no card
+
+
+def _need(said: str) -> frozenset | None:
+    """Tools that make words about moving or installing true (None: any tool that acts will do)."""
+    return MOVE_TOOLS if _MOVING.search(said) else SETUP_TOOLS if _INSTALLING.search(said) else None
+
+
+def _fit(need: frozenset | None, acting) -> set[str]:
+    """Of these tools that act, the ones that make such a claim true."""
+    return {n for n in acting if need is None or n in need or (need is SETUP_TOOLS and n.startswith("mcp_"))}
+
+
+# Lanterna's ✅ line of a card that moved or sorted files, in every app language (app.action_title, done=True)
+_MOVED_NOTE = re.compile(r"переміщено|розкладено|\bmoved\b|\bsorted\b|spostat|ordinat|verschoben|sortiert|movid|"
+                         r"ordenad|déplac|rangé|przeniesion|posortowan", re.I)
+# ... and the ✅ lines of cards that installed or set something up (the same words as app.action_title)
+_SET_DONE = ("Installed {name}", "Updated {name}", "Changed: {name}", "Changed {count} settings of the look",
+             "Switched to the dark theme", "Switched to the light theme", "Power plan: {name}",
+             "{name} starts with the computer", "{name} no longer starts with the computer", "Used {name}",
+             "Lanterna acts on its own here for {count} min")
+_set_note: re.Pattern | None = None
+
+
+def _set_done(notes: str) -> bool:
+    """One of these lines installed or set something up, in any app language."""
+    global _set_note
+    if _set_note is None:
+        alts = {re.sub(r"\\\{\w+\\\}", ".+", re.escape(i18n.t(k, lang))) for k in _SET_DONE for lang in i18n.LANGS}
+        _set_note = re.compile(r"^✅ (?:" + "|".join(sorted(alts)) + ")", re.M)
+    return bool(_set_note.search(notes))
+
+
+def _notes_cover(need: frozenset | None, notes: bool | str) -> bool:
+    """Lanterna's ✅ lines since the last answer make a claim of this kind true (a new folder isn't a move)."""
+    if notes is True or (notes and need is None):
+        return True
+    return bool(notes) and (bool(_MOVED_NOTE.search(notes)) if need is MOVE_TOOLS else _set_done(notes))
+
+
+def claim_tools(said: str, names) -> set[str]:
+    """Of these tools, the ones that could make the claimed change (asking the model again is worth it with one).
+    Tools with no card don't count: reminders are offered in every chat, and "I'm installing the packages" must not
+    cost a second request for them."""
+    return _fit(_need(said), [n for n in names if n not in READ_ONLY_TOOLS and n not in QUIET_TOOLS])
+
+
+def claim_phrase(text: str, ran: list[str] | tuple = (), waiting: bool = False, done_before: bool | str = False) -> str:
+    """The words of a reply that claim a change no tool in it made ("" = none): it says it is doing or did something,
+    or sends the user to a card that isn't there. ran: the tools of this reply; waiting: a card of this chat waits
+    for the user (sending them to it is right); done_before: Lanterna's ✅ lines of cards confirmed since the last
+    answer (True: any change may be done now)."""
+    acting = [n for n in ran if n not in READ_ONLY_TOOLS]
+    text = text or ""
+    for kind, rx, ok in (("doing", _CLAIM_DOING, False), ("done", _CLAIM_DONE, done_before is True),
+                         ("card", _CLAIM_CARD, waiting)):
+        for m in ([] if ok else rx.finditer(text)):
+            end = m.end()
+            while end < len(text) and end - m.end() < 30 and text[end].isalnum():
+                end += 1                             # the whole last word: «…у папку», not «…у папк»
+            said = " ".join(text[m.start():end].split())[:80]
+            # what it is about can follow the words ("✅ Done: the files are moved"): the rest of the line counts
+            line = text[m.start():m.end() + 80].split("\n", 1)[0]
+            need = None if kind == "card" else _need(said) or _need(line)
+            if kind == "done" and _notes_cover(need, done_before):
+                continue
+            if not _fit(need, acting):
+                return said
     return ""
+
+
+def false_claim(reply: str, ran: list[str], waiting: bool = False, done_before: bool | str = False) -> str:
+    """The warning to show under a reply that claims work it didn't do ("" = none): nothing ran at all, only tools
+    that look things up, or tools that did something else (a new folder, while it says the files are moved)."""
+    said = claim_phrase(reply, ran, waiting, done_before)
+    if not ran:
+        return NOTHING_RAN if said or _CLAIM_LOOK.search(reply or "") else ""
+    if not said:
+        return ""
+    return ONLY_LOOKED if all(n in READ_ONLY_TOOLS for n in ran) else LESS_DONE
+
+
+# The reply claimed a change no tool made: the model is asked once to make it for real, or to say it can't
+REDO_NOTE = ("[Lanterna's check, not the user's words: your reply says «{said}», but no tool call in it did that, so "
+             "nothing happened and the user saw no card. If the user wants this change, call the tool for it now (the "
+             "user confirms it on its card). If no tool can do it, say so plainly. Then write your whole reply again, "
+             "as it should be now. Never say a change is done before Lanterna's ✅ note shows it.]")
 
 
 NOTHING_RAN = "Lanterna didn't run anything in this reply: nothing was installed, opened or changed."
 ONLY_LOOKED = "In this reply Lanterna only looked things up: nothing was installed, opened or changed."
+LESS_DONE = "This reply says more than Lanterna did: only what the cards show will happen."
 
 
 def system_prompt(name: str = "", now: datetime.datetime | None = None, extra: str = "", model: str = "",
@@ -506,15 +637,46 @@ def is_hard(text: str) -> bool:
 SECOND_NOTE = "(A second opinion from another model:)"
 
 
+# What a card did (✅ done after Confirm, ✖ cancelled, ⚠️ failed) is kept in the chat as a short line from Lanterna.
+# The model gets it as Lanterna's note on the user's side, never as an answer: shown as an answer (or as "a second
+# opinion") a model took it for its own words and wrote such lines itself, for changes that never happened.
+CARD_MARKS = ("✅ ", "✖ ", "⚠️ ")
+CARD_NOTE = "[Lanterna: {note}]"
+
+
+def is_card_note(m: dict) -> bool:
+    """A saved line about what a card did: an answer with no model, starting with ✅, ✖ or ⚠️."""
+    return (m.get("role") == "assistant" and not m.get("model") and isinstance(m.get("content"), str)
+            and m["content"].startswith(CARD_MARKS))
+
+
+def _join_user(a, b):
+    """Two user turns as one (text, or the parts of a message with photos)."""
+    if isinstance(a, str) and isinstance(b, str):
+        return f"{a}\n\n{b}"
+    parts = [p for c in (a, b) for p in ([{"type": "text", "text": c}] if isinstance(c, str) else c)]
+    return parts
+
+
 def join_answers(history: list[dict]) -> list[dict]:
-    """A question with a second opinion has two answers in a row: some services refuse that, so they go as one."""
+    """The chat as the model gets it. A question with a second opinion has two answers in a row: some services
+    refuse that, so they go as one. A card's note (marked "note") goes to the user's side, in the turn next to it."""
     out: list[dict] = []
+    notes: set[int] = set()                     # places in `out` that hold a card's note
     for m in history:
-        if (out and m.get("role") == "assistant" == out[-1].get("role") and isinstance(m.get("content"), str)
+        note = bool(m.get("note"))
+        if note:
+            m = {"role": "user", "content": CARD_NOTE.format(note=str(m.get("content") or "").strip())}
+        if out and m.get("role") == "user" == out[-1].get("role") and (note or len(out) - 1 in notes):
+            out[-1] = {"role": "user", "content": _join_user(out[-1]["content"], m["content"])}
+            notes.add(len(out) - 1)
+        elif (out and m.get("role") == "assistant" == out[-1].get("role") and isinstance(m.get("content"), str)
                 and isinstance(out[-1].get("content"), str) and not out[-1].get("tool_calls")):
             out[-1] = {**out[-1], "content": f"{out[-1]['content']}\n\n{SECOND_NOTE}\n{m['content']}"}
         else:
             out.append(m)
+            if note:
+                notes.add(len(out) - 1)
     return out
 
 
@@ -523,6 +685,24 @@ def user_content(text: str, images: list[str] | None = None) -> str | list[dict]
     if not images:
         return text
     return [{"type": "text", "text": text}, *({"type": "image_url", "image_url": {"url": u}} for u in images)]
+
+
+@dataclass
+class _Work:
+    """One answer while it is being made: what goes to the model, its tool rounds, its text, the tools it ran."""
+    msgs: list[dict]
+    schemas: list[dict] | None
+    rounds: int                              # tool rounds this answer may use
+    text: str = ""                           # the user's message
+    images: list[str] | None = None
+    cloud_first: bool = False
+    rnd: int = 0
+    changed: int = 0                         # calls in `done` up to the last change of project files
+    pieces: list[str] = field(default_factory=list)
+    tail: str = ""                           # the text of its last round
+    done: list[tuple[str, str]] = field(default_factory=list)   # tool calls already run in this answer
+    asked: list[dict] = field(default_factory=list)             # questions for the user (ask_user)
+    redo: bool = False                       # answering again after Lanterna's check (REDO_NOTE)
 
 
 @dataclass
@@ -540,6 +720,7 @@ class Conversation:
     instructions: str = ""                 # the chat's role and the user's own instructions (roles.system_note)
     plan_text: str = ""                    # the chat's unfinished task plan, as the model reads it (plans.for_model)
     out_of_rounds: bool = False            # the last answer ended at the tool-round limit (its work may not be done)
+    cards_waiting: bool = False            # a card of this chat waits for the user: "press Confirm" is right
 
     def _system(self, text: str) -> dict:
         cur = used_model(self.router)
@@ -547,11 +728,12 @@ class Conversation:
         ctx = self._context(text)
         names = [s["function"]["name"] for s in self.toolbox.schemas(ctx)] if self.toolbox is not None else []
         pc = any(n.startswith(("pc_", "app_")) for n in names)
-        make = any(n == "plan" or n.startswith("project_") for n in names)
+        make = any(n.startswith("project_") for n in names)       # games, programs, mods: their guides
+        plan = "plan" in names
         return {"role": "system", "content": system_prompt(self.user_name, extra=" ".join(x for x in (soul.mood_hint(text), soul.lang_hint(text, self.lang)) if x),
                                                            model=cur.label if cur else "", facts=facts,
                                                            tools=self.toolbox is not None, pc=pc, make=make)
-                + self._summary_note() + (PLAN_NOTE.format(plan=self.plan_text) if self.plan_text and make else "")
+                + self._summary_note() + (PLAN_NOTE.format(plan=self.plan_text) if self.plan_text and plan else "")
                 + (f"\n\n{self.instructions}" if self.instructions else "")}
 
     def _summary_note(self) -> str:
@@ -561,29 +743,60 @@ class Conversation:
     def _context(self, text: str) -> str:
         """The new message and the last few turns: what decides which tool groups are offered."""
         recent = [m.get("content") for m in self.history[-6:] if isinstance(m.get("content"), str)]
-        # an unfinished plan keeps the project tools and the plan on, whatever the words of "go on" are
-        return " ".join([*recent, text or "", "(project plan)" if self.plan_text else ""])
+        # an unfinished plan keeps the plan tool on, whatever the words of "go on" are, and its steps keep the
+        # tools of the job on (a game's files, the user's folders)
+        return " ".join([*recent, text or "", f"(task plan) {self.plan_text}" if self.plan_text else ""])
 
     def _messages(self, text: str, images: list[str] | None = None) -> list[dict]:
         ask = text
         hint = soul.lang_hint(text, self.lang)
         if images and hint:                 # photo models listen to the user turn more than to the system prompt
             ask = f"{text}\n\n({hint})"
-        return [self._system(text), *join_answers(self.history[-MAX_HISTORY:]), {"role": "user", "content": user_content(ask, images)}]
+        # a card's note right before this message goes with it, as one user turn
+        return [self._system(text), *join_answers([*self.history[-MAX_HISTORY:],
+                                                   {"role": "user", "content": user_content(ask, images)}])]
 
-    def ask(self, text: str, images: list[str] | None = None) -> Iterator[str | Switched | ToolUse]:
-        """Streams the reply, Switched notices and ToolUse chips; the cleaned reply goes to history and last_reply."""
+    def _done_before(self) -> str:
+        """Lanterna's ✅ lines (cards confirmed and done) since the last answer: saying such a change is done may be
+        true now ("" = none)."""
+        notes = []
+        for m in reversed(self.history):
+            if m.get("note"):
+                if str(m.get("content") or "").startswith("✅"):
+                    notes.append(str(m["content"]))
+            elif m.get("role") == "assistant":
+                break
+        return "\n".join(notes)
+
+    def _said(self, reply: str, w: "_Work") -> str:
+        """The words of the reply that claim a change no tool made ("" = none)."""
+        return "" if w.asked else claim_phrase(reply, [n for n, _ in w.done], self.cards_waiting, self._done_before())
+
+    def _claim(self, reply: str, w: "_Work") -> str:
+        """The warning for a reply that claims a change no tool made ("" = it doesn't)."""
+        return "" if w.asked else false_claim(reply, [n for n, _ in w.done], self.cards_waiting, self._done_before())
+
+    def _can_redo(self, w: "_Work", said: str) -> bool:
+        """Asking once more can help: this model calls tools, and it was offered one that can make its words true."""
+        if w.redo or not w.schemas or self.router.lacks_tools():
+            return False
+        return bool(claim_tools(said, [s["function"]["name"] for s in w.schemas]))
+
+    def _reply(self, w: "_Work") -> str:
+        return (questions_text(w.asked, self.ask_header) if w.asked
+                else soul.humanize("".join(w.pieces).strip(), self.last_reply))
+
+    def ask(self, text: str, images: list[str] | None = None) -> Iterator[str | Switched | ToolUse | Redo]:
+        """Streams the reply, Switched notices and ToolUse chips; the cleaned reply goes to history and last_reply.
+        A Redo means the words so far are withdrawn: the reply starts again (see claim_phrase)."""
         msgs = self._messages(text, images)
         # photos are token-heavy on free tiers: answer them without the tool list
         schemas = self.toolbox.schemas(self._context(text)) if self.toolbox and not images else None
-        pieces: list[str] = []
-        done: list[tuple[str, str]] = []      # tool calls already run in this answer
         cloud_first = self.auto_cloud and is_hard(text)
         if (schemas is not None and (self.ask_first and big_task(text) or wants_questions(text))
                 and not asked_just_now(self.history)):
             schemas = [*schemas, ASK_TOOL]
             msgs[0]["content"] += ASK_WANTED if wants_questions(text) else ASK_HINT
-        asked: list[dict] = []
         if not schemas or self.router.lacks_tools():
             msgs[0]["content"] += NO_TOOLS_NOTE
         if schemas and self.router.lacks_tools() and needs_search(text) and isinstance(msgs[-1]["content"], str):
@@ -594,19 +807,47 @@ class Conversation:
             msgs[-1]["content"] += ("\n\n[Lanterna searched the web for this message. Use these results if they help, "
                                     "name the sources, and say so if they don't answer it:]\n" + found)
         # 4 tool rounds, or 12 while it works through a plan or makes project files (the user's choice)
-        rounds = PLAN_ROUNDS if self.plan_text else MAX_TOOL_ROUNDS
-        rnd = changed = 0                           # changed: calls in `done` up to the last change of project files
+        w = _Work(msgs, schemas, PLAN_ROUNDS if self.plan_text else MAX_TOOL_ROUNDS, text, images, cloud_first)
+        yield from self._rounds(w)
+        yield from self._fill_empty(w)
+        reply = self._reply(w)
+        said = self._said(reply, w)
+        if said and self._can_redo(w, said):
+            # it says it moved, installed or made a card, but no tool did: once, it gets to really do it (a card
+            # the user confirms) or to say it can't. Its words so far are withdrawn.
+            yield Redo(said)
+            w.msgs += [{"role": "assistant", "content": w.tail or reply},
+                       {"role": "user", "content": REDO_NOTE.format(said=said)}]
+            w.pieces, w.tail, w.redo = [], "", True
+            w.rounds = max(w.rounds, w.rnd + 2)         # a round for the tool call and one to answer
+            yield from self._rounds(w)
+            yield from self._fill_empty(w)
+            reply = self._reply(w)
+        claim = self._claim(reply, w)
+        if claim:
+            # it says it is installing / almost done, but nothing ran (or it only looked): say so where the user sees it
+            warn = "\n\n⚠️ " + i18n.t(claim, self.lang)
+            yield warn
+            reply += warn
+        note = f"{text}\n[attached {len(images)} image(s)]" if images else text
+        self.history += [{"role": "user", "content": note}, {"role": "assistant", "content": reply}]
+        self.last_reply = reply
+
+    def _rounds(self, w: _Work) -> Iterator[str | Switched | ToolUse | Questions]:
+        """The model's rounds: text, tool calls and their results, until it answers without calls or runs out of
+        rounds (the last round forbids calls)."""
         while True:
             calls: ToolCalls | None = None
             round_text: list[str] = []
-            last = rnd >= rounds
-            gap = bool("".join(pieces).strip())     # text of an earlier round: this round's text starts below it
+            last = w.rnd >= w.rounds
+            gap = bool("".join(w.pieces).strip())   # text of an earlier round: this round's text starts below it
             # the last round keeps the tool list but forbids calls: Gemini answers nothing when the list is gone
             # while the history still has tool calls in it
-            tools = schemas
-            choice = "none" if last else "required" if tools and rnd == 0 and must_use_tool(text) else "auto"
-            for p in self.router.stream(msgs, need_vision=bool(images), tools=tools, tool_choice=choice,
-                                          prefer_cloud=cloud_first):
+            tools = w.schemas
+            choice = ("none" if last else "required" if tools and w.rnd == 0 and not w.redo and must_use_tool(w.text)
+                      else "auto")
+            for p in self.router.stream(w.msgs, need_vision=bool(w.images), tools=tools, tool_choice=choice,
+                                        prefer_cloud=w.cloud_first):
                 if isinstance(p, ToolCalls):
                     calls = p
                 elif isinstance(p, str):
@@ -617,28 +858,29 @@ class Conversation:
                     yield p
                 else:
                     yield p
-            pieces += round_text
+            w.pieces += round_text
             if not calls or not calls.calls or last:
                 self.out_of_rounds = last           # it had to answer: no tool rounds were left
-                break
-            msgs.append({"role": "assistant", "content": "".join(round_text) or None,
-                         "tool_calls": [shrunk_call(c) for c in calls.calls]})
+                w.tail = "".join(round_text)
+                return
+            w.msgs.append({"role": "assistant", "content": "".join(round_text) or None,
+                           "tool_calls": [shrunk_call(c) for c in calls.calls]})
             ask = next((c for c in calls.calls if c.name == "ask_user"), None)
-            asked = clean_questions(ask.arguments) if ask else []
-            if asked:                                   # the form takes over: the answer stops here
-                yield Questions(asked)
-                break
+            w.asked = clean_questions(ask.arguments) if ask else []
+            if w.asked:                             # the form takes over: the answer stops here
+                yield Questions(w.asked)
+                return
             cur = used_model(self.router)
             limit = result_limit(cur.provider if cur else None)
             for c in calls.calls:
                 # a check or a read after the files changed is a new call, even with the same words
-                seen = done[changed:] if c.name in AGAIN_AFTER_CHANGE else done
-                if c.name == "ask_user":                # questions that couldn't be read: let the model go on
-                    msgs.append({"role": "tool", "tool_call_id": c.id,
-                                 "content": "Error: no readable questions. Go on without asking."})
+                seen = w.done[w.changed:] if c.name in AGAIN_AFTER_CHANGE else w.done
+                if c.name == "ask_user":            # questions that couldn't be read: let the model go on
+                    w.msgs.append({"role": "tool", "tool_call_id": c.id,
+                                   "content": "Error: no readable questions. Go on without asking."})
                     continue
                 # read_page keeps the parts of a long page that fit the question and the searches made so far
-                self.toolbox.focus = " ".join([text, *(a for n, a in done if n == "web_search"), c.arguments])
+                self.toolbox.focus = " ".join([w.text, *(a for n, a in w.done if n == "web_search"), c.arguments])
                 self.toolbox.page_limit = limit - 200
                 if any(same_call(c.name, c.arguments, n, a) for n, a in seen):
                     # the same (or nearly the same) call again: models repeat searches and burn the free limits
@@ -647,37 +889,31 @@ class Conversation:
                     tool = self.toolbox.tools.get(c.name)
                     yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)
                     result = self.toolbox.run(c.name, c.arguments)[:limit]
-                    done.append((c.name, c.arguments))
+                    w.done.append((c.name, c.arguments))
                     if c.name in CHANGES_FILES:
-                        changed = len(done)
-                msgs.append({"role": "tool", "tool_call_id": c.id, "content": result})
-            planned = any(n == "plan" or n.startswith("project_") for n, _ in done)
-            if planned and rounds < PLAN_ROUNDS:
-                rounds = PLAN_ROUNDS                # a plan or project files: a big job gets its 12 rounds
+                        w.changed = len(w.done)
+                w.msgs.append({"role": "tool", "tool_call_id": c.id, "content": result})
+            planned = any(n == "plan" or n.startswith("project_") for n, _ in w.done)
+            if planned and w.rounds < PLAN_ROUNDS:
+                w.rounds = PLAN_ROUNDS              # a plan or project files: a big job gets its 12 rounds
             # models lose count of their tool rounds: near the end, tell them to stop searching and answer
-            note = budget_note(rounds - rnd - 1, plan=planned or bool(self.plan_text))
+            note = budget_note(w.rounds - w.rnd - 1, plan=planned or bool(self.plan_text))
             if note:
-                msgs[-1]["content"] += "\n\n" + note
-            rnd += 1
-        if not asked and not "".join(pieces).strip():
-            # some models (Gemini 3 after a search) end with only thoughts and no text: ask once more, no calls
-            msgs.append({"role": "user", "content": EMPTY_NUDGE})
-            for p in self.router.stream(msgs, need_vision=bool(images), tools=schemas,
-                                          tool_choice="none" if schemas else "auto",
-                                          prefer_cloud=cloud_first):
-                if isinstance(p, str):
-                    pieces.append(p)
-                    yield p
-                elif not isinstance(p, ToolCalls):
-                    yield p
-        reply = (questions_text(asked, self.ask_header) if asked
-                 else soul.humanize("".join(pieces).strip(), self.last_reply))
-        claim = "" if asked else false_claim(reply, [n for n, _ in done])
-        if claim:
-            # it says it is installing / almost done, but nothing ran (or it only looked): say so where the user sees it
-            warn = "\n\n⚠️ " + i18n.t(claim, self.lang)
-            yield warn
-            reply += warn
-        note = f"{text}\n[attached {len(images)} image(s)]" if images else text
-        self.history += [{"role": "user", "content": note}, {"role": "assistant", "content": reply}]
-        self.last_reply = reply
+                w.msgs[-1]["content"] += "\n\n" + note
+            w.rnd += 1
+
+    def _fill_empty(self, w: _Work) -> Iterator[str | Switched]:
+        """Some models (Gemini 3 after a search) end with only thoughts and no text: ask once more, no calls."""
+        if w.asked or "".join(w.pieces).strip():
+            return
+        w.msgs.append({"role": "user", "content": EMPTY_NUDGE})
+        tail: list[str] = []
+        for p in self.router.stream(w.msgs, need_vision=bool(w.images), tools=w.schemas,
+                                    tool_choice="none" if w.schemas else "auto", prefer_cloud=w.cloud_first):
+            if isinstance(p, str):
+                tail.append(p)
+                yield p
+            elif not isinstance(p, ToolCalls):
+                yield p
+        w.pieces += tail
+        w.tail = "".join(tail)

@@ -1468,3 +1468,25 @@ _T.update({
     "Checking the project for mistakes": {"uk": "Перевіряю проєкт на помилки", "it": "Controllo se il progetto ha errori"},
     "Opening the project": {"uk": "Відкриваю проєкт", "it": "Apro il progetto"},
 })
+
+# Honest answers about changes, and moving files in groups (1.1.10)
+_T.update({
+    "The answer said «{said}», but nothing was done: Lanterna asked the model again": {
+        "uk": "Відповідь казала «{said}», але нічого не було зроблено: Lanterna попросила модель ще раз",
+        "it": "La risposta diceva «{said}», ma non era stato fatto nulla: Lanterna ha chiesto di nuovo al modello"},
+    "This reply says more than Lanterna did: only what the cards show will happen.": {
+        "uk": "Ця відповідь каже більше, ніж зробила Lanterna: станеться лише те, що показують картки.",
+        "it": "Questa risposta dice più di quanto Lanterna abbia fatto: succederà solo ciò che mostrano le schede."},
+    "Which files: {r}": {
+        "uk": "Які файли: {r}",
+        "it": "Quali file: {r}"},
+    "Already on another card: {n}": {
+        "uk": "Уже на іншій картці: {n}",
+        "it": "Già su un'altra scheda: {n}"},
+    "older than {n} days": {
+        "uk": "старші за {n} дн.",
+        "it": "più vecchi di {n} gg"},
+    "name has «{x}»": {
+        "uk": "у назві «{x}»",
+        "it": "nel nome «{x}»"},
+})

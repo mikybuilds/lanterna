@@ -15,8 +15,8 @@ import uuid
 from dataclasses import asdict
 
 from . import AUTHOR, HOMEPAGE, __version__, bugreport, hardware, keys, local, quiet
-from .chat import (MAX_HISTORY, KEEP_RECENT, Conversation, Questions, ToolUse, about_me, chat_title, follow_ups,
-                   learn_facts, summarize, summary_due)
+from .chat import (MAX_HISTORY, KEEP_RECENT, Conversation, Questions, Redo, ToolUse, about_me, chat_title, follow_ups,
+                   is_card_note, learn_facts, summarize, summary_due)
 from .files import FileError, prepare
 from .config import Settings
 from .discovery import get_models
@@ -77,7 +77,14 @@ class _Stream:
         self.sources = ""                  # the web pages its tools really opened or found (sources.py)
         self.stop = threading.Event()      # the user pressed Stop: the answer ends where it is
         self.stopped = False
+        self.redo = False                  # the words so far were withdrawn: the next poll sends the whole text again
         self.lock = threading.Lock()
+
+
+def _history(msgs: list[dict]) -> list[dict]:
+    """The saved chat as Conversation gets it. A card's line (✅ / ✖ / ⚠️, written by Lanterna, not by a model) is
+    marked as a note: the model gets it as Lanterna's words, never as its own answer."""
+    return [{"role": m["role"], "content": m["content"], **({"note": True} if is_card_note(m) else {})} for m in msgs]
 
 
 class Api:
@@ -1413,7 +1420,7 @@ class Api:
         sid = uuid.uuid4().hex
         st = _Stream(self.settings.lang)
         self._streams[sid] = st
-        history = [{"role": m["role"], "content": m["content"]} for m in self.store.messages(tid)]
+        history = _history(self.store.messages(tid))
         full = "\n\n".join(x for x in (text, prep.text) if x)
         if not audio:
             self.store.add(tid, "user", full)
@@ -1436,8 +1443,8 @@ class Api:
             n += 1
         if not n or n >= len(msgs) or msgs[-1 - n]["role"] != "user":
             return {"ok": False, "error": "empty"}
-        if n >= 3:                                          # two second opinions are enough
-            return {"ok": False, "error": "enough"}
+        if sum(not is_card_note(m) for m in msgs[-n:]) >= 3:   # two second opinions are enough (a card's line
+            return {"ok": False, "error": "enough"}         # isn't one)
         try:
             router = self._get_router()
         except ProviderError as e:
@@ -1449,7 +1456,7 @@ class Api:
         if not others:
             return {"ok": False, "error": "no_other"}
         question = msgs[-1 - n]["content"]
-        history = [{"role": m["role"], "content": m["content"]} for m in msgs[:-1 - n]]
+        history = _history(msgs[:-1 - n])
         sid = uuid.uuid4().hex
         st = _Stream(self.settings.lang)
         st.second = True
@@ -1537,7 +1544,8 @@ class Api:
                                 ask_header=t("Questions for you:", self.settings.lang),
                                 instructions=self._instructions(tid),
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud,
-                                plan_text=plans.for_model(plan) if plan else "")
+                                plan_text=plans.for_model(plan) if plan else "",
+                                cards_waiting=bool(self.cards(tid)))
             gen = conv.ask(text, images or None)
             for p in gen:
                 if st.stop.is_set():
@@ -1556,6 +1564,11 @@ class Api:
                         st.questions = p.items
                     elif isinstance(p, Thought):
                         st.steps.thought(p.text)
+                    elif isinstance(p, Redo):               # it said it did something no tool did: it answers again
+                        st.pieces = []
+                        st.redo = True
+                        st.steps.note(t("The answer said «{said}», but nothing was done: Lanterna asked the model again",
+                                        self.settings.lang, said=p.said))
                     else:
                         st.pieces.append(p)
             gen.close()                                     # Stop: the model's stream is closed too
@@ -1631,9 +1644,10 @@ class Api:
                        "model": st.model, "second": st.second, "stopped": st.stopped}
             else:
                 text = "".join(st.pieces)
-                out = {"text": text[offset:], "offset": len(text), "notes": st.notes, "tools": st.tools,
-                       "cards": list(st.cards), **st.steps.view(),
-                       "done": st.done, "error": st.error}
+                redo, st.redo = st.redo, False              # the answer starts again: the UI replaces its text
+                out = {"text": text if redo else text[offset:], "offset": len(text), "notes": st.notes,
+                       "tools": st.tools, "cards": list(st.cards), **st.steps.view(),
+                       "done": st.done, "error": st.error, **({"replace": True} if redo else {})}
             if st.plan is not None:                         # the task plan changed in this answer
                 out["plan"] = st.plan
         if out["done"]:
@@ -2152,7 +2166,13 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         lines.append(t("You can undo the sort afterwards.", lang))
     elif kind in ("pc_move", "pc_trash"):
         files = d.get("files", [])
+        if d.get("rule"):
+            lines.append(t("Which files: {r}", lang, r=d["rule"]))
         lines.append(", ".join(files[:12]) + (f" … +{d.get('count', 0) - 12}" if d.get("count", 0) > 12 else ""))
+        if d.get("skipped"):
+            lines.append(t("{n} files still downloading are left alone.", lang, n=d["skipped"]))
+        if d.get("claimed"):
+            lines.append(t("Already on another card: {n}", lang, n=d["claimed"]))
         if kind == "pc_trash":
             if d.get("reason"):
                 lines.append(t("Reason: {r}", lang, r=d["reason"]))

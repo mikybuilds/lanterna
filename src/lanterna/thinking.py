@@ -146,6 +146,12 @@ class Steps:
         self._add("tool", tool_step(name, arguments, self.lang))
         self.live = self.items[-1]["text"] if self.items else self.live
 
+    def note(self, text: str) -> None:
+        """A step of Lanterna's own (its check of the answer), shown like a tool step."""
+        self.buf, self.heads = "", 0
+        self._add("tool", _short(text, 140))
+        self.live = self.items[-1]["text"] if self.items else self.live
+
     def _add(self, kind: str, text: str) -> None:
         if text and len(self.items) < MAX_STEPS and (not self.items or self.items[-1]["text"] != text):
             self.items.append({"kind": kind, "text": text})

@@ -1935,6 +1935,7 @@ async function send(retryText) {
       if (sayBtn && S.settings.tts_auto && thread === sentTo) speak(text_, sayBtn);
       if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); }
       if (thread === sentTo) announce((p.stopped ? t("Stopped.") + " " : "") + t("Lanterna answered:") + " " + box.innerText); }
+    else if (p.replace) { text_ = p.text || ""; offset = p.offset; box.innerHTML = md(text_); }   // Lanterna's check: the answer starts again
     else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
     scrollDown(stick && bot.isConnected);
     if (p.error) {
@@ -3331,7 +3332,10 @@ function actCard(c) {
   } else if (c.kind === "pc_move" || c.kind === "pc_trash") {
     meta.push(((d.size || 0) / 1048576).toFixed(1) + " MB");
     const more = d.count > (d.files || []).length ? `\n… +${d.count - d.files.length}` : "";
-    extra = `<div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
+    extra = `${d.rule ? `<div class="cc-meta">${esc(t("Which files: {r}", { r: d.rule }))}</div>` : ""}
+      <div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
+      ${d.skipped ? `<div class="cc-meta">${esc(t("{n} files still downloading are left alone.", { n: d.skipped }))}</div>` : ""}
+      ${d.claimed ? `<div class="cc-meta">${esc(t("Already on another card: {n}", { n: d.claimed }))}</div>` : ""}
       ${d.reason ? `<div class="cc-meta">${esc(t("Reason: {r}", { r: d.reason }))}</div>` : ""}
       ${c.kind === "pc_trash" ? `<div class="cc-meta">${esc(t("They go to the Recycle Bin: you can restore them from there."))}</div>` : ""}`;
   } else if (c.kind.startsWith("app_")) {
