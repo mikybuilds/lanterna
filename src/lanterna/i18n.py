@@ -1646,4 +1646,7 @@ _T.update({
     "{m} is a weaker model: it makes more mistakes with changes on the computer. Check each card before you confirm it.": {
         "uk": "{m} — слабша модель: у змінах на комп'ютері вона помиляється частіше. Перевіряй кожну картку, перш ніж підтвердити.",
         "it": "{m} è un modello più debole: con le modifiche al computer sbaglia più spesso. Controlla ogni scheda prima di confermarla."},
+    "Lanterna's tool calls in this reply failed: nothing was installed, opened or changed.": {
+        "uk": "У цій відповіді дії Lanterna не вдалися: нічого не встановлено, не відкрито й не змінено.",
+        "it": "In questa risposta le azioni di Lanterna non sono riuscite: niente è stato installato, aperto o cambiato."},
 })

@@ -465,6 +465,7 @@
  "Lanterna {v} is installed. Start it again to use it.": "Lanterna {v} ist installiert. Starte es neu, um es zu nutzen.",
  "Lanterna {v} is out": "Lanterna {v} ist da",
  "Lanterna's own window needs a few parts of the system. Until then, type lanterna in a terminal; lanterna desktop says what to install.": "Lanternas eigenes Fenster braucht ein paar Teile des Systems. Bis dahin tippe lanterna in ein Terminal; lanterna desktop sagt, was zu installieren ist.",
+ "Lanterna's tool calls in this reply failed: nothing was installed, opened or changed.": "In dieser Antwort sind Lanternas Aktionen fehlgeschlagen: Nichts wurde installiert, geöffnet oder geändert.",
  "Last one: {when}": "Letzte: {when}",
  "Last synced at {time}": "Zuletzt synchronisiert um {time}",
  "Later": "Später",

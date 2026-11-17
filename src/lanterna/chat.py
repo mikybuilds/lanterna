@@ -301,7 +301,9 @@ _CLAIM_DOING = re.compile(
     r"встановлю(ю|єм)|налаштовую|оновлюю|завантажую|змінюю|вмикаю|вимикаю|видаляю|завершую|переходжу до|"
     r"переміщую|переношу|сортую|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|"
     r"повідомлю,? (як|коли)|починаю (переміщ|перенос|сортув|чистк|прибиранн|встановленн)|"
-    r"зараз (я )?(гляну|подивлюс|перевірю|перенесу|переміщу|створю|встановлю|запущу|відсортую|приберу)|"
+    r"(зараз|одразу|відразу|негайно|тепер)( ж)?( я)? (гляну|подивлюс|перевірю|перенесу|переміщу|створю|встановлю|"
+    r"запущу|відсортую|приберу|розкладу|почну)|"
+    r"\[Lanterna\b[^\]\n]{0,12}:|"                # Lanterna's own notes: a model that writes one pretends a tool ran
     r"устанавлива|настраива|почти готов|"
     r"\bI'?m (now |still |just )?(installing|setting up|configuring|updating|downloading|changing|removing|"
     r"finishing|moving|sorting)\b|almost (done|finished|there)|I'?ll (let you know|report back|ping you)|"
@@ -325,6 +327,7 @@ _CLAIM_DONE = re.compile(
 # A reply that sends the user to a card ("press Confirm"): true only when a card is there.
 _CLAIM_CARD = re.compile(
     r"натисн\w*\s+(на\s+)?(кнопку\s+)?[«\"“']?підтверд|після (того,? як (ти )?)?(натиснеш|підтвердиш)|"
+    r"давай(те)? (я )?підтверд|\blet'?s confirm|"
     r"(як тільки|коли|щойно) (ти )?(підтвердиш|натиснеш)|після (твого )?підтвердження|підтверд\w* (на|у|в) картці|"
     r"\b(press|click|tap|hit)( on)?( the)?( button)? [\"“«']?confirm|\b(once|after|when) you (press|click|tap|confirm)|"
     r"confirm (it )?on the card|\b(premi|clicca|tocca)( su)? [\"“«']?conferma|\b(appena|quando|dopo che) (avrai )?confermi|"
@@ -337,6 +340,13 @@ _CLAIM_CARD = re.compile(
 _CLAIM_LOOK = re.compile(
     r"запускаю|перевіряю|\bI'?m (now |still |just )?(checking|running)\b|\bI(?:'ve| have) (just )?run\b|"
     r"\bchecking\b[^.\n]{0,40}(\.\.\.|…)|\bsto controllando",
+    re.I)
+
+
+# A reply that names a tool it says it uses ("Використовую `pc_folders`"): true only when that very call ran in it
+_TOOL_SAID = re.compile(
+    r"(використовую|викликаю|використаю|викличу|запускаю|запущу|\busing|\bcalling|I'?ll (use|call|run)|"
+    r"let me (use|call|run))\s+[`'\"«]?(?P<tool>(pc|app|drive|github|mail|project|mcp)_[a-z_]+|web_search|read_page)\b",
     re.I)
 
 
@@ -413,6 +423,9 @@ def claim_phrase(text: str, ran: list[str] | tuple = (), waiting: bool = False, 
     answer (True: any change may be done now)."""
     acting = [n for n in ran if n not in READ_ONLY_TOOLS]
     text = text or ""
+    for m in _TOOL_SAID.finditer(text):
+        if m.group("tool").lower() not in ran:
+            return " ".join(m.group(0).split())[:80]
     for kind, rx, ok in (("doing", _CLAIM_DOING, False), ("done", _CLAIM_DONE, done_before is True),
                          ("card", _CLAIM_CARD, waiting)):
         for m in ([] if ok else rx.finditer(text)):
@@ -448,7 +461,29 @@ REDO_NOTE = ("[Lanterna's check, not the user's words: your reply says «{said}�
              "as it should be now. Never say a change is done before Lanterna's ✅ note shows it.]")
 
 
+# The reply claimed a change, and the call for it failed: the model is told the error once, to fix the call
+FAILED_NOTE = ("[Lanterna's check, not the user's words: your reply says «{said}», but your {name} call failed, so "
+               "nothing happened and the user saw no card. The error: {error} Fix what it says and call {name} again "
+               "now (the user confirms it on its card), or say plainly that it didn't work and why. Then write your "
+               "whole reply again, as it should be now. Never write [Lanterna: …] notes yourself.]")
+# Lanterna's notes ([Lanterna: ✅ …]) and checks are Lanterna's: a model that writes one pretends something ran
+_FAKE_NOTE = re.compile(r"^[ \t]*\[Lanterna\b[^\]\n]{0,12}:[^\n]*\n?|\[Lanterna\b[^\]\n]{0,12}:[^\]\n]*\]?", re.M)
+
+
+def strip_fake_notes(text: str) -> str:
+    """The reply without [Lanterna: …] notes the model wrote itself (they look like Lanterna saying a tool ran)."""
+    if "[Lanterna" not in (text or ""):
+        return text or ""
+    return re.sub(r"\n{3,}", "\n\n", _FAKE_NOTE.sub("", text)).strip()
+
+
+def short_error(result: str) -> str:
+    """A tool's error for the model, without the "Error: WorkError:" in front."""
+    return re.sub(r"^Error:\s*(\w+Error:\s*)?", "", result or "").strip()[:400]
+
+
 NOTHING_RAN = "Lanterna didn't run anything in this reply: nothing was installed, opened or changed."
+FAILED_RAN = "Lanterna's tool calls in this reply failed: nothing was installed, opened or changed."
 ONLY_LOOKED = "In this reply Lanterna only looked things up: nothing was installed, opened or changed."
 LESS_DONE = "This reply says more than Lanterna did: only what the cards show will happen."
 
@@ -488,6 +523,8 @@ _ACTION = re.compile(r"нагадай|нагадування|напомни|remi
                      r"забудь|forget (that|about|my)|dimentica|"
                      r"пошукай|знайди в (інтернеті|мережі)|загугли|search (the web|online|for)|look (it )?up|cerca (online|su internet)|"
                      r"відсортуй|розсортуй|посортуй|розклади|встанови|установи|інсталюй|видали програм|онови програм|"
+                     r"сортувати|почина\w* (сорт|переміщ|перенос|встанов|чистк|прибир)|"
+                     r"почни (сорт|переміщ|перенос|встанов|чистк|прибир)|(перемісти|перенеси)\w* (файл|ї|все|ус|папк)|"
                      r"sort (my|the)|organi[sz]e (my|the)|install |uninstall|ordina (i|la|le|il)|installa|disinstalla|"
                      r"гальму|тормоз|лага|повільно працю|зависа|slow|lagg|freez|rallenta|è lento|si blocca",
                      re.I)
@@ -718,6 +755,7 @@ class _Work:
     pieces: list[str] = field(default_factory=list)
     tail: str = ""                           # the text of its last round
     done: list[tuple[str, str]] = field(default_factory=list)   # tool calls already run in this answer
+    failed: list[tuple[str, str, str]] = field(default_factory=list)   # (name, arguments, error) of those that failed
     asked: list[dict] = field(default_factory=list)             # questions for the user (ask_user)
     redo: bool = False                       # answering again after Lanterna's check (REDO_NOTE)
     careful: bool = False                    # changes on the computer: strong models (careful_turn)
@@ -786,13 +824,36 @@ class Conversation:
                 break
         return "\n".join(notes)
 
+    @staticmethod
+    def _ran(w: "_Work") -> list[str]:
+        """The tools of this answer that worked: a failed call made no card and changed nothing."""
+        bad = [(n, a) for n, a, _ in w.failed]
+        out = []
+        for n, a in w.done:
+            if (n, a) in bad:
+                bad.remove((n, a))
+            else:
+                out.append(n)
+        return out
+
     def _said(self, reply: str, w: "_Work") -> str:
         """The words of the reply that claim a change no tool made ("" = none)."""
-        return "" if w.asked else claim_phrase(reply, [n for n, _ in w.done], self.cards_waiting, self._done_before())
+        return "" if w.asked else claim_phrase(reply, self._ran(w), self.cards_waiting, self._done_before())
 
     def _claim(self, reply: str, w: "_Work") -> str:
         """The warning for a reply that claims a change no tool made ("" = it doesn't)."""
-        return "" if w.asked else false_claim(reply, [n for n, _ in w.done], self.cards_waiting, self._done_before())
+        if w.asked:
+            return ""
+        ran = self._ran(w)
+        out = false_claim(reply, ran, self.cards_waiting, self._done_before())
+        return FAILED_RAN if out and w.failed and not ran else out
+
+    def _redo_note(self, said: str, w: "_Work") -> str:
+        """What the model is told when its reply claims what no tool did: the error, when the call for it failed."""
+        bad = next(((n, e) for n, _, e in w.failed if claim_tools(said, [n])), None)
+        if bad:
+            return FAILED_NOTE.format(said=said, name=bad[0], error=short_error(bad[1]))
+        return REDO_NOTE.format(said=said)
 
     def _can_redo(self, w: "_Work", said: str) -> bool:
         """Asking once more can help: this model calls tools, and it was offered one that can make its words true."""
@@ -833,17 +894,18 @@ class Conversation:
         reply = self._reply(w)
         said = self._said(reply, w)
         if said and self._can_redo(w, said):
-            # it says it moved, installed or made a card, but no tool did: once, it gets to really do it (a card
-            # the user confirms) or to say it can't. Its words so far are withdrawn.
+            # it says it moved, installed or made a card, but no tool did (or the call for it failed): once, it
+            # gets to really do it (a card the user confirms) or to say it can't. Its words so far are withdrawn.
             yield Redo(said)
-            w.msgs += [{"role": "assistant", "content": w.tail or reply},
-                       {"role": "user", "content": REDO_NOTE.format(said=said)}]
+            w.msgs += [{"role": "assistant", "content": strip_fake_notes(w.tail or reply) or "…"},
+                       {"role": "user", "content": self._redo_note(said, w)}]
             w.pieces, w.tail, w.redo = [], "", True
             w.rounds = max(w.rounds, w.rnd + 2)         # a round for the tool call and one to answer
             yield from self._rounds(w)
             yield from self._fill_empty(w)
             reply = self._reply(w)
         claim = self._claim(reply, w)
+        reply = strip_fake_notes(reply) or reply
         if claim:
             # it says it is installing / almost done, but nothing ran (or it only looked): say so where the user sees it
             warn = "\n\n⚠️ " + i18n.t(claim, self.lang)
@@ -911,6 +973,8 @@ class Conversation:
                     yield ToolUse(c.name, tool.label if tool else "🛠", c.arguments)
                     result = self.toolbox.run(c.name, c.arguments)[:limit]
                     w.done.append((c.name, c.arguments))
+                    if result.startswith("Error"):     # no card, nothing changed: its words can't lean on it
+                        w.failed.append((c.name, c.arguments, result))
                     if c.name in CHANGES_FILES:
                         w.changed = len(w.done)
                 w.msgs.append({"role": "tool", "tool_call_id": c.id, "content": result})

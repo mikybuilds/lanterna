@@ -44,6 +44,24 @@ _XDG = {"downloads": "DOWNLOAD", "desktop": "DESKTOP", "documents": "DOCUMENTS",
         "videos": "VIDEOS", "music": "MUSIC"}
 _FALLBACK = {"downloads": "Downloads", "desktop": "Desktop", "documents": "Documents", "pictures": "Pictures",
              "videos": "Videos", "music": "Music"}
+# more names a model may give a place (besides its key, the folder's own name and its name in the app languages)
+_PLACE_ALIASES = {"downloads": ("загрузки", "my downloads"), "desktop": ("рабочий стол", "стільниця"),
+                  "documents": ("документы", "мої документи", "my documents"),
+                  "pictures": ("изображения", "картинки", "фото", "photos", "my pictures"),
+                  "videos": ("видео", "my videos"), "music": ("my music",)}
+
+
+def _place_words(place: str, folder: Path) -> set[str]:
+    """Every name of a place, in lower case: its key, the folder's own name, its name in each app language."""
+    from .i18n import LANGS, t
+    label = _FALLBACK.get(place, place)
+    return {place, folder.name.lower(), label.lower(), *(t(label, lang).lower() for lang in LANGS),
+            *_PLACE_ALIASES.get(place, ())}
+
+
+def _absolute(p: str) -> bool:
+    """A whole path (C:/Users/…, /home/…, ~/…), not one inside a place (backslashes already made "/")."""
+    return p.startswith(("/", "~")) or bool(re.match(r"[A-Za-z]:/", p))
 
 CATEGORIES = {        # category → extensions (lower case, with the dot)
     "Documents": {".pdf", ".doc", ".docx", ".odt", ".rtf", ".txt", ".md", ".xls", ".xlsx", ".ods", ".csv", ".ppt",
@@ -389,25 +407,68 @@ class Places:
                 pass
         return out
 
-    def root(self, place: str) -> Path:
-        place = str(place or "").strip().lower()
+    def key(self, place: str, folders: dict[str, Path] | None = None) -> str:
+        """The place a model means: its key (downloads), the folder's own name or its name in an app language
+        (Завантаження, Download), or the folder's whole path. An unknown one comes back as it was given."""
+        f = self.folders() if folders is None else folders
+        raw = str(place or "").strip().strip("\"'«»`").replace("\\", "/").rstrip("/")
+        want = raw.lower()
+        if want in f:
+            return want
+        for name, p in f.items():
+            if want in _place_words(name, p):
+                return name
+        if _absolute(raw):
+            for name, p in f.items():
+                try:
+                    if Path(raw).expanduser().resolve() == p.resolve():
+                        return name
+                except OSError:
+                    continue
+        return str(place or "").strip()
+
+    def _where(self, place: str) -> tuple[str, Path]:
         f = self.folders()
-        if place not in f:
-            have = ", ".join(f) or "none"
-            raise WorkError(f"Unknown folder '{place}'. Available: {have}.")
-        return f[place].resolve()
+        key = self.key(place, f)
+        if key not in f:
+            have = ", ".join(f"{k} ({p})" for k, p in f.items()) or "none"
+            raise WorkError(f"Unknown folder '{place}'. place is one of: {have}.")
+        return key, f[key].resolve()
+
+    def root(self, place: str) -> Path:
+        return self._where(place)[1]
 
     def path(self, place: str, rel: str = "") -> Path:
-        root = self.root(place)
-        rel = str(rel or "").strip().replace("\\", "/").strip("/")
-        if rel in ("", "."):
+        """A file or folder inside a place. Models also start with the place's own name ("Downloads/видалення" in
+        downloads) or give the whole path (C:\\Users\\…\\Downloads\\x): both mean the same file."""
+        key, root = self._where(place)
+        raw = str(rel or "").strip().strip("\"'«»`")
+        rel = raw.replace("\\", "/")
+        if _absolute(rel):
+            p = Path(rel).expanduser().resolve()
+            if p != root and not p.is_relative_to(root):
+                raise WorkError(f"'{raw}' is outside the {key} folder ({root}).")
+            rel = p.relative_to(root).as_posix()
+        parts = [x for x in rel.split("/") if x not in ("", ".")]
+        if parts and not (root / parts[0]).exists() and parts[0].lower() in _place_words(key, root):
+            parts = parts[1:]                       # the place named once more: it is the folder itself
+        if not parts:
             return root
-        if any(part.startswith(".") for part in rel.split("/")):
+        if any(part.startswith(".") for part in parts):
             raise WorkError("Hidden files and folders (names starting with a dot) are not used.")
-        p = (root / rel).resolve()
+        p = (root / "/".join(parts)).resolve()
         if p != root and not p.is_relative_to(root):
-            raise WorkError(f"'{rel}' is outside the {place} folder.")
+            raise WorkError(f"'{raw}' is outside the {key} folder.")
         return p
+
+    def _dir(self, place: str, path: str = "") -> Path:
+        """A folder inside a place ('' = the place itself); the error says what path means."""
+        d = self.path(place, path)
+        if not d.is_dir():
+            key, root = self._where(place)
+            raise WorkError(f"There is no folder '{path}' in {key}. path is a folder inside {key} ({root}); leave "
+                            f"it out for {key} itself.")
+        return d
 
     def rel(self, place: str, p: Path) -> str:
         return p.relative_to(self.root(place)).as_posix() or "."
@@ -433,9 +494,7 @@ class Places:
         return "The user's folders:\n" + "\n".join(lines) if lines else "No user folders were found."
 
     def overview(self, place: str, path: str = "") -> str:
-        d = self.path(place, path)
-        if not d.is_dir():
-            raise WorkError(f"'{path}' is not a folder.")
+        d = self._dir(place, path)
         now = time.time()
         by_cat: dict[str, list] = {}
         dirs, files = [], []
@@ -466,9 +525,7 @@ class Places:
         return "\n".join(lines)
 
     def list(self, place: str, path: str = "", sort: str = "name", kind: str = "") -> str:
-        d = self.path(place, path)
-        if not d.is_dir():
-            raise WorkError(f"'{path}' is not a folder.")
+        d = self._dir(place, path)
         items = []
         for x in self._visible(d):
             try:
@@ -600,7 +657,9 @@ class Places:
             if p == self.root(place):
                 raise WorkError(f"The {place} folder itself can't be used here.")
             if not p.exists():
-                raise WorkError(f"There is no '{rel}' in {place}.")
+                key = self.key(place)
+                raise WorkError(f"There is no '{rel}' in {key}: names in paths are inside {key}, as pc_list shows "
+                                "them.")
             out.append(p)
         return out
 
@@ -689,9 +748,8 @@ class Places:
 
     def propose_sort(self, place: str, path: str = "", by: str = "type", older_than_days: int = 0) -> str:
         from .i18n import t
-        d = self.path(place, path)
-        if not d.is_dir():
-            raise WorkError(f"'{path}' is not a folder.")
+        place = self.key(place)
+        d = self._dir(place, path)
         lang, now = self.lang(), time.time()
         moves, skipped = [], 0
         for x in sorted(self._visible(d), key=lambda x: x.name.lower()):
@@ -753,14 +811,12 @@ class Places:
             raise WorkError("older_than_days must be a whole number of days.") from None
         has = str(name_has or "").strip().lower()
         named = [x for x in paths if not WILD.search(x)]
-        patterns = [x.replace("\\", "/").strip("/") for x in paths if WILD.search(x)]
+        patterns = [x.replace("\\", "/").strip().rstrip("/") for x in paths if WILD.search(x)]
         filtered = bool(kinds or exts or older or has)
         if not paths and not filtered:
             raise WorkError("Name the files to move, or give a rule: kinds, ext, older_than_days, name_has, or a "
                             "pattern like *.exe in paths.")
-        base = self.path(place, path)
-        if (patterns or not named) and not base.is_dir():
-            raise WorkError(f"'{path}' is not a folder.")
+        base = self._dir(place, path) if patterns or not named else self.path(place, path)
         now, out, seen = time.time(), [], set()
         info = {"fresh": 0, "claimed": 0, "unfit": 0}
 
@@ -776,9 +832,11 @@ class Places:
                 out.append(p)
         found: list[Path] = []
         if patterns:
+            root = self.root(place)
             for pat in patterns:
                 sub, _, name = pat.rpartition("/")
-                d = self.path(place, f"{self.rel(place, base)}/{sub}" if sub else self.rel(place, base))
+                d = base if not sub else self.path(place, sub if _absolute(sub) or base == root
+                                                   else f"{self.rel(place, base)}/{sub}")
                 if d.is_dir():
                     found += [x for x in self._visible(d) if fnmatch.fnmatch(x.name.lower(), name.lower())]
         elif not named:
@@ -813,7 +871,8 @@ class Places:
 
     def propose_move(self, place: str, paths: list[str] | None, to: str, to_place: str = "", path: str = "",
                      kinds=None, ext=None, older_than_days: int = 0, name_has: str = "") -> str:
-        to_place = to_place or place
+        place = self.key(place)
+        to_place = self.key(to_place) if to_place else place
         dest = self.path(to_place, to)
         if dest.exists() and not dest.is_dir():
             raise WorkError(f"'{to}' is a file, not a folder.")
@@ -868,7 +927,7 @@ class Places:
         def run() -> str:
             self.actions.note_undo({"type": "moves", "moves": self._move_many(place, [(a, b)])})
             return f"{a} → {b}"
-        self.actions.propose("pc_rename", {"place": place, "path": a, "to": b, "dir": str(p.parent)}, run)
+        self.actions.propose("pc_rename", {"place": self.key(place), "path": a, "to": b, "dir": str(p.parent)}, run)
         return WAITING
 
     def propose_mkdir(self, place: str, path: str) -> str:
@@ -882,7 +941,7 @@ class Places:
             q.mkdir(parents=True, exist_ok=False)
             self.actions.note_undo({"type": "rmdir", "path": str(q)})
             return f"{place}/{rel}"
-        self.actions.propose("pc_mkdir", {"place": place, "path": rel}, run)
+        self.actions.propose("pc_mkdir", {"place": self.key(place), "path": rel}, run)
         return WAITING
 
     def propose_write(self, place: str, path: str, text: str) -> str:
@@ -911,7 +970,7 @@ class Places:
             write_new(q, text)                              # a .docx / .odt becomes a real document
             self.actions.note_undo({"type": "trash", "paths": [str(q)]})
             return f"{place}/{rel} ({q})"
-        details = {"place": place, "path": rel, "full": str(p), "preview": text[:1500], "chars": len(text),
+        details = {"place": self.key(place), "path": rel, "full": str(p), "preview": text[:1500], "chars": len(text),
                    "lines": text.count("\n") + 1 if text else 0}
         if p.suffix.lower() in DOCS:
             details["doc"] = p.suffix.lower()[1:]
@@ -921,7 +980,7 @@ class Places:
     def propose_trash(self, place: str, paths: list[str], reason: str = "") -> str:
         files = self._files(place, paths)
         rels = [self.rel(place, p) for p in files]
-        details = {"place": place, "count": len(rels), "files": rels[:60], "size": sum(_size_of(p) for p in files),
+        details = {"place": self.key(place), "count": len(rels), "files": rels[:60], "size": sum(_size_of(p) for p in files),
                    "reason": str(reason or "")[:200]}
 
         def run() -> str:
@@ -1001,7 +1060,8 @@ def place_tools(pl: Places) -> list:
     places = list(pl.folders())
     if not places:
         return []
-    place = {"type": "string", "enum": places}
+    place = {"type": "string", "enum": places, "description": "the folder itself (downloads is the whole Downloads "
+             "folder); names and paths in the other fields are inside it, without its name in front"}
     names = ", ".join(places)
     card = "The user confirms it on a card, so don't ask for permission in text first."
     return [
@@ -1040,7 +1100,7 @@ def place_tools(pl: Places) -> list:
              "Minecraft*). path: the subfolder a rule looks in. Files still downloading and files already on another "
              "card that waits are left out, so for several groups call it once per group, the most specific first. "
              + card + " Examples: 'all installers to Programs' → place='downloads', kinds=['Installers'], "
-             "to='Programs'; 'the .jar mods to Mods' → ext=['.jar'], to='Mods'.",
+             "to='Programs'; 'the .jar mods to Old/Mods' → ext=['.jar'], to='Old/Mods' (not 'Downloads/Old/Mods').",
              _obj({"place": place, "paths": arr, "to": s, "to_place": place, "path": s,
                    "kinds": {"type": "array", "items": {"type": "string", "enum": CATEGORY_ORDER}}, "ext": arr,
                    "older_than_days": {"type": "integer"}, "name_has": s}, ["place", "to"]),
