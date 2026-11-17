@@ -64,6 +64,7 @@ TOOL_TEXT = {
     "pc_dev": ("Checking the programming tools", ""),
     "pc_disk": ("Looking at what takes up the disk", ""),
     "pc_model_remove": ("Preparing to remove the model {x}", "name"),
+    "pc_game_remove": ("Preparing to remove the game {x}", "name"),
     "pc_space_on": ("Preparing to turn on Help free up disk space", ""),
     "pc_look": ("Looking at the look settings", ""),
     "pc_look_set": ("Preparing changes to the look", ""),
@@ -132,8 +133,10 @@ class Steps:
         self.buf = ""                  # reasoning since the last tool call
         self.heads = 0                 # how many **Headings** of buf are already steps
         self.live = ""
+        self.running = ""              # the tool of the latest step, while nothing came after it (pc_disk counts)
 
     def thought(self, text: str) -> None:
+        self.running = ""
         if len(self.buf) < MAX_BUF:
             self.buf += text
         heads = HEAD.findall(self.buf)
@@ -146,13 +149,13 @@ class Steps:
             self.live = _last_line(self.buf) or self.live
 
     def tool(self, name: str, arguments: str) -> None:
-        self.buf, self.heads = "", 0
+        self.buf, self.heads, self.running = "", 0, name
         self._add("tool", tool_step(name, arguments, self.lang))
         self.live = self.items[-1]["text"] if self.items else self.live
 
     def note(self, text: str) -> None:
         """A step of Lanterna's own (its check of the answer), shown like a tool step."""
-        self.buf, self.heads = "", 0
+        self.buf, self.heads, self.running = "", 0, ""
         self._add("tool", _short(text, 140))
         self.live = self.items[-1]["text"] if self.items else self.live
 

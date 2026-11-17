@@ -79,7 +79,25 @@ class _Stream:
         self.stopped = False
         self.redo = False                  # the words so far were withdrawn: the next poll sends the whole text again
         self.weak = ""                     # a weaker model makes changes on the computer: its name, said once
+        self.counted = ("", 0.0)           # pc_disk's count so far for the "what I'm doing" line, and when it was read
         self.lock = threading.Lock()
+
+
+COUNTED = "counted so far: {s}, files: {n}"
+
+
+def _counted(st: _Stream, now: float | None = None) -> str:
+    """The end of the "what I'm doing" line while pc_disk counts the disk (" — counted so far: 120.4 GB, files:
+    412 000"), read every 2 s: the window asks many times a second, and each new line flares up."""
+    from . import diskmap
+    from .pcfiles import size_text
+    now = time.monotonic() if now is None else now
+    line, at = st.counted
+    if now - at >= 2.0:
+        got = diskmap.counting()
+        line = f" — {t(COUNTED, st.steps.lang, s=size_text(got[1]), n=f'{got[0]:,}'.replace(',', ' '))}" if got else ""
+        st.counted = (line, now)
+    return line
 
 
 def _history(msgs: list[dict]) -> list[dict]:
@@ -352,18 +370,28 @@ class Api:
         free up disk space."""
         from . import diskuse
         from .tools import Tool, _obj
-        out = [Tool("pc_disk", "What takes up the disk, wider than the user's folders: the biggest folders of the "
-                    "profile (AppData, caches), the biggest installed programs, Ollama models, the system's own files "
-                    "(Windows.old, the hibernation file, update downloads), the Recycle Bin and temporary files, with "
-                    "what each one is and how it is freed. Only looks. Call it when the disk (C:) is full or the user "
-                    "asks what takes up the space.",
+        out = [Tool("pc_disk", "Where the disk space went: it counts every folder of the whole disk (the first time "
+                    "this can take a minute or two) and shows the biggest by what they are (games, programs, caches, "
+                    "Windows itself), Steam's games by name and disk, the biggest files, kinds of files and what can't "
+                    "be counted, plus the installed programs, Ollama models and Windows' own files, each with how it "
+                    "is freed. Only looks. Call it when the disk is full or the user asks what takes up the space, "
+                    "then name the biggest things with their sizes, what each is and how to free it. With folder it "
+                    "looks inside one folder (any folder or disk, like D:\\).",
                     _obj({"part": {"type": "string", "enum": list(diskuse.PARTS),
-                                   "description": "one part, or leave empty for all (counting can take half a minute)"}}),
-                    lambda part="": diskuse.report(part, space_help=self.settings.space_help), "📊"),
+                                   "description": "one part, or leave empty for all"},
+                          "folder": {"type": "string", "description": "a folder to look inside instead: a path "
+                                     "pc_disk showed, or any folder or disk"}}),
+                    lambda part="", folder="": diskuse.report(part, folder=folder, space_help=self.settings.space_help,
+                                                             limit=self.toolbox.page_limit), "📊"),
                Tool("pc_model_remove", "Remove a downloaded Ollama model to free disk space (names and sizes: "
                     "pc_disk). The user confirms it on a card; it can be downloaded again later.",
                     _obj({"name": {"type": "string", "description": "the model's name as pc_disk shows it"}}, ["name"]),
-                    lambda name: self._model_remove(name), "🗑")]
+                    lambda name: self._model_remove(name), "🗑"),
+               Tool("pc_game_remove", "Remove a Steam game to free disk space (names, sizes and disks: pc_disk). On a "
+                    "card: after Confirm Lanterna opens Steam's own Uninstall for it, and Steam asks once more. Only "
+                    "for a game the user wants gone.",
+                    _obj({"name": {"type": "string", "description": "the game's name as pc_disk shows it"}}, ["name"]),
+                    lambda name: self._game_remove(name), "🗑")]
         if not self.settings.space_help:
             out.append(Tool("pc_space_on", "Offer to turn on Help free up disk space (a card): with it, Lanterna can "
                             "look through the user's own folders for big and old files and old installers (pc_space) "
@@ -397,6 +425,35 @@ class Api:
             return f"Removed {m.name}: {m.size_gb:.1f} GB freed"
         self.actions.propose("model_remove", {"name": m.name, "size": f"{m.size_gb:.1f} GB"}, go)
         return WAITING
+
+    def _game_remove(self, name: str, games: list | None = None, open_url=None) -> str:
+        """A card that opens Steam's own Uninstall for one game (Steam asks once more, and removes it itself)."""
+        from . import diskmap, quiet
+        from .pcfiles import size_text
+        from .workspace import WAITING, WorkError
+        found = diskmap.steam_games() if games is None else games
+        if not found:
+            raise WorkError("Steam isn't installed here, or it has no games.")
+        q = " ".join(str(name or "").split()).lower()
+        hits = [g for g in found if q in (g.appid, g.name.lower())] or [g for g in found if q and q in g.name.lower()]
+        if not hits:
+            raise WorkError(f"Steam has no game called {name}. It has: {', '.join(g.name for g in found[:15])}.")
+        if len(hits) > 1:
+            raise WorkError(f"Several games match: {', '.join(g.name for g in hits[:8])}. Call again with the exact name.")
+        g = hits[0]
+        for a in list(self.actions.items.values()):
+            a = self.actions.get(a.id) or a
+            if a.kind == "game_remove" and a.state in ("pending", "running") and a.details.get("appid") == g.appid:
+                raise WorkError(f"A card to remove {g.name} already waits for the user's Confirm: don't make another.")
+        opener = open_url or quiet.open_url
+
+        def go() -> str:
+            if not opener(f"steam://uninstall/{g.appid}"):
+                raise WorkError("Steam didn't open.")
+            return f"Opened Steam's Uninstall for {g.name}: Steam asks once more, then removes it"
+        self.actions.propose("game_remove", {"name": g.name, "size": size_text(g.size), "appid": g.appid,
+                                             "disk": diskmap.game_disk(g, sys.platform == "win32")}, go)
+        return WAITING + " After Confirm, Steam asks the user once more and removes the game itself."
 
     def _space_on(self) -> str:
         from .workspace import WAITING
@@ -1724,6 +1781,8 @@ class Api:
                 out = {"text": text if redo else text[offset:], "offset": len(text), "notes": st.notes, "weak": st.weak,
                        "tools": st.tools, "cards": list(st.cards), **st.steps.view(),
                        "done": st.done, "error": st.error, **({"replace": True} if redo else {})}
+                if st.steps.running == "pc_disk" and out["live"]:
+                    out["live"] += _counted(st)
             if st.plan is not None:                         # the task plan changed in this answer
                 out["plan"] = st.plan
         if out["done"]:
@@ -2203,6 +2262,7 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "app_install": ("Install {name}", "Installed {name}"), "app_upgrade": ("Update {name}", "Updated {name}"),
             "app_uninstall": ("Remove {name}", "Removed {name}"), "app_add": ("Add {to} to {name}", "Added {to} to {name}"),
             "model_remove": ("Remove the model {name} from Ollama", "Removed the model {name} from Ollama"),
+            "game_remove": ("Remove the game {name} (Steam)", "Opened Steam to remove {name}"),
             "space_on": ("Turn on Help free up disk space", "Help free up disk space is on"),
             "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
             "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
@@ -2237,6 +2297,7 @@ AUTO_TEXT = ("Without asking: files and folders (deleting only to the Recycle Bi
              "Every change is in What Lanterna did, with Undo. You can stop it any time.")
 SPACE_TEXT = ("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you "
               "when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.")
+GAME_TEXT = "Steam asks once more, then removes it: about {s} is freed. Steam can download it again later."
 
 
 def card_text(kind: str, d: dict, lang: str) -> str:
@@ -2290,6 +2351,8 @@ def card_text(kind: str, d: dict, lang: str) -> str:
     elif kind == "model_remove":
         lines.append(t("Frees {s}. It can be downloaded again later in Settings → Local models.", lang,
                        s=d.get("size", "")))
+    elif kind == "game_remove":
+        lines.append(t(GAME_TEXT, lang, s=d.get("size", "")))
     elif kind == "space_on":
         lines.append(t(SPACE_TEXT, lang))
     elif kind == "mcp_call":

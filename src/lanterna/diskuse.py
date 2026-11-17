@@ -1,8 +1,9 @@
-"""What takes up the disk, wider than the user's own folders (pcfiles.space_report, pc_space): the biggest
-folders of the user's profile (AppData on Windows, ~/.cache and the like on Linux), the biggest installed
-programs, Ollama models and the system's own files (Windows.old, the hibernation file, update downloads).
+"""What takes up the disk, wider than the user's own folders (pcfiles.space_report, pc_space): the whole disk
+(diskmap: every folder, by what it is), Steam's games, the biggest installed programs, Ollama models and the
+system's own files (Windows.old, the hibernation file, update downloads); with a folder, what is inside it.
 
-It only looks. The cards next to it remove an Ollama model and turn on Help free up disk space.
+It only looks. The cards next to it remove an Ollama model or a Steam game (Steam's own Uninstall) and turn on
+Help free up disk space.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from .pcfiles import GB, MB, size_text, trash_size
 
 BUDGET = 15.0                     # seconds for counting the profile: it can have a million files
 REPARSE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
-PARTS = ("profile", "programs", "models", "system")
+PARTS = ("drive", "games", "programs", "models", "system", "profile")
 # A word about well-known big folders (paths below the profile, lower case, "/" between folders)
 NOTES = {
     "appdata/local/temp": "temporary files: Disk Cleanup removes them",
@@ -226,7 +227,9 @@ def models(installed: Callable[[], list], running: Callable[[], object], counter
             "remove single models)."] if n >= 100 * MB else []
 
 
-def win_system(counter: Counter) -> list[str]:
+def win_system(counter: Counter, measure: Callable[[str], tuple[int, bool]] | None = None) -> list[str]:
+    """Windows' own big files. measure: a folder's (bytes, whole), from the walk of the disk when there is one."""
+    measure = measure or counter.size
     drive = os.environ.get("SystemDrive", "C:") + "\\"
     root: dict[str, int] = {}
     try:
@@ -249,63 +252,150 @@ def win_system(counter: Counter) -> list[str]:
             lines.append(f"- {name} ({what}) — {size_text(root[name])}: Windows manages it, leave it.")
     old = Path(drive) / "Windows.old"
     if old.is_dir():
-        n, whole = counter.size(str(old))
+        n, whole = measure(str(old))
         lines.append(f"- Windows.old (the previous Windows, kept for about 10 days to go back) — {_sized(n, whole)}: "
                      "Disk Cleanup removes it ('Clean up system files' → 'Previous Windows installation(s)').")
     upd = Path(os.environ.get("SystemRoot", drive + "Windows")) / "SoftwareDistribution" / "Download"
     if upd.is_dir():
-        n, whole = counter.size(str(upd))
+        n, whole = measure(str(upd))
         if n >= 500 * MB:
             lines.append(f"- Windows update downloads — {_sized(n, whole)}: Disk Cleanup removes them ('Clean up "
                          "system files' → 'Windows Update Cleanup').")
     return ["Windows' own files:"] + lines if lines else []
 
 
-def report(part: str = "", *, home: Path | None = None, platform: str = sys.platform, run: Callable | None = None,
+TRIM = ("space", "programs", "kinds", "hidden", "files", "models", "games", "system", "uncounted", "units")
+
+
+def report(part: str = "", *, folder: str = "", home: Path | None = None, root: str | None = None,
+           platform: str = sys.platform, run: Callable | None = None,
            installed: Callable[[], list] | None = None, running: Callable[[], object] | None = None,
-           space_help: bool = True, programs: Callable[[], list] | None = None, budget: float = BUDGET) -> str:
-    from . import local
+           space_help: bool = True, programs: Callable[[], list] | None = None, budget: float = BUDGET,
+           wait: float | None = None, limit: int = 0, games: Callable[[], list] | None = None,
+           personal: Callable[[], list] | None = None, walker: Callable | None = None) -> str:
+    """pc_disk. With no part: the whole disk (diskmap: one walk of every folder, which may take a while the first
+    time), Steam's games, the biggest programs, Ollama models and Windows' own files. limit: the characters the
+    model gets (the least needed lines go first)."""
+    from . import diskmap, local
     from .apps import run_cmd
+    from .pcfiles import known_folders
     win = platform == "win32"
     home = home or Path.home()
     run = run or run_cmd
+    walker = walker or diskmap.walk
+    wait = diskmap.WAIT if wait is None else wait
+    games_of = games or (lambda: diskmap.steam_games(win=win))
+    personal_of = personal or (lambda: list(known_folders().values()))
+    space_note = ("pc_space lists them" if space_help else
+                  "with Help free up disk space on (pc_space_on offers it on a card), pc_space lists them")
+    if str(folder or "").strip():
+        return _folder(folder, home=home, win=win, walker=walker, wait=wait, games_of=games_of,
+                       personal_of=personal_of, show_files=space_help, space_note=space_note, limit=limit)
     part = part if part in PARTS else ""
+    started = time.monotonic()
     counter, small = Counter(budget), Counter(min(budget, 5.0))   # Windows.old, Temp, the models: their own time
-    lines = ["What takes up the disk (only looked, nothing changed):"]
-    try:
-        du = shutil.disk_usage(home)
-        low = " — almost full" if du.free < du.total * 0.1 or du.free < 10 * GB else ""
-        lines.append(f"Disk with the profile: {size_text(du.free)} free of {size_text(du.total)}{low}")
-    except OSError:
-        pass
-    if part in ("", "profile"):
-        lines += profile(home, counter, win)
+    parts = [diskmap.Part("top", ["What takes up the disk (only looked, nothing changed):"], keep=99)]
+    drive_root = root or diskmap.disk_of(str(home), win)
+    w = None
+    if part in ("", "drive"):
+        try:                                           # the walk first: it goes on while the rest is looked at
+            w = walker(drive_root, skip=() if win else diskmap.LINUX_SKIP)
+        except Exception:                              # noqa: BLE001  the profile is looked at instead
+            w = None
+    if w is None:
+        try:
+            du = shutil.disk_usage(home)
+            low = " — almost full" if du.free < du.total * 0.1 or du.free < 10 * GB else ""
+            parts.append(diskmap.Part("disk", [f"Disk with the profile: {size_text(du.free)} free of "
+                                               f"{size_text(du.total)}{low}"], keep=1))
+        except OSError:
+            pass
+    found_games: list = []
+    if part in ("", "drive", "games"):
+        try:
+            found_games = games_of()
+        except Exception:                              # noqa: BLE001
+            found_games = []
+    rest: list = []
+    if part in ("", "models"):
+        ms = models(installed or local.installed, running or local.version, small)
+        if ms:
+            rest.append(diskmap.Part("models", ms[1:], ms[0], keep=3) if len(ms) > 1 else diskmap.Part("models", ms))
     if part in ("", "programs"):
         try:
             if win:
                 rows = (programs or win_programs)()
-                if rows:
-                    lines.append("Biggest programs (as they report it; app_uninstall removes one, with a card):")
-                    lines += [f"- {name} — {size_text(n)}" for n, name in rows]
+                rest.append(diskmap.Part("programs", [f"- {name} — {size_text(n)}" for n, name in rows],
+                                         "Biggest programs (as they report it; app_uninstall removes one, with a "
+                                         "card):"))
             else:
-                lines += linux_programs(run)
+                rest.append(diskmap.Part("programs", linux_programs(run)))
         except Exception:                              # noqa: BLE001  the rest of the report still helps
             pass
-    if part in ("", "models"):
-        lines += models(installed or local.installed, running or local.version, small)
+    if part == "profile" or (part in ("", "drive") and w is None):
+        parts.append(diskmap.Part("profile", profile(home, counter, win), keep=99))
+    measure = small.size
+    if w is not None:
+        w.wait(wait - (time.monotonic() - started))
+        measure = diskmap.size_lookup(w, small.size)   # Temp, Windows.old…: the walk has counted them already
+        try:
+            du = shutil.disk_usage(w.root)
+            disk = diskmap.Disk(du.total, du.used, du.free)
+        except OSError:
+            disk = None
+        try:
+            mine = personal_of()
+        except Exception:                              # noqa: BLE001
+            mine = []
+        drive = diskmap.drive_parts(w, win=win, disk=disk, games=found_games, personal=mine, show_files=space_help,
+                                    space_note=space_note)
+        parts += drive[:3]                             # the head, the biggest folders, what wasn't counted
+        rest += drive[3:]                              # the biggest files and kinds go after the rest
+    if part in ("", "games"):
+        g = diskmap.game_part(found_games, disk=drive_root if part == "" else "", win=win)
+        rest.append(g if g.lines or part != "games" else diskmap.Part("games", ["Steam has no games here."]))
     if part in ("", "system"):
+        sys_lines = win_system(small, measure) if win else []
+        tmp, whole = measure(tempfile.gettempdir())
+        sys_lines.append(f"Recycle Bin: {size_text(trash_size())}; temporary files: {_sized(tmp, whole)}.")
         if win:
-            lines += win_system(small)
-        tmp, whole = small.size(tempfile.gettempdir())
-        lines.append(f"Recycle Bin: {size_text(trash_size())}; temporary files: {_sized(tmp, whole)}.")
-        if win:
-            lines.append("Windows' Disk Cleanup removes temporary files, update leftovers and Windows.old: "
-                         "pc_open_program with 'disk cleanup' opens it (then 'Clean up system files'). Settings > "
-                         "System > Storage shows the same and has Storage Sense (pc_settings_page storage).")
+            sys_lines.append("Windows' Disk Cleanup removes temporary files, update leftovers and Windows.old: "
+                             "pc_open_program with 'disk cleanup' opens it (then 'Clean up system files'). Settings > "
+                             "System > Storage shows the same and has Storage Sense (pc_settings_page storage).")
+        rest.append(diskmap.Part("system", sys_lines, keep=3))
+    order = {"games": 0, "system": 1, "models": 2, "files": 3, "hidden": 4, "kinds": 5, "programs": 6}
+    parts += sorted(rest, key=lambda p: order.get(p.name, 9))
     if not space_help:
-        lines.append("Help free up disk space is off: with it on, Lanterna can look through the user's own folders "
-                     "for big and old files and old installers (pc_space) and warns once a day when the disk is "
-                     "almost full. pc_space_on offers to turn it on (a card).")
+        parts.append(diskmap.Part("space", ["Help free up disk space is off: with it on, Lanterna can look through the "
+                                            "user's own folders for big and old files and old installers (pc_space) "
+                                            "and warns once a day when the disk is almost full. pc_space_on offers to "
+                                            "turn it on (a card)."]))
     if counter.cut or small.cut:
-        lines.append("(Counting stopped to save time: sizes marked 'at least' may be bigger.)")
-    return "\n".join(lines)
+        parts.append(diskmap.Part("cut", ["(Counting stopped to save time: sizes marked 'at least' may be bigger.)"],
+                                  keep=1))
+    return diskmap.fit(parts, limit, TRIM)
+
+
+def _folder(folder: str, *, home: Path, win: bool, walker: Callable, wait: float, games_of: Callable,
+            personal_of: Callable, show_files: bool, space_note: str, limit: int) -> str:
+    """pc_disk with folder: the biggest folders and files inside one folder."""
+    from . import diskmap
+    from .workspace import WorkError
+    p = diskmap.folder_path(folder, home)
+    if not p.is_dir():
+        like = r"C:\Program Files (x86)\Steam" if win else "/home/…/.cache"
+        raise WorkError(f"There is no folder '{folder}' on this computer. folder is a whole path like {like}, or "
+                        "one that pc_disk showed.")
+    w = walker(str(p), skip=() if win else diskmap.LINUX_SKIP, keep=120.0, slack=50 * MB)
+    w.wait(wait)
+    try:
+        found_games = games_of()
+    except Exception:                                  # noqa: BLE001
+        found_games = []
+    try:
+        mine = personal_of()
+    except Exception:                                  # noqa: BLE001
+        mine = []
+    parts = diskmap.folder_parts(w, win=win, games=found_games, personal=mine, show_files=show_files,
+                                 space_note=space_note)
+    return diskmap.fit(parts, limit, ("kinds", "hidden", "files", "units"))

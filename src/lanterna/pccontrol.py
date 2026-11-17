@@ -435,7 +435,7 @@ def _set_wallpaper_windows(path: str) -> bool:
 WIN_BUILTIN = {"calculator": "calc.exe", "notepad": "notepad.exe", "paint": "mspaint.exe", "file explorer": "explorer.exe",
                "explorer": "explorer.exe", "task manager": "taskmgr.exe", "terminal": "wt.exe", "command prompt": "cmd.exe",
                "settings": "ms-settings:", "control panel": "control.exe", "snipping tool": "snippingtool.exe",
-               "disk cleanup": "cleanmgr.exe"}
+               "disk cleanup": "cleanmgr.exe", "system protection": "SystemPropertiesProtection.exe"}
 
 
 class Launcher:
@@ -523,7 +523,12 @@ class Launcher:
                     raise WorkError("Can't start programs here.")
                 self._startfile(p["path"])
             elif not self.spawn([p["path"]]):
-                raise WorkError(f"{p['name']} didn't start.")
+                try:                                   # one that asks for administrator rights (System Protection)
+                    if not self._startfile:
+                        raise OSError
+                    self._startfile(p["path"])
+                except OSError:
+                    raise WorkError(f"{p['name']} didn't start.") from None
             return f"Opened {p['name']}."
         ok = False
         if self.which("gio"):

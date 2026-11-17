@@ -230,7 +230,9 @@ PC_GUIDE = (
     "VS Code can't find it): call pc_dev first, it shows what is installed, where, and what breaks it. "
     "For a slow or misbehaving PC look "
     "first — call pc_info, pc_load and pc_startup in this same turn, don't just announce it — explain in plain words, "
-    "then offer the fix. Every change you call becomes a "
+    "then offer the fix. A full disk or 'where did the space go' = call pc_disk (the whole disk), then name the "
+    "biggest things with sizes, what each is and how it is freed; pc_disk with folder looks inside one. Every change "
+    "you call becomes a "
     "card the user confirms: call the tool, then say in one sentence what will happen after Confirm. Never claim a "
     "change is done before the user confirmed it."
 )
@@ -301,8 +303,8 @@ _CLAIM_DOING = re.compile(
     r"встановлю(ю|єм)|налаштовую|оновлюю|завантажую|змінюю|вмикаю|вимикаю|видаляю|завершую|переходжу до|"
     r"переміщую|переношу|сортую|майже на фініші|вже майже|майже готов|маякну|дам (тобі )?знати|"
     r"повідомлю,? (як|коли)|починаю (переміщ|перенос|сортув|чистк|прибиранн|встановленн)|"
-    r"(зараз|одразу|відразу|негайно|тепер)( ж)?( я)? (гляну|подивлюс|перевірю|перенесу|переміщу|створю|встановлю|"
-    r"запущу|відсортую|приберу|розкладу|почну)|"
+    r"(зараз|одразу|відразу|негайно|тепер)( ж)?( я)? (перенесу|переміщу|створю|встановлю|запущу|відсортую|приберу|"
+    r"розкладу|почну)|"
     r"\[Lanterna\b[^\]\n]{0,12}:|"                # Lanterna's own notes: a model that writes one pretends a tool ran
     r"устанавлива|настраива|почти готов|"
     r"\bI'?m (now |still |just )?(installing|setting up|configuring|updating|downloading|changing|removing|"
@@ -336,6 +338,13 @@ _CLAIM_CARD = re.compile(
     r"\b(appuie|clique|appuyez|cliquez)\w* sur [\"“«']?confirmer|\b(dès que|une fois que) tu (auras )?confirm|"
     r"\b(naciśnij|kliknij|stuknij) [\"“«']?potwierdź|\b(gdy|kiedy) potwierdzisz",
     re.I)
+# A reply that says it is about to look ("зараз гляну, що займає місце"): true when a tool ran in it, a lookup too
+# (models write it above what they found)
+_PROMISE_LOOK = re.compile(
+    r"(зараз|одразу|відразу|негайно|тепер)( ж)?( я)? (гляну|подивлюс\w*|перевірю|пошукаю)", re.I)
+# Words about what the user (or someone else) did: «ти вже прибрав завантаження» is not the model's claim
+_SOMEONE_ELSE = re.compile(r"\b(ти|ви|він|вона|вони|you|he|she|they)\s+((вже|сам|сама|самі|щойно|already|just)\s+)?$",
+                           re.I)
 # A reply that says it is checking or running something: true after a lookup, made up when no tool ran at all.
 _CLAIM_LOOK = re.compile(
     r"запускаю|перевіряю|\bI'?m (now |still |just )?(checking|running)\b|\bI(?:'ve| have) (just )?run\b|"
@@ -352,7 +361,7 @@ _TOOL_SAID = re.compile(
 
 def claims_action(text: str) -> bool:
     """The reply says it is doing (or did) something — fine only if a tool really ran in it."""
-    return claims_change(text) or bool(_CLAIM_LOOK.search(text or ""))
+    return claims_change(text) or bool(_CLAIM_LOOK.search(text or "") or _PROMISE_LOOK.search(text or ""))
 
 
 def claims_change(text: str) -> bool:
@@ -426,9 +435,11 @@ def claim_phrase(text: str, ran: list[str] | tuple = (), waiting: bool = False, 
     for m in _TOOL_SAID.finditer(text):
         if m.group("tool").lower() not in ran:
             return " ".join(m.group(0).split())[:80]
-    for kind, rx, ok in (("doing", _CLAIM_DOING, False), ("done", _CLAIM_DONE, done_before is True),
-                         ("card", _CLAIM_CARD, waiting)):
+    for kind, rx, ok in (("doing", _CLAIM_DOING, False), ("look", _PROMISE_LOOK, bool(ran)),
+                         ("done", _CLAIM_DONE, done_before is True), ("card", _CLAIM_CARD, waiting)):
         for m in ([] if ok else rx.finditer(text)):
+            if kind in ("doing", "done") and _SOMEONE_ELSE.search(text[max(0, m.start() - 24):m.start()]):
+                continue                             # «ти вже прибрав завантаження»: what the user did
             end = m.end()
             while end < len(text) and end - m.end() < 30 and text[end].isalnum():
                 end += 1                             # the whole last word: «…у папку», not «…у папк»
@@ -458,14 +469,16 @@ def false_claim(reply: str, ran: list[str], waiting: bool = False, done_before: 
 REDO_NOTE = ("[Lanterna's check, not the user's words: your reply says «{said}», but no tool call in it did that, so "
              "nothing happened and the user saw no card. If the user wants this change, call the tool for it now (the "
              "user confirms it on its card). If no tool can do it, say so plainly. Then write your whole reply again, "
-             "as it should be now. Never say a change is done before Lanterna's ✅ note shows it.]")
+             "as it should be now. Never say a change is done before Lanterna's ✅ note shows it. Your new reply takes "
+             "the place of that one: don't apologize for it or mention this check.]")
 
 
 # The reply claimed a change, and the call for it failed: the model is told the error once, to fix the call
 FAILED_NOTE = ("[Lanterna's check, not the user's words: your reply says «{said}», but your {name} call failed, so "
                "nothing happened and the user saw no card. The error: {error} Fix what it says and call {name} again "
                "now (the user confirms it on its card), or say plainly that it didn't work and why. Then write your "
-               "whole reply again, as it should be now. Never write [Lanterna: …] notes yourself.]")
+               "whole reply again, as it should be now. Never write [Lanterna: …] notes yourself. Your new reply takes "
+               "the place of that one: don't apologize for it or mention this check.]")
 # Lanterna's notes ([Lanterna: ✅ …]) and checks are Lanterna's: a model that writes one pretends something ran
 _FAKE_NOTE = re.compile(r"^[ \t]*\[Lanterna\b[^\]\n]{0,12}:[^\n]*\n?|\[Lanterna\b[^\]\n]{0,12}:[^\]\n]*\]?", re.M)
 

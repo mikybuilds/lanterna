@@ -1649,4 +1649,19 @@ _T.update({
     "Lanterna's tool calls in this reply failed: nothing was installed, opened or changed.": {
         "uk": "У цій відповіді дії Lanterna не вдалися: нічого не встановлено, не відкрито й не змінено.",
         "it": "In questa risposta le azioni di Lanterna non sono riuscite: niente è stato installato, aperto o cambiato."},
+    "Remove the game {name} (Steam)": {
+        "uk": "Прибрати гру {name} (Steam)",
+        "it": "Rimuovi il gioco {name} (Steam)"},
+    "Opened Steam to remove {name}": {
+        "uk": "Відкрито Steam, щоб прибрати {name}",
+        "it": "Aperto Steam per rimuovere {name}"},
+    "Steam asks once more, then removes it: about {s} is freed. Steam can download it again later.": {
+        "uk": "Steam перепитає ще раз і сам прибере гру: звільниться близько {s}. Пізніше Steam може завантажити її знову.",
+        "it": "Steam chiede ancora una volta, poi lo rimuove: si liberano circa {s}. Steam può riscaricarlo più tardi."},
+    "Preparing to remove the game {x}": {
+        "uk": "Готую прибирання гри {x}",
+        "it": "Preparo la rimozione del gioco {x}"},
+    "counted so far: {s}, files: {n}": {
+        "uk": "пораховано: {s}, файлів: {n}",
+        "it": "contati finora: {s}, file: {n}"},
 })

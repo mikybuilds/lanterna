@@ -394,7 +394,7 @@ def test_the_new_tools_are_on_the_computer_list(tmp_path, monkeypatch):
     from lanterna.pccontrol import WIN_BUILTIN
     assert WIN_BUILTIN["disk cleanup"] == "cleanmgr.exe"                # pc_open_program opens Disk Cleanup
     js = (UI / "app.js").read_text(encoding="utf-8")
-    assert 'k === "model_remove" ? "🗑"' in js and 'c.kind === "space_on"' in js
+    assert 'k === "model_remove" || k === "game_remove" ? "🗑"' in js and 'c.kind === "space_on"' in js
 
 
 # ---------------------------------------------------------------- 7. a weaker model in the middle of the work
