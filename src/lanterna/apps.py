@@ -11,10 +11,13 @@ from web pages and never runs other commands.
 """
 from __future__ import annotations
 
+import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import Callable
 
 from .workspace import WAITING, WorkError
@@ -29,6 +32,120 @@ RUN_TIMEOUT = 30 * 60
 LOOK_TIMEOUT = 90
 WINGET_COMMON = ["--source", "winget", "--accept-source-agreements", "--disable-interactivity"]
 SHOW_MAX = 15
+
+# Visual Studio alone is only an editor: what it builds comes in parts ("workloads"), chosen when it is installed
+# (winget --override) or added later by its own installer (setup.exe modify). Without the C++ part there is no
+# compiler. Ids: 2026 is Microsoft.VisualStudio.Community, older ones have the year (Microsoft.VisualStudio.2022.Community).
+VS_ID = re.compile(r"^Microsoft\.VisualStudio\.(?:(\d{4})\.)?(Community|Professional|Enterprise|BuildTools)$", re.I)
+VS_YEARS = {"2017": 15, "2019": 16, "2022": 17}           # no year in the id: the newest (2026 is 18)
+# part → (its name, the workload in the IDE, the workload in Build Tools, what shows that it is there)
+VS_PARTS = {
+    "cpp": ("Desktop development with C++", "Microsoft.VisualStudio.Workload.NativeDesktop",
+            "Microsoft.VisualStudio.Workload.VCTools", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"),
+    "dotnet": (".NET desktop development", "Microsoft.VisualStudio.Workload.ManagedDesktop",
+               "Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools", ""),
+    "web": ("ASP.NET and web development", "Microsoft.VisualStudio.Workload.NetWeb",
+            "Microsoft.VisualStudio.Workload.WebBuildTools", ""),
+}
+VS_TIMEOUT = 3 * 3600                                     # several GB to download
+APP_KINDS = ("app_install", "app_upgrade", "app_uninstall", "app_add")
+
+# After a change Lanterna looks whether it really happened (the card's ✅ line says so)
+CHECKED = "checked: it is installed"
+CHECKED_CPP = "checked: the C++ compiler is there"
+NO_CPP = "but the C++ compiler isn't there"
+UNLISTED = "but it isn't in the list of installed programs yet: restart the computer and check again"
+RESTART = "restart the computer to finish"
+RESTART_CODES = {3010, 1641, 0x8A150109, 0x8A15010B}      # done, a restart finishes it
+
+# What an error means, in plain words (winget's own codes, then the installer's exit code)
+OPEN_NOW = "The program is open right now: close it and try again."
+MISSING = "Something this program needs is missing on this computer."
+CANCELLED = "The installation was cancelled (maybe the window asking for administrator rights was closed)."
+ADMIN = "It needs administrator rights: say yes in the Windows window that asks for them."
+BUSY = "Another installation is running right now: wait until it finishes, then try again."
+OFFLINE = "There is no internet connection."
+WINGET_SAYS = {
+    0x8A150008: "The installer couldn't be downloaded: check the internet connection and try again.",
+    0x8A150010: "This program has no installer for this computer (its Windows version or processor).",
+    0x8A150011: "The downloaded installer didn't pass the safety check, so it wasn't started. Try again later.",
+    0x8A150014: "The catalog has no such program.", 0x8A150019: ADMIN,
+    0x8A15002B: "There is no newer version to update to.", 0x8A150101: OPEN_NOW, 0x8A150102: BUSY,
+    0x8A150103: OPEN_NOW, 0x8A150104: MISSING, 0x8A150105: "There isn't enough free space on the disk.",
+    0x8A150106: "There isn't enough free memory: close other programs and try again.", 0x8A150107: OFFLINE,
+    0x8A15010A: "Restart the computer, then try again.", 0x8A15010C: CANCELLED,
+    0x8A15010D: "Another version of this program is already installed.",
+    0x8A15010E: "A newer version of this program is already installed.",
+    0x8A15010F: "This computer's rules don't allow installing it.", 0x8A150110: MISSING, 0x8A150111: OPEN_NOW,
+    0x8A150113: "This program doesn't work on this system.",
+}
+VS_OPEN = "Visual Studio is open: close it, then try again."
+VS_SAYS = {1001: "The Visual Studio Installer is already open: close it (or let it finish), then try again.",
+           1003: VS_OPEN, 8006: VS_OPEN, 1602: CANCELLED, 5004: CANCELLED, 1618: BUSY, 740: ADMIN,
+           5007: "This computer doesn't meet Visual Studio's requirements.",
+           8010: "This computer doesn't meet Visual Studio's requirements.", -1073720687: OFFLINE,
+           -1073741510: "The Visual Studio Installer was closed before it finished."}
+VS_FAILED = ("The Visual Studio installer stopped with an error (code {n}). This often happens while another Visual "
+             "Studio installation is still running or has just finished: wait a few minutes or restart the computer, "
+             "then try again.")
+INSTALLER_FAILED = ("The program's own installer stopped with an error (code {n}). Restarting the computer and trying "
+                    "again often helps.")
+TOO_LONG = "It took too long, so Lanterna stopped waiting (the installer may still be working: check again later)."
+NO_PASSWORD = "The password window was closed or the password wasn't accepted, so nothing was installed."
+FAILED = "{m} stopped with an error (code {n})."
+_BOILERPLATE = re.compile(r"licensed to you by its owner|not responsible for, nor does it grant|^Found .+ \[|"
+                          r"^Successfully verified installer hash|^Starting package install", re.I)
+
+
+def _say(text: str, lang: str, **kw) -> str:
+    from .i18n import t
+    return t(text, lang, **kw)
+
+
+def explain(code: int, out: str, m: str, vs: bool = False, lang: str = "en") -> str:
+    """Why a package manager (or the installer it started) stopped, in plain words, then its last lines whole."""
+    u = code & 0xFFFFFFFF
+    inst = re.search(r"exit code:?\s*(-?\d+)", out or "", re.I)
+    n = int(inst.group(1)) if inst else None
+    if code == 124:
+        why = _say(TOO_LONG, lang)
+    elif m == "winget" and u in WINGET_SAYS:
+        why = _say(WINGET_SAYS[u], lang)
+    elif n is not None and vs and n in VS_SAYS:
+        why = _say(VS_SAYS[n], lang)
+    elif n is not None:
+        why = _say(VS_FAILED if vs else INSTALLER_FAILED, lang, n=n)
+    elif vs and code in VS_SAYS:                           # the Visual Studio Installer itself (setup.exe modify)
+        why = _say(VS_SAYS[code], lang)
+    elif vs:
+        why = _say(VS_FAILED, lang, n=code)
+    elif m in ("dnf", "apt") and code in (126, 127) and "not installed" not in (out or ""):
+        why = _say(NO_PASSWORD, lang)                     # pkexec: the password window was closed or refused
+    else:
+        why = _say(FAILED, lang, m=m, n=code)
+    shown = f"0x{u:08X}" if u > 0xFFFF else str(code)
+    lines = [ln.strip()[:160] for ln in _clean(out or "") if ln.strip() and not _BOILERPLATE.search(ln.strip())]
+    return f"{why} ({m}: {shown})" + ("\n" + "\n".join(lines[-5:]) if lines else "")
+
+
+def vs_parts(names) -> list[str]:
+    """The parts of Visual Studio asked for, known ones only."""
+    items = names if isinstance(names, (list, tuple)) else re.split(r"[,;\s]+", str(names or ""))
+    out = []
+    for x in items:
+        k = str(x).strip().lower().replace("c++", "cpp").replace(".net", "dotnet")
+        if not k:
+            continue
+        if k not in VS_PARTS:
+            raise WorkError(f"Unknown part '{x}'. Parts: {', '.join(VS_PARTS)}.")
+        if k not in out:
+            out.append(k)
+    return out
+
+
+def _vswhere() -> str:
+    p = Path(os.environ.get("ProgramFiles(x86)") or r"C:\Program Files (x86)") / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    return str(p) if sys.platform == "win32" and p.is_file() else ""
 
 
 def _words(text: str) -> list[str]:
@@ -119,8 +236,62 @@ def parse_show(text: str) -> dict:
 
 class Apps:
     def __init__(self, actions, runner: Callable[..., tuple[int, str]] = run_cmd, platform: str = sys.platform,
-                 which: Callable[[str], str | None] = shutil.which):
-        self.actions, self.run, self.platform, self.which = actions, runner, platform, which
+                 which: Callable[[str], str | None] = shutil.which, lang: Callable[[], str] = lambda: "en",
+                 vswhere: str | None = None):
+        self.actions, self.run, self.platform, self.which, self.lang = actions, runner, platform, which, lang
+        self._vswhere = vswhere
+
+    @property
+    def vswhere_exe(self) -> str:
+        """Visual Studio's own finder (Windows). It comes with the Visual Studio Installer, so it can appear later."""
+        return (_vswhere() if self.platform == "win32" else "") if self._vswhere is None else self._vswhere
+
+    # -- Visual Studio: which ones are here and what parts they have
+    def vs_instances(self, requires: str = "") -> list[dict]:
+        """Visual Studio installations (path, name, edition, major version); with `requires`, only those that have
+        that workload or component."""
+        if not self.vswhere_exe:
+            return []
+        code, out = self.run([self.vswhere_exe, "-all", "-products", "*", *(["-requires", requires] if requires else []),
+                              "-format", "json", "-utf8", "-nologo"])
+        try:
+            data = json.loads(out[out.index("["):out.rindex("]") + 1])
+        except ValueError:
+            return []
+        rows = []
+        for x in data if isinstance(data, list) else []:
+            ver = str(x.get("installationVersion", ""))
+            rows.append({"path": str(x.get("installationPath", "")), "name": str(x.get("displayName", "")),
+                         "edition": str(x.get("productId", "")).rsplit(".", 1)[-1],
+                         "major": int(ver.split(".")[0]) if ver.split(".")[0].isdigit() else 0})
+        return [r for r in rows if r["path"]]
+
+    def vs_for(self, pid: str) -> dict | None:
+        """The installation of this winget id (Microsoft.VisualStudio.Community = the newest Community)."""
+        m = VS_ID.match(pid or "")
+        if not m:
+            return None
+        same = [r for r in self.vs_instances() if r["edition"].lower() == m.group(2).lower()]
+        major = VS_YEARS.get(m.group(1) or "")
+        mine = [r for r in same if r["major"] == major] if major else [r for r in same if r["major"] >= 18] or same
+        return max(mine, key=lambda r: r["major"], default=None)
+
+    def vs_has(self, inst: dict, part: str) -> bool:
+        """This installation has the part (for C++: the compiler itself, not only the workload's name)."""
+        name, ide, tools, sign = VS_PARTS[part]
+        need = sign or (tools if inst.get("edition", "").lower() == "buildtools" else ide)
+        return any(r["path"] == inst["path"] for r in self.vs_instances(need))
+
+    def _busy(self, pid: str) -> tuple[str, str]:
+        """A card for this program (or, for Visual Studio, any Visual Studio) that waits or runs now: (state, name)."""
+        vs = bool(VS_ID.match(pid))
+        for a in list(getattr(self.actions, "items", {}).values()):
+            other = str(a.details.get("id", ""))
+            if a.kind in APP_KINDS and (other.lower() == pid.lower() or (vs and VS_ID.match(other))):
+                now = self.actions.get(a.id) if hasattr(self.actions, "get") else a
+                if now is not None and now.state in ("pending", "running"):
+                    return now.state, str(a.details.get("name") or other)
+        return "", ""
 
     # -- what this computer has
     def managers(self) -> list[str]:
@@ -365,11 +536,14 @@ class Apps:
         return "\n\n".join(parts)
 
     # -- changes (cards)
-    def command(self, op: str, pid: str, m: str, where: str = "user", remote: str = "flathub") -> list[str]:
+    def command(self, op: str, pid: str, m: str, where: str = "user", remote: str = "flathub",
+                override: str = "") -> list[str]:
         if m == "winget":
             base = {"install": ["winget", "install"], "upgrade": ["winget", "upgrade"], "uninstall": ["winget", "uninstall"]}[op]
             extra = ["--accept-package-agreements"] if op != "uninstall" else []
             src = WINGET_COMMON if op != "uninstall" else ["--accept-source-agreements", "--disable-interactivity"]
+            if override:                        # the installer's own switches instead of the silent ones (Visual Studio)
+                return [*base, "--id", pid, "--exact", *extra, *src, "--override", override]
             return [*base, "--id", pid, "--exact", "--silent", *extra, *src]
         if m == "flatpak":                      # --user or --system: the installation the remote (or the app) is in
             inst = "--system" if where == "system" else "--user"
@@ -379,13 +553,76 @@ class Apps:
         verb = {"install": "install", "upgrade": "upgrade", "uninstall": "remove"}[op]
         return ["pkexec", m, verb, "-y", pid]
 
-    def propose(self, op: str, pid: str, source: str = "") -> str:
+    def _vs_check(self, inst: dict | None, parts: list[str], restart: bool = False) -> str:
+        """What a look after a Visual Studio change finds (the card's ✅ line)."""
+        if restart:
+            return RESTART
+        if inst is None:
+            return UNLISTED
+        if "cpp" in parts:
+            return CHECKED_CPP if self.vs_has(inst, "cpp") else NO_CPP
+        return CHECKED
+
+    def _propose_add(self, d: dict, inst: dict | None, parts: list[str]) -> str:
+        """Visual Studio is already here: the parts it lacks are added by its own installer, on a card."""
+        name = (inst or {}).get("name") or d["name"]
+        if not parts:
+            raise WorkError(f"{name} is already installed. To add parts (cpp for C++, which brings the compiler), "
+                            "call app_install again with parts; for a newer version, use app_update.")
+        if inst is None:
+            raise WorkError(f"{name} is already installed, but its installer wasn't found to add parts. The user can "
+                            "open the Visual Studio Installer, press Modify and tick: "
+                            + ", ".join(VS_PARTS[p][0] for p in parts) + ".")
+        missing = [p for p in parts if not self.vs_has(inst, p)]
+        if not missing:
+            return (f"{name} already has: {', '.join(VS_PARTS[p][0] for p in parts)}. Nothing to install."
+                    + (" The C++ compiler (MSVC, cl.exe) is there: build in Visual Studio, or run cl from "
+                       "'Developer PowerShell for VS' (it isn't in the usual PATH)." if "cpp" in parts else ""))
+        tools = inst["edition"].lower() == "buildtools"
+        cmd = [str(Path(self.vswhere_exe).with_name("setup.exe")), "modify", "--installPath", inst["path"],
+               *(a for p in missing for a in ("--add", VS_PARTS[p][2 if tools else 1])),
+               "--includeRecommended", "--passive", "--norestart"]
+        details = {"source": "winget", "id": d["id"], "name": name, "version": "", "publisher": d.get("publisher", ""),
+                   "description": "", "op": "add", "parts": [VS_PARTS[p][0] for p in missing],
+                   "command": subprocess.list2cmdline(cmd), "admin": True,
+                   "notes": ["Close Visual Studio before you confirm.", "It takes a while: Visual Studio shows its progress."]}
+
+        def run() -> str:
+            code, out = self.run(cmd, timeout=VS_TIMEOUT)
+            if code != 0 and (code & 0xFFFFFFFF) not in RESTART_CODES:
+                raise WorkError(explain(code, out, "Visual Studio Installer", vs=True, lang=self.lang()))
+            details["checked"] = self._vs_check(inst, missing, restart=code != 0)
+            return f"Added {', '.join(details['parts'])} to {name}"
+        self.actions.propose("app_add", details, run)
+        return WAITING + (f" The card adds {', '.join(details['parts'])} to {name}, which is already installed. "
+                          "Visual Studio must be closed; Windows will ask for administrator rights.")
+
+    def propose(self, op: str, pid: str, source: str = "", parts=None) -> str:
         if op not in ("install", "upgrade", "uninstall"):
             raise WorkError("op must be install, upgrade or uninstall.")
         pid, m = self._check_id(pid), self._pick(source, pid)
+        parts = vs_parts(parts)
+        vs = m == "winget" and bool(VS_ID.match(pid))
+        if parts and not vs:
+            raise WorkError("parts are only for Visual Studio (its workloads): install this program without them.")
+        state, busy = self._busy(pid)                        # never two cards for one program (or two Visual Studios)
+        if state == "pending":
+            raise WorkError(f"A card for {busy} already waits for the user's Confirm: don't make another one. Tell the "
+                            "user to press Confirm on that card.")
+        if state == "running":
+            raise WorkError(f"{busy} is being installed or changed right now (the user confirmed its card): don't make "
+                            "another card. Its result comes as Lanterna's ✅ or ⚠️ note.")
         if op == "install":
             d = self.details(pid, m)                         # the card shows what the catalog says
-            if self.is_installed(d["id"], m):
+            if vs:
+                inst = self.vs_for(d["id"])
+                if inst is not None or self.is_installed(d["id"], m):
+                    return self._propose_add(d, inst, parts)
+                if not parts:
+                    raise WorkError("Visual Studio needs its parts: pass parts (cpp for C++, which brings the compiler; "
+                                    "dotnet for C# desktop apps; web for ASP.NET). Without them it installs only the "
+                                    "editor, which can't build anything.")
+            elif self.is_installed(d["id"], m):
                 # installing it "again" would put its removal in Undo: the user's own copy would go
                 raise WorkError(f"{d['name']} ({d['id']}) is already installed with {m}. To get a newer version, use app_update.")
         else:
@@ -395,22 +632,36 @@ class Apps:
                 if not d["installation"]:
                     raise WorkError(f"'{pid}' is not installed with Flatpak (see app_installed).")
         where = d.get("installation", "user")
-        cmd = self.command(op, d["id"], m, where, d.get("remote", "flathub"))
+        override = ""
+        if vs and op == "install":                           # with its parts: the compiler comes with C++
+            tools = VS_ID.match(d["id"]).group(2).lower() == "buildtools"
+            override = " ".join(["--wait", "--passive", "--norestart",
+                                 *(f"--add {VS_PARTS[p][2 if tools else 1]}" for p in parts), "--includeRecommended"])
+        cmd = self.command(op, d["id"], m, where, d.get("remote", "flathub"), override)
         admin = m in ("dnf", "apt") or (m == "winget" and op != "uninstall") or (m == "flatpak" and where == "system")
-        details = {**d, "op": op, "command": " ".join(cmd), "admin": admin}
+        details = {**d, "op": op, "command": " ".join(cmd) if not override else subprocess.list2cmdline(cmd),
+                   "admin": admin}
+        if override:
+            details["parts"] = [VS_PARTS[p][0] for p in parts]
+            details["notes"] = ["It takes a while: Visual Studio shows its progress."]
 
         def run() -> str:
-            code, out = self.run(cmd, timeout=RUN_TIMEOUT)
-            tail = "\n".join(line for line in _clean(out) if line.strip())[-600:]
-            if code != 0:
-                raise WorkError(f"{m} stopped with code {code}: {tail[-300:]}")
+            code, out = self.run(cmd, timeout=VS_TIMEOUT if vs else RUN_TIMEOUT)
+            restart = code != 0 and (code & 0xFFFFFFFF) in RESTART_CODES
+            if code != 0 and not restart:
+                raise WorkError(explain(code, out, m, vs=vs, lang=self.lang()))
             if op in ("install", "uninstall"):
                 self.actions.note_undo({"type": "app", "op": "uninstall" if op == "install" else "install",
                                         "id": d["id"], "source": m})
+            if op == "install":                              # did it really happen? (the ✅ line says)
+                details["checked"] = (self._vs_check(self.vs_for(d["id"]), parts, restart) if vs else RESTART if restart
+                                      else CHECKED if self.is_installed(d["id"], m) else UNLISTED)
             return {"install": "Installed", "upgrade": "Updated", "uninstall": "Removed"}[op] + f" {d['name']}"
         self.actions.propose(f"app_{op}", details, run)
         return WAITING + (" Windows may also ask for administrator rights during the install." if m == "winget" and op != "uninstall" else
-                          " The system will ask for the password." if admin else "")
+                          " The system will ask for the password." if admin else "") + (
+            " Visual Studio is big (several GB): the installation can take half an hour or more, and Visual Studio "
+            "shows its progress." if override else "")
 
 
 def app_tools(apps: Apps) -> list:
@@ -435,8 +686,13 @@ def app_tools(apps: Apps) -> list:
              _obj({"source": src}), lambda source="": apps.updates(source), "⬆️"),
         Tool("app_install", "Install a program by its exact id and source from app_search (search first). Install only "
              "the program the user asked for: if no result is that program, say so instead of installing a different one. "
-             + card,
-             _obj({"id": s, "source": src}, ["id"]), lambda id, source="": apps.propose("install", id, source), "⬇️"),
+             "Visual Studio needs parts: cpp for C++ (it brings the compiler), dotnet for C# desktop apps, web for "
+             "ASP.NET; without them it is only an editor. If that Visual Studio is already installed, the same call "
+             "adds the parts it lacks. One card per program: never call it again while its card waits or runs. " + card,
+             _obj({"id": s, "source": src,
+                   "parts": {"type": "array", "items": {"type": "string", "enum": list(VS_PARTS)},
+                             "description": "Visual Studio only: what it is for"}}, ["id"]),
+             lambda id, source="", parts=None: apps.propose("install", id, source, parts), "⬇️"),
         Tool("app_update", "Update an installed program to the newest version by its id. " + card,
              _obj({"id": s, "source": src}, ["id"]), lambda id, source="": apps.propose("upgrade", id, source), "⬆️"),
         Tool("app_uninstall", "Remove an installed program by its id (see app_installed). " + card,

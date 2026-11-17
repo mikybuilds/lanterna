@@ -1490,3 +1490,160 @@ _T.update({
         "uk": "у назві «{x}»",
         "it": "nel nome «{x}»"},
 })
+
+# Installing programs, programming tools, the disk and weaker models (1.1.10)
+_T.update({
+    "Desktop development with C++": {
+        "uk": "Розробка на C++ (Desktop development with C++)",
+        "it": "Sviluppo di applicazioni desktop con C++"},
+    ".NET desktop development": {
+        "uk": "Програми для комп'ютера на .NET (.NET desktop development)",
+        "it": "Sviluppo di applicazioni desktop .NET"},
+    "ASP.NET and web development": {
+        "uk": "Сайти на ASP.NET (ASP.NET and web development)",
+        "it": "Sviluppo ASP.NET e Web"},
+    "checked: it is installed": {
+        "uk": "перевірено: програма встановлена",
+        "it": "controllato: è installato"},
+    "checked: the C++ compiler is there": {
+        "uk": "перевірено: компілятор C++ є",
+        "it": "controllato: il compilatore C++ c'è"},
+    "but the C++ compiler isn't there": {
+        "uk": "але компілятора C++ немає",
+        "it": "ma il compilatore C++ non c'è"},
+    "but it isn't in the list of installed programs yet: restart the computer and check again": {
+        "uk": "але її ще немає в списку встановлених програм: перезапусти комп'ютер і перевір ще раз",
+        "it": "ma non è ancora nell'elenco dei programmi installati: riavvia il computer e controlla di nuovo"},
+    "restart the computer to finish": {
+        "uk": "перезапусти комп'ютер, щоб завершити",
+        "it": "riavvia il computer per finire"},
+    "The program is open right now: close it and try again.": {
+        "uk": "Програма зараз відкрита: закрий її і спробуй ще раз.",
+        "it": "Il programma è aperto adesso: chiudilo e riprova."},
+    "Something this program needs is missing on this computer.": {
+        "uk": "На цьому комп'ютері бракує чогось, що потрібно цій програмі.",
+        "it": "Su questo computer manca qualcosa che serve a questo programma."},
+    "The installation was cancelled (maybe the window asking for administrator rights was closed).": {
+        "uk": "Встановлення скасовано (можливо, закрили вікно, яке питало права адміністратора).",
+        "it": "L'installazione è stata annullata (forse è stata chiusa la finestra che chiedeva i diritti di amministratore)."},
+    "It needs administrator rights: say yes in the Windows window that asks for them.": {
+        "uk": "Потрібні права адміністратора: натисни «Так» у вікні Windows, яке про них питає.",
+        "it": "Servono i diritti di amministratore: rispondi sì nella finestra di Windows che li chiede."},
+    "Another installation is running right now: wait until it finishes, then try again.": {
+        "uk": "Зараз уже йде інше встановлення: зачекай, поки воно закінчиться, і спробуй ще раз.",
+        "it": "Un'altra installazione è in corso: aspetta che finisca, poi riprova."},
+    "There is no internet connection.": {
+        "uk": "Немає з'єднання з інтернетом.",
+        "it": "Non c'è connessione a Internet."},
+    "The installer couldn't be downloaded: check the internet connection and try again.": {
+        "uk": "Не вдалося завантажити інсталятор: перевір з'єднання з інтернетом і спробуй ще раз.",
+        "it": "Non è stato possibile scaricare il programma di installazione: controlla la connessione a Internet e riprova."},
+    "This program has no installer for this computer (its Windows version or processor).": {
+        "uk": "У цієї програми немає інсталятора для цього комп'ютера (його версії Windows або процесора).",
+        "it": "Questo programma non ha un'installazione per questo computer (la sua versione di Windows o il processore)."},
+    "The downloaded installer didn't pass the safety check, so it wasn't started. Try again later.": {
+        "uk": "Завантажений інсталятор не пройшов перевірку безпеки, тож його не запустили. Спробуй пізніше.",
+        "it": "Il programma di installazione scaricato non ha superato il controllo di sicurezza, quindi non è stato avviato. Riprova più tardi."},
+    "The catalog has no such program.": {
+        "uk": "У каталозі немає такої програми.",
+        "it": "Il catalogo non ha questo programma."},
+    "There is no newer version to update to.": {
+        "uk": "Новішої версії немає, оновлювати нема до чого.",
+        "it": "Non c'è una versione più recente a cui aggiornare."},
+    "There isn't enough free space on the disk.": {
+        "uk": "На диску замало вільного місця.",
+        "it": "Non c'è abbastanza spazio libero sul disco."},
+    "There isn't enough free memory: close other programs and try again.": {
+        "uk": "Замало вільної пам'яті: закрий інші програми і спробуй ще раз.",
+        "it": "Non c'è abbastanza memoria libera: chiudi altri programmi e riprova."},
+    "Restart the computer, then try again.": {
+        "uk": "Перезапусти комп'ютер і спробуй ще раз.",
+        "it": "Riavvia il computer, poi riprova."},
+    "Another version of this program is already installed.": {
+        "uk": "Інша версія цієї програми вже встановлена.",
+        "it": "Un'altra versione di questo programma è già installata."},
+    "A newer version of this program is already installed.": {
+        "uk": "Новіша версія цієї програми вже встановлена.",
+        "it": "Una versione più recente di questo programma è già installata."},
+    "This computer's rules don't allow installing it.": {
+        "uk": "Правила цього комп'ютера не дозволяють її встановити.",
+        "it": "Le regole di questo computer non permettono di installarlo."},
+    "This program doesn't work on this system.": {
+        "uk": "Ця програма не працює на цій системі.",
+        "it": "Questo programma non funziona su questo sistema."},
+    "Visual Studio is open: close it, then try again.": {
+        "uk": "Visual Studio відкрита: закрий її і спробуй ще раз.",
+        "it": "Visual Studio è aperto: chiudilo, poi riprova."},
+    "The Visual Studio Installer is already open: close it (or let it finish), then try again.": {
+        "uk": "Visual Studio Installer уже відкритий: закрий його (або дай йому закінчити) і спробуй ще раз.",
+        "it": "Il Visual Studio Installer è già aperto: chiudilo (o lascialo finire), poi riprova."},
+    "This computer doesn't meet Visual Studio's requirements.": {
+        "uk": "Цей комп'ютер не відповідає вимогам Visual Studio.",
+        "it": "Questo computer non soddisfa i requisiti di Visual Studio."},
+    "The Visual Studio Installer was closed before it finished.": {
+        "uk": "Visual Studio Installer закрили до того, як він закінчив.",
+        "it": "Il Visual Studio Installer è stato chiuso prima di finire."},
+    "The Visual Studio installer stopped with an error (code {n}). This often happens while another Visual Studio installation is still running or has just finished: wait a few minutes or restart the computer, then try again.": {
+        "uk": "Інсталятор Visual Studio зупинився з помилкою (код {n}). Так часто буває, коли інше встановлення Visual Studio ще йде або щойно закінчилося: зачекай кілька хвилин або перезапусти комп'ютер, а тоді спробуй ще раз.",
+        "it": "Il programma di installazione di Visual Studio si è fermato con un errore (codice {n}). Succede spesso mentre un'altra installazione di Visual Studio è ancora in corso o è appena finita: aspetta qualche minuto o riavvia il computer, poi riprova."},
+    "The program's own installer stopped with an error (code {n}). Restarting the computer and trying again often helps.": {
+        "uk": "Власний інсталятор програми зупинився з помилкою (код {n}). Часто допомагає перезапустити комп'ютер і спробувати ще раз.",
+        "it": "Il programma di installazione del programma si è fermato con un errore (codice {n}). Spesso aiuta riavviare il computer e riprovare."},
+    "It took too long, so Lanterna stopped waiting (the installer may still be working: check again later).": {
+        "uk": "Це тривало задовго, тож Lanterna перестала чекати (інсталятор, можливо, ще працює: перевір пізніше).",
+        "it": "Ci voleva troppo, quindi Lanterna ha smesso di aspettare (il programma di installazione forse sta ancora lavorando: controlla più tardi)."},
+    "The password window was closed or the password wasn't accepted, so nothing was installed.": {
+        "uk": "Вікно пароля закрили або пароль не підійшов, тож нічого не встановлено.",
+        "it": "La finestra della password è stata chiusa o la password non è stata accettata, quindi non è stato installato nulla."},
+    "{m} stopped with an error (code {n}).": {
+        "uk": "{m} зупинився з помилкою (код {n}).",
+        "it": "{m} si è fermato con un errore (codice {n})."},
+    "Close Visual Studio before you confirm.": {
+        "uk": "Закрий Visual Studio, перш ніж підтвердити.",
+        "it": "Chiudi Visual Studio prima di confermare."},
+    "It takes a while: Visual Studio shows its progress.": {
+        "uk": "Це займе час: Visual Studio показує, скільки вже зроблено.",
+        "it": "Ci vuole un po': Visual Studio mostra l'avanzamento."},
+    "Parts: {p}": {
+        "uk": "Частини: {p}",
+        "it": "Componenti: {p}"},
+    "Add {to} to {name}": {
+        "uk": "Додати до {name}: {to}",
+        "it": "Aggiungi {to} a {name}"},
+    "Added {to} to {name}": {
+        "uk": "Додано до {name}: {to}",
+        "it": "Aggiunto {to} a {name}"},
+    "Remove the model {name} from Ollama": {
+        "uk": "Прибрати модель {name} з Ollama",
+        "it": "Rimuovi il modello {name} da Ollama"},
+    "Removed the model {name} from Ollama": {
+        "uk": "Модель {name} прибрано з Ollama",
+        "it": "Rimosso il modello {name} da Ollama"},
+    "Turn on Help free up disk space": {
+        "uk": "Увімкнути «Допомогу зі звільненням місця»",
+        "it": "Attiva «Aiuto a liberare spazio»"},
+    "Help free up disk space is on": {
+        "uk": "«Допомога зі звільненням місця» увімкнена",
+        "it": "«Aiuto a liberare spazio» è attivo"},
+    "Frees {s}. It can be downloaded again later in Settings → Local models.": {
+        "uk": "Звільнить {s}. Пізніше її можна знову завантажити в Налаштуваннях → Локальні моделі.",
+        "it": "Libera {s}. Si può riscaricare più tardi in Impostazioni → Modelli locali."},
+    "Checking the programming tools": {
+        "uk": "Перевіряю інструменти для програмування",
+        "it": "Controllo gli strumenti di programmazione"},
+    "Looking at what takes up the disk": {
+        "uk": "Дивлюсь, що займає диск",
+        "it": "Guardo cosa occupa il disco"},
+    "Preparing to remove the model {x}": {
+        "uk": "Готую прибирання моделі {x}",
+        "it": "Preparo la rimozione del modello {x}"},
+    "Preparing to turn on Help free up disk space": {
+        "uk": "Готую ввімкнення «Допомоги зі звільненням місця»",
+        "it": "Preparo l'attivazione di «Aiuto a liberare spazio»"},
+    "Waiting {n} s for {m}: its free limit for this minute is used up": {
+        "uk": "Чекаю {n} с на {m}: її безкоштовний ліміт на цю хвилину вичерпано",
+        "it": "Aspetto {n} s per {m}: il suo limite gratuito per questo minuto è finito"},
+    "{m} is a weaker model: it makes more mistakes with changes on the computer. Check each card before you confirm it.": {
+        "uk": "{m} — слабша модель: у змінах на комп'ютері вона помиляється частіше. Перевіряй кожну картку, перш ніж підтвердити.",
+        "it": "{m} è un modello più debole: con le modifiche al computer sbaglia più spesso. Controlla ogni scheda prima di confermarla."},
+})

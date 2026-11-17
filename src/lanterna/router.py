@@ -15,6 +15,14 @@ QUICK_SCORE = 70         # side jobs: a model near this score (good enough, fast
 MAX_WAIT = 12            # seconds worth waiting for a rate limit instead of failing
 COOLDOWN = {"rate": 60, "network": 30, "timeout": 60 * 60, "dropped": 30, "other": 60, "bad_request": 24 * 3600,
             "auth": 3600}
+# Changes on the computer (careful=True): a model this many points under the best one that uses tools, and under
+# WEAK_SCORE, makes more mistakes there (two cards for one program, a claim without a tool call). Before such a model
+# takes over, a strong model's short limit (up to CAREFUL_WAIT seconds) is waited out once.
+WEAK_GAP = 10
+WEAK_SCORE = 80
+CAREFUL_WAIT = 30
+WEAK_TEXT = ("{m} is a weaker model: it makes more mistakes with changes on the computer. Check each card before you "
+             "confirm it.")                       # the line the window and the terminal app show (i18n has it)
 
 
 @dataclass
@@ -22,6 +30,19 @@ class Switched:
     """Yielded by Router.stream when it moves to another model (the UI shows a small note)."""
     to: Candidate
     reason: str
+
+
+@dataclass
+class Weak:
+    """Yielded when a clearly weaker model answers while changes are made on the computer (the UI shows one line)."""
+    to: Candidate
+
+
+@dataclass
+class Waiting:
+    """Yielded right before waiting for a strong model's short limit (the 'what I'm doing' line says so)."""
+    model: Candidate
+    seconds: float
 
 
 class AllFailed(ProviderError):
@@ -94,16 +115,23 @@ class Router:
     def has_cloud(self) -> bool:
         return any(not PROVIDERS[c.provider].local for c in self.candidates)
 
+    def weak(self, c: Candidate) -> bool:
+        """Clearly weaker than the best model here that can use tools (for changes on the computer)."""
+        best = max((o.score for o in self.candidates if (o.provider, o.model) not in self.no_tools), default=0)
+        return c.score < WEAK_SCORE and best - c.score >= WEAK_GAP
+
     def stream(self, messages: list[dict], need_vision: bool = False,
                tools: list[dict] | None = None, tool_choice: str = "auto",
-               prefer_cloud: bool = False) -> Iterator["str | Switched | ToolCalls"]:
+               prefer_cloud: bool = False, careful: bool = False) -> Iterator["str | Switched | ToolCalls"]:
         """Best model first; on a limit, the next one. If every model is briefly rate-limited
         (the service says "try again in a few seconds"), wait once and try again.
-        prefer_cloud: try online models before local ones (auto mode, hard question)."""
+        prefer_cloud: try online models before local ones (auto mode, hard question).
+        careful: changes on the computer: a strong model's short limit is waited out before a weak model takes
+        over (Waiting), and a weak model that answers is announced (Weak)."""
         self._short_wait = None
         self._prefer_cloud = prefer_cloud
         try:
-            yield from self._stream_once(messages, need_vision, tools, tool_choice)
+            yield from self._stream_once(messages, need_vision, tools, tool_choice, careful)
             return
         except AllFailed as e:
             wait = self._short_wait
@@ -114,10 +142,18 @@ class Router:
         for k, until in list(self._until.items()):
             if until - now <= COOLDOWN["rate"] + 1:          # forget the short rate cooldowns, keep the rest
                 del self._until[k]
-        yield from self._stream_once(messages, need_vision, tools, tool_choice)
+        yield from self._stream_once(messages, need_vision, tools, tool_choice, careful)
+
+    def _worth_waiting(self, c: Candidate, e: ProviderError, rest: list[Candidate], need_vision: bool,
+                       able: bool) -> bool:
+        """A strong model's limit ends soon and only weak models (or none) could answer instead."""
+        if e.kind != "rate" or e.retry_after is None or e.retry_after > CAREFUL_WAIT or self.weak(c):
+            return False
+        could = [o for o in rest if (o.vision or not need_vision) and not (able and (o.provider, o.model) in self.no_tools)]
+        return all(self.weak(o) for o in could)
 
     def _stream_once(self, messages: list[dict], need_vision: bool, tools: list[dict] | None,
-                     tool_choice: str) -> Iterator["str | Switched | ToolCalls"]:
+                     tool_choice: str, careful: bool = False) -> Iterator["str | Switched | ToolCalls"]:
         if need_vision and not any(c.vision for c in self.candidates):
             raise ProviderError("vision", "No model that understands photos")
         last: ProviderError | None = None
@@ -135,51 +171,61 @@ class Router:
         # a model already known to be resting (limit reached earlier) is skipped quietly, without a "switched" note
         first = self.current if self.current in order and not (able and lacks(self.current)) \
             else next((c for c in order if c.vision or not need_vision), None)
+        waited = False
         for n, c in enumerate(order):
             if need_vision and not c.vision:
                 continue
             if c is not first:
                 yield Switched(c, last.kind if last else "")
-            self.current = self._here.c = c
-            started = False
-            use_tools = tools if tools and (c.provider, c.model) not in self.no_tools else None
-            try:
-                client = self.client(c.provider)
-                attempts = [(use_tools, tool_choice)] if use_tools else [(None, "auto")]
-                if use_tools and tool_choice != "auto":
-                    attempts.append((use_tools, "auto"))          # some services refuse "required"
-                if use_tools:
-                    attempts.append((None, "auto"))               # and some models refuse tools at all
-                for i, (tl, choice) in enumerate(attempts):
-                    try:
-                        for piece in client.stream_chat(c.model, messages, tools=tl, tool_choice=choice):
-                            started = True
-                            yield piece
-                        break
-                    except ProviderError as e:
-                        if started or e.kind != "bad_request" or i == len(attempts) - 1:
-                            raise
-                        if attempts[i + 1][0] is None:
-                            self.no_tools.add((c.provider, c.model))
-                            if any(not lacks(o) and (o.vision or not need_vision) for o in order[n + 1:]):
-                                raise ProviderError("tools", "this model can't use tools") from e   # try one that can
-                if not PROVIDERS[c.provider].local:
-                    from .health import HEALTH
-                    HEALTH.good(c.provider, c.model)      # it answered: an old "hung" mark goes away
-                return
-            except ProviderError as e:
-                if started:                                 # the answer was half-way: don't mix two models
-                    raise
-                if e.kind == "tools":
-                    pass                                    # fine for plain chats: it isn't put to rest
-                elif e.kind == "bad_request" and any(m.get("role") == "tool" for m in messages):
-                    # refused in the middle of a tool round (often history another model left): not the model's fault
-                    self._cool(c, ProviderError("other", str(e), e.status))
-                else:
-                    self._cool(c, e)
-                if e.kind == "rate" and e.retry_after is not None:
-                    self._short_wait = e.retry_after if self._short_wait is None else min(self._short_wait, e.retry_after)
-                last, first = e, None
+            while True:                                     # twice only after waiting out a strong model's limit
+                self.current = self._here.c = c
+                started = False
+                use_tools = tools if tools and (c.provider, c.model) not in self.no_tools else None
+                try:
+                    client = self.client(c.provider)
+                    attempts = [(use_tools, tool_choice)] if use_tools else [(None, "auto")]
+                    if use_tools and tool_choice != "auto":
+                        attempts.append((use_tools, "auto"))          # some services refuse "required"
+                    if use_tools:
+                        attempts.append((None, "auto"))               # and some models refuse tools at all
+                    for i, (tl, choice) in enumerate(attempts):
+                        try:
+                            for piece in client.stream_chat(c.model, messages, tools=tl, tool_choice=choice):
+                                if not started and careful and self.weak(c):
+                                    yield Weak(c)                     # it really answers: say so once, before it
+                                started = True
+                                yield piece
+                            break
+                        except ProviderError as e:
+                            if started or e.kind != "bad_request" or i == len(attempts) - 1:
+                                raise
+                            if attempts[i + 1][0] is None:
+                                self.no_tools.add((c.provider, c.model))
+                                if any(not lacks(o) and (o.vision or not need_vision) for o in order[n + 1:]):
+                                    raise ProviderError("tools", "this model can't use tools") from e   # try one that can
+                    if not PROVIDERS[c.provider].local:
+                        from .health import HEALTH
+                        HEALTH.good(c.provider, c.model)      # it answered: an old "hung" mark goes away
+                    return
+                except ProviderError as e:
+                    if started:                                 # the answer was half-way: don't mix two models
+                        raise
+                    if careful and not waited and self._worth_waiting(c, e, order[n + 1:], need_vision, able):
+                        waited = True                           # once per answer; then the next model, as usual
+                        yield Waiting(c, e.retry_after)
+                        self._sleep(e.retry_after + 0.5)
+                        continue
+                    if e.kind == "tools":
+                        pass                                    # fine for plain chats: it isn't put to rest
+                    elif e.kind == "bad_request" and any(m.get("role") == "tool" for m in messages):
+                        # refused in the middle of a tool round (often history another model left): not the model's fault
+                        self._cool(c, ProviderError("other", str(e), e.status))
+                    else:
+                        self._cool(c, e)
+                    if e.kind == "rate" and e.retry_after is not None:
+                        self._short_wait = e.retry_after if self._short_wait is None else min(self._short_wait, e.retry_after)
+                    last, first = e, None
+                    break
         raise AllFailed(last.kind if last else "rate", str(last) if last else "No free model is available right now")
 
     def used(self) -> Candidate | None:

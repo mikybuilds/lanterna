@@ -225,7 +225,10 @@ PC_GUIDE = (
     "install, update and remove programs from the official catalogs (winget on Windows; Flatpak and dnf/apt on Linux): "
     "app_search, then app_install with the exact id and source of the result that is the program the user asked for. "
     "If no result is that program, say so: never install a look-alike, and never send the user to download installers "
-    "from websites. For a slow or misbehaving PC look "
+    "from websites. One card per program: while it waits or runs, don't make another. Visual Studio = app_install with "
+    "parts (cpp for C++: the compiler comes with it). A compiler or tool that 'doesn't work' (g++, python, node, java, "
+    "VS Code can't find it): call pc_dev first, it shows what is installed, where, and what breaks it. "
+    "For a slow or misbehaving PC look "
     "first — call pc_info, pc_load and pc_startup in this same turn, don't just announce it — explain in plain words, "
     "then offer the fix. Every change you call becomes a "
     "card the user confirms: call the tool, then say in one sentence what will happen after Confirm. Never claim a "
@@ -372,7 +375,8 @@ def _fit(need: frozenset | None, acting) -> set[str]:
 _MOVED_NOTE = re.compile(r"переміщено|розкладено|\bmoved\b|\bsorted\b|spostat|ordinat|verschoben|sortiert|movid|"
                          r"ordenad|déplac|rangé|przeniesion|posortowan", re.I)
 # ... and the ✅ lines of cards that installed or set something up (the same words as app.action_title)
-_SET_DONE = ("Installed {name}", "Updated {name}", "Changed: {name}", "Changed {count} settings of the look",
+_SET_DONE = ("Installed {name}", "Updated {name}", "Added {to} to {name}", "Changed: {name}",
+             "Changed {count} settings of the look",
              "Switched to the dark theme", "Switched to the light theme", "Power plan: {name}",
              "{name} starts with the computer", "{name} no longer starts with the computer", "Used {name}",
              "Lanterna acts on its own here for {count} min")
@@ -491,6 +495,19 @@ _ACTION = re.compile(r"нагадай|нагадування|напомни|remi
 
 def must_use_tool(text: str) -> bool:
     return bool(_ACTION.search(text or ""))
+
+
+def acting_pc(name: str) -> bool:
+    """A tool that changes something on the computer (it makes a card); opening a program or a page doesn't count."""
+    return name.startswith(("pc_", "app_")) and name not in READ_ONLY_TOOLS and not name.startswith("pc_open")
+
+
+def careful_turn(names: list[str], text: str, cards_waiting: bool, history: list[dict]) -> bool:
+    """Changes on the computer are being made: asked for now, a card waits, or cards were just done. Then the router
+    keeps to strong models (a weaker one made two cards for one program) and says when a weaker one answers."""
+    if not any(acting_pc(n) for n in names):
+        return False
+    return must_use_tool(text) or cards_waiting or any(m.get("note") for m in history[-6:])
 
 
 # Characters of one tool result per provider. Groq's free plan counts 6-8K tokens a minute for the whole request,
@@ -703,6 +720,7 @@ class _Work:
     done: list[tuple[str, str]] = field(default_factory=list)   # tool calls already run in this answer
     asked: list[dict] = field(default_factory=list)             # questions for the user (ask_user)
     redo: bool = False                       # answering again after Lanterna's check (REDO_NOTE)
+    careful: bool = False                    # changes on the computer: strong models (careful_turn)
 
 
 @dataclass
@@ -808,6 +826,8 @@ class Conversation:
                                     "name the sources, and say so if they don't answer it:]\n" + found)
         # 4 tool rounds, or 12 while it works through a plan or makes project files (the user's choice)
         w = _Work(msgs, schemas, PLAN_ROUNDS if self.plan_text else MAX_TOOL_ROUNDS, text, images, cloud_first)
+        w.careful = careful_turn([s["function"]["name"] for s in schemas or []], text, self.cards_waiting,
+                                 self.history)
         yield from self._rounds(w)
         yield from self._fill_empty(w)
         reply = self._reply(w)
@@ -847,7 +867,7 @@ class Conversation:
             choice = ("none" if last else "required" if tools and w.rnd == 0 and not w.redo and must_use_tool(w.text)
                       else "auto")
             for p in self.router.stream(w.msgs, need_vision=bool(w.images), tools=tools, tool_choice=choice,
-                                        prefer_cloud=w.cloud_first):
+                                        prefer_cloud=w.cloud_first, careful=w.careful):
                 if isinstance(p, ToolCalls):
                     calls = p
                 elif isinstance(p, str):
@@ -872,6 +892,7 @@ class Conversation:
                 return
             cur = used_model(self.router)
             limit = result_limit(cur.provider if cur else None)
+            w.careful = w.careful or any(acting_pc(c.name) for c in calls.calls)
             for c in calls.calls:
                 # a check or a read after the files changed is a new call, even with the same words
                 seen = w.done[w.changed:] if c.name in AGAIN_AFTER_CHANGE else w.done
@@ -909,7 +930,8 @@ class Conversation:
         w.msgs.append({"role": "user", "content": EMPTY_NUDGE})
         tail: list[str] = []
         for p in self.router.stream(w.msgs, need_vision=bool(w.images), tools=w.schemas,
-                                    tool_choice="none" if w.schemas else "auto", prefer_cloud=w.cloud_first):
+                                    tool_choice="none" if w.schemas else "auto", prefer_cloud=w.cloud_first,
+                                    careful=w.careful):
             if isinstance(p, str):
                 tail.append(p)
                 yield p

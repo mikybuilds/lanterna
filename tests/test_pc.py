@@ -194,7 +194,8 @@ def test_winget_search_details_and_install_card():
     assert c["details"]["command"].startswith("winget install --id 7zip.7zip --exact")
     assert not any(x[:2] == ["winget", "install"] for x in run.calls)         # nothing ran before Confirm
     assert acts.confirm(c["id"]).state == "done"
-    assert run.calls[-1][:5] == ["winget", "install", "--id", "7zip.7zip", "--exact"]
+    assert run.calls[-2][:5] == ["winget", "install", "--id", "7zip.7zip", "--exact"]
+    assert run.calls[-1][:4] == ["winget", "list", "--id", "7zip.7zip"]       # then it looks that it is there
     with pytest.raises(WorkError):
         a.propose("install", "nope.Missing")
     for bad in ("--force", "a b", "x;rm -rf", ""):

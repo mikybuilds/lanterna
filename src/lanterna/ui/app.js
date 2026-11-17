@@ -1869,7 +1869,7 @@ async function send(retryText) {
     else { bot.remove(); if (second) paintLastActions(); }
     return;
   }
-  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false, suggesting = false, learning = false;
+  let text_ = "", offset = 0, notes = 0, tools = 0, cards = 0, titling = false, suggesting = false, learning = false, weak = "";
   const sentTo = thread;
   const chips = h(`<div class="tools"></div>`);
   bot.querySelector(".body").prepend(chips);
@@ -1897,6 +1897,7 @@ async function send(retryText) {
     const sc = $("#scroll"), stick = !!sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 160;
     (p.notes || []).slice(notes).forEach((m, i) => {   // one line, updated: not a ladder of "switched to" notes
       let sw = bot.previousElementSibling;
+      if (sw && sw.classList.contains("weak-model")) sw = sw.previousElementSibling;   // the line under it stays
       if (!sw || !sw.classList.contains("switch")) { sw = h(`<div class="switch"></div>`); if (bot.isConnected) bot.before(sw); }
       if (live && live.el === bot) live.sw = sw;
       const tried = notes + i + 2;                        // the first model plus every switch so far
@@ -1904,6 +1905,10 @@ async function send(retryText) {
       setModel(m);
     });
     notes = (p.notes || []).length;
+    if (p.weak && p.weak !== weak && bot.isConnected) {  // a weaker model makes changes on the computer: once per chat
+      weak = p.weak;
+      bot.before(h(`<div class="weak-model">⚠️ ${esc(t("{m} is a weaker model: it makes more mistakes with changes on the computer. Check each card before you confirm it.", { m: weak }))}</div>`));
+    }
     (p.tools || []).slice(tools).forEach(s => chips.insertAdjacentHTML("beforeend", toolChip(s)));
     tools = (p.tools || []).length;
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
@@ -3284,7 +3289,8 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub",
   pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
   pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", auto_on: "Let Lanterna act on its own in this chat for {count} min", pc_trash: "Move {count} items to the Recycle Bin",
-  app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}",
+  app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}", app_add: "Add {to} to {name}",
+  model_remove: "Remove the model {name} from Ollama", space_on: "Turn on Help free up disk space",
   sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
   mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
@@ -3295,13 +3301,14 @@ function actKey(c) {
   if (c.kind === "sys_look") return (d.count || 1) === 1 ? "Change: {name}" : "Change {count} settings of the look";
   return ACT_KEYS[c.kind] || "Change";
 }
-const cardIcon = k => k === "auto_on" ? "🤖" : k === "sys_look" ? "🎨" : k === "mcp_call" ? "🧩" : k.startsWith("mail_") ? "📬" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
+const cardIcon = k => k === "auto_on" ? "🤖" : k === "sys_look" ? "🎨" : k === "model_remove" ? "🗑" : k === "space_on" ? "📊" : k === "mcp_call" ? "🧩" : k.startsWith("mail_") ? "📬" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
   k.startsWith("pc_") ? "🗂" : k.startsWith("app_") ? "📦" : k.startsWith("sys_") ? "⚙️" : "📁";
 
 function actCard(c) {
   const d = c.details || {};
   let to = d.to || "";
   if (c.kind === "pc_move" && d.to_place) to = placeName(d.to_place) + (to && to !== "." ? "/" + to : "");
+  if (c.kind === "app_add") to = (d.parts || []).map(p => t(p)).join(", ");
   const title = t(actKey(c), { path: d.path || "", to, name: t(d.name || ""), repo: d.repo || "", count: c.kind === "auto_on" ? d.minutes : d.count || 0, place: placeName(d.place) });
   const meta = [];
   const gh = c.kind.startsWith("github_");
@@ -3343,6 +3350,8 @@ function actCard(c) {
     if (d.version) meta.push(t("Version {v}", { v: d.version }));
     meta.push(t("from {s}", { s: d.source || "" }));
     extra = `${d.description ? `<p class="cc-desc">${esc(d.description)}</p>` : ""}
+      ${(d.parts || []).length ? `<div class="cc-meta">${esc(t("Parts: {p}", { p: d.parts.map(p => t(p)).join(", ") }))}</div>` : ""}
+      ${(d.notes || []).map(n => `<div class="cc-meta">${esc(t(n))}</div>`).join("")}
       <div class="cc-lbl">${t("Command")}</div><pre class="cc-prev">${esc(d.command || "")}</pre>
       ${d.admin ? `<div class="cc-meta">${esc(t(d.source === "winget" ? "Windows may ask for administrator rights." : "The system will ask for your password."))}</div>` : ""}`;
   } else if (c.kind === "sys_startup") {
@@ -3355,6 +3364,10 @@ function actCard(c) {
       <div class="cc-meta">${esc(t("The old values are kept: Undo puts them back."))}</div>`;
   } else if (c.kind === "auto_on") {
     extra = `${d.plan ? `<p class="cc-desc">${esc(d.plan)}</p>` : ""}<div class="cc-meta">${esc(t("Without asking: files and folders (deleting only to the Recycle Bin), the look and settings, installing programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. Every change is in What Lanterna did, with Undo. You can stop it any time."))}</div>`;
+  } else if (c.kind === "model_remove") {
+    extra = `<div class="cc-meta">${esc(t("Frees {s}. It can be downloaded again later in Settings → Local models.", { s: d.size || "" }))}</div>`;
+  } else if (c.kind === "space_on") {
+    extra = `<div class="cc-meta">${esc(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm."))}</div>`;
   } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
     if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
   } else if (c.kind.startsWith("drive_")) {

@@ -22,7 +22,7 @@ from .config import Settings
 from .discovery import get_models
 from .i18n import LANGS, catalog, t
 from .providers import PROVIDERS, Client, ProviderError, Thought, cloudflare_key
-from .router import Router, Switched, used_model
+from .router import Router, Switched, Waiting, Weak, used_model
 from .notify import notify
 from .store import Store
 from .sync import PREFS as SYNC_PREFS
@@ -78,6 +78,7 @@ class _Stream:
         self.stop = threading.Event()      # the user pressed Stop: the answer ends where it is
         self.stopped = False
         self.redo = False                  # the words so far were withdrawn: the next poll sends the whole text again
+        self.weak = ""                     # a weaker model makes changes on the computer: its name, said once
         self.lock = threading.Lock()
 
 
@@ -93,12 +94,13 @@ class Api:
         self.store = store or Store()
         from . import gdrive, github
         self.actions = Actions()
+        self._weak_told: set[tuple[int, str]] = set()   # (chat, model): the weak-model line was shown
         self.workspace = Workspace(lambda: self._folder_for(self.actions.tid()), self.actions)
         self.drive = gdrive.Connector()
         self.github = github.Connector()
         from . import apps, pcfiles, pcsys
         self.places = pcfiles.Places(self.actions, lang=lambda: self.settings.lang)
-        self.apps = apps.Apps(self.actions)
+        self.apps = apps.Apps(self.actions, lang=lambda: self.settings.lang)
         self.system = pcsys.System(self.actions)
         from . import pccontrol
         self.look = pccontrol.Look(self.actions, self.places)
@@ -281,13 +283,16 @@ class Api:
         if not self.settings.pc_access:
             return []
         from .apps import app_tools
+        from .devtools import dev_tools
         from .pcfiles import place_tools, space_tools
         from .pccontrol import control_tools
         from .pcsys import system_tools
         out = []
         for group, make in (("pc", lambda: place_tools(self.places)), ("pc", lambda: space_tools(self.places) if self.settings.space_help else []),
                             ("apps", lambda: app_tools(self.apps)),
+                            ("apps dev", lambda: dev_tools(self.apps.vs_instances)),
                             ("sys", lambda: system_tools(self.system)),
+                            ("pc", lambda: self._disk_tools()),
                             ("sys", lambda: control_tools(self.look, self.launcher, self.places)),
                             ("sys", lambda: self._auto_tools())):
             try:
@@ -340,6 +345,70 @@ class Api:
             return {"ok": True}
         except (WorkError, OSError) as e:
             return {"ok": False, "error": str(e)}
+
+    # ---------------------------------------------------------------- what takes up the disk
+    def _disk_tools(self) -> list:
+        """What takes up the disk (only looks), and the cards next to it: remove an Ollama model, turn on Help
+        free up disk space."""
+        from . import diskuse
+        from .tools import Tool, _obj
+        out = [Tool("pc_disk", "What takes up the disk, wider than the user's folders: the biggest folders of the "
+                    "profile (AppData, caches), the biggest installed programs, Ollama models, the system's own files "
+                    "(Windows.old, the hibernation file, update downloads), the Recycle Bin and temporary files, with "
+                    "what each one is and how it is freed. Only looks. Call it when the disk (C:) is full or the user "
+                    "asks what takes up the space.",
+                    _obj({"part": {"type": "string", "enum": list(diskuse.PARTS),
+                                   "description": "one part, or leave empty for all (counting can take half a minute)"}}),
+                    lambda part="": diskuse.report(part, space_help=self.settings.space_help), "📊"),
+               Tool("pc_model_remove", "Remove a downloaded Ollama model to free disk space (names and sizes: "
+                    "pc_disk). The user confirms it on a card; it can be downloaded again later.",
+                    _obj({"name": {"type": "string", "description": "the model's name as pc_disk shows it"}}, ["name"]),
+                    lambda name: self._model_remove(name), "🗑")]
+        if not self.settings.space_help:
+            out.append(Tool("pc_space_on", "Offer to turn on Help free up disk space (a card): with it, Lanterna can "
+                            "look through the user's own folders for big and old files and old installers (pc_space) "
+                            "and warns when the disk is almost full. Only when the user wants help freeing up space.",
+                            _obj({}), lambda: self._space_on(), "📊"))
+        return out
+
+    def _model_remove(self, name: str) -> str:
+        from .workspace import WAITING, WorkError
+        name = str(name or "").strip()
+        have = {m.name: m for m in local.installed()}
+        if not have:
+            raise WorkError("Ollama isn't running, or it has no models.")
+        m = have.get(name) or have.get(f"{name}:latest")
+        if not m:
+            raise WorkError(f"Ollama has no model called {name}. It has: {', '.join(have)}.")
+        for a in list(self.actions.items.values()):
+            a = self.actions.get(a.id) or a
+            if a.kind == "model_remove" and a.state in ("pending", "running") and a.details.get("name") == m.name:
+                raise WorkError(f"A card to remove {m.name} already waits for the user's Confirm: don't make another.")
+
+        def go() -> str:
+            err = local.remove(m.name)
+            if err:
+                raise WorkError(f"Ollama didn't remove it: {err}")
+            for role, pick in list(self.settings.local_models.items()):
+                if pick == m.name:                         # it was the chosen local model: back to the default
+                    self.settings.local_models.pop(role, None)
+            self.settings.save()
+            self._router = None
+            return f"Removed {m.name}: {m.size_gb:.1f} GB freed"
+        self.actions.propose("model_remove", {"name": m.name, "size": f"{m.size_gb:.1f} GB"}, go)
+        return WAITING
+
+    def _space_on(self) -> str:
+        from .workspace import WAITING
+        if self.settings.space_help:
+            return "Help free up disk space is already on: use pc_space."
+
+        def go() -> str:
+            self.settings.space_help = True
+            self.settings.save()
+            return "on"
+        self.actions.propose("space_on", {}, go)
+        return WAITING + " After Confirm, pc_space can look through the user's folders."
 
     # ---------------------------------------------------------------- acting on its own (in one chat, for a while)
     def _auto_tools(self) -> list:
@@ -1553,6 +1622,13 @@ class Api:
                 with st.lock:
                     if isinstance(p, Switched):
                         st.notes.append(p.to.label)
+                    elif isinstance(p, Weak):               # once per chat and model: not on every answer
+                        if (tid, p.to.label) not in self._weak_told:
+                            self._weak_told.add((tid, p.to.label))
+                            st.weak = p.to.label
+                    elif isinstance(p, Waiting):
+                        st.steps.note(t("Waiting {n} s for {m}: its free limit for this minute is used up",
+                                        self.settings.lang, n=round(p.seconds), m=p.model.label))
                     elif isinstance(p, ToolUse):
                         st.used.append((p.name, p.arguments))
                         if p.name == "plan" and '"steps"' not in (p.arguments or ""):
@@ -1637,7 +1713,7 @@ class Api:
         with st.lock:
             if st.final:
                 from . import sent, sources
-                out = {"final": st.pieces[0], "notes": st.notes, "tools": st.tools, "cards": list(st.cards),
+                out = {"final": st.pieces[0], "notes": st.notes, "weak": st.weak, "tools": st.tools, "cards": list(st.cards),
                        "sent": sent.view(st.sent, self.settings.lang), "sources": sources.view(st.sources), "titling": st.titling, "suggesting": st.suggesting, "learning": st.learning, "questions": st.questions,
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
@@ -1645,7 +1721,7 @@ class Api:
             else:
                 text = "".join(st.pieces)
                 redo, st.redo = st.redo, False              # the answer starts again: the UI replaces its text
-                out = {"text": text if redo else text[offset:], "offset": len(text), "notes": st.notes,
+                out = {"text": text if redo else text[offset:], "offset": len(text), "notes": st.notes, "weak": st.weak,
                        "tools": st.tools, "cards": list(st.cards), **st.steps.view(),
                        "done": st.done, "error": st.error, **({"replace": True} if redo else {})}
             if st.plan is not None:                         # the task plan changed in this answer
@@ -2125,7 +2201,9 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "auto_on": ("Let Lanterna act on its own in this chat for {count} min", "Lanterna acts on its own here for {count} min"),
             "pc_trash": ("Move {count} items to the Recycle Bin", "Moved {count} items to the Recycle Bin"),
             "app_install": ("Install {name}", "Installed {name}"), "app_upgrade": ("Update {name}", "Updated {name}"),
-            "app_uninstall": ("Remove {name}", "Removed {name}"),
+            "app_uninstall": ("Remove {name}", "Removed {name}"), "app_add": ("Add {to} to {name}", "Added {to} to {name}"),
+            "model_remove": ("Remove the model {name} from Ollama", "Removed the model {name} from Ollama"),
+            "space_on": ("Turn on Help free up disk space", "Help free up disk space is on"),
             "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
             "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
             "mcp_call": ("Use {name}", "Used {name}"),
@@ -2142,8 +2220,12 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
     to = d.get("to", "")
     if kind == "pc_move" and d.get("to_place"):
         to = t(str(d["to_place"]).title(), lang) + ("" if to in ("", ".") else "/" + to)
+    elif kind == "app_add":
+        to = ", ".join(t(p, lang) for p in d.get("parts", []))
     out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang, place=place,
             **{k: str(to if k == "to" else d.get(k, "")) for k in ("path", "to", "name", "repo", "count")})
+    if done and kind.startswith("app_") and d.get("checked"):
+        out += " · " + t(d["checked"], lang)                # what the look afterwards found (apps.CHECKED…)
     saved = " (the old version is saved in "
     if kind in ("write_replace", "write_append") and saved in (result or ""):
         out += " (" + t("the old version is saved in {path}", lang, path=result.rsplit(saved, 1)[1].rstrip(")")) + ")"
@@ -2153,6 +2235,8 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
 AUTO_TEXT = ("Without asking: files and folders (deleting only to the Recycle Bin), the look and settings, installing "
              "programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. "
              "Every change is in What Lanterna did, with Undo. You can stop it any time.")
+SPACE_TEXT = ("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you "
+              "when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.")
 
 
 def card_text(kind: str, d: dict, lang: str) -> str:
@@ -2183,6 +2267,9 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         lines.append(" · ".join(b for b in bits if b))
         if d.get("description"):
             lines.append(d["description"][:200])
+        if d.get("parts"):
+            lines.append(t("Parts: {p}", lang, p=", ".join(t(p, lang) for p in d["parts"])))
+        lines += [t(n, lang) for n in d.get("notes", [])]
         lines.append(f"$ {d.get('command', '')}")
         if d.get("admin"):
             lines.append(t("Windows may ask for administrator rights." if d.get("source") == "winget"
@@ -2200,6 +2287,11 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         if d.get("plan"):
             lines.append(d["plan"])
         lines.append(t(AUTO_TEXT, lang))
+    elif kind == "model_remove":
+        lines.append(t("Frees {s}. It can be downloaded again later in Settings → Local models.", lang,
+                       s=d.get("size", "")))
+    elif kind == "space_on":
+        lines.append(t(SPACE_TEXT, lang))
     elif kind == "mcp_call":
         lines.append(t("MCP server: {s}", lang, s=d.get("server", "")) + " · " +
                      t("a web address" if d.get("kind") == "http" else "a program on this computer", lang))

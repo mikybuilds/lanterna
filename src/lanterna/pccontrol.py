@@ -434,7 +434,8 @@ def _set_wallpaper_windows(path: str) -> bool:
 # ---------------------------------------------------------------- opening things
 WIN_BUILTIN = {"calculator": "calc.exe", "notepad": "notepad.exe", "paint": "mspaint.exe", "file explorer": "explorer.exe",
                "explorer": "explorer.exe", "task manager": "taskmgr.exe", "terminal": "wt.exe", "command prompt": "cmd.exe",
-               "settings": "ms-settings:", "control panel": "control.exe", "snipping tool": "snippingtool.exe"}
+               "settings": "ms-settings:", "control panel": "control.exe", "snipping tool": "snippingtool.exe",
+               "disk cleanup": "cleanmgr.exe"}
 
 
 class Launcher:

@@ -30,6 +30,7 @@ from .app import Api, action_title, card_text
 from .cli import FIRST_CHOICES
 from .i18n import LANGS, t
 from .providers import CF_NEED_ACCOUNT, PROVIDERS
+from .router import WEAK_TEXT
 from .wake import NOTES as WAKES
 
 
@@ -3068,6 +3069,7 @@ class _ChatScreen(Screen):
         """Shows "Thinking…" and follows the answer's stream."""
         log = self.query_one("#log", VerticalScroll)
         self._stream, self._offset, self._text, self._notes_seen, self._tools_seen = sid, 0, "", 0, 0
+        self._weak_seen = ""
         self._cards_seen, self._live, self._dirty, self._drawn_at = 0, "", False, 0.0
         self._bot = Markdown("_" + t("Thinking…", L(self.app)) + "_", classes="msg-bot")
         log.mount(self._bot)
@@ -3093,6 +3095,10 @@ class _ChatScreen(Screen):
                 self._switch_note = Static(text, classes="msg-note", markup=False)
                 await log.mount(self._switch_note, before=self._bot)
         self._notes_seen = len(r.get("notes", []))
+        if r.get("weak") and r["weak"] != getattr(self, "_weak_seen", ""):   # a weaker model makes changes on the PC
+            self._weak_seen = r["weak"]
+            await log.mount(Static("⚠️ " + t(WEAK_TEXT, lang, m=r["weak"]), classes="msg-note", markup=False),
+                            before=self._bot)
         for chip in r.get("tools", [])[self._tools_seen:]:
             await log.mount(Static(tool_text(chip, lang), classes="msg-tool", markup=False), before=self._bot)
         self._tools_seen = len(r.get("tools", []))

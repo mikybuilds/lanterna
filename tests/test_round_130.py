@@ -145,7 +145,8 @@ def test_a_flatpak_installs_from_the_remote_and_installation_that_have_it():
     assert d["admin"] and d["publisher"] == "Fedora Flatpaks" and "password" in said
     assert ["flatpak", "remote-info", "--system", "flathub", "org.videolan.vlc"] in run.calls    # Flathub was tried first
     done = acts.confirm(cards[-1]["id"])
-    assert done.state == "done" and run.calls[-1][:3] == ["flatpak", "install", "--system"]
+    assert done.state == "done" and run.calls[-2][:3] == ["flatpak", "install", "--system"]
+    assert run.calls[-1][:3] == ["flatpak", "list", "--app"]                   # then it looks that it is there
     assert done.undo == {"type": "app", "op": "uninstall", "id": "org.videolan.vlc", "source": "flatpak"}
     a.propose("install", "org.videolan.VLC")                  # Flathub's own VLC comes from Flathub
     assert cards[-1]["details"]["command"].endswith(" flathub org.videolan.VLC")
@@ -154,7 +155,7 @@ def test_a_flatpak_installs_from_the_remote_and_installation_that_have_it():
     assert cards[-1]["details"]["command"] == "flatpak uninstall --system -y --noninteractive com.spotify.Client"
     with pytest.raises(WorkError, match="not installed with Flatpak"):
         a.propose("uninstall", "org.gnome.Nope")
-    again = linux(Fedora(flatpaks="org.videolan.VLC\tsystem\n"), acts)
+    again = linux(Fedora(flatpaks="org.videolan.VLC\tsystem\n"), Actions())   # (a card for VLC waits in acts)
     for pid in ("org.videolan.VLC", "org.videolan.vlc"):     # Flathub's VLC is there, so not Fedora's as well
         with pytest.raises(WorkError, match="already installed"):       # its removal would land in Undo
             again.propose("install", pid)

@@ -39,7 +39,7 @@ class Tool:
 
     def schema(self) -> dict:
         params = self.parameters
-        if self.group in INTENT_GROUPS or self.name in INTENT_TOOLS:   # the user sees why it searches or looks at their PC
+        if set(self.group.split()) & INTENT_GROUPS or self.name in INTENT_TOOLS:   # the user sees why it looks at their PC
             params = {**params, "properties": {**params.get("properties", {}), "intent": INTENT}}
         return {"type": "function", "function": {"name": self.name, "description": self.description,
                                                  "parameters": params}}
@@ -412,6 +412,13 @@ GROUPS = {
                       r"pointer|іконк|icon|гучн|volume|нічн|night|не турбу|do not disturb|кастом|custom|вигляд|оформл|look|"
                       r"годинник|clock|\bсам[аеоі]?\b|автоном|on (your|its) own|by yourself|yourself|da solo|selbst|"
                       r"tu mismo|toi-même|sam\b", re.I),
+    # programming tools (devtools.pc_dev): a compiler or runtime that isn't found or doesn't work
+    "dev": re.compile(r"компіл|compil|g\+\+|\bgcc\b|mingw|winlibs|clang|\bc\+\+|\bс\+\+|\bcpp\b|python|пітон|пайтон|"
+                      r"\bnode(js)?\b|\bnpm\b|\bjava\b|javac|\bjdk\b|джав|dotnet|\.net\b|visual studio|vs ?code|"
+                      r"\bpath\b|змінн\w* (оточен|середовищ)|environment variable|cmake|\bgdb\b|\bmsvc\b|"
+                      r"illegal byte|cannot find -l|ld returned|collect2|not recognized|command not found|"
+                      r"не (є|розпізна)\w* (внутрішн|як)|програмуван|programming|programmier|programación|"
+                      r"programmation|programowan|программирован", re.I),
     # a task plan of this chat that isn't finished (chat.Conversation._context): the plan tool stays on
     "plan": re.compile(r"\(task plan\)"),
     # making things: games, little programs, game mods, websites (projects.py) and the task list (plans.py)
@@ -439,7 +446,7 @@ READ_ONLY_TOOLS = frozenset((*LOOKUP_TOOLS, "list_reminders", "list_tasks", "sea
                              "folder_list", "folder_search", "folder_read", "drive_list", "github_repos", "github_list",
                              "github_read", "mail_folders", "mail_list", "mail_read", "pc_info", "pc_load", "pc_startup",
                              "pc_power", "pc_look", "pc_space", "pc_folders", "pc_overview", "pc_list", "pc_find",
-                             "pc_read", "pc_duplicates", "app_search", "app_info", "app_installed", "app_updates",
+                             "pc_read", "pc_duplicates", "pc_dev", "pc_disk", "app_search", "app_info", "app_installed", "app_updates",
                              "plan", "project_list", "project_read", "project_check"))
 
 

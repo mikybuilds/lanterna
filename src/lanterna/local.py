@@ -185,6 +185,17 @@ class Downloads:
             job.status, job.error = "error", f"Ollama is not reachable: {e}"
 
 
+def remove(name: str) -> str:
+    """Deletes a downloaded model from Ollama (only after the user confirmed a card). "" = gone, else what went
+    wrong."""
+    try:
+        with _client(60.0) as c:                    # "name" for older Ollama versions
+            r = c.request("DELETE", "api/delete", json={"model": name, "name": name})
+    except httpx.HTTPError as e:
+        return f"Ollama is not reachable: {e}"
+    return "" if r.status_code == 200 else _ollama_error(r)
+
+
 def _ollama_error(r: httpx.Response) -> str:
     try:
         return str(r.json().get("error") or f"HTTP {r.status_code}")
