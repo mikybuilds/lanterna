@@ -33,7 +33,7 @@ flowchart TB
     end
 
     subgraph NET["Online, only what the user turned on"]
-        CLOUD["Groq, Gemini, OpenRouter,<br/>Mistral, NVIDIA, Z.ai, Cohere"]
+        CLOUD["Groq, Gemini, OpenRouter, Mistral,<br/>NVIDIA, Z.ai, Cohere, Cloudflare"]
         WEB["Weather, web search,<br/>pages the model reads"]
         DRIVE["Google Drive<br/>encrypted sync file"]
     end
@@ -74,15 +74,20 @@ flowchart TB
    and the next model answers. The interface shows a small "switched to …" note. A model that started answering is
    never swapped halfway, so one reply never mixes two models.
 5. **Tool rounds.** If the model asks for tools, `Toolbox.run()` runs them and the results go back to the model.
-   An answer gets at most 4 rounds; the last round forbids tool calls, so the model has to reply. The same search
-   asked twice is not run again: models do this and it burns the free limits.
+   An answer gets 4 rounds, or 12 while it works through a task plan (`plans.py`) or writes a project; the last
+   round forbids tool calls, so the model has to reply. The same search asked twice is not run again: models do
+   this and it burns the free limits. In a turn that changes the computer, the router waits once (up to 30
+   seconds) for a strong model's short limit instead of handing the job to a clearly weaker one.
 6. **Changes are only proposed.** A tool that would change something on the computer (write a file, move a
    folder, install a program, send a mail) does not do it. It calls `Actions.propose()`, which puts a card in the
    chat with exactly what will happen. Nothing changes until the user presses Confirm (`Actions.confirm()`). The
-   tool tells the model "prepared, not done yet", so the model doesn't say "done".
-7. **The reply is checked before it is saved.** If the model says it installed or changed something but no tool
-   did it, `false_claim()` adds a visible warning under the reply. Free models do this often, and the user should
-   not believe a change that never happened.
+   tool tells the model "prepared, not done yet", so the model doesn't say "done". The one exception is
+   Lanterna's own projects folder (`projects.py`, below).
+7. **The reply is checked before it is saved.** If the model says it moved, installed or changed something but no
+   tool did it (or the call for it failed), `claim_phrase()` catches it. Lanterna withdraws those words and asks the
+   model once more, with the error if there was one, so it can really do it or say it can't. If the new reply still
+   claims it, `false_claim()` puts a visible warning under it. Free models do this often, and the user should not
+   believe a change that never happened.
 8. **Saving.** The cleaned reply goes into the chat history and into SQLite (`store.py`). With sync on, the
    database is merged into one encrypted file in the user's Google Drive (`sync.py`).
 
@@ -92,10 +97,12 @@ flowchart TB
 |---|---|---|
 | Interfaces | `gui.py`, `ui/`, `tui.py`, `cli.py` | Window (pywebview, Edge WebView2 on Windows), terminal app (Textual), line chat and commands |
 | Backend | `app.py` | `Api`: every action of every interface; returns plain JSON-friendly data and never raises into the UI |
-| Conversation | `chat.py`, `soul.py`, `roles.py`, `thinking.py` | Prompt, history, tool rounds, the honesty check, the personality |
-| Models | `router.py`, `providers.py`, `discovery.py`, `health.py`, `limits.py`, `local.py` | Which model answers, the HTTP client, free-model search, models that hang, how much of each free limit is left, Ollama |
+| Conversation | `chat.py`, `soul.py`, `roles.py`, `thinking.py`, `plans.py` | Prompt, history, tool rounds, the honesty check, the personality, the task list of a big job |
+| Models | `router.py`, `providers.py`, `discovery.py`, `health.py`, `limits.py`, `neurons.py`, `local.py` | Which model answers, the HTTP client, free-model search, models that hang, how much of each free limit is left (Cloudflare's daily neurons counted here), Ollama |
 | Tools | `tools.py`, `convert.py`, `scam.py`, `sources.py` | Weather, search, reading pages, exact maths and dates, currency, scam signs |
 | Changes on the computer | `workspace.py`, `pcfiles.py`, `pcsys.py`, `pccontrol.py`, `apps.py`, `history.py` | Proposed changes, the user's folders, safe settings, programs through winget / Flatpak / dnf / apt, Undo |
+| Looking at the computer | `diskmap.py`, `diskuse.py`, `devtools.py`, `hardware.py` | What fills the whole disk (one walk on several threads), compilers and runtimes on PATH, what the PC can run locally |
+| Things Lanterna makes | `projects.py`, `docmake.py` | Games, little programs and mods in its own folder; real .docx / .odt / .csv files |
 | Connectors | `mcp.py`, `oauth.py`, `github.py`, `gdrive.py`, `mail.py` | MCP servers, sign-in pages, pushes to GitHub, files in Drive, IMAP / SMTP |
 | Data | `store.py`, `config.py`, `keys.py`, `sync.py`, `backup.py`, `export.py` | SQLite, settings, the vault, encrypted sync and backups |
 | Privacy helpers | `sensitive.py`, `sent.py` | Warns before a card number or password goes to an online model; shows what each reply sent |
@@ -116,6 +123,11 @@ flowchart TB
 - **Fixed lists instead of free commands.** The model never gets a shell. Settings it can change come from a fixed
   list, programs come only from the official catalogs, files only inside the user's standard folders or the folder
   the user picked, and files Windows would run (`.exe`, `.bat`, `.ps1`…) are never written.
+- **Its own folder for what it makes.** Games, little programs and mods are written straight into
+  `Documents/Lanterna projects/<project>`, without a card for every file: a game can have dozens of files, and
+  that folder belongs to Lanterna. Nothing outside it is touched, files that could run on a double click (on
+  Windows, Linux or macOS) are not written at all, and Lanterna only checks the files it wrote; it never runs them.
+  Starting the program is the user's choice.
 - **Web pages are data.** Text from pages, files, mail and MCP servers can contain instructions aimed at the model.
   The system prompt says to treat it as information only. Reading a page also refuses addresses on this computer or
   the local network (`_public_host` in `tools.py`), so a page can't make Lanterna probe the user's router.

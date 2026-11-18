@@ -54,6 +54,10 @@ The model never gets a shell or free access to the computer. It only calls tools
 - **Every change is a card.** Writing or moving files, installing or removing programs, changing a setting,
   sending mail, pushing to GitHub, uploading to Drive, calling an MCP tool: the user sees exactly what will happen
   and presses Confirm. Nothing changes before that. Most changes can be undone from "What Lanterna did".
+- **One folder without cards:** `Documents/Lanterna projects`, where Lanterna writes the games, little programs
+  and mods you ask for. It writes only inside that folder, never writes files that run on a double click
+  (`.exe`, `.bat`, `.sh`, `.desktop`, `.appimage`…), and never runs what it wrote: it only reads the files back to
+  check them. Starting a program it made is up to you.
 - **Acting without cards** can be turned on for one chat, for up to 2 hours. It covers only changes that stay on
   this computer and can be undone, plus installing from the official catalog. Mail, GitHub, Google Drive, removing
   programs and outside tools still ask every time.
