@@ -242,6 +242,8 @@ Downloads start only when you press **Download (X GB)**, with progress shown. In
 
 ## Privacy
 
+How keys are stored, what leaves your computer and how to report a security problem: [SECURITY.md](SECURITY.md).
+
 - **No telemetry, no account with Lanterna.** Chats, memory and reminders are stored in a local database in your user folder. If you sign in with Google, an encrypted copy is kept in your own Google Drive (see above). The Google Drive connector, if you connect it, can only touch files Lanterna created there. The GitHub connector, if you connect it, can only write files in the repositories you chose, and only after you confirm. Help with this computer (Settings → Computer) sees only your standard folders, and every change waits for Confirm. [Privacy policy](https://mikybuilds.github.io/lanterna/privacy.html).
 - **Cloud mode:** your messages go only to the service you chose (Groq, Gemini…), under its own terms. On their free plans Gemini and Mistral may use what you send to improve their models. **Local mode:** nothing leaves your computer.
 - Your memory list is sent to the model together with your messages, so it can use it. You can see and delete it in Settings.
@@ -274,6 +276,8 @@ Open **About → Report a bug** (or **Settings → Found a bug?**, or `lanterna 
 Free limits are set by each provider and may change. macOS is not tested yet.
 
 ## Development
+
+How the code is put together, with a diagram and the path of one message: [ARCHITECTURE.md](ARCHITECTURE.md). The tests and checks run on every push to `main`: [latest results](../../actions/workflows/ci.yml).
 
 ```bash
 python -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
