@@ -747,10 +747,59 @@ class Disk:
     free: int
 
 
+def almost_full(disk: Disk) -> bool:
+    return disk.free < disk.total * 0.1 or disk.free < 10 * GB
+
+
+def uncounted(disk: Disk | None, counted: int, whole: bool) -> int:
+    """Bytes the disk says are used that a whole walk couldn't count (restore points, closed folders), when that is
+    a lot; else 0."""
+    if not disk or not whole:
+        return 0
+    gap = disk.used - counted
+    return gap if gap >= max(2 * GB, disk.used * 0.03) else 0
+
+
+# ---------------------------------------------------------------- the window's figure of the disk
+FIGURE_PARTS = 5                             # the biggest this many get a row of their own, the rest one together
+_figures: dict[int, dict] = {}               # the last figure per thread: pc_disk runs in the answer's own thread
+
+
+def figure(root: str, disk: Disk | None, tops: list[tuple[int, str]], loose: int, counted: int,
+           whole: bool) -> dict:
+    """What the window draws above the reply after a walk of the whole disk (and keeps with it on this computer):
+    how full the disk is and what takes it — the biggest folders right on the disk and the files lying right in it
+    (kind "files"), the rest together (kind "other"). Sizes in bytes; only the names of the folders on the disk."""
+    items = [(n, {"name": os.path.basename(os.path.normpath(c)) or c, "size": n}) for n, c in tops if n > 0]
+    if loose > 0:
+        items.append((loose, {"kind": "files", "size": loose}))
+    items.sort(key=lambda x: x[0], reverse=True)
+    parts = [p for _, p in items[:FIGURE_PARTS]]
+    rest = sum(n for n, _ in items[FIGURE_PARTS:])
+    if rest:
+        parts.append({"kind": "other", "size": rest})
+    out = {"disk": root, "parts": parts, "counted": counted, "whole": whole}
+    if disk:
+        out.update(total=disk.total, used=disk.used, free=disk.free, low=almost_full(disk),
+                   uncounted=uncounted(disk, counted, whole))
+    return out
+
+
+def keep(fig: dict) -> None:
+    if len(_figures) > 16:                   # nobody took them (the terminal app, a regular task): not kept forever
+        _figures.clear()
+    _figures[threading.get_ident()] = fig
+
+
+def take() -> dict | None:
+    """The figure the last pc_disk of the whole disk made in this thread, once (sources.Noted takes it)."""
+    return _figures.pop(threading.get_ident(), None)
+
+
 def drive_parts(w: Walk, *, win: bool, disk: Disk | None, games: list[Game], personal: Iterable[Path] = (),
                 show_files: bool = False, space_note: str = "") -> list[Part]:
     """pc_disk's report of a walk of the whole disk: the head, the biggest folders by what they are, what wasn't
-    counted, the biggest files and kinds of files."""
+    counted, the biggest files and kinds of files. The window's figure of it is kept for the answer (take)."""
     r = rules(win)
     root = w.root
     sizes = w.sizes()
@@ -758,7 +807,7 @@ def drive_parts(w: Walk, *, win: bool, disk: Disk | None, games: list[Game], per
     counted = sizes.get(root, 0)
     head = []
     if disk:
-        low = " — almost full" if disk.free < disk.total * 0.1 or disk.free < 10 * GB else ""
+        low = " — almost full" if almost_full(disk) else ""
         head.append(f"Disk {root} — {size_text(disk.free)} free of {size_text(disk.total)}{low}; "
                     f"{size_text(disk.used)} used.")
     if w.whole:
@@ -777,6 +826,7 @@ def drive_parts(w: Walk, *, win: bool, disk: Disk | None, games: list[Game], per
         short.append(f"files right in {root} {size_text(loose)}" + (" (hiberfil.sys, pagefile.sys…)" if win else ""))
     if short:
         head.append("In short: " + " · ".join(short))
+    keep(figure(root, disk, tops, loose, counted, w.whole))
     others = other_disks(root, win)
     if others:
         head.append("Other disks (not counted here; pc_disk with folder looks at one): " +
@@ -796,17 +846,18 @@ def drive_parts(w: Walk, *, win: bool, disk: Disk | None, games: list[Game], per
         text = f"the Steam game {game}" if game else note(rel, r)
         found.append(f"- {folder} — {size_text(n)}" + (f": {text}" if text else "") + _inside(sizes, kids, folder, n))
 
-    uncounted = []
-    if w.whole and disk and disk.used - counted >= max(2 * GB, disk.used * 0.03):
+    missing = []
+    gap = uncounted(disk, counted, w.whole)
+    if gap:
         what = ("restore points and folders Windows keeps closed (System Volume Information), other users' files and "
                 "files in use. Old restore points: pc_open_program 'System Protection' → Configure → Delete" if win
                 else "folders only the administrator can open (/root, parts of /var) and other users' files")
-        uncounted.append(f"Not counted: about {size_text(disk.used - counted)} — {what}.")
+        missing.append(f"Not counted: about {size_text(gap)} — {what}.")
     if w.online >= GB:
-        uncounted.append(f"Files kept only online (OneDrive): {size_text(w.online)}, taking no space here.")
+        missing.append(f"Files kept only online (OneDrive): {size_text(w.online)}, taking no space here.")
     return [Part("head", head, keep=99),
             Part("units", found, "The biggest, by what they are (to look inside one: pc_disk with folder):", keep=8),
-            Part("uncounted", uncounted, keep=1),
+            Part("uncounted", missing, keep=1),
             *file_part(w, r, root, [os.path.normcase(str(p)) for p in personal], show_files, space_note,
                        listed=[f for _, f, rest in biggest if not rest]),
             kind_part(w, sizes, r, root, kids, "Kinds of files (outside Windows, programs and games):")]

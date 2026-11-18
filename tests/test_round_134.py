@@ -125,7 +125,7 @@ def test_the_window_shows_them_under_the_words():
     box = js[i:js.index("\n}\n", i)]
     assert 's.url.startsWith("https://")' in box and 'data-href="${esc(s.url)}" title="${esc(s.url)}"' in box
     assert 't("Sources:")' in box and 't("Search results: {n}", { n: found.length })' in box and "<details" in box
-    assert "addBot(m.content, m.model, m.sent, m.second, m.sources)" in js           # an opened chat
+    assert "addBot(m.content, m.model, m.sent, m.second, m.sources, m.disk)" in js           # an opened chat
     i = js.index("function addBot(")
     bot = js[i:js.index("\n}\n", i)]
     assert bot.index("${sourcesBox(sources)}") < bot.index('<div class="meta">')

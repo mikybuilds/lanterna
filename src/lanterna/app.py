@@ -75,6 +75,7 @@ class _Stream:
         self.second = False                # a second opinion: another model, lookups only, no side jobs
         self.sent = ""
         self.sources = ""                  # the web pages its tools really opened or found (sources.py)
+        self.disk: dict | None = None      # pc_disk's figure of the disk (diskmap.figure): drawn above the reply
         self.stop = threading.Event()      # the user pressed Stop: the answer ends where it is
         self.stopped = False
         self.redo = False                  # the words so far were withdrawn: the next poll sends the whole text again
@@ -86,16 +87,23 @@ class _Stream:
 COUNTED = "counted so far: {s}, files: {n}"
 
 
+def _size_in(n: float, lang: str) -> str:
+    """A size as the window's language writes it (120,4 ГБ), for the lines the window shows; the model's texts keep
+    pcfiles.size_text (120.4 GB)."""
+    from .pcfiles import size_text
+    num, _, unit = size_text(n).partition(" ")
+    return f"{num if lang == 'en' else num.replace('.', ',')} {t(unit, lang)}"
+
+
 def _counted(st: _Stream, now: float | None = None) -> str:
     """The end of the "what I'm doing" line while pc_disk counts the disk (" — counted so far: 120.4 GB, files:
     412 000"), read every 2 s: the window asks many times a second, and each new line flares up."""
     from . import diskmap
-    from .pcfiles import size_text
     now = time.monotonic() if now is None else now
     line, at = st.counted
     if now - at >= 2.0:
         got = diskmap.counting()
-        line = f" — {t(COUNTED, st.steps.lang, s=size_text(got[1]), n=f'{got[0]:,}'.replace(',', ' '))}" if got else ""
+        line = f" — {t(COUNTED, st.steps.lang, s=_size_in(got[1], st.steps.lang), n=f'{got[0]:,}'.replace(',', ' '))}" if got else ""
         st.counted = (line, now)
     return line
 
@@ -855,6 +863,7 @@ class Api:
                 # notes after a confirmed card, the morning summary and regular tasks come one after another too
                 m["second"] = sent.is_second(raw)
             m["sent"] = sent.view(raw, lang) if m["role"] == "assistant" else []
+            m["disk"] = sources.disk(m.get("sources", "")) if m["role"] == "assistant" else {}
             m["sources"] = sources.view(m.get("sources", "")) if m["role"] == "assistant" else {}
             out.append(m)
         return out
@@ -1677,6 +1686,8 @@ class Api:
                 if st.stop.is_set():
                     break
                 with st.lock:
+                    if st.disk is None and box.disk:         # pc_disk counted the disk: the window draws it now
+                        st.disk = box.disk
                     if isinstance(p, Switched):
                         st.notes.append(p.to.label)
                     elif isinstance(p, Weak):               # once per chat and model: not on every answer
@@ -1775,6 +1786,8 @@ class Api:
                        **st.steps.view(),
                        "done": st.done, "error": st.error,
                        "model": st.model, "second": st.second, "stopped": st.stopped}
+                if st.sources:                              # as it is kept: an opened chat draws the same
+                    out["disk"] = sources.disk(st.sources)
             else:
                 text = "".join(st.pieces)
                 redo, st.redo = st.redo, False              # the answer starts again: the UI replaces its text
@@ -1783,6 +1796,8 @@ class Api:
                        "done": st.done, "error": st.error, **({"replace": True} if redo else {})}
                 if st.steps.running == "pc_disk" and out["live"]:
                     out["live"] += _counted(st)
+                if st.disk:
+                    out["disk"] = st.disk
             if st.plan is not None:                         # the task plan changed in this answer
                 out["plan"] = st.plan
         if out["done"]:
@@ -2250,15 +2265,15 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "drive_text": ("Save {name} to Google Drive", "Saved {name} to Google Drive"),
             "github_push": ("Push {count} files to {repo}", "Pushed {count} files to {repo}"),
             "github_new_repo": ("Create the repository {name} on GitHub", "Opened GitHub to create {name}"),
-            "pc_sort": ("Sort {count} files in {place}", "Sorted {count} files in {place}"),
-            "pc_move": ("Move {count} items to {to}", "Moved {count} items to {to}"),
+            "pc_sort": ("Sort the files in {place} ({count})", "Sorted the files in {place} ({count})"),
+            "pc_move": ("Move to {to} ({count})", "Moved to {to} ({count})"),
             "pc_rename": ("Rename {path} → {to}", "Renamed {path} → {to}"),
             "pc_mkdir": ("Create the folder {path}", "Created the folder {path}"),
             "pc_write": ("Create {path} in {place}", "Created {path} in {place}"),
             "sys_look": (("Change: {name}", "Changed: {name}") if d.get("count", 1) == 1 else
                          ("Change {count} settings of the look", "Changed {count} settings of the look")),
             "auto_on": ("Let Lanterna act on its own in this chat for {count} min", "Lanterna acts on its own here for {count} min"),
-            "pc_trash": ("Move {count} items to the Recycle Bin", "Moved {count} items to the Recycle Bin"),
+            "pc_trash": ("Move to the Recycle Bin ({count})", "Moved to the Recycle Bin ({count})"),
             "app_install": ("Install {name}", "Installed {name}"), "app_upgrade": ("Update {name}", "Updated {name}"),
             "app_uninstall": ("Remove {name}", "Removed {name}"), "app_add": ("Add {to} to {name}", "Added {to} to {name}"),
             "model_remove": ("Remove the model {name} from Ollama", "Removed the model {name} from Ollama"),
@@ -2267,7 +2282,7 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
             "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
             "mcp_call": ("Use {name}", "Used {name}"),
-            "mail_sort": ("Sort {count} emails into folders", "Sorted {count} emails into folders"),
+            "mail_sort": ("Sort the emails into folders ({count})", "Sorted the emails into folders ({count})"),
             "mail_draft": ("Save a draft to {name}", "Saved a draft to {name}"),
             "mail_send": ("Send an email to {name}", "Sent an email to {name}"),
             "sys_startup": (("Start {name} with the computer", "{name} starts with the computer") if d.get("on") else
@@ -2307,7 +2322,7 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         for g in d.get("groups", []):
             lines.append(f"📁 {g['to']} — {g['count']}: " + ", ".join(g["files"][:6]) + (" …" if g["count"] > 6 else ""))
         if d.get("skipped"):
-            lines.append(t("{n} files still downloading are left alone.", lang, n=d["skipped"]))
+            lines.append(t("Files still downloading are left alone ({n}).", lang, n=d["skipped"]))
         lines.append(t("You can undo the sort afterwards.", lang))
     elif kind in ("pc_move", "pc_trash"):
         files = d.get("files", [])
@@ -2315,7 +2330,7 @@ def card_text(kind: str, d: dict, lang: str) -> str:
             lines.append(t("Which files: {r}", lang, r=d["rule"]))
         lines.append(", ".join(files[:12]) + (f" … +{d.get('count', 0) - 12}" if d.get("count", 0) > 12 else ""))
         if d.get("skipped"):
-            lines.append(t("{n} files still downloading are left alone.", lang, n=d["skipped"]))
+            lines.append(t("Files still downloading are left alone ({n}).", lang, n=d["skipped"]))
         if d.get("claimed"):
             lines.append(t("Already on another card: {n}", lang, n=d["claimed"]))
         if kind == "pc_trash":

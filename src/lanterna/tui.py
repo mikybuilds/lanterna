@@ -41,13 +41,13 @@ def lang_rows(per: int = 4) -> list[list[tuple[str, str]]]:
 
 
 AMBER = "#F5B544"
-THEME = Theme(name="lanterna", primary=AMBER, secondary="#7C8BB5", accent=AMBER, warning="#F0A030",
-              error="#E5675C", success="#6CC28A", background="#0B0E17", surface="#121726", panel="#1A2034",
-              foreground="#E6E8EF", dark=True)
-# the light theme, as in the window (ui/style.css): warm paper, amber darker where it is text
-LIGHT = Theme(name="lanterna-light", primary="#8A5200", secondary="#5C6680", accent="#8A5200", warning="#8A5200",
-              error="#B3362C", success="#1A6E3F", background="#F6F4EE", surface="#FFFFFF", panel="#EEEBE3",
-              foreground="#1D1B17", dark=False)
+# the window's colors (ui/style.css): charcoal and one amber; the light theme light gray, amber darker where it is text
+THEME = Theme(name="lanterna", primary=AMBER, secondary="#8A919E", accent=AMBER, warning="#F0A030",
+              error="#FF8A80", success="#5FD5A0", background="#111317", surface="#1B1F25", panel="#232831",
+              foreground="#E8EAEE", dark=True)
+LIGHT = Theme(name="lanterna-light", primary="#8F5600", secondary="#5D6471", accent="#8F5600", warning="#8F5600",
+              error="#B3261E", success="#1D7549", background="#F3F4F6", surface="#FFFFFF", panel="#E9EBEE",
+              foreground="#14161B", dark=False)
 LOGO = "🏮"
 
 CSS = """

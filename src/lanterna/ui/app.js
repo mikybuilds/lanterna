@@ -62,12 +62,12 @@ const STR = {
   "Chats": { uk: "Розмови", it: "Chat" },
   "Settings": { uk: "Налаштування", it: "Impostazioni" },
   "About": { uk: "Про програму", it: "Info" },
-  "Hi, {n}!": { uk: "Привіт, {n}!", it: "Ciao, {n}!" },
-  "Hi!": { uk: "Привіт!", it: "Ciao!" },
+  "Hi, {n}.": { uk: "Привіт, {n}.", it: "Ciao, {n}." },
+  "Hi.": { uk: "Привіт.", it: "Ciao." },
   "What's on your mind?": { uk: "Про що поговоримо?", it: "Di cosa parliamo?" },
   "Message Lanterna…": { uk: "Напиши Lanterna…", it: "Scrivi a Lanterna…" },
   "Lanterna can make mistakes. Check important facts.": { uk: "Lanterna може помилятися. Перевіряй важливі факти.", it: "Lanterna può sbagliare. Verifica i fatti importanti." },
-  "switched to {m}": { uk: "перейшов на {m}", it: "passato a {m}" },
+  "switched to {m}": { uk: "Тепер відповідає {m}", it: "ora risponde {m}" },
   "All free models are busy or out of limits. Try again in a minute.": { uk: "Усі безкоштовні моделі зайняті або вичерпали ліміт. Спробуй за хвилину.", it: "Tutti i modelli gratuiti sono occupati o al limite. Riprova tra un minuto." },
   "No connection. Check your internet.": { uk: "Немає з'єднання. Перевір інтернет.", it: "Nessuna connessione. Controlla internet." },
   "Add a key in Settings to start.": { uk: "Додай ключ у Налаштуваннях, щоб почати.", it: "Aggiungi una chiave nelle Impostazioni per iniziare." },
@@ -99,7 +99,6 @@ const STR = {
   "just now": { uk: "щойно", it: "adesso" },
   "Today": { uk: "Сьогодні", it: "Oggi" },
   "Earlier": { uk: "Раніше", it: "Prima" },
-  "Explain something simply": { uk: "Поясни щось простими словами", it: "Spiegami qualcosa in modo semplice" },
   "Help me plan my week": { uk: "Допоможи спланувати тиждень", it: "Aiutami a pianificare la settimana" },
   "Write a short message for me": { uk: "Напиши за мене коротке повідомлення", it: "Scrivi un breve messaggio per me" },
   "Give me an idea for today": { uk: "Дай ідею на сьогодні", it: "Dammi un'idea per oggi" },
@@ -186,7 +185,7 @@ const STR = {
   "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": { uk: "У системі немає захищеного сховища ключів. Задай ключ як змінну середовища, напр. GROQ_API_KEY.", it: "Il sistema non ha un archivio sicuro per le chiavi. Imposta la chiave come variabile d'ambiente, es. GROQ_API_KEY." },
   "To understand photos, download a photo model in Settings → Local models.": { uk: "Щоб розуміти фото, завантаж модель для фото в Налаштуваннях → Локальні моделі.", it: "Per capire le foto, scarica un modello per le foto in Impostazioni → Modelli locali." },
   "Report a bug": { uk: "Повідомити про помилку", it: "Segnala un bug" },
-  "Found a bug?": { uk: "Знайшов помилку?", it: "Hai trovato un bug?" },
+  "Found a bug?": { uk: "Є помилка?", it: "Hai trovato un bug?" },
   "Tell what went wrong. You see the whole text first, and you send it yourself.": { uk: "Розкажи, що пішло не так. Спершу ти бачиш увесь текст і надсилаєш його сам.", it: "Racconta cosa non va. Prima vedi tutto il testo, e lo invii tu." },
   "What did you do, what happened, and what did you expect?": { uk: "Що ти робив, що сталося і чого ти очікував?", it: "Cosa hai fatto, cosa è successo e cosa ti aspettavi?" },
   "Add app and system info": { uk: "Додати дані про програму й систему", it: "Aggiungi info su app e sistema" },
@@ -229,7 +228,7 @@ const STR = {
   "Sign out and delete the copy in Google Drive": { uk: "Вийти й видалити копію з Google Drive", it: "Esci ed elimina la copia su Google Drive" },
   "Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.": { uk: "Видалити зашифровану копію чатів з Google Drive? Чати на цьому пристрої залишаться.", it: "Eliminare la copia cifrata delle chat da Google Drive? Le chat su questo dispositivo restano." },
   "Couldn't sync: {error}": { uk: "Не вдалося синхронізувати: {error}", it: "Sincronizzazione non riuscita: {error}" },
-  "(tried {n} models)": { uk: "(спробував моделей: {n})", it: "(provati {n} modelli)" },
+  "(tried {n} models)": { uk: "(спробувано моделей: {n})", it: "(provati {n} modelli)" },
   "Requests today: {n}": { uk: "Запитів сьогодні: {n}", it: "Richieste oggi: {n}" },
   "Refused: {n}": { uk: "Відхилено: {n}", it: "Rifiutate: {n}" },
   "Update now": { uk: "Оновити зараз", it: "Aggiorna ora" },
@@ -242,21 +241,20 @@ const STR = {
   "Limits": { uk: "Ліміти", it: "Limiti" },
   "How much of the free limits is left. Counted on this computer from what the services answer; nothing is sent.": { uk: "Скільки залишилось безкоштовних лімітів. Рахується на цьому комп'ютері з того, що відповідають сервіси; нічого нікуди не надсилається.", it: "Quanto resta dei limiti gratuiti. Calcolato su questo computer da ciò che rispondono i servizi; non viene inviato nulla." },
   "No requests to online models yet today.": { uk: "Сьогодні ще не було запитів до онлайн-моделей.", it: "Oggi ancora nessuna richiesta ai modelli online." },
-  "{n} requests today": { uk: "{n} запитів сьогодні", it: "{n} richieste oggi" },
   "{n} refused": { uk: "{n} відхилено", it: "{n} rifiutate" },
   "{left} of {limit} left today": { uk: "сьогодні залишилось {left} з {limit}", it: "oggi ne restano {left} su {limit}" },
   "full again in {t}": { uk: "оновиться через {t}", it: "si ricarica tra {t}" },
   "resting, back in {t}": { uk: "відпочиває, повернеться через {t}", it: "in pausa, torna tra {t}" },
   "The service doesn't say how much is left; it is shown when the limit is reached.": { uk: "Сервіс не каже, скільки залишилось; це буде видно, коли ліміт закінчиться.", it: "Il servizio non dice quanto resta; si vedrà quando il limite sarà raggiunto." },
-  "Requests left today": { uk: "Запитів на сьогодні", it: "Richieste rimaste oggi" },
-  "Requests left this minute": { uk: "Запитів на цю хвилину", it: "Richieste rimaste in questo minuto" },
-  "Requests left this hour": { uk: "Запитів на цю годину", it: "Richieste rimaste in quest'ora" },
-  "Requests left this month": { uk: "Запитів на цей місяць", it: "Richieste rimaste questo mese" },
+  "Requests left today": { uk: "Залишилось запитів на сьогодні", it: "Richieste rimaste oggi" },
+  "Requests left this minute": { uk: "Залишилось запитів на цю хвилину", it: "Richieste rimaste in questo minuto" },
+  "Requests left this hour": { uk: "Залишилось запитів на цю годину", it: "Richieste rimaste in quest'ora" },
+  "Requests left this month": { uk: "Залишилось запитів на цей місяць", it: "Richieste rimaste questo mese" },
   "Requests left": { uk: "Залишилось запитів", it: "Richieste rimaste" },
-  "Tokens left today": { uk: "Токенів на сьогодні", it: "Token rimasti oggi" },
-  "Tokens left this minute": { uk: "Токенів на цю хвилину", it: "Token rimasti in questo minuto" },
-  "Tokens left this hour": { uk: "Токенів на цю годину", it: "Token rimasti in quest'ora" },
-  "Tokens left this month": { uk: "Токенів на цей місяць", it: "Token rimasti questo mese" },
+  "Tokens left today": { uk: "Залишилось токенів на сьогодні", it: "Token rimasti oggi" },
+  "Tokens left this minute": { uk: "Залишилось токенів на цю хвилину", it: "Token rimasti in questo minuto" },
+  "Tokens left this hour": { uk: "Залишилось токенів на цю годину", it: "Token rimasti in quest'ora" },
+  "Tokens left this month": { uk: "Залишилось токенів на цей місяць", it: "Token rimasti questo mese" },
   "Tokens left": { uk: "Залишилось токенів", it: "Token rimasti" },
   "{n} s": { uk: "{n} с", it: "{n} s" },
   "{n} min": { uk: "{n} хв", it: "{n} min" },
@@ -299,14 +297,14 @@ const STR = {
   "Torrents": { uk: "Торенти", it: "Torrent" },
   "Fonts": { uk: "Шрифти", it: "Font" },
   "Other": { uk: "Інше", it: "Altro" },
-  "Sort {count} files in {place}": { uk: "Розкласти {count} файлів у папці {place}", it: "Ordinare {count} file in {place}" },
-  "Sorted {count} files in {place}": { uk: "Розкладено {count} файлів у папці {place}", it: "Ordinati {count} file in {place}" },
-  "Move {count} items to {to}": { uk: "Перемістити {count} шт. у {to}", it: "Spostare {count} elementi in {to}" },
-  "Moved {count} items to {to}": { uk: "Переміщено {count} шт. у {to}", it: "Spostati {count} elementi in {to}" },
+  "Sort the files in {place} ({count})": { uk: "Розкласти файли в папці {place} ({count})", it: "Ordinare i file in {place} ({count})" },
+  "Sorted the files in {place} ({count})": { uk: "Розкладено файли в папці {place} ({count})", it: "Ordinati i file in {place} ({count})" },
+  "Move to {to} ({count})": { uk: "Перемістити {count} шт. у {to}", it: "Spostare in {to} ({count})" },
+  "Moved to {to} ({count})": { uk: "Переміщено {count} шт. у {to}", it: "Spostati in {to} ({count})" },
   "Rename {path} → {to}": { uk: "Перейменувати {path} → {to}", it: "Rinominare {path} → {to}" },
   "Renamed {path} → {to}": { uk: "Перейменовано {path} → {to}", it: "Rinominato {path} → {to}" },
-  "Move {count} items to the Recycle Bin": { uk: "Перемістити {count} шт. у Кошик", it: "Spostare {count} elementi nel Cestino" },
-  "Moved {count} items to the Recycle Bin": { uk: "Переміщено {count} шт. у Кошик", it: "Spostati {count} elementi nel Cestino" },
+  "Move to the Recycle Bin ({count})": { uk: "Перемістити {count} шт. у Кошик", it: "Spostare nel Cestino ({count})" },
+  "Moved to the Recycle Bin ({count})": { uk: "Переміщено {count} шт. у Кошик", it: "Spostati nel Cestino ({count})" },
   "Install {name}": { uk: "Встановити {name}", it: "Installare {name}" },
   "Installed {name}": { uk: "Встановлено {name}", it: "Installato {name}" },
   "Update {name}": { uk: "Оновити {name}", it: "Aggiornare {name}" },
@@ -323,7 +321,7 @@ const STR = {
   "{name} starts with the computer": { uk: "{name} запускається разом із комп'ютером", it: "{name} si avvia con il computer" },
   "Don't start {name} with the computer": { uk: "Не запускати {name} разом із комп'ютером", it: "Non avviare {name} con il computer" },
   "{name} no longer starts with the computer": { uk: "{name} більше не запускається разом із комп'ютером", it: "{name} non si avvia più con il computer" },
-  "{n} files still downloading are left alone.": { uk: "{n} файлів, які ще завантажуються, не чіпаю.", it: "{n} file ancora in download restano dove sono." },
+  "Files still downloading are left alone ({n}).": { uk: "Файли, які ще завантажуються ({n}), не чіпаю.", it: "I file ancora in download ({n}) restano dove sono." },
   "You can undo the sort afterwards.": { uk: "Розкладання можна буде скасувати.", it: "Potrai annullare l'ordinamento." },
   "Undo": { uk: "Повернути як було", it: "Ripristina" },
   "They go to the Recycle Bin: you can restore them from there.": { uk: "Вони підуть у Кошик: звідти їх можна відновити.", it: "Vanno nel Cestino: puoi recuperarli da lì." },
@@ -379,8 +377,7 @@ const STR = {
   "Same as in Settings: {name}": { uk: "Як у налаштуваннях: {name}", it: "Come nelle impostazioni: {name}" },
   "Same as in Settings (none)": { uk: "Як у налаштуваннях (без папки)", it: "Come nelle impostazioni (nessuna)" },
   "Folder path": { uk: "Шлях до папки", it: "Percorso della cartella" },
-  "{left} of {limit}": { uk: "{left} з {limit}", it: "{left} di {limit}" },
-  "reset in {t}": { uk: "ресет через {t}", it: "reset tra {t}" },
+  "{left} of {limit} left": { uk: "лишилось {left} з {limit}", it: "ne restano {left} su {limit}" },
   "{n} requests today": { uk: "запитів сьогодні: {n}", it: "richieste oggi: {n}" },
   "Local model · no limits": { uk: "Локальна модель · без лімітів", it: "Modello locale · nessun limite" },
   "{m}: {left} of {limit} requests left ({period}). Resets in {t}.": { uk: "{m}: залишилось {left} з {limit} запитів ({period}). Скидається через {t}.", it: "{m}: restano {left} di {limit} richieste ({period}). Si azzera tra {t}." },
@@ -390,7 +387,7 @@ const STR = {
   "per minute": { uk: "на хвилину", it: "al minuto" },
   "per hour": { uk: "на годину", it: "all'ora" },
   "Click for all limits": { uk: "Натисни, щоб побачити всі ліміти", it: "Clicca per tutti i limiti" },
-  "Thinking · steps: {n}": { uk: "Хід думок · кроків: {n}", it: "Ragionamento · passi: {n}" },
+  "Steps ({n})": { uk: "Кроки ({n})", it: "Passaggi ({n})" },
   "This card has expired. Ask again.": { uk: "Ця картка застаріла. Попроси ще раз.", it: "Questa scheda è scaduta. Chiedi di nuovo." },
   "{n} characters": { uk: "{n} символів", it: "{n} caratteri" },
   "Folder in Google Drive: {f}": { uk: "Папка в Google Drive: {f}", it: "Cartella su Google Drive: {f}" },
@@ -422,6 +419,27 @@ const STR = {
   "Text size": { uk: "Розмір тексту", it: "Dimensione del testo" },
   "Text size: {n}%": { uk: "Розмір тексту: {n}%", it: "Dimensione del testo: {n}%" },
   "Ctrl+= and Ctrl+− change it too.": { uk: "Ще можна натиснути Ctrl+= або Ctrl+−.", it: "Funzionano anche Ctrl+= e Ctrl+−." },
+  // the empty chat: five numbered things to try (a name, then the example a click sends)
+  "Disk": { uk: "Диск", it: "Disco" },
+  "Explain": { uk: "Пояснити", it: "Spiega" },
+  "Weather": { uk: "Погода", it: "Meteo" },
+  "Plan": { uk: "Спланувати", it: "Pianifica" },
+  "What takes up space on my disk?": { uk: "Що займає місце на диску?", it: "Cosa occupa spazio sul mio disco?" },
+  // the disk above an answer (pc_disk), sizes on the cards
+  "KB": { uk: "КБ", it: "KB" },
+  "MB": { uk: "МБ", it: "MB" },
+  "Disk {d}": { uk: "Диск {d}", it: "Disco {d}" },
+  "{free} free of {total}": { uk: "Вільно {free} з {total}", it: "{free} liberi su {total}" },
+  "almost full": { uk: "майже повний", it: "quasi pieno" },
+  "Files right on the disk": { uk: "Файли просто на диску", it: "File direttamente sul disco" },
+  "Explanations": { uk: "Пояснення", it: "Spiegazioni" },
+  "Safety": { uk: "Безпека", it: "Sicurezza" },
+  "Explain simply why the sky is blue": { uk: "Поясни простими словами, чому небо блакитне", it: "Spiegami in modo semplice perché il cielo è azzurro" },
+  "Used": { uk: "Зайнято", it: "Occupato" },
+  "Not counted": { uk: "Не пораховано", it: "Non contato" },
+  "Still counting: the sizes are at least these.": { uk: "Ще рахую: розміри щонайменше такі.", it: "Sto ancora contando: le dimensioni sono almeno queste." },
+  "{p}% of the disk": { uk: "{p}% диска", it: "{p}% del disco" },
+  "of {total}": { uk: "з {total}", it: "su {total}" },
 };
 let LANG = "en";
 const t = (s, vars = {}) => {
@@ -429,6 +447,8 @@ const t = (s, vars = {}) => {
   for (const [k, v] of Object.entries(vars)) out = out.split("{" + k + "}").join(v);
   return out;
 };
+// words that stand as a line of their own start with a capital ("відпочиває, …" → "Відпочиває, …")
+const capital = s => String(s).charAt(0).toLocaleUpperCase(LANG) + String(s).slice(1);
 
 // ---------------------------------------------------------------- tiny helpers
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -438,23 +458,16 @@ const h = html => { const d = document.createElement("div"); d.innerHTML = html.
 
 // motion: short and light (only what the graphics card moves by itself); none when the system asks for less motion
 const CALM = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
-const EASE = "cubic-bezier(.2, .9, .25, 1)";
+const EASE = "cubic-bezier(.2, .7, .2, 1)";   // the same as --ease in style.css
 const motion = (el, frames, ms = 320) => { if (el && el.animate && !CALM.matches) el.animate(frames, { duration: ms, easing: EASE }); };
-// the logo's lantern drawn in the page (not a picture), so its flame and glass can glow; tile: the whole logo
-const lamp = (tile = false) => `<svg class="lamp-svg" viewBox="${tile ? "0 0 512 512" : "168 64 176 328"}" aria-hidden="true">${tile
-  ? `<rect width="512" height="512" rx="114" fill="url(#lp-tile)"/><circle class="lp-halo" cx="256" cy="282" r="170" fill="url(#lp-halo)"/>` : ""}
-  <path d="M212 146V126a44 44 0 0 1 88 0v20" fill="none" stroke="url(#lp-metal)" stroke-width="18" stroke-linecap="round"/>
-  <rect x="178" y="142" width="156" height="34" rx="13" fill="url(#lp-metal)"/>
-  <rect x="196" y="176" width="120" height="176" rx="42" fill="url(#lp-glass)"/>
-  <ellipse class="lp-glow" cx="256" cy="282" rx="56" ry="76" fill="url(#lp-core)"/>
-  <rect x="196" y="176" width="120" height="176" rx="42" fill="none" stroke="url(#lp-metal)" stroke-width="14"/>
-  <path class="lp-flame" d="M256 214C284 248 298 270 298 294a42 42 0 0 1-84 0C214 270 228 248 256 214Z" fill="url(#lp-flame)"/>
-  <rect x="178" y="350" width="156" height="32" rx="13" fill="url(#lp-metal)"/></svg>`;
-// the big lantern of the first screens, the empty chat and About: its flame flickers and a few sparks rise from it
-const heroLamp = () => `<div class="hero-logo">${lamp(true)}<span class="embers" aria-hidden="true">${"<i></i>".repeat(6)}</span></div>`;
-// while the window is in the background the big lantern stands still (no drawing for nobody); it moves again on return
-addEventListener("blur", () => document.body.classList.add("away"));
-addEventListener("focus", () => document.body.classList.remove("away"));
+// the lantern, drawn flat in the page: a line frame, the glass and the flame in the lantern's light (the same as the boot screen)
+const lamp = () => `<svg class="lamp-svg" viewBox="0 0 24 24" aria-hidden="true">
+  <rect class="lp-glass" x="8" y="8" width="8" height="10" rx="2.5"/><path class="lp-frame" d="M9.5 5.5v-1a2.5 2.5 0 0 1 5 0v1"/>
+  <rect class="lp-frame" x="7" y="5.5" width="10" height="2.5" rx="1"/><rect class="lp-frame" x="8" y="8" width="8" height="10" rx="2.5"/>
+  <path class="lp-flame" d="M12 10.2c1.6 1.8 2.4 3 2.4 4.2a2.4 2.4 0 0 1-4.8 0c0-1.2.8-2.4 2.4-4.2z"/>
+  <rect class="lp-frame" x="7" y="18" width="10" height="2.5" rx="1"/></svg>`;
+// the big lantern of the first screens and About: it stands still (only the small one in "Thinking…" breathes)
+const heroLamp = () => `<div class="hero-logo">${lamp()}</div>`;
 
 // ---------------------------------------------------------------- formulas
 // Models write formulas in LaTeX: $…$ or \(…\) inside a sentence, $$…$$ or \[…\] on a line of their own. KaTeX
@@ -527,6 +540,25 @@ function tableAlign(head, rule) {
   const al = cellsOf(rule);
   if (al.length !== cellsOf(head).length || !al.every(c => /^:?-+:?$/.test(c))) return null;
   return al.map(c => c.endsWith(":") ? (c.startsWith(":") ? "center" : "right") : "");
+}
+
+// an answer coming in: a table shows once its |---| line is whole, a row still being written waits, and so does a **
+// or ` not closed yet on the last line. Inside code it comes as it is; the whole answer, at the end, is drawn as written
+function streamTail(s) {
+  s = String(s || "");
+  if ((s.match(/^```/gm) || []).length % 2) return s;
+  const lines = s.split("\n");
+  let i = lines.length;
+  while (i > 0 && lines[i - 1].trim().startsWith("|")) i--;
+  if (i < lines.length) {
+    const block = lines.slice(i);
+    if (block.length < 2 || !/\|\s*$/.test(block[1]) || !tableAlign(block[0], block[1])) lines.length = i;
+    else if (!/\|\s*$/.test(block[block.length - 1])) lines.pop();
+  }
+  const k = lines.length - 1, last = k >= 0 ? lines[k] : "";
+  if ((last.match(/\*\*/g) || []).length % 2) lines[k] = last.replace(/\*\*(?!.*\*\*)/, "");
+  else if ((last.match(/`/g) || []).length % 2) lines[k] = last.replace(/`(?!.*`)/, "");
+  return lines.join("\n");
 }
 
 function md(text, plain = false) {
@@ -642,9 +674,16 @@ const TOOL_TEXT = { weather: "Checking the weather", web_search: "Searching the 
   add_task: "Adding a regular task", list_tasks: "Checking regular tasks", delete_task: "Deleting a regular task",
   currency: "Converting currency", convert_units: "Converting units", transcribe_audio: "Turning audio into text",
   search_chats: "Looking through earlier chats", read_chat: "Reading an earlier chat" };
-// "🔎 web_search" (older) or "🔎 Searching the web: news" (the step, already in the window's language)
+// "🔎 web_search" (older) or "🔎 Searching the web: news" (the step, already in the window's language): the emoji of
+// the tool's label (Python) becomes one of the window's line icons; a tool with none gets the wrench
+const TOOL_ICON = { "⏰": "bell", "🔁": "auto", "💬": "chat", "🧠": "bookmark", "🌤": "sun", "☀": "sun", "💱": "swap", "📏": "ruler",
+  "📄": "file", "📖": "file", "📅": "calendar", "🔎": "search", "🔍": "search", "🛡": "shield", "🧮": "calc", "📦": "package", "⬆": "up",
+  "⬇": "save", "💾": "save", "🗑": "trash", "📊": "chart", "📈": "chart", "🗂": "folder", "📁": "folder", "📂": "folder", "✏": "edit",
+  "📝": "edit", "⚙": "gear", "🌓": "contrast", "💻": "monitor", "🚀": "ext", "🔋": "battery", "🌐": "globe", "🎨": "palette", "🧪": "check",
+  "☁": "cloud", "🐙": "branch", "🌿": "branch", "📬": "mail", "🧩": "puzzle", "🧰": "wrench", "🛠": "wrench", "📋": "list", "🤖": "auto",
+  "✋": "info", "❓": "info", "🔌": "plug", "⚠": "warn" };
 const toolChip = s => { const [emo, ...rest] = String(s).split(" "); const name = rest.join(" ");
-  return `<div class="tool">${esc(emo)} ${esc(t(TOOL_TEXT[name] || name))}</div>`; };
+  return `<div class="tool">${icon(TOOL_ICON[emo.replace(/\uFE0F/g, "")] || "wrench")}<span>${esc(t(TOOL_TEXT[name] || name))}</span></div>`; };
 
 let pending = [];        // files waiting to be sent: {name, size, data(base64)}
 const MAX_FILE = 20 * 1024 * 1024;
@@ -684,9 +723,9 @@ function backIn(s) {                       // "about 3 h 20 min" / "about 15 min
   return h_ ? t("{h} h {m} min", { h: h_, m }) : t("{m} min", { m });
 }
 
-function toast(text, sticky = false, action = null) {
-  // short notices fade out; reminders stay until closed. action: {label, run} adds one button (e.g. snooze)
-  const el = h(`<div class="toast${sticky ? " sticky" : ""}"><span></span><button class="x" title="${t("Close")}">${icon("x")}</button></div>`);
+function toast(text, sticky = false, action = null, ic = "") {
+  // short notices fade out; reminders stay until closed. action: {label, run} adds one button (e.g. snooze); ic: an icon before it
+  const el = h(`<div class="toast${sticky ? " sticky" : ""}">${ic ? icon(ic, "i t-ic") : ""}<span></span><button class="x" title="${t("Close")}">${icon("x")}</button></div>`);
   el.querySelector("span").textContent = text;
   const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 600); };
   el.querySelector("button.x").onclick = close;
@@ -699,7 +738,7 @@ function toast(text, sticky = false, action = null) {
   const stack = $("#toasts") || document.body.appendChild(h(`<div id="toasts" role="status" aria-live="polite"></div>`));
   stack.append(el);
   if (sticky) return;
-  // a thin line runs out at the bottom; the pointer over the notice holds it (and the line) until it leaves
+  // the pointer over the notice holds it until it leaves
   let left = 6000, from = Date.now(), timer = setTimeout(close, left);
   el.onmouseenter = () => { clearTimeout(timer); left -= Date.now() - from; };
   el.onmouseleave = () => { from = Date.now(); timer = setTimeout(close, Math.max(left, 1200)); };
@@ -709,11 +748,11 @@ async function watchAlerts() {
   try {
     const list = await api.alerts();
     list.forEach(a => a.kind
-      ? toast((a.kind === "tidy" ? "🧹 " : a.kind === "task" ? "🔁 " : a.kind === "morning" ? "☀️ " : "💾 ") + a.text, true)
-      : toast(`⏰ ${t("Reminder")}: ${a.text}`, true, a.id ? {
+      ? toast(a.text, true, null, { tidy: "folder", task: "auto", morning: "sun" }[a.kind] || "disk")
+      : toast(`${t("Reminder")}: ${a.text}`, true, a.id ? {
           label: t("Snooze 10 min"),
-          run: async () => { if (await api.snooze_reminder(a.id, 10)) toast(t("I'll remind you again in 10 minutes.")); },
-        } : null));
+          run: async () => { if (await api.snooze_reminder(a.id, 10)) toast(t("I'll remind you again in 10 minutes."), false, null, "bell"); },
+        } : null, "bell"));
     if (list.some(a => a.tid)) refreshThreads();
   } catch (e) { /* app closing */ }
   setTimeout(watchAlerts, 10000);
@@ -722,6 +761,7 @@ async function watchAlerts() {
 // ---------------------------------------------------------------- state
 let S = null;          // backend state
 let thread = null;     // current thread id
+let drawn = false;     // the main view was drawn once: a redraw keeps the open chat
 let busy = false;
 let privateOpen = false;      // the "private data, send it online?" question is on the screen
 let live = null;              // the answer being written: {tid, el, sw}, so a redrawn chat can show it again
@@ -761,15 +801,6 @@ document.addEventListener("keydown", e => {                  // Enter on a link 
   const a = e.key === "Enter" && !e.isComposing && e.target.closest && e.target.closest("a[data-href]");
   if (a) { e.preventDefault(); api.open_url(a.dataset.href); }
 });
-
-// a soft amber light under the pointer on cards and suggestion buttons
-document.addEventListener("pointermove", e => {
-  const el = e.target.closest && e.target.closest(".card, .cn-card, .sugg button, .lang");
-  if (!el) return;
-  const r = el.getBoundingClientRect();
-  el.style.setProperty("--mx", Math.round(e.clientX - r.left) + "px");
-  el.style.setProperty("--my", Math.round(e.clientY - r.top) + "px");
-}, { passive: true });
 
 // "Copied" for a moment on a copy button (a tick instead of the icon)
 function copiedTick(b) {
@@ -933,6 +964,63 @@ const TIER_TEXT = {
 const gb = x => `${(Math.round((x || 0) * 10) / 10).toLocaleString(LANG)} ${t("GB")}`;
 let pullTimer = null;
 
+// a size in bytes as people read it: 2,3 GB · 48 MB · 12 KB (GB as Lanterna's tools count them: 1024³)
+function bytes(n) {
+  n = Math.max(0, +n || 0);
+  if (n >= 1073741824 / 10) return `${(n / 1073741824).toLocaleString(LANG, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${t("GB")}`;
+  if (n >= 1048576) return `${Math.round(n / 1048576).toLocaleString(LANG)} ${t("MB")}`;
+  return `${(n ? Math.max(1, Math.round(n / 1024)) : 0).toLocaleString(LANG)} ${t("KB")}`;
+}
+// a size a tool wrote ("68.9 GB"), in the window's language ("68,9 ГБ")
+function sizeStr(s) {
+  const m = /^(\d+(?:\.\d+)?) (KB|MB|GB)$/.exec(String(s || "").trim());
+  return m ? `${(+m[1]).toLocaleString(LANG, { minimumFractionDigits: m[1].includes(".") ? 1 : 0, maximumFractionDigits: 1 })} ${t(m[2])}` : String(s || "");
+}
+// a thin bar: one share of a whole, the number beside it is the text (the bar only shows the proportion)
+function meter(share, cls = "") {
+  const w = Math.max(0, Math.min(1, +share || 0)) * 100;
+  return `<span class="mtr${cls ? " " + cls : ""}" aria-hidden="true"><i style="width:${w.toFixed(1)}%"></i></span>`;
+}
+
+// pc_disk's count of the whole disk, above the answer (diskmap.figure, kept with it): how full the disk is and
+// what takes it. Every number is printed; every bar is on one scale, the whole disk: the rows under "Used" add up to it
+function diskFig(d) {
+  const parts = (d && d.parts) || [];
+  if (!parts.length && !(d && d.total)) return "";
+  const name = String(d.disk || "").replace(/[\\/]+$/, "") || String(d.disk || "");
+  const whole = d.total || Math.max(1, d.counted || 0, ...parts.map(p => p.size || 0));
+  const row = (label, n, cls = "") => `<li${cls ? ` class="${cls}"` : ""} title="${esc(t("{p}% of the disk", { p: Math.round(n / whole * 100) }))}"><span class="nm">${label}</span>${meter(n / whole, cls === "used" ? "used" : "thin")}<span class="num">${bytes(n)}</span></li>`;
+  const label = p => esc(typeof p.name === "string" ? p.name : t(p.kind === "files" ? "Files right on the disk" : "Other"));
+  const free = d.total ? `<span class="dfig-free">${d.low ? icon("warn") : ""}<span>${esc(t("{free} free of {total}", { free: bytes(d.free), total: bytes(d.total) }))}${d.low ? " · " + esc(t("almost full")) : ""}</span></span>` : "";
+  return `<figure class="dfig${d.low ? " low" : ""}"><figcaption><b>${icon("disk")}<span>${esc(t("Disk {d}", { d: name }))}</span></b>${free}</figcaption>
+    <ul class="dfig-rows">${d.total ? row(esc(t("Used")), d.used || 0, "used") : ""}${parts.map(p => row(label(p), p.size || 0)).join("")}${d.uncounted ? row(esc(t("Not counted")), d.uncounted, "unc") : ""}</ul>
+    ${d.whole ? "" : `<p class="dfig-note">${esc(t("Still counting: the sizes are at least these."))}</p>`}</figure>`;
+}
+
+// files on a card: one a row, with the icon of its kind; the folders it is in, quieter
+const FILE_KINDS = [[/\.(mp4|mkv|avi|mov|wmv|webm|m4v|flv|mpe?g|ts|3gp)$/i, "film"],
+  [/\.(jpe?g|png|heic|gif|bmp|tiff?|webp|raw|cr[23]|nef|arw|dng|psd|svg)$/i, "photo"],
+  [/\.(mp3|flac|wav|m4a|ogg|aac|wma|opus)$/i, "music"],
+  [/\.(zip|rar|7z|tar|gz|tgz|xz|bz2|zst|iso|img|vhdx?|exe|msix?|appx|dmg|pkg|deb|rpm|appimage|flatpak)$/i, "package"]];
+function fileIcon(name) { const k = FILE_KINDS.find(([rx]) => rx.test(name)); return k ? k[1] : "file"; }
+function fileList(files, count = 0, ic = "") {
+  const more = count > files.length ? `<li class="more">… +${count - files.length}</li>` : "";
+  return `<ul class="cc-files">${files.map(f => {
+    const s = String(f), k = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\")) + 1;
+    return `<li>${icon(ic || fileIcon(s))}<span class="f-tx">${k ? `<span class="f-dir">${esc(s.slice(0, k))}</span>` : ""}${esc(s.slice(k))}</span></li>`;
+  }).join("")}${more}</ul>`;
+}
+// where a sort puts things: a row a folder (how many, a bar of the share, a few names), its whole list folded
+function groupRows(groups, total, ic = "") {
+  const all = Math.max(1, total || groups.reduce((n, g) => n + (g.count || 0), 0));
+  return `<div class="cc-groups">${groups.map(g => {
+    const names = g.files || [];
+    const ex = names.slice(0, 3).join(", ") + (g.count > 3 ? ", …" : "");
+    return `<details><summary><span class="g-nm">${icon("folder")}<b>${esc(g.to)}</b></span>${meter((g.count || 0) / all, "thin")}<span class="g-n">${(g.count || 0).toLocaleString(LANG)}</span><span class="g-ex">${esc(ex)}</span></summary>
+      ${fileList(names, g.count, ic)}</details>`;
+  }).join("")}</div>`;
+}
+
 // Hardware, Ollama status and recommended models with Download buttons. onChange runs when a download finishes.
 async function localPanel(box, onChange) {
   box.innerHTML = `<div class="status"><span class="spinner"></span>${t("Checking this computer…")}</div>`;
@@ -943,8 +1031,9 @@ async function localPanel(box, onChange) {
   box.innerHTML = `
     <div class="hw">
       <div><small>${t("Graphics card")}</small><b>${gpu}</b></div>
-      <div><small>${t("RAM")}</small><b>${gb(H.ram_gb)}</b></div>
-      <div><small>${t("Free disk")}</small><b>${gb(H.disk_free_gb)}</b></div>
+      <div><small>${t("RAM")}</small><b class="num">${gb(H.ram_gb)}</b></div>
+      <div><small>${t("Free disk")}</small><b class="num">${bytes(H.disk_free_gb * 1073741824)}${H.disk_total_gb ? ` <span class="hw-of">${esc(t("of {total}", { total: bytes(H.disk_total_gb * 1073741824) }))}</span>` : ""}</b>
+        ${H.disk_total_gb ? meter(1 - H.disk_free_gb / H.disk_total_gb, "used" + (H.disk_free_gb < Math.max(10, H.disk_total_gb * 0.1) ? " low" : "")) : ""}</div>
     </div>
     <p class="tier">${t(TIER_TEXT[A.tier])}</p>
     ${st.running ? `<div class="status ok">${icon("check")} ${t("Ollama {v} is running", { v: esc(st.version) })}</div>`
@@ -989,7 +1078,7 @@ async function localPanel(box, onChange) {
       } else {
         const size = +row.dataset.size, noDisk = H.disk_free_gb && H.disk_free_gb < size + 1;
         const err = p && p.status === "error" ? `<span class="status err">${esc(t("Download failed: {e}", { e: p.error }))}</span>` : "";
-        act.innerHTML = `${err}<button class="btn ${err ? "ghost" : "primary"} small" data-pull ${!st.running || noDisk ? "disabled" : ""}>
+        act.innerHTML = `${err}<button class="btn ghost small" data-pull ${!st.running || noDisk ? "disabled" : ""}>
           ${noDisk ? t("Not enough disk space") : t("Download ({s})", { s: gb(size) })}</button>`;
         act.querySelector("[data-pull]").onclick = async () => { await api.pull_model(name); paint(await api.pulls()); };
       }
@@ -1010,7 +1099,7 @@ function keyRow(id) {
   return `<div class="keyrow" data-key="${id}">
       <div class="wrap"><input class="field" type="password" placeholder="${esc(t(hint))}" spellcheck="false" autocomplete="off">
         <button class="eye" type="button" title="Show">${icon("eye")}</button></div>
-      <button class="btn primary chk" style="height:48px">${t("Check")}</button>
+      <button class="btn ghost chk">${t("Check")}</button>
     </div><div class="status"></div>`;
 }
 
@@ -1045,9 +1134,11 @@ function wireKeyRow(root, id, onOk) {
 function renderMain() {
   const app = $("#app");
   app.className = "";
+  const care = t("Lanterna can make mistakes. Check important facts."),     // under the box: the first sentence fits,
+    careShort = care.slice(0, care.indexOf(". ") + 1 || care.length);       // the whole one shows on hover
   app.innerHTML = `<div class="shell">
     <aside class="side">
-      <div class="brand"><img src="logo.svg" alt=""><b>Lanterna</b></div>
+      <div class="brand">${lamp()}<b>Lanterna</b></div>
       <div class="newrow"><button class="btn ghost newchat" id="new" title="${esc(t("New chat"))} (Ctrl+N)" aria-keyshortcuts="Control+N">${icon("plus")} ${t("New chat")}</button>
         <button class="btn ghost newpriv" id="new-private" title="${esc(t("Private chat: not saved, memory not used"))}">${icon("incog")}</button></div>
       <label class="find"><span class="find-ic">${icon("search")}</span><input id="find" type="search" autocomplete="off" spellcheck="false"
@@ -1072,9 +1163,9 @@ function renderMain() {
           <button class="mic" id="mic" title="${esc(t("Voice input (F2)"))}" aria-label="${esc(t("Voice input (F2)"))}">${icon("mic")}</button>
           <button class="send" id="send" disabled title="${esc(t("Send"))}" aria-label="${esc(t("Send"))}">${icon("send")}</button></div>
         <div class="under">
+          <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button><button class="fold role-btn none" id="role-btn" title="${esc(t("Role of this chat"))}"><b class="role-ic">${icon("role")}</b><span></span>${icon("down", "i caret")}</button></div>
           <button class="lim" id="lim" hidden><span class="lim-track"><i></i></span><span class="lim-tx"></span></button>
-          <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button><button class="fold role-btn none" id="role-btn" title="${esc(t("Role of this chat"))}"><b class="role-ic">🎭</b><span></span>${icon("down", "i caret")}</button></div>
-          <span class="hint">${t("Lanterna can make mistakes. Check important facts.")}</span>
+          <span class="hint" title="${esc(care)}">${esc(careShort)}</span>
         </div>
       </div>
     </main>
@@ -1126,9 +1217,12 @@ function renderMain() {
   $("#fold").onclick = e => { e.stopPropagation(); folderMenu(); };
   $("#role-btn").onclick = e => { e.stopPropagation(); roleMenu(); };
   paintLimit();
-  // redrawn (a new language…): a private chat stays open, it isn't dropped by a redraw
+  // redrawn (a new language, the settings closed…): the chat that was open stays open, a private or a new one too;
+  // the first time, the newest chat opens
+  const was = drawn ? thread : undefined;
+  drawn = true;
   refreshThreads().then(list => thread && thread < 0 ? openThread(thread) : privateNext ? openThread(null, true)
-    : openThread(!QUICK && list.length ? list[0].id : null));
+    : openThread(was === null ? null : was && list.some(x => x.id === was) ? was : !QUICK && list.length ? list[0].id : null));
   api.models(false).then(r => setModel(r.current));
   if (!QUICK && !window.__alerts) { window.__alerts = true; watchAlerts(); watchSync(); }
 }
@@ -1262,7 +1356,7 @@ function setModel(label) {
   const sp = c.querySelector("span"), was = sp.textContent;
   c.hidden = !label;
   sp.textContent = label || "";
-  if (label && was && was !== label) motion(c, [{ opacity: .2, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], 420);
+  if (label && was && was !== label) motion(c, [{ opacity: .2, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }], 320);
 }
 
 // the chat's name on top: a new one slides in softly
@@ -1270,7 +1364,7 @@ function setTitle(text) {
   const el = $("#title");
   if (!el || el.textContent === text) return;
   el.textContent = text;
-  motion(el, [{ opacity: 0, transform: "translateY(5px)" }, { opacity: 1, transform: "none" }], 380);
+  motion(el, [{ opacity: 0, transform: "translateY(5px)" }, { opacity: 1, transform: "none" }], 320);
 }
 
 // Lanterna is writing an answer: the page shows it (the message box glows, the model's dot pulses)
@@ -1282,7 +1376,6 @@ function setBusy(on) {
   if (!b) return;
   b.classList.toggle("stop", on);
   b.classList.remove("stopping");
-  if (!on) b.classList.remove("fly");                 // the arrow comes back quietly
   b.innerHTML = icon(on ? "stop" : "send");
   const name = on ? t("Stop (Esc)") : t("Send");
   b.title = name;
@@ -1550,7 +1643,7 @@ async function openThread(id, priv) {
   const msgs = $("#msgs");
   msgs.innerHTML = "";
   document.body.classList.toggle("private", privateNext || (id || 0) < 0);
-  if (!id) { setTitle(QUICK ? t("Quick question") : privateNext ? t("Private chat") : "Lanterna"); showEmpty(); if (privateNext) msgs.prepend(privBar()); paintPlan(null); refreshThreads(); $("#input").focus(); return; }
+  if (!id) { setTitle(QUICK ? t("Quick question") : privateNext ? t("Private chat") : t("New chat")); showEmpty(); if (privateNext) msgs.prepend(privBar()); paintPlan(null); refreshThreads(); $("#input").focus(); return; }
   const [list, items] = await Promise.all([api.threads(), api.messages(id)]);
   const th = list.find(x => x.id === id);
   setTitle(id < 0 ? t("Private chat") : (th && th.title) || t("New chat"));
@@ -1558,7 +1651,7 @@ async function openThread(id, priv) {
   if (id < 0) msgs.prepend(privBar());
   items.forEach(m => {
     if (m.after_summary) msgs.append(h(`<div class="switch">${esc("↑ " + t("Older messages are summarized for the model"))}</div>`));
-    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent, m.second, m.sources);
+    m.role === "user" ? addUser(m.content) : addBot(m.content, m.model, m.sent, m.second, m.sources, m.disk);
   });
   // an opened chat comes in as one piece, not every old message on its own
   msgs.querySelectorAll(".msg").forEach(m => m.classList.add("old"));
@@ -1591,7 +1684,7 @@ async function paintAuto() {
   const st = tid && tid > 0 ? await api.auto_status(tid) : { on: false };
   if (tid !== thread) return;
   if (!st.on) { if (old) old.remove(); return; }
-  const el = h(`<div class="auto-bar">🤖 <span>${esc(t("Lanterna acts on its own in this chat: {n} min left", { n: Math.ceil(st.left / 60) }))}</span>
+  const el = h(`<div class="auto-bar"><span>${esc(t("Lanterna acts on its own in this chat: {n} min left", { n: Math.ceil(st.left / 60) }))}</span>
     <button class="btn ghost small">${esc(t("Stop"))}</button></div>`);
   el.querySelector("button").onclick = async () => { await api.auto_stop(tid); paintAuto(); };
   if (old) old.replaceWith(el); else $(".composer").prepend(el);
@@ -1613,6 +1706,7 @@ function paintPlan(view, working = false) {
       ${view.project ? `<button class="plan-proj" title="${esc(t("Open the project folder"))}">${icon("folder")}<span>${esc(view.project)}</span></button>` : ""}
       <button class="cp-x plan-x" title="${esc(t("Hide the plan"))}" aria-label="${esc(t("Hide the plan"))}">${icon("x")}</button>
     </div>
+    <div class="plan-bar" aria-hidden="true">${view.steps.map(s => `<i class="${s.state}"></i>`).join("")}</div>
     <ol class="plan-list">${view.steps.map(s => `<li class="${s.state}"${s.state === "now" ? ' aria-current="step"' : ""}><span class="plan-mk" aria-hidden="true">${s.state === "done" ? icon("check") : ""}</span><span class="plan-tx">${esc(s.text)}</span></li>`).join("")}</ol>
   </section>`);
   const fold = el.querySelector(".plan-fold");
@@ -1652,6 +1746,7 @@ function paintLastActions() {
     const inp = $("#input"); inp.value = r.text; inp.oninput(); inp.focus();
   };
   user.after(edit);
+  if (bot.querySelector(".md > .note-line:only-child")) return;   // a card's result, a status line: no buttons under it
   const again = h(`<button class="btn ghost small last-act">${icon("refresh")} ${esc(t("Retry"))}</button>`);
   again.onclick = () => { if (busy) return; bots.forEach(b => b.remove()); clearLastActions(); send({ retry: true, text: "", files: [], again: true }); };
   bot.querySelector(".body").append(again);
@@ -1662,34 +1757,53 @@ function paintLastActions() {
   }
 }
 
+// a name as Ukrainian calls a person (Олена → Олено, Марія → Маріє, Таня → Таню) for the regular endings only;
+// any other name, or another language, stays as it was typed
+function calling(name) {
+  const n = String(name || "").trim();
+  if (LANG !== "uk" || !/^[А-ЩЬЮЯҐЄІЇ][а-щьюяґєії'’]+$/u.test(n)) return n;
+  if (n === "Ілля") return "Ілле";
+  if (/[аеєиіїоуюяй]я$/u.test(n)) return n.slice(0, -1) + "є";        // Марія → Маріє, Зоя → Зоє
+  if (/[^аеєиіїоуюяйь'’]я$/u.test(n)) return n.slice(0, -1) + "ю";    // Таня → Таню
+  if (/[^аеєиіїоуюяйь'’]а$/u.test(n)) return n.slice(0, -1) + "о";    // Олена → Олено, Ганна → Ганно
+  return n;
+}
+
 function showEmpty() {
+  // the lamp and a hello, then five numbered things to try. A click sends the example; the scam check only puts its
+  // question in the box (the message or the link goes after it). Without the computer: the weather and a plan instead.
   const name = S.settings.name;
-  const sugg = S.settings.pc_access !== false
-    ? ["Sort my Downloads", "Why is my computer slow?", "What's the weather tomorrow?", "Remind me in 20 minutes to take a break",
-       "Explain something simply", "Help me plan my week"]
-    : ["What's the weather tomorrow?", "Remind me in 20 minutes to take a break", "Explain something simply", "Help me plan my week",
-       "Write a short message for me", "Give me an idea for today"];
-  $("#msgs").innerHTML = `<div class="empty" style="min-height:calc(100vh - 230px)">
-    ${heroLamp()}
-    <h2>${name ? t("Hi, {n}!", { n: esc(name) }) : t("Hi!")}</h2><p>${t("What's on your mind?")}</p>
-    <div class="sugg">${sugg.map(s => `<button>${t(s)}</button>`).join("")}
-      <button data-fill="scam">🛡 ${t("Is this a scam? Check a message or a link")}</button></div></div>`;
-  $("#msgs").querySelectorAll(".sugg button").forEach(b => b.onclick = () => {   // one click sends it
+  const rows = (S.settings.pc_access !== false
+    ? [["folder", "Files", "Sort my Downloads"], ["disk", "Disk", "What takes up space on my disk?"]]
+    : [["sun", "Weather", "What's the weather tomorrow?"], ["calendar", "Plan", "Help me plan my week"]])
+    .concat([["bell", "Reminders", "Remind me in 20 minutes to take a break"], ["bulb", "Explanations", "Explain simply why the sky is blue"]]);
+  const row = (n, ic, nm, ex) => `<span class="n" aria-hidden="true">0${n}</span>${icon(ic)}<span class="nm">${t(nm)}</span><span class="ex">${ex}</span>${icon("arrow", "i go")}`;
+  $("#msgs").innerHTML = `<div class="empty">
+    <div class="start-head"><div class="start-lamp">${lamp()}</div>
+      <h2>${name ? t("Hi, {n}.", { n: esc(calling(name)) }) : t("Hi.")}</h2><p>${t("What's on your mind?")}</p></div>
+    <ol class="start-list">${rows.map(([ic, nm, ex], k) => `<li><button>${row(k + 1, ic, nm, t(ex))}</button></li>`).join("")}
+      <li><button data-fill="scam">${row(5, "shield", "Safety", t("Is this a scam? Check a message or a link"))}</button></li></ol></div>`;
+  $("#msgs").querySelectorAll(".start-list button").forEach(b => b.onclick = () => {   // one click sends it
     const i = $("#input");
     if (b.dataset.fill) {                                 // the question first: the message or link is pasted after it
       i.value = t("Is this a scam? ").trim() + String.fromCharCode(10); i.oninput(); i.focus();
       i.setSelectionRange(i.value.length, i.value.length);
-      toast(t("Paste the message or the link after the question and send it. Lanterna doesn't open the link."));
+      toast(t("Paste the message or the link after the question and send it. Lanterna doesn't open the link."), false, null, "shield");
       return;
     }
-    i.value = b.textContent; i.oninput(); if (!busy) $("#send").click(); else i.focus();
+    i.value = b.querySelector(".ex").textContent; i.oninput(); if (!busy) $("#send").click(); else i.focus();
   });
 }
 
+const FILE_LINE = /^(📎|🖼) (.+)$/u;
 function addUser(text) {
   const e = $(".empty"); if (e) e.remove();
   const el = h(`<div class="msg user"></div>`);
+  const files = [];
+  text = String(text || "").split("\n").filter(l => { const f = FILE_LINE.exec(l); if (f) files.push(f); return !f; }).join("\n").trim();
   if (LIST_LINE.test(text)) { el.classList.add("rich"); el.innerHTML = md(text, true); } else el.textContent = text;
+  if (files.length) el.append(h(`<div class="msg-files${text ? "" : " only"}">${files.map(f =>
+    `<span class="mf">${icon(f[1] === "📎" ? "file" : "photo")}<span>${esc(f[2])}</span></span>`).join("")}</div>`));
   el.prepend(h(`<span class="sr-only">${esc(t("You"))}: </span>`));
   $("#msgs").append(el); return el;
 }
@@ -1712,15 +1826,23 @@ function sourcesBox(src) {
     <ol>${found.map(s => `<li>${link(s)} <span class="srcs-site">${esc(s.site)}</span></li>`).join("")}</ol></details>` : ""}</div>`;
 }
 
-function addBot(text, model, sent, second = false, sources = null) {    // second: a second opinion, with its own small title
+function addBot(text, model, sent, second = false, sources = null, disk = null) {    // second: a second opinion, with its own small title
   const e = $(".empty"); if (e) e.remove();
-  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<span class="sr-only">Lanterna: </span><div class="md"></div>${sourcesBox(sources)}${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
-  if (text === null) {      // still working: the lantern is lit (a flash as it lights), sways, flares at each step, goes out at the end
+  const el = h(`<div class="msg bot${second ? " second" : ""}"><div class="body">${second ? `<div class="second-tag">${icon("users")} ${esc(t("Second opinion"))}</div>` : ""}<span class="sr-only">Lanterna: </span>${diskFig(disk)}<div class="md"></div>${sourcesBox(sources)}${model ? `<div class="meta">${esc(model)}</div>` : ""}${sentBox(sent)}</div></div>`);
+  if (text === null) {      // still working: the small lamp burns (its flame breathes) and goes out at the end
     el.classList.add("live");
-    el.querySelector(".md").before(h(`<div class="think"><span class="lamp"><i class="flare"></i>${lamp()}<i class="smoke"></i><i class="smoke"></i></span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
+    el.querySelector(".md").before(h(`<div class="think"><span class="lamp">${lamp()}</span><span class="think-tx"><span>${t("Thinking…")}</span></span></div>`));
   }
+  else if (!model && !second && noteLine(text)) el.querySelector(".md").innerHTML = noteLine(text);
   else { el.querySelector(".md").innerHTML = md(text); addSay(el, text); addCopy(el, text); }
   $("#msgs").append(el); return el;
+}
+
+// what a card did, kept in the chat by Lanterna (✅ done, ✖ cancelled, ⚠️ failed; chat.CARD_MARKS): a line, not an answer
+const NOTE_MARKS = [["✅ ", "ok", "check"], ["✖ ", "no", "x"], ["⚠️ ", "bad", "warn"]];
+function noteLine(text) {
+  const k = typeof text === "string" && NOTE_MARKS.find(x => text.startsWith(x[0]));
+  return k ? `<div class="note-line ${k[1]}">${icon(k[2])}<span>${esc(text.slice(k[0].length))}</span></div>` : "";
 }
 
 function addCopy(el, text) {
@@ -1838,7 +1960,6 @@ async function send(retryText) {
     if (!pick || busy) { inp.focus(); return; }          // back to the message, to change it
     if (pick === "hide") text = w.masked;
   }
-  if (!retry) { const sb = $("#send"); sb.classList.remove("fly"); void sb.offsetWidth; sb.classList.add("fly"); }   // the arrow flies off
   setBusy(true);
   document.querySelectorAll(".follow").forEach(x => x.remove());   // old follow-up ideas go when you write
   if (!thread) {
@@ -1861,7 +1982,7 @@ async function send(retryText) {
   clearLastActions();
   const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
   if (live && live.el === bot && r.ok) { live.sid = r.stream; if (live.stopping) api.stop_answer(r.stream); }
-  refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) setTitle(th.title); });
+  refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) setTitle(th.title || t("New chat")); });
   if (!r.ok) {
     setBusy(false); live = null; inp.oninput(); bot.classList.remove("live"); fold(bot.querySelector(".think"));
     if (r.error === "file") box.innerHTML = `<div class="err-box">${esc(r.message || "")}</div>`;
@@ -1877,18 +1998,26 @@ async function send(retryText) {
   bot.querySelector(".md").after(acts);
   const think = bot.querySelector(".think");
   let liveSeen = "", writing = false;                  // the step on the line; the answer itself is coming in
-  const thinkDone = steps => {                         // the lantern goes out (a wisp of smoke), then the line becomes the list of steps
+  const thinkDone = steps => {                         // the lamp goes out, then the line becomes the list of steps
     if (!think.isConnected) return;
     const swap = () => {
       if (!think.isConnected) return;
       if (!steps || !steps.length) { fold(think); return; }
-      const d = h(`<details class="thinks"><summary>${esc(t("Thinking · steps: {n}", { n: steps.length }))}</summary>
-        <ol>${steps.map(x => `<li class="${x.kind === "tool" ? "st-tool" : "st-think"}">${esc(x.text)}</li>`).join("")}</ol></details>`);
+      // a tool's step takes the icon of its line above the answer, and that line goes: the list says it once
+      const lines = [...chips.querySelectorAll(".tool")];
+      const mark = text => {
+        const c = lines.find(l => !l.dataset.used && text.startsWith(l.textContent.trim()));
+        if (c) c.dataset.used = "1";
+        return c && c.querySelector("svg") ? c.querySelector("svg").outerHTML : icon("wrench");
+      };
+      const d = h(`<details class="thinks"><summary>${esc(t("Steps ({n})", { n: steps.length }))}</summary>
+        <ol>${steps.map(x => x.kind === "tool" ? `<li class="st-tool">${mark(x.text)}${esc(x.text)}</li>` : `<li class="st-think">${esc(x.text)}</li>`).join("")}</ol></details>`);
       think.replaceWith(d);
+      lines.forEach(l => { if (l.dataset.used) l.remove(); });
     };
     if (CALM.matches) return swap();
     think.classList.add("out");
-    setTimeout(swap, 900);
+    setTimeout(swap, 320);
   };
   const step = async () => {
     let p;
@@ -1901,16 +2030,17 @@ async function send(retryText) {
       if (!sw || !sw.classList.contains("switch")) { sw = h(`<div class="switch"></div>`); if (bot.isConnected) bot.before(sw); }
       if (live && live.el === bot) live.sw = sw;
       const tried = notes + i + 2;                        // the first model plus every switch so far
-      sw.textContent = "↪ " + t("switched to {m}", { m }) + (tried > 2 ? " " + t("(tried {n} models)", { n: tried }) : "");
+      sw.innerHTML = icon("swap") + `<span>${esc(capital(t("switched to {m}", { m })) +(tried > 2 ? " " + t("(tried {n} models)", { n: tried }) : ""))}</span>`;
       setModel(m);
     });
     notes = (p.notes || []).length;
     if (p.weak && p.weak !== weak && bot.isConnected) {  // a weaker model makes changes on the computer: once per chat
       weak = p.weak;
-      bot.before(h(`<div class="weak-model">⚠️ ${esc(t("{m} is a weaker model: it makes more mistakes with changes on the computer. Check each card before you confirm it.", { m: weak }))}</div>`));
+      bot.before(h(`<div class="weak-model">${icon("warn")}<span>${esc(t("{m} is a weaker model: it makes more mistakes with changes on the computer. Check each card before you confirm it.", { m: weak }))}</span></div>`));
     }
     (p.tools || []).slice(tools).forEach(s => chips.insertAdjacentHTML("beforeend", toolChip(s)));
     tools = (p.tools || []).length;
+    if (p.disk && !bot.querySelector(".dfig")) box.insertAdjacentHTML("beforebegin", diskFig(p.disk));   // counted: the disk, over the words
     (p.cards || []).slice(cards).forEach(c => acts.append(actCard(c)));
     if ((p.cards || []).length > cards && thread === sentTo) announce(t("A change is waiting for your Confirm."));
     cards = (p.cards || []).length;
@@ -1920,14 +2050,15 @@ async function send(retryText) {
       const now = planNow();
       if (now && now !== was) announce(t("Now: {step}", { step: now }));
     }
-    if (think.isConnected && think.tagName !== "DETAILS") {             // what it is doing now: a new step fades in
+    if (think.isConnected && think.tagName !== "DETAILS" && !p.done) {  // what it is doing now: a new step fades in (at the end it keeps its words)
       if ((p.live || "") !== liveSeen) { liveSeen = p.live || ""; writing = false; }    // a new step (a tool in the middle too)
       if (p.text) writing = true;                                                        // the words of the answer are coming
+      const last = chips.lastElementChild;                    // the step going on is the live line: its own line waits
+      if (last) last.classList.toggle("now", !writing && !!p.live && p.live.startsWith(last.textContent.trim()));
       const tx = think.querySelector(".think-tx"), now = writing ? t("Writing the answer…") : p.live || t("Thinking…");
       if (tx.textContent !== now) {
         tx.firstElementChild.textContent = now;
-        motion(tx, [{ opacity: .3, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], 300);
-        motion(think.querySelector(".flare"), [{ opacity: .9, transform: "scale(.4)" }, { opacity: 0, transform: "scale(1.5)" }], 700);   // the flame flares up
+        motion(tx, [{ opacity: .3, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], 200);
       }
     }
     if (p.final !== undefined && p.stopped && !p.final.trim()) { bot.remove(); if (thread === sentTo) announce(t("Stopped.")); }   // stopped before a word
@@ -1940,8 +2071,8 @@ async function send(retryText) {
       if (sayBtn && S.settings.tts_auto && thread === sentTo) speak(text_, sayBtn);
       if (p.questions && p.questions.length && !box.querySelector(".ask")) { box.innerHTML = ""; box.append(askForm(p.questions)); }
       if (thread === sentTo) announce((p.stopped ? t("Stopped.") + " " : "") + t("Lanterna answered:") + " " + box.innerText); }
-    else if (p.replace) { text_ = p.text || ""; offset = p.offset; box.innerHTML = md(text_); }   // Lanterna's check: the answer starts again
-    else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(text_); }
+    else if (p.replace) { text_ = p.text || ""; offset = p.offset; box.innerHTML = md(streamTail(text_)); }   // Lanterna's check: the answer starts again
+    else if (p.text) { text_ += p.text; offset = p.offset; box.innerHTML = md(streamTail(text_)); }
     scrollDown(stick && bot.isConnected);
     if (p.error) {
       const k = p.error.kind;
@@ -1960,6 +2091,7 @@ async function send(retryText) {
       box.querySelector("button").onclick = () => { bot.remove(); send(second ? { retry: true, text: "", files: [], second: true } : { retry: true, text, files, again: true }); };
     }
     if (p.done) {
+      chips.querySelectorAll(".now").forEach(x => x.classList.remove("now"));
       if (live && live.el === bot) live = null;
       if (thread === sentTo) planWorking(false);
       thinkDone(p.error ? [] : p.steps); setBusy(false); bot.classList.remove("live"); inp.oninput(); paintLimit();
@@ -2051,7 +2183,7 @@ function windowKeys() {
 
 // ---------------------------------------------------------------- dialogs
 function dialog(title, html, onClose) {
-  const v = h(`<div class="veil"><div class="dialog" role="dialog" aria-label="${esc(title)}"><header><h2>${esc(title)}</h2><button>${icon("x")}</button></header>${html}</div></div>`);
+  const v = h(`<div class="veil"><div class="dialog" role="dialog" aria-label="${esc(title)}"><header><h2>${esc(title)}</h2><button aria-label="${esc(t("Close"))}" title="${esc(t("Close"))}">${icon("x")}</button></header>${html}</div></div>`);
   const close = () => {                                  // it sinks away for a moment, then it is gone
     if (v.classList.contains("closing")) return;
     document.removeEventListener("keydown", esc_);
@@ -2078,10 +2210,10 @@ const remindNote = on => on ? WAKES[S.platform] : "Reminders pop up while Lanter
 const SET_TABS = [
   ["general", "General", ["Language", "Text size", "Theme", "Name", "Mode", "Local models", "Updates"]],
   ["models", "Models", ["Services", "Limits", "Free models right now"]],
-  ["memory", "Memory and reminders", ["Memory", "Reminders", "Regular tasks"]],
+  ["memory", "Memory", ["Memory", "Reminders", "Regular tasks"]],
   ["chats", "Chats", ["Working folder", "Chats", "Instructions and roles", "Backups"]],
   ["voice", "Voice", ["Voice input", "Reading aloud"]],
-  ["pc", "Computer and tools", ["Always at hand", "Computer", "MCP servers", "Connectors"]],
+  ["pc", "Computer", ["Always at hand", "Computer", "MCP servers", "Connectors"]],
   ["account", "Account", ["Account and sync", "Found a bug?"]],
 ];
 let setTab = (() => { try { return localStorage.getItem("set-tab") || "general"; } catch (e) { return "general"; } })();
@@ -2103,7 +2235,7 @@ function settingsTabs(v, body) {
     }
     if (cur) cur.append(el);
   });
-  body.querySelectorAll(".set-grp > h4").forEach(x => { x.style.marginTop = "6px"; });
+  groups.forEach(g => { const x = g.querySelector("h4"); if (x) x.style.marginTop = "0"; });   // the space is between groups (style.css)
   head.querySelector(".set-nav") && head.querySelector(".set-nav").remove();
   const nav = h(`<div class="set-nav"><div class="set-tabs" role="tablist">${SET_TABS.map(([id, label]) => `<button role="tab" data-t="${id}">${esc(t(label))}</button>`).join("")}</div>
     <label class="set-find">${icon("search")}<input id="set-find" placeholder="${esc(t("Find a setting"))}" aria-label="${esc(t("Find a setting"))}"></label></div>`);
@@ -2144,7 +2276,7 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Theme")}</h4>
       <div class="seg" id="seg-theme">${THEMES.map(v => `<button data-th="${v}" class="${v === theme ? "on" : ""}" aria-pressed="${v === theme}">${t({ dark: "Dark", light: "Light", system: "Like the system" }[v])}</button>`).join("")}</div>
       <h4 style="margin-top:22px">${t("Name")}</h4>
-      <div class="keyrow"><div class="wrap"><input class="field" id="set-name" maxlength="40" value="${esc(S.settings.name || "")}"></div><button class="btn ghost" id="save-name" style="height:48px">${t("Save")}</button></div>
+      <div class="keyrow"><div class="wrap"><input class="field" id="set-name" maxlength="40" value="${esc(S.settings.name || "")}"></div><button class="btn ghost" id="save-name">${t("Save")}</button></div>
       <h4 style="margin-top:22px">${t("Mode")}</h4>
       <div class="seg" id="seg-mode">${["cloud", "local", "auto"].map(m => `<button data-mode="${m}" class="${m === S.settings.mode ? "on" : ""}">${t({ cloud: "Cloud", local: "Local", auto: "Auto" }[m])}</button>`).join("")}</div>
       ${S.settings.mode === "auto" ? `<label class="check"><input type="checkbox" id="auto-cloud" ${S.settings.auto_cloud ? "checked" : ""}>
@@ -2154,25 +2286,25 @@ function openSettings() {
       ${S.settings.mode !== "cloud" ? `<h4 style="margin-top:22px">${t("Local models")}</h4>
         <div id="picks"></div><div class="card local-card" id="local"></div>` : ""}
       <h4 style="margin-top:22px">${t("Services")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Add keys for more services: when one runs out of free limit, Lanterna switches to the next.")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Add keys for more services: when one runs out of free limit, Lanterna switches to the next.")}</p>
       <div>${S.providers.filter(p => !p.local).map(p => `<div class="row" data-p="${p.id}">
         <div class="grow"><b>${esc(p.name)}</b><small>${p.has_key ? esc(p.masked) : t("No key")}</small>${p.note ? `<small class="plain faint">${esc(t(p.note))}</small>` : ""}</div>
         <a class="link" style="font-size:13px" data-href="${esc(p.key_url)}">${icon("ext")}</a>
         ${p.has_key ? `<button class="btn ghost small" data-act="rm">${t("Remove")}</button>` : ""}
-        <button class="btn ${p.has_key ? "ghost" : "primary"} small" data-act="add">${p.has_key ? t("Change") : t("Add")}</button>
+        <button class="btn ghost small" data-act="add">${p.has_key ? t("Change") : t("Add")}</button>
       </div>`).join("")}</div>
-      <h4 style="margin-top:22px;display:flex;align-items:center">${t("Limits")}<button class="btn ghost small" id="lim-refresh" style="margin-left:auto">${icon("refresh")}</button></h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("How much of the free limits is left. Counted on this computer from what the services answer; nothing is sent.")}</p>
+      <h4 style="margin-top:22px;display:flex;align-items:center">${t("Limits")}<button class="btn ghost small" id="lim-refresh" style="margin-left:auto" title="${esc(t("Check again"))}" aria-label="${esc(t("Check again"))}">${icon("refresh")}</button></h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("How much of the free limits is left. Counted on this computer from what the services answer; nothing is sent.")}</p>
       <div id="limits"></div>
       <h4 style="margin-top:22px">${t("Memory")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Facts Lanterna remembers about you. They stay on this computer and are sent to the model with each message.")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Facts Lanterna remembers about you. They stay on this computer and are sent to the model with each message.")}</p>
       <div id="facts"></div>
-      <div class="keyrow"><div class="wrap"><input class="field" id="fact-new" maxlength="300" placeholder="${t("Add a fact")}"></div><button class="btn ghost" id="fact-add" style="height:48px">${icon("plus")}</button></div>
+      <div class="keyrow"><div class="wrap"><input class="field" id="fact-new" maxlength="300" placeholder="${t("Add a fact")}"></div><button class="btn ghost" id="fact-add" title="${esc(t("Add a fact"))}" aria-label="${esc(t("Add a fact"))}">${icon("plus")}</button></div>
       <h4 style="margin-top:22px">${t("Reminders")}</h4>
       <div id="rems"></div>
       ${WAKES[S.platform] ? `<label class="check"><input type="checkbox" id="remind-closed" ${S.settings.remind_closed !== false ? "checked" : ""}>
         <span><b>${t("Remind me when Lanterna is closed too")}</b><small id="remind-closed-note">${t(remindNote(S.settings.remind_closed !== false))}</small></span></label>`
-        : `<p class="muted" style="margin:6px 0;font-size:13.5px">${t("Reminders pop up while Lanterna is open.")}</p>`}
+        : `<p class="muted" style="margin:6px 0;font-size:13px">${t("Reminders pop up while Lanterna is open.")}</p>`}
       <label class="check"><input type="checkbox" id="morning" ${S.settings.morning ? "checked" : ""}>
         <span><b>${t("Morning summary")}</b><small>${t("Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.")}</small></span></label>
       <div class="morning-set" ${S.settings.morning ? "" : "hidden"}>
@@ -2181,7 +2313,7 @@ function openSettings() {
         <button class="btn ghost small" id="morning-show">${t("Show it now")}</button>
       </div>
       <h4 style="margin-top:22px">${t("Regular tasks")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Lanterna does these on its own and sends you the result. They run while Lanterna is open or in the tray and stay on this computer.")}</p>
       <div id="tasks"></div>
       <details class="task-new"><summary class="btn ghost small">${icon("plus")} ${t("Add a task")}</summary>
         <div class="task-form">
@@ -2208,17 +2340,17 @@ function openSettings() {
       <label class="check"><input type="checkbox" id="auto-memory" ${S.settings.auto_memory ? "checked" : ""}>
         <span><b>${t("Learn about me from chats")}</b><small>${t("When you tell something about yourself (job, city, what you like), a fast model adds it to Memory. You see each new fact and can undo it. Never passwords or numbers. Off by default.")}</small></span></label>
       <h4 style="margin-top:22px">${t("Instructions and roles")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Tell Lanterna how to answer in every chat: about you, the tone, the length. For example: “Answer briefly. I study at a technical school, explain in simple words.”")}</p>
       <textarea class="field" id="instructions" rows="4" maxlength="1500" placeholder="${esc(t("Your instructions (optional)"))}">${esc(S.settings.instructions || "")}</textarea>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><button class="btn ghost small" id="instr-save">${icon("check")} ${t("Save")}</button><small class="muted" id="instr-left"></small></div>
-      <p class="muted" style="margin:10px 0 0;font-size:13.5px">${t("A role changes how Lanterna answers in one chat: Tutor, Translator or Proofreader. Pick it with the 🎭 button under the message box.")}</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><button class="btn ghost small" id="instr-save">${icon("check")} ${t("Save")}</button><small class="muted" id="instr-left" style="font:400 12px/1.4 var(--mono)"></small></div>
+      <p class="muted" style="margin:10px 0 0;font-size:13px">${t("A role changes how Lanterna answers in one chat: Tutor, Translator or Proofreader. Pick it with the {i} button under the message box.", { i: icon("role", "i inl") })}</p>
       <h4 style="margin-top:22px">${t("Backups")}</h4>
       <div id="backup-set"></div>
       <button class="btn ghost small" id="backup-all" style="margin-top:12px">${icon("save")} ${t("Save a backup of all chats")}</button>
-      <small class="muted" style="display:block;margin-top:6px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
+      <small class="muted" style="display:block;margin-top:6px;font-size:13px">${t("All chats, memory and reminders in one JSON file in Downloads. It is plain text: keep it somewhere safe.")}</small>
       <div id="voice-set">
       <h4 style="margin-top:22px">${t("Voice input")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Press the microphone next to the message box (or F2), speak, and press it again: your words appear in the box.")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Press the microphone next to the message box (or F2), speak, and press it again: your words appear in the box.")}</p>
       <div class="voice-opts">
         <label class="check"><input type="radio" name="voice" value="off"><span><b>${t("Off")}</b></span></label>
         <label class="check"><input type="radio" name="voice" value="groq"><span><b>${t("Online (Groq Whisper)")}</b><small>${t("Fast and accurate. Your recording goes to Groq to be turned into text. Needs the Groq key.")}</small></span></label>
@@ -2231,7 +2363,7 @@ function openSettings() {
       </div>
       <div id="tts-set">
       <h4 style="margin-top:22px">${t("Reading aloud")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Press 🔊 under an answer to hear it. Code and links are skipped.")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Press {i} under an answer to hear it. Code and links are skipped.", { i: icon("speak", "i inl") })}</p>
       <div class="voice-opts">
         <label class="check"><input type="radio" name="tts" value="off"><span><b>${t("Off")}</b></span></label>
         <label class="check"><input type="radio" name="tts" value="system"><span><b>${t("Windows voices")}</b><small>${t("The voices already on your computer. Nothing to download, works offline. More voices: Windows Settings → Time & language → Speech.")}</small></span></label>
@@ -2243,7 +2375,7 @@ function openSettings() {
       </div>
       <div id="mcp-set">
       <h4 style="margin-top:22px">${t("MCP servers")}</h4>
-      <p class="muted" style="margin:0 0 6px;font-size:13.5px">${t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.")}</p>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Add outside tools made by other people: a program on this computer or a web address. Lanterna asks before each use of a tool.")}</p>
       <label class="check" style="margin-top:0"><input type="checkbox" id="mcp-on"><span><b>${t("Use MCP servers")}</b><small>${t("Off by default. Turning it on first shows what can go wrong.")}</small></span></label>
       <div id="mcp-body" hidden>
         <div id="mcp-list"></div>
@@ -2286,10 +2418,10 @@ function openSettings() {
       <h4 style="margin-top:22px">${t("Account and sync")}</h4>
       <div id="sync"></div>
       <h4 style="margin-top:22px">${t("Connectors")}</h4>
-      <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Mail, Notion, Jira, Canva and dozens more: all in one place.")} <button class="link" id="set-conn">${t("Open Connectors")} →</button></p>
+      <p class="muted" style="margin:0 0 8px;font-size:13px">${t("Mail, Notion, Jira, Canva and dozens more: all in one place.")} <button class="link" id="set-conn">${t("Open Connectors")} →</button></p>
       <div id="connectors"></div>
       <h4 style="margin-top:22px">${t("Found a bug?")}</h4>
-      <p class="muted" style="margin:0 0 8px;font-size:13.5px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
+      <p class="muted" style="margin:0 0 8px;font-size:13px">${t("Tell what went wrong. You see the whole text first, and you send it yourself.")}</p>
       <button class="btn ghost small" id="set-bug">${t("Report a bug")}</button>
       <h4 style="margin-top:22px;display:flex;align-items:center">${t("Free models right now")}<button class="btn ghost small" id="refresh" style="margin-left:auto">${icon("refresh")} ${t("Search again")}</button></h4>
       <div class="models" id="models"></div>`;
@@ -2340,7 +2472,7 @@ function openSettings() {
     $("#morning-city", body).onchange = async e => { S = await api.save_settings({ morning_city: e.target.value.trim() }); };
     $("#morning-show", body).onclick = async e => {
       e.target.disabled = true;
-      try { toast("☀️ " + await api.morning_preview(), true); } finally { e.target.disabled = false; }
+      try { toast(await api.morning_preview(), true, null, "sun"); } finally { e.target.disabled = false; }
     };
     paintVoice();
     paintMcp();
@@ -2443,7 +2575,7 @@ function openSettings() {
   const paintFacts = async () => {
     const list = await api.facts(), box = $("#facts", body);
     box.innerHTML = list.length ? list.map(f => `<div class="row"><div class="grow">${esc(f.text)}</div><button class="btn ghost small" data-f="${f.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
-      : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("Nothing yet. Say “remember that…” in a chat.")}</p>`;
+      : `<p class="faint" style="margin:4px 0;font-size:13px">${t("Nothing yet. Say “remember that…” in a chat.")}</p>`;
     box.querySelectorAll("[data-f]").forEach(b => b.onclick = async () => { await api.delete_fact(+b.dataset.f); paintFacts(); });
   };
   const paintMcp = async () => {
@@ -2461,12 +2593,12 @@ function openSettings() {
       const pin = s.unpinned ? `<small class="plain mcp-warn">${esc(t("No version fixed: each start may run newer code that nobody checked. Add @version to the package to fix it."))}</small>`
         : s.preset && s.version ? `<small class="plain faint">${esc(t("Version {v}", { v: s.version }))}</small>` : "";
       const newer = s.newer ? `<button class="btn ghost small" data-newer="${esc(s.id)}">${esc(t("Update to {v}", { v: s.newer }))}</button>` : "";
-      return `<div class="row mcp-row"><div class="grow"><b>🧩 ${esc(s.preset ? t(s.name) : s.name)}</b><small>${esc(s.where)}</small>
+      return `<div class="row mcp-row"><div class="grow"><b>${icon("puzzle")} ${esc(s.preset ? t(s.name) : s.name)}</b><small>${esc(s.where)}</small>
           <small class="plain ${s.state === "error" && s.on ? "sync-err" : "faint"}">${esc(state)}</small>${pin}${tools}</div>${newer}
         <button class="btn ghost small" data-restart="${esc(s.id)}" title="${esc(t("Restart"))}" ${s.on ? "" : "hidden"}>${icon("refresh")}</button>
         <button class="btn ghost small" data-on="${esc(s.id)}" data-v="${s.on ? 0 : 1}">${esc(s.on ? t("Pause") : t("Resume"))}</button>
         <button class="btn ghost small" data-del="${esc(s.id)}" title="${t("Remove")}">${icon("trash")}</button></div>`;
-    }).join("") : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No servers yet.")}</p>`;
+    }).join("") : `<p class="faint" style="margin:4px 0;font-size:13px">${t("No servers yet.")}</p>`;
     box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { await api.mcp_remove(b.dataset.del); paintMcp(); });
     box.querySelectorAll("[data-newer]").forEach(b => b.onclick = async () => { b.disabled = true; await api.mcp_update_preset(b.dataset.newer); paintMcp(); });
     paintPresets();
@@ -2489,7 +2621,7 @@ function openSettings() {
       const btn = p.added ? `<span class="faint mcp-added">${icon("check")} ${t("Added")}</span>`
         : p.missing ? `<button class="btn ghost small" data-get="${esc(p.link)}" title="${esc(p.link)}">${esc(need)} ${icon("ext")}</button>`
         : `<button class="btn primary small" data-preset="${esc(p.id)}">${t(p.folder ? "Pick a folder and add" : "Add")}</button>`;
-      return `<div class="row mcp-row mcp-preset"><div class="grow"><b>${p.icon} ${esc(t(p.name))}</b><small class="plain">${esc(t(p.about))}</small>
+      return `<div class="row mcp-row mcp-preset"><div class="grow"><b>${icon({ files: "folder", git: "branch", browser: "globe", thinking: "bulb" }[p.id] || "puzzle")} ${esc(t(p.name))}</b><small class="plain">${esc(t(p.about))}</small>
         <small class="faint">${esc(t("Version {v}", { v: p.version }))}${p.missing ? "" : " · " + esc(t("Uses {name}", { name: p.needs }))}</small></div>${btn}</div>`;
     }).join("");
     pbox.querySelectorAll("[data-get]").forEach(b => b.onclick = () => api.open_url(b.dataset.get));
@@ -2577,13 +2709,13 @@ function openSettings() {
       <button class="btn ghost small" data-run="${x.id}" title="${esc(t("Run now"))}">${icon("refresh")}</button>
       <button class="btn ghost small" data-pause="${x.id}" data-p="${x.paused ? 0 : 1}">${esc(x.paused ? t("Resume") : t("Pause"))}</button>
       <button class="btn ghost small" data-del="${x.id}" title="${t("Remove")}">${icon("trash")}</button></div>`).join("")
-      : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No regular tasks. Say “every morning at 8 tell me the weather” in a chat, or add one here.")}</p>`;
+      : `<p class="faint" style="margin:4px 0;font-size:13px">${t("No regular tasks. Say “every morning at 8 tell me the weather” in a chat, or add one here.")}</p>`;
     box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { await api.task_delete(+b.dataset.del); paintTasks(); });
     box.querySelectorAll("[data-pause]").forEach(b => b.onclick = async () => { await api.task_pause(+b.dataset.pause, b.dataset.p === "1"); paintTasks(); });
     box.querySelectorAll("[data-run]").forEach(b => b.onclick = async () => {
       b.disabled = true; b.innerHTML = `<span class="spinner"></span>`;
       const r = await api.task_run(+b.dataset.run);
-      toast(r.ok ? "🔁 " + (r.text || t("Nothing to tell this time.")) : t("The task didn't work this time. Check the internet and the model keys."), r.ok && !!r.text);
+      toast(r.ok ? r.text || t("Nothing to tell this time.") : t("The task didn't work this time. Check the internet and the model keys."), r.ok && !!r.text, null, r.ok ? "auto" : "warn");
       if (r.tid) refreshThreads();
       paintTasks();
     });
@@ -2591,8 +2723,8 @@ function openSettings() {
   const paintRems = async () => {
     const list = await api.reminders(), box = $("#rems", body);
     const again = { day: "Every day", weekday: "On weekdays", week: "Every week", month: "Every month" };
-    box.innerHTML = list.length ? list.map(r => `<div class="row"><div class="grow"><b>${esc(r.text)}</b><small>${esc(r.when)}${r.repeat && again[r.repeat] ? " · 🔁 " + esc(t(again[r.repeat])) : ""}</small></div><button class="btn ghost small" data-r="${r.id}">${t("Cancel")}</button></div>`).join("")
-      : `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No reminders. Say “remind me in 20 minutes…” in a chat.")}</p>`;
+    box.innerHTML = list.length ? list.map(r => `<div class="row"><div class="grow"><b>${esc(r.text)}</b><small>${esc(r.when)}${r.repeat && again[r.repeat] ? " · " + esc(t(again[r.repeat])) : ""}</small></div><button class="btn ghost small" data-r="${r.id}">${t("Cancel")}</button></div>`).join("")
+      : `<p class="faint" style="margin:4px 0;font-size:13px">${t("No reminders. Say “remind me in 20 minutes…” in a chat.")}</p>`;
     box.querySelectorAll("[data-r]").forEach(b => b.onclick = async () => { await api.cancel_reminder(+b.dataset.r); paintRems(); });
   };
   const loadModels = async refresh => {
@@ -2602,7 +2734,7 @@ function openSettings() {
     if (!r.ok) { box.innerHTML = `<div class="status err">${t("Add a key in Settings to start.")}</div>`; return; }
     const cls = { ok: "green", limited: "amber", untested: "" };
     box.innerHTML = r.models.slice(0, 12).map(m => `<div class="mrow"><div class="nm"><small>${esc(m.provider)}</small>${esc(m.model)}</div>
-      <span class="faint">${m.latency ? m.latency.toFixed(1) + "s" : ""}</span><span class="badge ${cls[m.status] || ""}">${t(m.status)}</span></div>`).join("");
+      <span class="faint lat">${m.latency ? t("{n} s", { n: m.latency.toLocaleString(LANG, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }) : ""}</span><span class="badge ${cls[m.status] || ""}">${t(m.status)}</span></div>`).join("");
     setModel(r.current);
   };
   paint();
@@ -2617,11 +2749,11 @@ const CONN_POPULAR = ["mail", "gdrive-builtin", "notion", "github-builtin", "can
 const LOGO_ALIAS = { gdrive: "gdrive-builtin", github: "github-builtin" };
 function connLogo(name, id) {
   const lg = typeof LOGOS !== "undefined" && LOGOS[LOGO_ALIAS[id] || id];
-  if (lg) {                                  // the service's own mark (Simple Icons), in its color
+  if (lg) {                                  // the service's own mark (Simple Icons) in its color, on a plain tile
     const [hex, d] = lg;
     const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
-    const dark = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.28;   // black marks: light on the dark card
-    return `<span class="cn-logo img" style="background:rgba(${r},${g},${b},.14);border-color:rgba(${r},${g},${b},.35)" aria-hidden="true">
+    const dark = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.28;   // black marks: in the text color
+    return `<span class="cn-logo img" aria-hidden="true">
       <svg viewBox="0 0 24 24" width="22" height="22"><path fill="${dark ? "var(--text)" : "#" + hex}" d="${d}"/></svg></span>`;
   }
   if (id === "mail") return `<span class="cn-logo img mail" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
@@ -2929,13 +3061,13 @@ function openAbout() {
     ${heroLamp()}
     <div class="wordmark">Lanterna</div>
     <div class="byline">${t("Made by")} <b>${esc(S.author)}</b> · ${t("Version {v}", { v: esc(S.version) })}</div>
-    <p class="muted" style="max-width:380px;margin:0 auto 22px">${t("Free and open source (MIT). No ads, no tracking — your chats stay on your computer.")}</p>
+    <p class="about-text">${t("Free and open source (MIT). No ads, no tracking — your chats stay on your computer.")}</p>
     <div class="update" id="update"></div>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <div class="about-acts">
       <button class="btn primary" data-o="1">${icon("star")} ${t("Star on GitHub")}</button>
       <button class="btn ghost" data-o="1">${t("Project page")} ${icon("ext")}</button>
     </div>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+    <div class="about-acts">
       <button class="btn ghost small" id="about-doctor">${t("Check Lanterna")}</button>
       <button class="btn ghost small" id="about-bug">${t("Report a bug")}</button></div></div>`);
   $("#about-bug", v).onclick = () => { v.remove(); openBugReport(); };
@@ -2967,7 +3099,7 @@ function openHistory() {
     if (!list.length) { box.innerHTML = `<p class="muted">${t("Nothing yet. When you confirm a change on a card, it shows up here.")}</p>`; return; }
     box.innerHTML = list.map(x => `<div class="hist-row${x.undone ? " undone" : ""}" data-id="${esc(x.id)}">
       <span class="hist-when">${when(x.at)}</span>
-      <span class="hist-title">${esc(x.title)}${x.undone ? `<small>↩ ${esc(x.note || t("Undone"))}</small>` : ""}</span>
+      <span class="hist-title">${esc(x.title)}${x.undone ? `<small>${icon("undo")}${esc(x.note || t("Undone"))}</small>` : ""}</span>
       ${x.can_undo ? `<button class="btn ghost small" data-undo="1">${t("Undo")}</button>` : "<span></span>"}</div>`).join("");
     box.querySelectorAll("[data-undo]").forEach(b => b.onclick = async () => {
       const row = b.closest(".hist-row");
@@ -2994,7 +3126,7 @@ function openDoctor() {
     </div></section>`);
   $("#doc-close", v).onclick = () => v.remove();
   $("#doc-bug", v).onclick = () => { v.remove(); openBugReport(); };
-  const mark = { ok: "✓", warn: "!", fail: "✗", info: "·" };
+  const mark = { ok: icon("check"), warn: icon("warn"), fail: icon("x"), info: icon("info") };
   api.doctor(true).then(res => {
     $("#doc-list", v).innerHTML = res.checks.map(c => `<div class="doc-row doc-${c.status}">
       <span class="doc-mark">${mark[c.status]}</span><b>${esc(c.title)}</b><span>${esc(c.detail)}</span></div>`).join("");
@@ -3092,16 +3224,17 @@ async function paintLimit() {
   }
   if (r.limit == null) {
     b.classList.add("unknown"); fill.style.width = "0";
-    tx.textContent = t("{n} requests today", { n: r.used });
+    tx.textContent = t("{n} requests today", { n: (+r.used || 0).toLocaleString(LANG) });
     b.title = t("{m}: {n} requests today; the service doesn't say its limit.", { m: r.label, n: r.used }) + "\n" + t("Click for all limits");
     return;
   }
   const frac = Math.max(0, Math.min(1, r.left / Math.max(1, r.limit)));
   fill.style.width = (frac * 100).toFixed(1) + "%";
   if (r.left <= 0) b.classList.add("out"); else if (frac < 0.25) b.classList.add("low");
-  const left = (r.approx ? "≈" : "") + r.left;
-  tx.textContent = t("{left} of {limit}", { left, limit: r.limit }) + (r.reset_in != null ? " · " + t("reset in {t}", { t: fmtSecs(r.reset_in) }) : "");
-  b.title = t("{m}: {left} of {limit} requests left ({period}). Resets in {t}.", { m: r.label, left, limit: r.limit,
+  const left = (r.approx ? "≈" : "") + (+r.left || 0).toLocaleString(LANG), limit = (+r.limit || 0).toLocaleString(LANG);
+  // when it comes back matters once little is left: then it is on the line too (always in the tooltip)
+  tx.textContent = t("{left} of {limit} left", { left, limit }) + (r.reset_in != null && frac < 0.25 ? " · " + t("full again in {t}", { t: fmtSecs(r.reset_in) }) : "");
+  b.title = t("{m}: {left} of {limit} requests left ({period}). Resets in {t}.", { m: r.label, left, limit,
     period: t(PERIOD[r.period] || "per day"), t: r.reset_in != null ? fmtSecs(r.reset_in) : "?" })
     + (r.approx ? "\n≈ " + t("about — Google tells the exact number only when it is reached") : "") + "\n" + t("Click for all limits");
 }
@@ -3114,12 +3247,12 @@ async function paintBackup(box) {
   if (!box) return;
   const s = await api.backup_status();
   const when = s.last ? new Date(s.last * 1000).toLocaleString() : "";
-  box.innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:13.5px">${esc(t("Once a week Lanterna saves all chats, memory, reminders and regular tasks in one encrypted file. The last {n} are kept. With the password you can open a backup on any computer; without it nobody can, not even Lanterna.", { n: s.keep }))}</p>
+  box.innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:13px">${esc(t("Once a week Lanterna saves all chats, memory, reminders and regular tasks in one encrypted file. The last {n} are kept. With the password you can open a backup on any computer; without it nobody can, not even Lanterna.", { n: s.keep }))}</p>
     ${s.on ? `<div class="note ok">${icon("check")}<span>${esc(t("Weekly backups are on."))}${when ? " " + esc(t("Last one: {when}", { when })) : ""}</span></div>`
       : `<div class="note">${icon("lock")}<span>${esc(t("Set a password to turn on weekly backups. Lanterna keeps only a key made from it, in the Windows secure store, like your API keys. If you forget the password, the backups can't be opened."))}</span></div>`}
     <div class="row-field bk-pw"><input class="field" type="password" id="bk-pw" autocomplete="new-password" placeholder="${esc(s.on ? t("New password") : t("Password (at least {n} characters)", { n: s.min }))}">
       <input class="field" type="password" id="bk-pw2" autocomplete="new-password" placeholder="${esc(t("The same password again"))}">
-      <button class="btn ${s.on ? "ghost" : "primary"} small" id="bk-set">${esc(s.on ? t("Change password") : t("Turn on"))}</button></div>
+      <button class="btn ghost small" id="bk-set">${esc(s.on ? t("Change password") : t("Turn on"))}</button></div>
     <p class="sync-err" id="bk-err"></p>
     <div class="row-field"><span>${esc(t("Folder"))}</span><input class="field" id="bk-dir" value="${esc(s.folder)}">
       <button class="btn ghost small" id="bk-dir-save">${esc(t("Save"))}</button>${s.custom ? `<button class="btn ghost small" id="bk-dir-def">${esc(t("Default"))}</button>` : ""}</div>
@@ -3128,7 +3261,7 @@ async function paintBackup(box) {
       <button class="btn ghost small" id="bk-restore">${icon("refresh")} ${esc(t("Restore from a backup…"))}</button>
       ${s.on ? `<button class="btn ghost small" id="bk-off">${icon("x")} ${esc(t("Turn off backups"))}</button>` : ""}</div>
     <input type="file" id="bk-file" accept=".lanterna-backup,.json" hidden>
-    <div id="bk-ask" hidden><p class="muted" style="margin:8px 0 6px;font-size:13.5px">${esc(t("This backup was made with another password (or on another computer). Type its password:"))}</p>
+    <div id="bk-ask" hidden><p class="muted" style="margin:8px 0 6px;font-size:13px">${esc(t("This backup was made with another password (or on another computer). Type its password:"))}</p>
       <div class="row-field"><input class="field" type="password" id="bk-open-pw" autocomplete="off"><button class="btn primary small" id="bk-open-go">${esc(t("Restore"))}</button></div></div>`;
   const err = box.querySelector("#bk-err");
   const say = r => { err.textContent = r && !r.ok ? t(BACKUP_ERR[r.error] || "Something went wrong: {e}", { e: r.message || r.error }) : ""; };
@@ -3191,10 +3324,10 @@ async function paintBackup(box) {
 }
 
 // a role for one chat (Tutor, Translator, Proofreader); the user's own instructions for all are in Settings → Chats
-const ROLES = [["", "No role", "🎭", "Lanterna as usual."],
-  ["tutor", "Tutor", "🎓", "Explains step by step and asks you questions instead of giving the answer straight away."],
-  ["translator", "Translator", "🌐", "Translates every message: from your language into English, from any other into yours."],
-  ["proofreader", "Proofreader", "✍️", "Corrects spelling, grammar and punctuation and lists the changes."]];
+const ROLES = [["", "No role", "role", "Lanterna as usual."],
+  ["tutor", "Tutor", "cap", "Explains step by step and asks you questions instead of giving the answer straight away."],
+  ["translator", "Translator", "globe", "Translates every message: from your language into English, from any other into yours."],
+  ["proofreader", "Proofreader", "edit", "Corrects spelling, grammar and punctuation and lists the changes."]];
 let newChatRole = "";
 async function paintRole() {
   const b = $("#role-btn");
@@ -3202,7 +3335,7 @@ async function paintRole() {
   const role = thread ? (await api.chat_role(thread)).role : newChatRole;
   const r = ROLES.find(x => x[0] === role) || ROLES[0];
   b.dataset.role = r[0];
-  b.querySelector(".role-ic").textContent = r[2];
+  b.querySelector(".role-ic").innerHTML = icon(r[2]);
   b.querySelector("span").textContent = r[0] ? t(r[1]) : t("Role");
   b.classList.toggle("none", !r[0]);
 }
@@ -3212,7 +3345,7 @@ function roleMenu() {
   const b = $("#role-btn"), cur = b.dataset.role || "";
   const m = h(`<div class="fold-menu role-menu" role="menu">
     <div class="fm-head"><b>${esc(t("Role of this chat"))}</b><p>${esc(t("Your own instructions for every chat are in Settings → Chats."))}</p></div>
-    ${ROLES.map(r => `<button data-a="${r[0]}" class="${r[0] === cur ? "on" : ""}"><span class="r-ic">${r[2]}</span><span><b>${esc(t(r[1]))}</b><small>${esc(t(r[3]))}</small></span></button>`).join("")}</div>`);
+    ${ROLES.map(r => `<button data-a="${r[0]}" class="${r[0] === cur ? "on" : ""}"><span class="r-ic">${icon(r[2])}</span><span><b>${esc(t(r[1]))}</b><small>${esc(t(r[3]))}</small></span></button>`).join("")}</div>`);
   b.parentElement.append(m);
   const close = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("mousedown", close); } };
   setTimeout(() => document.addEventListener("mousedown", close), 0);
@@ -3287,12 +3420,12 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   mkdir: "Create the folder {path}", move: "Move {path} → {to}", drive_folder: "Create the folder {name} in Google Drive",
   drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive",
   github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub",
-  pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
-  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", auto_on: "Let Lanterna act on its own in this chat for {count} min", pc_trash: "Move {count} items to the Recycle Bin",
+  pc_sort: "Sort the files in {place} ({count})", pc_move: "Move to {to} ({count})", pc_rename: "Rename {path} → {to}",
+  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", auto_on: "Let Lanterna act on its own in this chat for {count} min", pc_trash: "Move to the Recycle Bin ({count})",
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}", app_add: "Add {to} to {name}",
   model_remove: "Remove the model {name} from Ollama", game_remove: "Remove the game {name} (Steam)", space_on: "Turn on Help free up disk space",
   sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
-  mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
+  mail_sort: "Sort the emails into folders ({count})", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
@@ -3301,8 +3434,8 @@ function actKey(c) {
   if (c.kind === "sys_look") return (d.count || 1) === 1 ? "Change: {name}" : "Change {count} settings of the look";
   return ACT_KEYS[c.kind] || "Change";
 }
-const cardIcon = k => k === "auto_on" ? "🤖" : k === "sys_look" ? "🎨" : k === "model_remove" || k === "game_remove" ? "🗑" : k === "space_on" ? "📊" : k === "mcp_call" ? "🧩" : k.startsWith("mail_") ? "📬" : k.startsWith("github_") ? "🐙" : k.startsWith("drive_") ? "☁️" : k === "pc_trash" ? "🗑" :
-  k.startsWith("pc_") ? "🗂" : k.startsWith("app_") ? "📦" : k.startsWith("sys_") ? "⚙️" : "📁";
+const cardIcon = k => k === "auto_on" ? "auto" : k === "sys_look" ? "palette" : k === "model_remove" || k === "game_remove" ? "trash" : k === "space_on" ? "chart" : k === "mcp_call" ? "puzzle" : k.startsWith("mail_") ? "mail" : k.startsWith("github_") ? "branch" : k.startsWith("drive_") ? "cloud" : k === "pc_trash" ? "trash" :
+  k.startsWith("pc_") ? "folder" : k.startsWith("app_") ? "package" : k.startsWith("sys_") ? "gear" : "file";
 
 function actCard(c) {
   const d = c.details || {};
@@ -3311,37 +3444,34 @@ function actCard(c) {
   if (c.kind === "app_add") to = (d.parts || []).map(p => t(p)).join(", ");
   const title = t(actKey(c), { path: d.path || "", to, name: t(d.name || ""), repo: d.repo || "", count: c.kind === "auto_on" ? d.minutes : d.count || 0, place: placeName(d.place) });
   const meta = [];
+  let fold = "";                                       // the folder a file goes to, with its icon before the other details
   const gh = c.kind.startsWith("github_");
   let extra = "";
   if (c.kind === "github_push") {
     meta.push(d.branch ? t("branch {b}", { b: d.branch }) : t("main branch"));
-    meta.push(((d.size || 0) / 1048576).toFixed(2) + " MB");
-    const more = d.count > (d.files || []).length ? `\n… +${d.count - d.files.length}` : "";
+    meta.push(bytes(d.size));
     extra = `<div class="cc-lbl">${t("Commit message")}</div><pre class="cc-prev">${esc(d.message || "")}</pre>
       <div class="cc-meta">${esc(t("Co-author: Lanterna Assistant"))}</div>
-      <div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
+      <div class="cc-lbl">${t("Files")}</div>${fileList(d.files || [], d.count)}
       ${(d.skipped || []).length ? `<div class="cc-meta sync-err">${esc(t("Left out (look like passwords or keys, or too big):"))} ${esc(d.skipped.join("; "))}</div>` : ""}`;
   } else if (c.kind === "github_new_repo") {
     meta.push(t(d.private ? "private" : "public"));
     extra = `<div class="cc-meta">${esc(t("Confirm opens GitHub with the form filled in: press “Create repository” there, then add it to Lanterna."))}</div>`;
   } else if (c.kind === "mail_sort") {
-    extra = `<div class="cc-groups">${(d.groups || []).map(g => `<details><summary>📁 <b>${esc(g.to)}</b> <span class="muted">— ${g.count}</span></summary>
-      <pre class="cc-prev">${esc(g.files.join("\n"))}${g.count > g.files.length ? `\n… +${g.count - g.files.length}` : ""}</pre></details>`).join("")}</div>
+    extra = `${groupRows(d.groups || [], d.count, "mail")}
       <div class="cc-meta">${esc(t("Missing folders (in Gmail: labels) are created. Nothing is deleted."))}</div>`;
   } else if (c.kind === "mail_send" || c.kind === "mail_draft") {
     meta.push(t(c.kind === "mail_send" ? "The whole letter, as it will be sent:" : "The draft:"));
   } else if (c.kind === "pc_sort") {
-    meta.push(((d.size || 0) / 1048576).toFixed(1) + " MB");
-    extra = `<div class="cc-groups">${(d.groups || []).map(g => `<details><summary>📁 <b>${esc(g.to)}</b> <span class="muted">— ${g.count}</span></summary>
-      <pre class="cc-prev">${esc(g.files.join("\n"))}${g.count > g.files.length ? `\n… +${g.count - g.files.length}` : ""}</pre></details>`).join("")}</div>
-      ${d.skipped ? `<div class="cc-meta">${esc(t("{n} files still downloading are left alone.", { n: d.skipped }))}</div>` : ""}
+    meta.push(bytes(d.size));
+    extra = `${groupRows(d.groups || [], d.count)}
+      ${d.skipped ?`<div class="cc-meta">${esc(t("Files still downloading are left alone ({n}).", { n: d.skipped }))}</div>` : ""}
       <div class="cc-meta">${esc(t("You can undo the sort afterwards."))}</div>`;
   } else if (c.kind === "pc_move" || c.kind === "pc_trash") {
-    meta.push(((d.size || 0) / 1048576).toFixed(1) + " MB");
-    const more = d.count > (d.files || []).length ? `\n… +${d.count - d.files.length}` : "";
+    meta.push(bytes(d.size));
     extra = `${d.rule ? `<div class="cc-meta">${esc(t("Which files: {r}", { r: d.rule }))}</div>` : ""}
-      <div class="cc-lbl">${t("Files")}</div><pre class="cc-prev">${esc((d.files || []).join("\n"))}${more}</pre>
-      ${d.skipped ? `<div class="cc-meta">${esc(t("{n} files still downloading are left alone.", { n: d.skipped }))}</div>` : ""}
+      <div class="cc-lbl">${t("Files")}</div>${fileList(d.files || [], d.count)}
+      ${d.skipped ? `<div class="cc-meta">${esc(t("Files still downloading are left alone ({n}).", { n: d.skipped }))}</div>` : ""}
       ${d.claimed ? `<div class="cc-meta">${esc(t("Already on another card: {n}", { n: d.claimed }))}</div>` : ""}
       ${d.reason ? `<div class="cc-meta">${esc(t("Reason: {r}", { r: d.reason }))}</div>` : ""}
       ${c.kind === "pc_trash" ? `<div class="cc-meta">${esc(t("They go to the Recycle Bin: you can restore them from there."))}</div>` : ""}`;
@@ -3365,9 +3495,9 @@ function actCard(c) {
   } else if (c.kind === "auto_on") {
     extra = `${d.plan ? `<p class="cc-desc">${esc(d.plan)}</p>` : ""}<div class="cc-meta">${esc(t("Without asking: files and folders (deleting only to the Recycle Bin), the look and settings, installing programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. Every change is in What Lanterna did, with Undo. You can stop it any time."))}</div>`;
   } else if (c.kind === "model_remove") {
-    extra = `<div class="cc-meta">${esc(t("Frees {s}. It can be downloaded again later in Settings → Local models.", { s: d.size || "" }))}</div>`;
+    extra = `<div class="cc-meta">${esc(t("Frees {s}. It can be downloaded again later in Settings → Local models.", { s: sizeStr(d.size) }))}</div>`;
   } else if (c.kind === "game_remove") {
-    extra = `<div class="cc-meta">${esc(t("Steam asks once more, then removes it: about {s} is freed. Steam can download it again later.", { s: d.size || "" }))}</div>`;
+    extra = `<div class="cc-meta">${esc(t("Steam asks once more, then removes it: about {s} is freed. Steam can download it again later.", { s: sizeStr(d.size) }))}</div>`;
   } else if (c.kind === "space_on") {
     extra = `<div class="cc-meta">${esc(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm."))}</div>`;
   } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
@@ -3375,31 +3505,31 @@ function actCard(c) {
   } else if (c.kind.startsWith("drive_")) {
     if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
     if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));
-    if (d.size != null) meta.push((d.size / 1048576).toFixed(1) + " MB");
+    if (d.size != null) meta.push(bytes(d.size));
   } else {
-    if (d.folder) meta.push("📁 " + d.folder.split(/[\\/]/).filter(Boolean).pop());
+    if (d.folder) fold = d.folder.split(/[\\/]/).filter(Boolean).pop();
     if (d.doc) meta.push(d.doc === "odt" ? t("a LibreOffice document (headings, lists and bold become real formatting)")
       : t("a Word document (headings, lists and bold become real formatting)"));
     if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
   }
   const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
-  const el = h(`<div class="cc"><div class="cc-h">${cardIcon(c.kind)} <b>${esc(title)}</b></div>
-    ${meta.length ? `<div class="cc-meta">${esc(meta.join(" · "))}</div>` : ""}${prev}${extra}
+  const el = h(`<div class="cc"><div class="cc-h">${icon(cardIcon(c.kind), "i cc-ic")}<b>${esc(title)}</b></div>
+    ${fold || meta.length ? `<div class="cc-meta">${fold ? `<span class="cc-fold">${icon("folder")}${esc(fold)}</span>${meta.length ? " · " : ""}` : ""}${esc(meta.join(" · "))}</div>` : ""}${prev}${extra}
     <div class="cc-foot"><span class="cc-q">${t("Lanterna will do this only after you confirm.")}</span>
       <button class="btn ghost small" data-a="no">${t("Cancel")}</button><button class="btn primary small" data-a="yes">${t("Confirm")}</button></div></div>`);
   const foot = el.querySelector(".cc-foot");
   const done = r => {
     el.classList.add("st-" + (["done", "cancelled", "failed"].includes(r.state) ? r.state : "expired"));   // the card's colour follows
     const link = (r.result || "").includes("|https://") ? r.result.split("|")[1] : "";
-    const msg = r.state === "done" ? "✅ " + esc(r.text || t("Done"))
-      : r.state === "cancelled" ? esc(t("Cancelled"))
-      : r.state === "failed" ? `<span class="sync-err">⚠️ ${esc(t("Couldn't do it: {error}", { error: r.result }))}</span>`
-      : esc(t("This card has expired. Ask again."));
+    const msg = r.state === "done" ? `${icon("check", "i ok-ic")}<span class="ok">${esc((r.text || t("Done")).replace(/ — https:\/\/\S+$/, ""))}</span>`
+      : r.state === "cancelled" ? `${icon("x")}<span>${esc(t("Cancelled"))}</span>`
+      : r.state === "failed" ? `${icon("warn", "i no-ic")}<span class="ok">${esc(t("Couldn't do it: {error}", { error: r.result }))}</span>`
+      : `${icon("info")}<span>${esc(t("This card has expired. Ask again."))}</span>`;
     const inst = c.kind === "github_new_repo" && r.state === "done" && d.install
       ? `<button class="btn primary small" data-inst>${t("Add it to Lanterna")} ${icon("ext")}</button>` : "";
-    const own = (r.auto || c.auto || d.auto) && r.state === "done" ? ` <span class="muted">· 🤖 ${esc(t("on its own; Undo is in What Lanterna did"))}</span>` : "";
+    const own = (r.auto || c.auto || d.auto) && r.state === "done" ? `<span class="muted">· ${esc(t("on its own; Undo is in What Lanterna did"))}</span>` : "";
     if (c.kind === "auto_on" && r.state === "done") paintAuto();
-    foot.innerHTML = `<span class="cc-q">${msg.replace(/ — https:\/\/\S+$/, "")}${own}</span>${link && c.kind !== "github_new_repo" ? `<button class="btn ghost small" data-open>${t(gh ? "Open on GitHub" : "Open in Google Drive")} ${icon("ext")}</button>` : ""}${inst}`;
+    foot.innerHTML = `<span class="cc-q">${msg}${own}</span>${link && c.kind !== "github_new_repo" ? `<button class="btn ghost small" data-open>${t(gh ? "Open on GitHub" : "Open in Google Drive")} ${icon("ext")}</button>` : ""}${inst}`;
     const o = foot.querySelector("[data-open]");
     if (o) o.onclick = () => api.open_url(link);
     const ins = foot.querySelector("[data-inst]");
@@ -3408,7 +3538,7 @@ function actCard(c) {
     if (undo && !foot.querySelector("[data-undo]")) {
       const b = h(`<button class="btn ghost small" data-undo>${t("Undo")}</button>`);
       foot.appendChild(b);
-      b.onclick = async () => { b.disabled = true; const u = await api.pc_undo(d.undo); b.replaceWith(h(`<span class="cc-q">${u.ok ? "↩ " : "⚠️ "}${esc(u.text)}</span>`)); };
+      b.onclick = async () => { b.disabled = true; const u = await api.pc_undo(d.undo); b.replaceWith(h(`<span class="cc-q">${u.ok ? icon("undo") : icon("warn", "i no-ic")}<span>${esc(u.text)}</span></span>`)); };
     }
   };
   if (c.state !== "pending") done(c);
@@ -3428,10 +3558,10 @@ async function workdirPanel(box) {
   box.innerHTML = `<p class="muted sync-p">${t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.")}
       ${t("The files it opens are sent to the model in use (to the online service in Cloud mode).")}
       ${t("New chats start with this folder; each chat can change it under the message box.")}</p>
-    ${w.path ? `<div class="row"><div class="grow"><b>📁 ${esc(w.name || w.path)}</b><small>${esc(w.path)}${w.missing ? " · " + t("not found") : ""}</small></div>
+    ${w.path ? `<div class="row"><div class="grow"><b>${icon("folder")} ${esc(w.name || w.path)}</b><small>${esc(w.path)}${w.missing ? " · " + t("not found") : ""}</small></div>
       <button class="btn ghost small" id="wd-off">${t("Stop using it")}</button><button class="btn ghost small" id="wd-pick">${t("Change")}</button></div>`
-      : `<button class="btn primary small" id="wd-pick">${t("Choose a folder")}</button>`}
-    <div class="keyrow" id="wd-row" style="display:none"><div class="wrap"><input class="field" id="wd-path" placeholder="${t("Folder path")}"></div><button class="btn ghost" id="wd-save" style="height:48px">${t("Save")}</button></div>
+      : `<button class="btn ghost small" id="wd-pick">${t("Choose a folder")}</button>`}
+    <div class="keyrow" id="wd-row" style="display:none"><div class="wrap"><input class="field" id="wd-path" placeholder="${t("Folder path")}"></div><button class="btn ghost" id="wd-save">${t("Save")}</button></div>
     <p class="sync-err" id="wd-err"></p>`;
   const show = r => { if (r.ok) workdirPanel(box); else if (r.error !== "cancelled") $("#wd-err", box).textContent = errs[r.error] || r.error; };
   $("#wd-pick", box).onclick = async () => {
@@ -3460,17 +3590,17 @@ async function githubPanel(box) {
     not_configured: t("The GitHub connector isn't set up in this version yet.") };
   const err = st.error ? `<p class="sync-err">${esc(errs[st.error] || st.error)}</p>` : "";
   const ready = st.phase === "ready";
-  box.innerHTML = `<div class="row"><div class="grow"><b>🐙 GitHub</b><small class="plain">${ready ? esc(t("Connected as @{account}", { account: st.account || "?" }))
+  box.innerHTML = `<div class="row"><div class="grow"><b>${icon("branch")} GitHub</b><small class="plain">${ready ? esc(t("Connected as @{account}", { account: st.account || "?" }))
       : !st.configured ? t("The GitHub connector isn't set up in this version yet.")
       : t("Lets the assistant push files from the chat's folder to the repositories you choose, after you confirm each push. It can't delete repositories or change their settings.")}</small></div>
     ${ready ? `<button class="btn ghost small" id="gh-repos">${t("Choose repositories")} ${icon("ext")}</button><button class="btn ghost small" id="gh-off">${t("Disconnect")}</button>`
       : st.phase === "waiting" ? `<button class="btn ghost small" id="gh-cancel">${t("Cancel")}</button>`
-      : st.configured ? `<button class="btn primary small" id="gh-on">${t("Connect")}</button>` : ""}</div>
+      : st.configured ? `<button class="btn ghost small" id="gh-on">${t("Connect")}</button>` : ""}</div>
     ${st.phase === "waiting" ? `<div class="gh-code"><span class="muted">${t("Type this code on GitHub:")}</span><b>${esc(st.code)}</b>
       <button class="btn ghost small" id="gh-copy">${t("Copy code")}</button><button class="btn primary small" id="gh-open">${t("Open GitHub")} ${icon("ext")}</button>
       <small class="muted"><span class="spinner"></span>${t("Waiting for GitHub…")}</small></div>` : ""}
-    ${ready ? `<p class="faint" style="font-size:12.5px;margin:10px 0 0">${t("Every commit shows Lanterna Assistant next to you as a co-author. That is only a name on the commit, not access.")}</p>
-      <p class="faint" style="font-size:12.5px;margin:6px 0 0">${t("Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.")}</p>` : ""}
+    ${ready ? `<p class="faint" style="font-size:13px;margin:10px 0 0">${t("Every commit shows Lanterna Assistant next to you as a co-author. That is only a name on the commit, not access.")}</p>
+      <p class="faint" style="font-size:13px;margin:6px 0 0">${t("Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.")}</p>` : ""}
     ${err}`;
   const on = $("#gh-on", box), off = $("#gh-off", box), cancel = $("#gh-cancel", box), cp = $("#gh-copy", box),
     op = $("#gh-open", box), repos = $("#gh-repos", box);
@@ -3488,11 +3618,11 @@ async function drivePanel(box) {
   const st = await api.drive_status();
   const again = ms => setTimeout(() => drivePanel(box), ms);
   const err = st.error ? `<p class="sync-err">${esc(st.error === "signed_out" ? t("Google Drive was disconnected. Connect it again.") : st.error)}</p>` : "";
-  const head = `<div class="row"><div class="grow"><b>☁️ Google Drive</b><small class="plain">${st.phase === "ready" ? esc(st.account ? t("Connected as {account}", { account: st.account }) : t("Connected"))
+  const head = `<div class="row"><div class="grow"><b>${icon("cloud")} Google Drive</b><small class="plain">${st.phase === "ready" ? esc(st.account ? t("Connected as {account}", { account: st.account }) : t("Connected"))
     : t("Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.")}</small></div>
     ${st.phase === "ready" ? `<button class="btn ghost small" id="gd-off">${t("Disconnect")}</button>`
       : st.phase === "waiting" ? `<button class="btn ghost small" id="gd-cancel">${t("Cancel")}</button>`
-      : `<button class="btn primary small" id="gd-on">${t("Connect")}</button>`}</div>`;
+      : `<button class="btn ghost small" id="gd-on">${t("Connect")}</button>`}</div>`;
   const wait = st.phase === "waiting" ? `<p class="muted sync-p"><span class="spinner"></span>${t("Finish signing in in your browser…")}
       ${st.url ? `<button class="btn ghost small" id="gd-copy">${t("Copy link")}</button>` : ""}</p>` : "";
   box.innerHTML = head + wait + err;
@@ -3515,21 +3645,35 @@ function fmtSecs(s) {
 async function limitsPanel(box) {
   if (!box || !box.isConnected) return;
   const rows = await api.limits();
-  if (!rows.length) { box.innerHTML = `<p class="faint" style="margin:4px 0;font-size:13.5px">${t("No requests to online models yet today.")}</p>`; return; }
+  if (!rows.length) { box.innerHTML = `<p class="faint" style="margin:4px 0;font-size:13px">${t("No requests to online models yet today.")}</p>`; return; }
   const LBL = {
     "requests:day": "Requests left today", "requests:minute": "Requests left this minute", "requests:hour": "Requests left this hour",
     "requests:month": "Requests left this month", "requests:": "Requests left",
     "tokens:day": "Tokens left today", "tokens:minute": "Tokens left this minute", "tokens:hour": "Tokens left this hour",
     "tokens:month": "Tokens left this month", "tokens:": "Tokens left" };
+  // the bar of a row: what is left, picked like the bar under the message box (limits.current): what the service
+  // said (requests a day, other requests, the scarcest), else Lanterna's own count of the day
+  const share = r => {
+    const heads = r.left.filter(x => x.limit);
+    const pick = heads.find(x => x.kind === "requests" && x.period === "day") || heads.find(x => x.kind === "requests")
+      || heads.slice().sort((a, b) => a.remaining / a.limit - b.remaining / b.limit)[0];
+    if (!pick && !r.limit) return null;
+    if (r.resting) return 0;
+    return pick ? Math.max(0, pick.remaining) / pick.limit : Math.max(0, r.limit - r.used) / r.limit;
+  };
   box.innerHTML = `<div class="limits">${rows.map(r => {
+    const left = share(r);
+    const bar = left == null ? "" : meter(left, `lmtr${left <= 0 ? " out" : left < 0.25 ? " low" : ""}`);
     const parts = [];
-    if (r.limit) parts.push(`<b>${t("{left} of {limit} left today", { left: r.resting ? 0 : Math.max(0, r.limit - r.used), limit: r.limit })}</b>`);
-    r.left.forEach(x => parts.push(`${t(LBL[x.kind + ":" + x.period] || "Requests left")}: <b>${x.remaining.toLocaleString()}</b>${x.limit ? " / " + x.limit.toLocaleString() : ""}${x.reset_in != null ? ` <span class="faint">· ${t("full again in {t}", { t: fmtSecs(x.reset_in) })}</span>` : ""}`));
+    const n = v => (+v || 0).toLocaleString(LANG);
+    if (r.limit) parts.push(capital(t("{left} of {limit} left today", { left: `<b class="ln">${n(r.resting ? 0 : Math.max(0, r.limit - r.used))}</b>`,
+                                                                      limit: `<span class="ln">${n(r.limit)}</span>` })));
+    r.left.forEach(x => parts.push(`${t(LBL[x.kind + ":" + x.period] || "Requests left")}: <span class="ln"><b>${n(x.remaining)}</b>${x.limit ? " / " + n(x.limit) : ""}</span>${x.reset_in != null ? ` <span class="faint">· ${t("full again in {t}", { t: fmtSecs(x.reset_in) })}</span>` : ""}`));
     if (!r.limit && !r.left.length && !r.resting) parts.push(`<span class="faint">${t("The service doesn't say how much is left; it is shown when the limit is reached.")}</span>`);
-    if (r.resting) parts.unshift(`<span class="amber-t">${t("resting, back in {t}", { t: fmtSecs(r.resting) })}</span>`);
+    if (r.resting) parts.unshift(`<span class="amber-t">${capital(t("resting, back in {t}", { t: fmtSecs(r.resting) }))}</span>`);
     return `<div class="limrow"><div class="nm"><small>${esc(r.service)}</small>${esc(r.model)}</div>
-      <div class="lnum">${t("Requests today: {n}", { n: r.used })}${r.refused ? ` · <span class="amber-t">${t("Refused: {n}", { n: r.refused })}</span>` : ""}</div>
-      <div class="ldet">${parts.join("<br>")}</div></div>`;
+      <div class="lnum">${t("Requests today: {n}", { n: n(r.used) })}${r.refused ? ` · <span class="amber-t">${t("Refused: {n}", { n: n(r.refused) })}</span>` : ""}</div>
+      ${bar}<div class="ldet">${parts.join("<br>")}</div></div>`;
   }).join("")}</div>`;
 }
 
@@ -3567,7 +3711,7 @@ async function syncPanel(box, onReady) {
     box.innerHTML = `${st.account ? `<p class="sync-who">${t("Signed in as {account}", { account: esc(st.account) })}</p>` : ""}
       <p class="muted sync-p">${intro}</p>${err}
       <div class="keyrow"><div class="wrap"><input class="field" type="password" id="sync-pw" autocomplete="new-password" placeholder="${t("Sync password")}"></div>
-      <button class="btn primary" id="sync-ok" style="height:48px">${t("Continue")}</button></div>
+      <button class="btn primary" id="sync-ok">${t("Continue")}</button></div>
       ${st.cloud ? "" : `<div class="sync-open"><button class="btn ghost small" id="sync-open">${t("Sync without a password")}</button>
         <p class="muted sync-p">${t("Just your Google account: other devices only need to sign in. Anyone who gets into that account could read the chats, so API keys aren't synced this way: you add them on each device.")}</p></div>`}
       <div class="sync-actions">${st.cloud ? `<button class="btn ghost small" id="sync-reset">${t("Forgot your password? Start over")}</button>` : ""}

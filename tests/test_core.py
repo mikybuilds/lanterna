@@ -336,6 +336,6 @@ def test_new_languages_cover_every_string():
         assert not wanted - set(table), (lang, sorted(wanted - set(table))[:10])
         bad = [k for k, v in table.items() if sorted(ph.findall(k)) != sorted(ph.findall(v)) or not v.strip()]
         assert not bad, (lang, bad[:5])
-    assert i18n.t("Hi, {n}!", "de", n="Mia") == "Hallo, Mia!"
+    assert i18n.t("Hi, {n}.", "de", n="Mia") == "Hallo, Mia."
     assert i18n.t("Settings", "pl") == "Ustawienia"
     assert i18n.t("no such text", "fr") == "no such text"

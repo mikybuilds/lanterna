@@ -366,9 +366,9 @@ def test_pale_text_is_easy_to_read_on_every_background():
     for fg in ("text", "muted", "faint"):
         for bg in ("bg", "side", "surface", "surface-2"):
             assert _contrast(root[fg], root[bg]) >= 4.5, (fg, bg, round(_contrast(root[fg], root[bg]), 2))
-    focused = re.search(r"\.box:focus-within textarea::placeholder \{ color: (#[0-9A-Fa-f]{6}); \}", css).group(1)
+    # 1.1.10b9: the hint in the empty box is the pale text itself (read above on every background), focused or not
+    assert ".box textarea::placeholder { color: var(--faint); }" in css
     assert "background: var(--surface)" in css[css.index(".box {"):css.index("}", css.index(".box {"))]
-    assert _contrast(focused, root["surface"]) >= 4.5
 
 
 def _sizes(stored, presses=()):

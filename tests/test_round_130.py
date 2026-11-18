@@ -311,7 +311,7 @@ def test_only_a_real_second_opinion_gets_its_title(tmp_path, monkeypatch):
                   sent.dumps(sent.build("m2", False, 0, False, 0, [], 0, [], second=True)))
     assert [bool(m.get("second")) for m in api.messages(tid)] == [False, False, False, True]
     js = (UI / "app.js").read_text(encoding="utf-8")
-    assert "addBot(m.content, m.model, m.sent, m.second, m.sources)" in js and "an answer right after an answer" not in js
+    assert "addBot(m.content, m.model, m.sent, m.second, m.sources, m.disk)" in js and "an answer right after an answer" not in js
 
 
 class Reg:
@@ -346,10 +346,10 @@ def test_undo_is_not_called_like_cancel_and_models_count_right():
     assert i18n.t("Undo", "uk") == "Повернути як було"
     for text in ("The old values are kept: Undo puts them back.", "on its own; Undo is in What Lanterna did"):
         assert "Скасувати" not in i18n.t(text, "uk") and "Повернути як було" in i18n.t(text, "uk")
-    assert i18n.t("(tried {n} models)", "uk", n=3) == "(спробував моделей: 3)"
+    assert i18n.t("(tried {n} models)", "uk", n=3) == "(спробувано моделей: 3)"   # 1.1.10b9: no gender (Lanterna is "she" elsewhere)
     js = (UI / "app.js").read_text(encoding="utf-8")
     assert '"Undo": { uk: "Повернути як було", it: "Ripristina" }' in js
-    assert '"(tried {n} models)": { uk: "(спробував моделей: {n})"' in js
+    assert '"(tried {n} models)": { uk: "(спробувано моделей: {n})"' in js
 
 
 # ---------------------------------------------------------------- Connectors

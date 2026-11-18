@@ -22,6 +22,7 @@ from pathlib import Path
 from .app import Api
 
 UI = Path(__file__).with_name("ui")
+mimetypes.add_type("font/woff2", ".woff2")          # the window's fonts (ui/fonts): Python 3.10 on Windows doesn't know it
 METHODS = {"state", "connectors", "connectors_search", "connector_add", "connector_add_entry", "mcp_sign_in", "mcp_sign_cancel", "mcp_sign_out", "mail_status", "mail_connect", "mail_disconnect", "save_settings", "check_key", "delete_key", "open_url", "models", "threads", "search_chats", "second_opinion", "snooze_reminder", "morning_preview", "tts_status", "tts_setup", "tts_setup_cancel", "tts_say", "new_thread",
            "messages", "rename_thread", "pin_thread", "wait_title", "wait_follow_ups", "edit_last", "export_chat", "wait_memory", "export_all", "show_saved", "delete_thread", "send", "check_private", "poll", "stop_answer", "facts", "add_fact", "delete_fact",
            "reminders", "cancel_reminder", "alerts", "hardware", "local_status", "set_local_model",
@@ -246,7 +247,7 @@ class Desk:
             self.toggle_quick(file)
 
 
-DARK_BG, LIGHT_BG = "#0B0E17", "#F6F4EE"          # --bg of the two themes (ui/style.css)
+DARK_BG, LIGHT_BG = "#111317", "#F3F4F6"          # --bg of the two themes (ui/style.css)
 
 
 def window_color(theme: str) -> str:

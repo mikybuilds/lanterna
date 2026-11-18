@@ -510,7 +510,7 @@ def test_the_line_shows_what_pc_disk_has_counted(tmp_path, monkeypatch):
     w.files, w.counted = 412_000, 120 * GB
     diskmap._walks["x"] = w
     assert diskmap.counting() == (412_000, 120 * GB)
-    assert _counted(st, now=200.0) == " — пораховано: 120.0 GB, файлів: 412 000"
+    assert _counted(st, now=200.0) == " — пораховано: 120,0 ГБ, файлів: 412 000"     # as the window writes it
     w.files = 500_000
     assert _counted(st, now=201.0).endswith("412 000")                  # read again every 2 s, not every poll
     assert _counted(st, now=202.5).endswith("500 000")
@@ -518,7 +518,7 @@ def test_the_line_shows_what_pc_disk_has_counted(tmp_path, monkeypatch):
     api._streams["s"] = live = _Stream("uk")
     live.steps.tool("pc_disk", "{}")
     p = api.poll("s")
-    assert p["live"] == "Дивлюсь, що займає диск — пораховано: 120.0 GB, файлів: 500 000"
+    assert p["live"] == "Дивлюсь, що займає диск — пораховано: 120,0 ГБ, файлів: 500 000"
     live.steps.thought("**Що займає місце**\n")                         # the model goes on: no count in its line
     assert api.poll("s")["live"] == "Що займає місце"
 
@@ -535,5 +535,5 @@ def test_every_new_string_is_translated():
         for lang in i18n.FILE_LANGS:
             assert i18n.catalog(lang).get(s), (lang, s)
     js = (UI / "app.js").read_text(encoding="utf-8")
-    assert 'game_remove: "Remove the game {name} (Steam)"' in js and f't("{GAME_TEXT}", {{ s: d.size || "" }})' in js
-    assert 'k === "model_remove" || k === "game_remove" ? "🗑"' in js
+    assert 'game_remove: "Remove the game {name} (Steam)"' in js and f't("{GAME_TEXT}", {{ s: sizeStr(d.size) }})' in js
+    assert 'k === "model_remove" || k === "game_remove" ? "trash"' in js

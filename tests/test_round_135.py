@@ -4,10 +4,9 @@
   and works at once; the window's own color before the page draws follows it, so there is no dark flash, and the
   page picks it before its first paint. Like the system follows Windows or GNOME, also when it switches while
   Lanterna is open.
-- The light theme is warm paper with the same lantern. Amber is darker where it is text or a thin line (on white
-  the bright one reads at 1.9:1); the buttons with dark words keep the bright amber. All text reads at least 4.5:1,
-  as in the dark theme. The colors that were fixed for the dark theme (code, the user's message, dialogs' veil,
-  shadows) are tokens now.
+- The light theme has the same lantern. Amber is darker where it is text or a thin line (on white the bright one
+  reads at 1.9:1). All text reads at least 4.5:1, as in the dark theme. Every color is a token (1.1.10b9: the
+  site's charcoal or light gray and one amber; the main buttons are the text's color with the page's on them).
 - The terminal follows it (Ctrl+P → Light theme / Dark theme).
 """
 import asyncio
@@ -61,44 +60,42 @@ def _over(rgba: str, bg: str) -> str:
 
 
 # ---------------------------------------------------------------- the colors
-@pytest.mark.parametrize("fg", ["text", "muted", "faint", "amber", "amber-2", "red", "green", "err-text"])
-def test_light_text_reads_on_every_background(fg):
-    for bg in ("bg", "side", "surface", "surface-2"):
-        assert _contrast(LIGHT[fg], LIGHT[bg]) >= 4.5, (fg, bg, round(_contrast(LIGHT[fg], LIGHT[bg]), 2))
+# 1.1.10b9: the window took the look of the author's site: charcoal (or light gray) and one amber, no gradients.
+TEXTS = ("text", "muted", "faint", "amber", "red", "green")
+BACKS = ("bg", "bg-2", "side", "surface", "surface-2")
 
 
-def test_light_text_on_tinted_backgrounds():
-    tint = _over(LIGHT["amber-soft"], LIGHT["bg"])                       # badges, tags, chosen options
-    assert _contrast(LIGHT["amber-2"], tint) >= 4.5 and _contrast(LIGHT["amber"], tint) >= 4.5
-    err = _over("rgba(240, 113, 103, .07)", LIGHT["bg"])                    # .err-box
-    assert _contrast(LIGHT["err-text"], err) >= 4.5
-    green = _over("rgba(91, 208, 138, .12)", LIGHT["bg"])                   # .badge.green
-    assert _contrast(LIGHT["green"], green) >= 4.5
-    assert _contrast("#1B1407", DARK["fill"]) >= 7 and _contrast("#1B1407", DARK["fill-2"]) >= 7   # dark words on amber
-    focused = re.search(r':root\[data-theme="light"\] \.box:focus-within textarea::placeholder \{ color: (#[0-9A-F]{6}); \}',
-                        CSS).group(1)
-    assert _contrast(focused, LIGHT["surface"]) >= 4.5
-    assert _contrast("#F5B544", LIGHT["surface"]) < 2                       # why amber text is darker there
+@pytest.mark.parametrize("theme", ["dark", "light"])
+def test_every_text_reads_on_every_background(theme):
+    T = DARK if theme == "dark" else LIGHT
+    for fg in TEXTS:
+        for bg in BACKS:
+            assert _contrast(T[fg], T[bg]) >= 4.5, (theme, fg, bg, round(_contrast(T[fg], T[bg]), 2))
+    for bg in ("bg", "side", "surface"):                                   # the edge of a box you type in: 3:1 at least
+        assert _contrast(T["edge"], T[bg]) >= 3, (theme, bg, round(_contrast(T["edge"], T[bg]), 2))
+    assert _contrast(T["bg"], T["text"]) >= 7                               # the main button: the page's color on the text's
 
 
 def test_the_light_theme_only_changes_colors_that_exist():
     assert set(LIGHT) <= set(DARK), set(LIGHT) - set(DARK)
-    for name in ("strong", "user-top", "code-bg", "glass", "float", "veil", "shine", "err-text", "zebra", "card", "well",
-                 "rule", "shadow", "shadow-soft", "smoke", "bg", "text", "amber"):
-        assert name in LIGHT, name                                          # each one the dark theme fixed has a light one
-    assert "fill" not in LIGHT and "fill-2" not in LIGHT                   # the buttons keep the lantern's amber
+    colors = {k for k, v in DARK.items() if "#" in v or "rgba(" in v}
+    assert len(colors) >= 20 and colors <= set(LIGHT), colors - set(LIGHT)   # each color of the dark theme has a light one
     assert "color-scheme: light" in CSS[_at:CSS.index("}", _at)]
+    assert _contrast("#F5B544", LIGHT["surface"]) < 2                       # why amber text is darker there
 
 
-def test_no_dark_only_color_is_left_in_the_rules():
+def test_colors_come_only_from_the_tokens():
     rules = CSS[CSS.index("}") + 1:]
     rules = rules[:rules.index(':root[data-theme="light"]')] + rules[rules.index("}", rules.index(':root[data-theme="light"]')):]
-    for fixed in ("#1E2539", "#0A0D15", "#FFC2BC", "#FFE9B8", "rgba(4, 6, 12", "rgba(20, 25, 41", "rgba(26, 32, 51",
-                  "rgba(0, 0, 0, .8)", "rgba(0, 0, 0, .9)", "rgba(0, 0, 0, .45)", "rgba(214, 220, 232", "color: #fff; }"):
-        assert fixed not in rules, fixed
-    for rule in (".btn.primary {", ".send {"):                             # dark words: the bright amber in both themes
+    rules = re.sub(r"/\*.*?\*/", "", rules, flags=re.S)
+    assert not re.findall(r"#[0-9A-Fa-f]{3,8}\b", rules) and "rgba(" not in rules and "rgb(" not in rules
+    grads = [rules.rfind("}", 0, m.start()) for m in re.finditer("gradient", rules)]
+    assert len(grads) == 1 and rules[grads[0]:].lstrip("} \n").startswith(".lim.unknown .lim-track")   # stripes: "no data"
+    assert set(re.findall(r"box-shadow: ([^;]+);", rules)) == {"var(--pop)"}                          # only what floats
+    assert "blur(" not in rules
+    for rule in (".btn.primary {", ".send {"):                             # the main buttons: the text's color, the page's words
         body = CSS[CSS.index(rule):CSS.index("}", CSS.index(rule))]
-        assert "linear-gradient(180deg, var(--fill-2), var(--fill))" in body and "color: #1B1407" in body
+        assert "background: var(--text)" in body and "color: var(--bg)" in body
 
 
 # ---------------------------------------------------------------- the setting

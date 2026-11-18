@@ -23,6 +23,7 @@ class Hardware:
     vram_exact: bool = False      # True when read from nvidia-smi / sysfs, False when guessed
     ram_gb: float = 0.0
     disk_free_gb: float = 0.0
+    disk_total_gb: float = 0.0    # the disk the profile is on (the window draws how full it is)
     os: str = sys.platform
 
     def to_dict(self) -> dict:
@@ -111,7 +112,8 @@ def _ram_gb() -> float:
 def detect() -> Hardware:
     hw = Hardware(ram_gb=_ram_gb())
     try:
-        hw.disk_free_gb = round(shutil.disk_usage(Path.home()).free / 1024 ** 3, 1)
+        du = shutil.disk_usage(Path.home())
+        hw.disk_free_gb, hw.disk_total_gb = round(du.free / 1024 ** 3, 1), round(du.total / 1024 ** 3, 1)
     except OSError:
         pass
     found = _nvidia()

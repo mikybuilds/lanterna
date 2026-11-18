@@ -172,7 +172,7 @@ def test_after_a_folder_card_moving_is_still_not_done():
     out, _ = _ask(conv, "а файли?")
     assert any(isinstance(p, Redo) for p in out) and box.runs == ["pc_move"]
     assert chat.claim_phrase("Я встановив Steam.", [], done_before="✅ Встановлено Steam") == ""
-    assert chat.claim_phrase("Я відсортував файли в Завантаженнях.", [], done_before="✅ Розкладено 9 файлів у папці Downloads") == ""
+    assert chat.claim_phrase("Я відсортував файли в Завантаженнях.", [], done_before="✅ Розкладено файли в папці Downloads (9)") == ""
     assert chat.claim_phrase("Я відсортував файли в Завантаженнях.", [], done_before="✅ Встановлено Steam")
 
 
