@@ -27,7 +27,10 @@
  "A sign-in page for {name} opened in your browser. Sign in there and come back.": "Se abrió en tu navegador la página de inicio de sesión de {name}. Inicia sesión allí y vuelve.",
  "A web address": "Una dirección web",
  "A web page was opened: {site}": "Se abrió una página web: {site}",
- "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": "Ha pasado una semana: hay {n} archivos nuevos sueltos en Descargas. ¿Los ordeno en carpetas? Mira la tarjeta de abajo. (Se desactiva en Ajustes → Ordenador.)",
+ "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": [
+  "Ha pasado una semana: hay {n} archivo nuevo suelto en Descargas. ¿Lo guardo en una carpeta? Mira la tarjeta de abajo. (Se desactiva en Ajustes → Ordenador.)",
+  "Ha pasado una semana: hay {n} archivos nuevos sueltos en Descargas. ¿Los ordeno en carpetas? Mira la tarjeta de abajo. (Se desactiva en Ajustes → Ordenador.)"
+ ],
  "API keys": "Claves API",
  "ASP.NET and web development": "Desarrollo de ASP.NET y web",
  "About": "Acerca de",
@@ -315,7 +318,6 @@
  "Files attached earlier in this chat (again): {names}": "Archivos adjuntos antes en este chat (otra vez): {names}",
  "Files in a folder": "Archivos de una carpeta",
  "Files right on the disk": "Archivos sueltos en el disco",
- "Files still downloading are left alone ({n}).": "Los archivos que aún se están descargando ({n}) se dejan como están.",
  "Finance": "Finanzas",
  "Find a setting": "Buscar un ajuste",
  "Find and create Lucidchart and Lucidspark diagrams.": "Busca y crea diagramas de Lucidchart y Lucidspark.",
@@ -436,7 +438,10 @@
  "Key variable (optional), for example: GITHUB_TOKEN": "Variable de la clave (opcional), por ejemplo: GITHUB_TOKEN",
  "Key vault": "Almacén de claves",
  "Key works ✓": "La clave funciona ✓",
- "Key works, {n} models.": "La clave funciona, {n} modelos.",
+ "Key works, {n} models.": [
+  "La clave funciona, {n} modelo.",
+  "La clave funciona, {n} modelos."
+ ],
  "Keys": "Claves",
  "Keys and tokens for servers are kept in the system's secure store, not in files.": "Las claves y tokens de los servidores se guardan en el almacén seguro del sistema, no en archivos.",
  "Keyword, traffic and competitor data from Semrush.": "Datos de palabras clave, tráfico y competencia de Semrush.",
@@ -574,11 +579,23 @@
  "More": "Más",
  "Morning summary": "Resumen de la mañana",
  "Mouse pointer": "Puntero del ratón",
- "Move to the Recycle Bin ({count})": "Mover a la Papelera ({count})",
- "Move to {to} ({count})": "Mover a {to} ({count})",
+ "Move {count} items to the Recycle Bin": [
+  "Mover {count} elemento a la Papelera",
+  "Mover {count} elementos a la Papelera"
+ ],
+ "Move {count} items to {to}": [
+  "Mover {count} elemento a {to}",
+  "Mover {count} elementos a {to}"
+ ],
  "Move {path} → {to}": "Mover {path} → {to}",
- "Moved to the Recycle Bin ({count})": "Movidos a la Papelera ({count})",
- "Moved to {to} ({count})": "Movidos a {to} ({count})",
+ "Moved {count} items to the Recycle Bin": [
+  "{count} elemento movido a la Papelera",
+  "{count} elementos movidos a la Papelera"
+ ],
+ "Moved {count} items to {to}": [
+  "{count} elemento movido a {to}",
+  "{count} elementos movidos a {to}"
+ ],
  "Moved {path} → {to}": "Movido {path} → {to}",
  "Music": "Música",
  "My answers to your questions:": "Mis respuestas a tus preguntas:",
@@ -661,7 +678,10 @@
  "Ollama isn't running. Start it, or switch to Cloud in Settings.": "Ollama no está funcionando. Ábrelo o cambia a Nube en Ajustes.",
  "Ollama {v} is running": "Ollama {v} funcionando",
  "Ollama {v} runs, but no model is downloaded yet.": "Ollama {v} funciona, pero aún no hay ningún modelo descargado.",
- "Ollama {v}, {n} models.": "Ollama {v}, {n} modelos.",
+ "Ollama {v}, {n} models.": [
+  "Ollama {v}, {n} modelo.",
+  "Ollama {v}, {n} modelos."
+ ],
  "On this computer (whisper.cpp)": "En este ordenador (whisper.cpp)",
  "On weekdays": "Entre semana",
  "On weekdays at {time}": "Entre semana a las {time}",
@@ -762,8 +782,14 @@
  "Project page": "Página del proyecto",
  "Proofreader": "Corrector",
  "Publisher: {p}": "Editor: {p}",
- "Push {count} files to {repo}": "Subir {count} archivos a {repo}",
- "Pushed {count} files to {repo}": "{count} archivos subidos a {repo}",
+ "Push {count} files to {repo}": [
+  "Subir {count} archivo a {repo}",
+  "Subir {count} archivos a {repo}"
+ ],
+ "Pushed {count} files to {repo}": [
+  "{count} archivo subido a {repo}",
+  "{count} archivos subidos a {repo}"
+ ],
  "Query dashboards, metrics and logs in Grafana Cloud.": "Consulta paneles, métricas y registros en Grafana Cloud.",
  "Query events, funnels and reports in Mixpanel.": "Consulta eventos, embudos e informes en Mixpanel.",
  "Query traces and events in Honeycomb.": "Consulta trazas y eventos en Honeycomb.",
@@ -801,7 +827,10 @@
  "Reading {x} on GitHub": "Leyendo {x} en GitHub",
  "Reads, searches and edits files, only inside the folder you pick.": "Lee, busca y edita archivos, solo dentro de la carpeta que elijas.",
  "Ready to connect": "Listos para conectar",
- "Ready · {n} tools": "Listo · {n} herramientas",
+ "Ready · {n} tools": [
+  "Listo · {n} herramienta",
+  "Listo · {n} herramientas"
+ ],
  "Ready-made servers": "Servidores listos",
  "Ready. Everything is on this computer.": "Listo. Todo está en este ordenador.",
  "Reason: {r}": "Motivo: {r}",
@@ -852,7 +881,7 @@
  "Restart the computer, then try again.": "Reinicia el ordenador y vuelve a intentarlo.",
  "Restore": "Restaurar",
  "Restore from a backup…": "Restaurar desde una copia…",
- "Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.": "Restaurado: {c} chats, {m} mensajes, {f} datos de memoria, {r} recordatorios, {k} tareas regulares.",
+ "Restored: {list}.": "Restaurado: {list}.",
  "Restoring…": "Restaurando…",
  "Resume": "Reanudar",
  "Retry": "Reintentar",
@@ -972,10 +1001,22 @@
  "Something went wrong: {e}": "Algo salió mal: {e}",
  "Soon": "Pronto",
  "Sort my Downloads": "Ordena mis Descargas",
- "Sort the emails into folders ({count})": "Ordenar los correos en carpetas ({count})",
- "Sort the files in {place} ({count})": "Ordenar los archivos en {place} ({count})",
- "Sorted the emails into folders ({count})": "Correos ordenados en carpetas ({count})",
- "Sorted the files in {place} ({count})": "Archivos ordenados en {place} ({count})",
+ "Sort {count} emails into folders": [
+  "Ordenar {count} correo en carpetas",
+  "Ordenar {count} correos en carpetas"
+ ],
+ "Sort {count} files in {place}": [
+  "Ordenar {count} archivo en {place}",
+  "Ordenar {count} archivos en {place}"
+ ],
+ "Sorted {count} emails into folders": [
+  "{count} correo ordenado en carpetas",
+  "{count} correos ordenados en carpetas"
+ ],
+ "Sorted {count} files in {place}": [
+  "{count} archivo ordenado en {place}",
+  "{count} archivos ordenados en {place}"
+ ],
  "Sound off": "Sonido silenciado",
  "Sources:": "Fuentes:",
  "Speech model": "Modelo de voz",
@@ -1223,7 +1264,10 @@
  "Weekly tidy-up of Downloads": "Orden semanal de Descargas",
  "Welcome to Lanterna": "Bienvenido a Lanterna",
  "What Lanterna did": "Lo que hizo Lanterna",
- "What Lanterna remembers about you ({n} facts)": "Lo que Lanterna recuerda de ti ({n} datos)",
+ "What Lanterna remembers about you ({n} facts)": [
+  "Lo que Lanterna recuerda de ti ({n} dato)",
+  "Lo que Lanterna recuerda de ti ({n} datos)"
+ ],
  "What a tool is asked goes to that server. A web address gets it over the internet.": "Lo que se le pide a una herramienta va a ese servidor. Una dirección web lo recibe por internet.",
  "What did you do, what happened, and what did you expect?": "¿Qué hiciste, qué pasó y qué esperabas?",
  "What goes to the server:": "Lo que va al servidor:",
@@ -1280,7 +1324,10 @@
  "Your key stays on this computer, in the system's secure vault.": "Tu clave se queda en este ordenador, en el almacén seguro del sistema.",
  "Your mail app opens with the letter ready. Check it and press Send.": "Tu app de correo se abre con el mensaje listo. Revísalo y pulsa Enviar.",
  "Your message": "Tu mensaje",
- "Your message and {n} earlier messages of this chat": "Tu mensaje y {n} mensajes anteriores de este chat",
+ "Your message and {n} earlier messages of this chat": [
+  "Tu mensaje y {n} mensaje anterior de este chat",
+  "Tu mensaje y {n} mensajes anteriores de este chat"
+ ],
  "Your name": "Tu nombre",
  "Your own instructions for every chat are in Settings → Chats.": "Tus propias instrucciones para todos los chats están en Ajustes → Chats.",
  "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": "Tu sistema no tiene almacén seguro de claves. Pon la clave como variable de entorno, por ejemplo GROQ_API_KEY.",
@@ -1323,7 +1370,10 @@
  "of {total}": "de {total}",
  "off": "desactivado",
  "ok": "ok",
- "older than {n} days": "con más de {n} días",
+ "older than {n} days": [
+  "con más de {n} día",
+  "con más de {n} días"
+ ],
  "on": "activado",
  "on its own; Undo is in What Lanterna did": "sola; Deshacer está en Lo que hizo Lanterna",
  "orange": "naranja",
@@ -1354,24 +1404,78 @@
  "{m} min": "{m} min",
  "{m} stopped with an error (code {n}).": "{m} se detuvo con un error (código {n}).",
  "{m}: {left} of {limit} requests left ({period}). Resets in {t}.": "{m}: quedan {left} de {limit} peticiones ({period}). Se reinicia en {t}.",
- "{m}: {n} requests today; the service doesn't say its limit.": "{m}: {n} peticiones hoy; el servicio no dice su límite.",
+ "{m}: {n} requests today; the service doesn't say its limit.": [
+  "{m}: {n} petición hoy; el servicio no dice su límite.",
+  "{m}: {n} peticiones hoy; el servicio no dice su límite."
+ ],
  "{name} no longer starts with the computer": "{name} ya no se inicia con el ordenador",
  "{name} starts with the computer": "{name} se inicia con el ordenador",
  "{name}: this audio format can be turned into text only online (Groq). Save it as MP3 or WAV, or switch voice input to Groq in Settings.": "{name}: este formato de audio solo se puede pasar a texto en línea (Groq). Guárdalo como MP3 o WAV, o elige Groq en Ajustes → Entrada de voz.",
- "{n} characters": "{n} caracteres",
- "{n} files are back from the Recycle Bin.": "{n} archivos han vuelto de la Papelera.",
- "{n} files are back where they were.": "{n} archivos han vuelto a donde estaban.",
+ "{n} characters": [
+  "{n} carácter",
+  "{n} caracteres"
+ ],
+ "{n} chats": [
+  "{n} chat",
+  "{n} chats"
+ ],
+ "{n} files are back from the Recycle Bin.": [
+  "{n} archivo ha vuelto de la Papelera.",
+  "{n} archivos han vuelto de la Papelera."
+ ],
+ "{n} files are back where they were.": [
+  "{n} archivo ha vuelto a donde estaba.",
+  "{n} archivos han vuelto a donde estaban."
+ ],
+ "{n} files still downloading are left alone.": [
+  "{n} archivo que aún se está descargando se deja como está.",
+  "{n} archivos que aún se están descargando se dejan como están."
+ ],
  "{n} h": "{n} h",
- "{n} had been moved or changed since and stayed.": "{n} se movieron o cambiaron desde entonces y se quedaron.",
+ "{n} had been moved or changed since and stayed.": [
+  "{n} se movió o cambió desde entonces y se quedó.",
+  "{n} se movieron o cambiaron desde entonces y se quedaron."
+ ],
+ "{n} memory facts": [
+  "{n} dato de memoria",
+  "{n} datos de memoria"
+ ],
+ "{n} messages": [
+  "{n} mensaje",
+  "{n} mensajes"
+ ],
  "{n} min": "{n} min",
- "{n} models are resting after a limit; Lanterna uses the others meanwhile.": "{n} modelos descansan tras un límite; mientras tanto Lanterna usa los demás.",
- "{n} new files in Downloads: sort them?": "{n} archivos nuevos en Descargas: ¿ordenarlos?",
+ "{n} models are resting after a limit; Lanterna uses the others meanwhile.": [
+  "{n} modelo descansa tras un límite; mientras tanto Lanterna usa los demás.",
+  "{n} modelos descansan tras un límite; mientras tanto Lanterna usa los demás."
+ ],
+ "{n} new files in Downloads: sort them?": [
+  "{n} archivo nuevo en Descargas: ¿ordenarlo?",
+  "{n} archivos nuevos en Descargas: ¿ordenarlos?"
+ ],
  "{n} of 6 standard folders found.": "Se encontraron {n} de 6 carpetas estándar.",
  "{n} refused": "{n} rechazadas",
- "{n} requests today": "{n} peticiones hoy",
+ "{n} regular tasks": [
+  "{n} tarea regular",
+  "{n} tareas regulares"
+ ],
+ "{n} reminders": [
+  "{n} recordatorio",
+  "{n} recordatorios"
+ ],
+ "{n} requests today": [
+  "{n} petición hoy",
+  "{n} peticiones hoy"
+ ],
  "{n} s": "{n} s",
- "{n} tools": "{n} herramientas",
- "{n} weren't in the Recycle Bin any more (or something with that name is there again).": "{n} ya no estaban en la Papelera (o allí hay otra vez algo con ese nombre).",
+ "{n} tools": [
+  "{n} herramienta",
+  "{n} herramientas"
+ ],
+ "{n} weren't in the Recycle Bin any more (or something with that name is there again).": [
+  "{n} ya no estaba en la Papelera (o allí hay otra vez algo con ese nombre).",
+  "{n} ya no estaban en la Papelera (o allí hay otra vez algo con ese nombre)."
+ ],
  "{place}: {min}…{max}°C, chance of rain {rain}%": "{place}: {min}…{max}°C, probabilidad de lluvia {rain}%",
  "{p} answered, but not the way it should. The service may have changed or closed; try another one.": "{p} respondió, pero no como debería. Puede que el servicio haya cambiado o cerrado; prueba otro.",
  "{p}% of the disk": "{p} % del disco",

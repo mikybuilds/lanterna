@@ -121,7 +121,7 @@ def test_gnome_look_lists_changes_and_undoes(tmp_path, home):
     assert g.v[("org.gnome.desktop.interface", "accent-color")] == "'blue'"           # nothing before Confirm
     body = card_text("sys_look", c["details"], "uk")
     assert "Колір акценту: синій → фіолетовий" in body and "Гучність: 40 → 70" in body
-    assert action_title("sys_look", c["details"], "", "uk") == "Змінити вигляд системи (налаштувань: 7)"
+    assert action_title("sys_look", c["details"], "", "uk") == "Змінити 7 налаштувань вигляду системи"
     a = acts.confirm(c["id"])
     assert a.state == "done", a.result
     assert g.v[("org.gnome.desktop.interface", "accent-color")] == "'purple'"

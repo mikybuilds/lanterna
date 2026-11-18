@@ -1,7 +1,11 @@
 {
  "(no speech found)": "(nie wykryto mowy)",
  "(skipped)": "(pominięte)",
- "(tried {n} models)": "(sprawdzone modele: {n})",
+ "(tried {n} models)": [
+  "(sprawdzono {n} model)",
+  "(sprawdzono {n} modele)",
+  "(sprawdzono {n} modeli)"
+ ],
  ".NET desktop development": "Programowanie aplikacji klasycznych .NET",
  "1,000 free requests a month, for personal use only.": "1000 darmowych zapytań miesięcznie, tylko do użytku osobistego.",
  "1. Sign in or create a free account.": "1. Zaloguj się lub załóż darmowe konto.",
@@ -27,7 +31,11 @@
  "A sign-in page for {name} opened in your browser. Sign in there and come back.": "W przeglądarce otworzyła się strona logowania do {name}. Zaloguj się tam i wróć.",
  "A web address": "Adres internetowy",
  "A web page was opened: {site}": "Otwarto stronę: {site}",
- "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": "Minął tydzień: w Pobranych leży {n} nowych plików. Rozłożyć je do folderów? Zobacz kartę poniżej. (Wyłączysz to w Ustawieniach → Komputer.)",
+ "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": [
+  "Minął tydzień: w Pobranych leży {n} nowy plik. Przenieść go do folderu? Zobacz kartę poniżej. (Wyłączysz to w Ustawieniach → Komputer.)",
+  "Minął tydzień: w Pobranych leżą {n} nowe pliki. Rozłożyć je do folderów? Zobacz kartę poniżej. (Wyłączysz to w Ustawieniach → Komputer.)",
+  "Minął tydzień: w Pobranych leży {n} nowych plików. Rozłożyć je do folderów? Zobacz kartę poniżej. (Wyłączysz to w Ustawieniach → Komputer.)"
+ ],
  "API keys": "Klucze API",
  "ASP.NET and web development": "Tworzenie aplikacji ASP.NET i aplikacji internetowych",
  "About": "O programie",
@@ -123,10 +131,18 @@
  "Card number": "Numer karty",
  "Change": "Zmień",
  "Change password": "Zmień hasło",
- "Change {count} settings of the look": "Zmień wygląd (ustawienia: {count})",
+ "Change {count} settings of the look": [
+  "Zmień {count} ustawienie wyglądu",
+  "Zmień {count} ustawienia wyglądu",
+  "Zmień {count} ustawień wyglądu"
+ ],
  "Change: {name}": "Zmień: {name}",
  "Changed back.": "Przywrócono.",
- "Changed {count} settings of the look": "Zmieniono wygląd (ustawienia: {count})",
+ "Changed {count} settings of the look": [
+  "Zmieniono {count} ustawienie wyglądu",
+  "Zmieniono {count} ustawienia wyglądu",
+  "Zmieniono {count} ustawień wyglądu"
+ ],
  "Changed: {name}": "Zmieniono: {name}",
  "Changes you confirmed on this computer, newest first. Undo puts files back, takes them out of the Recycle Bin or switches a setting back.": "Zmiany zatwierdzone na tym komputerze, od najnowszych. Cofnij odkłada pliki na miejsce, wyjmuje je z Kosza albo przywraca ustawienie.",
  "Chat model": "Model do rozmowy",
@@ -315,7 +331,6 @@
  "Files attached earlier in this chat (again): {names}": "Pliki dołączone wcześniej w tym czacie (ponownie): {names}",
  "Files in a folder": "Pliki w folderze",
  "Files right on the disk": "Pliki bezpośrednio na dysku",
- "Files still downloading are left alone ({n}).": "Pliki, które wciąż się pobierają ({n}), zostają nietknięte.",
  "Finance": "Finanse",
  "Find a setting": "Znajdź ustawienie",
  "Find and create Lucidchart and Lucidspark diagrams.": "Znajduj i twórz diagramy Lucidchart i Lucidspark.",
@@ -436,7 +451,11 @@
  "Key variable (optional), for example: GITHUB_TOKEN": "Zmienna klucza (opcjonalnie), na przykład: GITHUB_TOKEN",
  "Key vault": "Schowek kluczy",
  "Key works ✓": "Klucz działa ✓",
- "Key works, {n} models.": "Klucz działa, modeli: {n}.",
+ "Key works, {n} models.": [
+  "Klucz działa, {n} model.",
+  "Klucz działa, {n} modele.",
+  "Klucz działa, {n} modeli."
+ ],
  "Keys": "Klucze",
  "Keys and tokens for servers are kept in the system's secure store, not in files.": "Klucze i tokeny serwerów są w bezpiecznym magazynie systemu, nie w plikach.",
  "Keyword, traffic and competitor data from Semrush.": "Dane o słowach kluczowych, ruchu i konkurencji z Semrush.",
@@ -574,11 +593,27 @@
  "More": "Więcej",
  "Morning summary": "Poranne podsumowanie",
  "Mouse pointer": "Wskaźnik myszy",
- "Move to the Recycle Bin ({count})": "Przenieś do Kosza ({count})",
- "Move to {to} ({count})": "Przenieś do {to} ({count})",
+ "Move {count} items to the Recycle Bin": [
+  "Przenieś {count} element do Kosza",
+  "Przenieś {count} elementy do Kosza",
+  "Przenieś {count} elementów do Kosza"
+ ],
+ "Move {count} items to {to}": [
+  "Przenieś {count} element do folderu {to}",
+  "Przenieś {count} elementy do folderu {to}",
+  "Przenieś {count} elementów do folderu {to}"
+ ],
  "Move {path} → {to}": "Przenieś {path} → {to}",
- "Moved to the Recycle Bin ({count})": "Przeniesiono do Kosza ({count})",
- "Moved to {to} ({count})": "Przeniesiono do {to} ({count})",
+ "Moved {count} items to the Recycle Bin": [
+  "Przeniesiono {count} element do Kosza",
+  "Przeniesiono {count} elementy do Kosza",
+  "Przeniesiono {count} elementów do Kosza"
+ ],
+ "Moved {count} items to {to}": [
+  "Przeniesiono {count} element do folderu {to}",
+  "Przeniesiono {count} elementy do folderu {to}",
+  "Przeniesiono {count} elementów do folderu {to}"
+ ],
  "Moved {path} → {to}": "Przeniesiono {path} → {to}",
  "Music": "Muzyka",
  "My answers to your questions:": "Moje odpowiedzi na twoje pytania:",
@@ -661,12 +696,20 @@
  "Ollama isn't running. Start it, or switch to Cloud in Settings.": "Ollama nie działa. Uruchom ją albo przełącz się na Chmurę w Ustawieniach.",
  "Ollama {v} is running": "Ollama {v} działa",
  "Ollama {v} runs, but no model is downloaded yet.": "Ollama {v} działa, ale nie pobrano jeszcze żadnego modelu.",
- "Ollama {v}, {n} models.": "Ollama {v}, modeli: {n}.",
+ "Ollama {v}, {n} models.": [
+  "Ollama {v}, {n} model.",
+  "Ollama {v}, {n} modele.",
+  "Ollama {v}, {n} modeli."
+ ],
  "On this computer (whisper.cpp)": "Na tym komputerze (whisper.cpp)",
  "On weekdays": "W dni robocze",
  "On weekdays at {time}": "W dni robocze o {time}",
  "Once a day at this time: the weather in your city, today's reminders and regular tasks. Made on this computer without a model; only the weather is asked from Open-Meteo.": "Raz dziennie o tej porze: pogoda w twoim mieście, dzisiejsze przypomnienia i regularne zadania. Tworzone na tym komputerze bez modelu; tylko o pogodę Lanterna pyta Open-Meteo.",
- "Once a week Lanterna saves all chats, memory, reminders and regular tasks in one encrypted file. The last {n} are kept. With the password you can open a backup on any computer; without it nobody can, not even Lanterna.": "Raz w tygodniu Lanterna zapisuje wszystkie czaty, pamięć, przypomnienia i zadania cykliczne w jednym zaszyfrowanym pliku. Zostaje {n} ostatnich. Z hasłem otworzysz kopię na każdym komputerze; bez niego nikt nie może, nawet Lanterna.",
+ "Once a week Lanterna saves all chats, memory, reminders and regular tasks in one encrypted file. The last {n} are kept. With the password you can open a backup on any computer; without it nobody can, not even Lanterna.": [
+  "Raz w tygodniu Lanterna zapisuje wszystkie czaty, pamięć, przypomnienia i zadania cykliczne w jednym zaszyfrowanym pliku. Zostaje {n} ostatnia. Z hasłem otworzysz kopię na każdym komputerze; bez niego nikt nie może, nawet Lanterna.",
+  "Raz w tygodniu Lanterna zapisuje wszystkie czaty, pamięć, przypomnienia i zadania cykliczne w jednym zaszyfrowanym pliku. Zostają {n} ostatnie. Z hasłem otworzysz kopię na każdym komputerze; bez niego nikt nie może, nawet Lanterna.",
+  "Raz w tygodniu Lanterna zapisuje wszystkie czaty, pamięć, przypomnienia i zadania cykliczne w jednym zaszyfrowanym pliku. Zostaje {n} ostatnich. Z hasłem otworzysz kopię na każdym komputerze; bez niego nikt nie może, nawet Lanterna."
+ ],
  "Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.": "Raz w tygodniu, jeśli w Pobranych leżą nowe pliki, Lanterna tworzy czat z kartą, aby rozłożyć je do folderów. Nic się nie przenosi, dopóki nie potwierdzisz.",
  "Online (Groq Whisper)": "Online (Groq Whisper)",
  "Online voice input needs the Groq key (Settings → Keys).": "Głos online wymaga klucza Groq (Ustawienia → Klucze).",
@@ -762,8 +805,16 @@
  "Project page": "Strona projektu",
  "Proofreader": "Korektor",
  "Publisher: {p}": "Wydawca: {p}",
- "Push {count} files to {repo}": "Wyślij {count} plików do {repo}",
- "Pushed {count} files to {repo}": "Wysłano {count} plików do {repo}",
+ "Push {count} files to {repo}": [
+  "Wyślij {count} plik do repozytorium {repo}",
+  "Wyślij {count} pliki do repozytorium {repo}",
+  "Wyślij {count} plików do repozytorium {repo}"
+ ],
+ "Pushed {count} files to {repo}": [
+  "Wysłano {count} plik do repozytorium {repo}",
+  "Wysłano {count} pliki do repozytorium {repo}",
+  "Wysłano {count} plików do repozytorium {repo}"
+ ],
  "Query dashboards, metrics and logs in Grafana Cloud.": "Odpytuj pulpity, metryki i logi w Grafana Cloud.",
  "Query events, funnels and reports in Mixpanel.": "Odpytuj zdarzenia, lejki i raporty w Mixpanel.",
  "Query traces and events in Honeycomb.": "Odpytuj ślady i zdarzenia w Honeycomb.",
@@ -801,7 +852,11 @@
  "Reading {x} on GitHub": "Czytam {x} na GitHubie",
  "Reads, searches and edits files, only inside the folder you pick.": "Czyta, przeszukuje i zmienia pliki, tylko w wybranym przez ciebie folderze.",
  "Ready to connect": "Gotowe do połączenia",
- "Ready · {n} tools": "Gotowe · narzędzia: {n}",
+ "Ready · {n} tools": [
+  "Gotowe · {n} narzędzie",
+  "Gotowe · {n} narzędzia",
+  "Gotowe · {n} narzędzi"
+ ],
  "Ready-made servers": "Gotowe serwery",
  "Ready. Everything is on this computer.": "Gotowe. Wszystko jest na tym komputerze.",
  "Reason: {r}": "Powód: {r}",
@@ -852,7 +907,7 @@
  "Restart the computer, then try again.": "Uruchom ponownie komputer i spróbuj jeszcze raz.",
  "Restore": "Przywróć",
  "Restore from a backup…": "Przywróć z kopii…",
- "Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.": "Przywrócono: czaty — {c}, wiadomości — {m}, fakty w pamięci — {f}, przypomnienia — {r}, zadania cykliczne — {k}.",
+ "Restored: {list}.": "Przywrócono: {list}.",
  "Restoring…": "Przywracam…",
  "Resume": "Wznów",
  "Retry": "Spróbuj ponownie",
@@ -972,10 +1027,26 @@
  "Something went wrong: {e}": "Coś poszło nie tak: {e}",
  "Soon": "Wkrótce",
  "Sort my Downloads": "Posortuj moje Pobrane",
- "Sort the emails into folders ({count})": "Posortuj listy do folderów: {count}",
- "Sort the files in {place} ({count})": "Posortuj pliki w {place} ({count})",
- "Sorted the emails into folders ({count})": "Posortowano listy do folderów: {count}",
- "Sorted the files in {place} ({count})": "Posortowano pliki w {place} ({count})",
+ "Sort {count} emails into folders": [
+  "Posortuj {count} wiadomość do folderów",
+  "Posortuj {count} wiadomości do folderów",
+  "Posortuj {count} wiadomości do folderów"
+ ],
+ "Sort {count} files in {place}": [
+  "Posortuj {count} plik w folderze {place}",
+  "Posortuj {count} pliki w folderze {place}",
+  "Posortuj {count} plików w folderze {place}"
+ ],
+ "Sorted {count} emails into folders": [
+  "Posortowano {count} wiadomość do folderów",
+  "Posortowano {count} wiadomości do folderów",
+  "Posortowano {count} wiadomości do folderów"
+ ],
+ "Sorted {count} files in {place}": [
+  "Posortowano {count} plik w folderze {place}",
+  "Posortowano {count} pliki w folderze {place}",
+  "Posortowano {count} plików w folderze {place}"
+ ],
  "Sound off": "Dźwięk wyciszony",
  "Sources:": "Źródła:",
  "Speech model": "Model mowy",
@@ -1223,7 +1294,11 @@
  "Weekly tidy-up of Downloads": "Cotygodniowe porządki w Pobranych",
  "Welcome to Lanterna": "Witaj w Lanternie",
  "What Lanterna did": "Co zrobiła Lanterna",
- "What Lanterna remembers about you ({n} facts)": "Co Lanterna o tobie pamięta (faktów: {n})",
+ "What Lanterna remembers about you ({n} facts)": [
+  "Co Lanterna o tobie pamięta ({n} fakt)",
+  "Co Lanterna o tobie pamięta ({n} fakty)",
+  "Co Lanterna o tobie pamięta ({n} faktów)"
+ ],
  "What a tool is asked goes to that server. A web address gets it over the internet.": "To, o co prosi się narzędzie, trafia do tego serwera. Adres internetowy dostaje to przez internet.",
  "What did you do, what happened, and what did you expect?": "Co zrobiłeś, co się stało i czego się spodziewałeś?",
  "What goes to the server:": "Co trafi do serwera:",
@@ -1280,7 +1355,11 @@
  "Your key stays on this computer, in the system's secure vault.": "Twój klucz zostaje na tym komputerze, w bezpiecznym schowku systemu.",
  "Your mail app opens with the letter ready. Check it and press Send.": "Aplikacja pocztowa otworzy się z gotową wiadomością. Sprawdź ją i naciśnij Wyślij.",
  "Your message": "Twoja wiadomość",
- "Your message and {n} earlier messages of this chat": "Twoja wiadomość i wcześniejsze wiadomości z tego czatu: {n}",
+ "Your message and {n} earlier messages of this chat": [
+  "Twoja wiadomość i {n} wcześniejsza wiadomość z tego czatu",
+  "Twoja wiadomość i {n} wcześniejsze wiadomości z tego czatu",
+  "Twoja wiadomość i {n} wcześniejszych wiadomości z tego czatu"
+ ],
  "Your name": "Twoje imię",
  "Your own instructions for every chat are in Settings → Chats.": "Twoje własne instrukcje dla wszystkich czatów są w Ustawieniach → Czaty.",
  "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": "Twój system nie ma bezpiecznego schowka na klucze. Ustaw klucz jako zmienną środowiskową, np. GROQ_API_KEY.",
@@ -1323,7 +1402,11 @@
  "of {total}": "z {total}",
  "off": "wył.",
  "ok": "ok",
- "older than {n} days": "starsze niż {n} dni",
+ "older than {n} days": [
+  "starsze niż {n} dzień",
+  "starsze niż {n} dni",
+  "starsze niż {n} dni"
+ ],
  "on": "wł.",
  "on its own; Undo is in What Lanterna did": "samodzielnie; Cofnij jest w Co zrobiła Lanterna",
  "orange": "pomarańczowy",
@@ -1354,24 +1437,94 @@
  "{m} min": "{m} min",
  "{m} stopped with an error (code {n}).": "{m} zatrzymał się z błędem (kod {n}).",
  "{m}: {left} of {limit} requests left ({period}). Resets in {t}.": "{m}: zostało {left} z {limit} zapytań ({period}). Odnowienie za {t}.",
- "{m}: {n} requests today; the service doesn't say its limit.": "{m}: dziś zapytań: {n}; usługa nie podaje swojego limitu.",
+ "{m}: {n} requests today; the service doesn't say its limit.": [
+  "{m}: {n} zapytanie dziś; usługa nie podaje swojego limitu.",
+  "{m}: {n} zapytania dziś; usługa nie podaje swojego limitu.",
+  "{m}: {n} zapytań dziś; usługa nie podaje swojego limitu."
+ ],
  "{name} no longer starts with the computer": "{name} nie uruchamia się już razem z komputerem",
  "{name} starts with the computer": "{name} uruchamia się razem z komputerem",
  "{name}: this audio format can be turned into text only online (Groq). Save it as MP3 or WAV, or switch voice input to Groq in Settings.": "{name}: ten format dźwięku można zamienić na tekst tylko online (Groq). Zapisz go jako MP3 lub WAV albo wybierz Groq w Ustawieniach → Wprowadzanie głosowe.",
- "{n} characters": "Znaki: {n}",
- "{n} files are back from the Recycle Bin.": "Plików przywróconych z Kosza: {n}.",
- "{n} files are back where they were.": "Plików z powrotem na miejscu: {n}.",
+ "{n} characters": [
+  "{n} znak",
+  "{n} znaki",
+  "{n} znaków"
+ ],
+ "{n} chats": [
+  "{n} czat",
+  "{n} czaty",
+  "{n} czatów"
+ ],
+ "{n} files are back from the Recycle Bin.": [
+  "{n} plik wrócił z Kosza.",
+  "{n} pliki wróciły z Kosza.",
+  "{n} plików wróciło z Kosza."
+ ],
+ "{n} files are back where they were.": [
+  "{n} plik wrócił na miejsce.",
+  "{n} pliki wróciły na miejsce.",
+  "{n} plików wróciło na miejsce."
+ ],
+ "{n} files still downloading are left alone.": [
+  "{n} plik, który wciąż się pobiera, zostaje nietknięty.",
+  "{n} pliki, które wciąż się pobierają, zostają nietknięte.",
+  "{n} plików, które wciąż się pobierają, zostaje nietkniętych."
+ ],
  "{n} h": "{n} godz.",
- "{n} had been moved or changed since and stayed.": "Przeniesione lub zmienione w międzyczasie ({n}) zostały na miejscu.",
+ "{n} had been moved or changed since and stayed.": [
+  "{n} plik był w międzyczasie przeniesiony lub zmieniony i został na miejscu.",
+  "{n} pliki były w międzyczasie przeniesione lub zmienione i zostały na miejscu.",
+  "{n} plików było w międzyczasie przeniesionych lub zmienionych i zostało na miejscu."
+ ],
+ "{n} memory facts": [
+  "{n} fakt w pamięci",
+  "{n} fakty w pamięci",
+  "{n} faktów w pamięci"
+ ],
+ "{n} messages": [
+  "{n} wiadomość",
+  "{n} wiadomości",
+  "{n} wiadomości"
+ ],
  "{n} min": "{n} min",
- "{n} models are resting after a limit; Lanterna uses the others meanwhile.": "Modele odpoczywające po limicie: {n}; Lanterna w tym czasie używa pozostałych.",
- "{n} new files in Downloads: sort them?": "Nowe pliki w Pobranych ({n}): posortować?",
+ "{n} models are resting after a limit; Lanterna uses the others meanwhile.": [
+  "{n} model odpoczywa po limicie; Lanterna w tym czasie używa pozostałych.",
+  "{n} modele odpoczywają po limicie; Lanterna w tym czasie używa pozostałych.",
+  "{n} modeli odpoczywa po limicie; Lanterna w tym czasie używa pozostałych."
+ ],
+ "{n} new files in Downloads: sort them?": [
+  "{n} nowy plik w Pobranych: posortować?",
+  "{n} nowe pliki w Pobranych: posortować?",
+  "{n} nowych plików w Pobranych: posortować?"
+ ],
  "{n} of 6 standard folders found.": "Znaleziono {n} z 6 standardowych folderów.",
  "{n} refused": "Odrzucone: {n}",
- "{n} requests today": "Zapytania dziś: {n}",
+ "{n} regular tasks": [
+  "{n} zadanie cykliczne",
+  "{n} zadania cykliczne",
+  "{n} zadań cyklicznych"
+ ],
+ "{n} reminders": [
+  "{n} przypomnienie",
+  "{n} przypomnienia",
+  "{n} przypomnień"
+ ],
+ "{n} requests today": [
+  "{n} zapytanie dziś",
+  "{n} zapytania dziś",
+  "{n} zapytań dziś"
+ ],
  "{n} s": "{n} s",
- "{n} tools": "narzędzia: {n}",
- "{n} weren't in the Recycle Bin any more (or something with that name is there again).": "Nie było już w Koszu ({n}) (albo jest tam znowu coś o tej nazwie).",
+ "{n} tools": [
+  "{n} narzędzie",
+  "{n} narzędzia",
+  "{n} narzędzi"
+ ],
+ "{n} weren't in the Recycle Bin any more (or something with that name is there again).": [
+  "{n} pliku nie było już w Koszu (albo jest tam znowu coś o tej nazwie).",
+  "{n} plików nie było już w Koszu (albo jest tam znowu coś o tej nazwie).",
+  "{n} plików nie było już w Koszu (albo jest tam znowu coś o tej nazwie)."
+ ],
  "{place}: {min}…{max}°C, chance of rain {rain}%": "{place}: {min}…{max}°C, szansa na deszcz {rain}%",
  "{p} answered, but not the way it should. The service may have changed or closed; try another one.": "{p} odpowiedział, ale nie tak, jak powinien. Usługa mogła się zmienić albo zostać zamknięta; spróbuj innej.",
  "{p}% of the disk": "{p}% dysku",

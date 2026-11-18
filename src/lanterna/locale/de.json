@@ -27,7 +27,10 @@
  "A sign-in page for {name} opened in your browser. Sign in there and come back.": "Im Browser hat sich die Anmeldeseite von {name} geöffnet. Melde dich dort an und komm zurück.",
  "A web address": "Eine Webadresse",
  "A web page was opened: {site}": "Eine Webseite wurde geöffnet: {site}",
- "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": "Eine Woche ist vorbei: {n} neue Dateien liegen lose in Downloads. Soll ich sie in Ordner sortieren? Sieh dir die Karte unten an. (Abschalten unter Einstellungen → Computer.)",
+ "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": [
+  "Eine Woche ist vorbei: {n} neue Datei liegt lose in Downloads. Soll ich sie in einen Ordner legen? Sieh dir die Karte unten an. (Abschalten unter Einstellungen → Computer.)",
+  "Eine Woche ist vorbei: {n} neue Dateien liegen lose in Downloads. Soll ich sie in Ordner sortieren? Sieh dir die Karte unten an. (Abschalten unter Einstellungen → Computer.)"
+ ],
  "API keys": "API-Schlüssel",
  "ASP.NET and web development": "ASP.NET und Webentwicklung",
  "About": "Über Lanterna",
@@ -315,7 +318,6 @@
  "Files attached earlier in this chat (again): {names}": "Früher in diesem Chat angehängte Dateien (erneut): {names}",
  "Files in a folder": "Dateien in einem Ordner",
  "Files right on the disk": "Dateien direkt auf dem Laufwerk",
- "Files still downloading are left alone ({n}).": "Dateien, die noch heruntergeladen werden ({n}), bleiben unberührt.",
  "Finance": "Finanzen",
  "Find a setting": "Einstellung suchen",
  "Find and create Lucidchart and Lucidspark diagrams.": "Lucidchart- und Lucidspark-Diagramme finden und erstellen.",
@@ -436,7 +438,10 @@
  "Key variable (optional), for example: GITHUB_TOKEN": "Variable für den Schlüssel (optional), zum Beispiel: GITHUB_TOKEN",
  "Key vault": "Schlüsselspeicher",
  "Key works ✓": "Schlüssel funktioniert ✓",
- "Key works, {n} models.": "Schlüssel funktioniert, {n} Modelle.",
+ "Key works, {n} models.": [
+  "Schlüssel funktioniert, {n} Modell.",
+  "Schlüssel funktioniert, {n} Modelle."
+ ],
  "Keys": "Schlüssel",
  "Keys and tokens for servers are kept in the system's secure store, not in files.": "Schlüssel und Tokens für Server liegen im sicheren Speicher des Systems, nicht in Dateien.",
  "Keyword, traffic and competitor data from Semrush.": "Keyword-, Traffic- und Wettbewerbsdaten von Semrush.",
@@ -574,11 +579,23 @@
  "More": "Mehr",
  "Morning summary": "Morgenübersicht",
  "Mouse pointer": "Mauszeiger",
- "Move to the Recycle Bin ({count})": "In den Papierkorb verschieben ({count})",
- "Move to {to} ({count})": "Nach {to} verschieben ({count})",
+ "Move {count} items to the Recycle Bin": [
+  "{count} Element in den Papierkorb verschieben",
+  "{count} Elemente in den Papierkorb verschieben"
+ ],
+ "Move {count} items to {to}": [
+  "{count} Element nach {to} verschieben",
+  "{count} Elemente nach {to} verschieben"
+ ],
  "Move {path} → {to}": "{path} → {to} verschieben",
- "Moved to the Recycle Bin ({count})": "In den Papierkorb verschoben ({count})",
- "Moved to {to} ({count})": "Nach {to} verschoben ({count})",
+ "Moved {count} items to the Recycle Bin": [
+  "{count} Element in den Papierkorb verschoben",
+  "{count} Elemente in den Papierkorb verschoben"
+ ],
+ "Moved {count} items to {to}": [
+  "{count} Element nach {to} verschoben",
+  "{count} Elemente nach {to} verschoben"
+ ],
  "Moved {path} → {to}": "{path} → {to} verschoben",
  "Music": "Musik",
  "My answers to your questions:": "Meine Antworten auf deine Fragen:",
@@ -661,7 +678,10 @@
  "Ollama isn't running. Start it, or switch to Cloud in Settings.": "Ollama läuft nicht. Starte es oder wechsle in den Einstellungen zu Cloud.",
  "Ollama {v} is running": "Ollama {v} läuft",
  "Ollama {v} runs, but no model is downloaded yet.": "Ollama {v} läuft, aber noch ist kein Modell heruntergeladen.",
- "Ollama {v}, {n} models.": "Ollama {v}, {n} Modelle.",
+ "Ollama {v}, {n} models.": [
+  "Ollama {v}, {n} Modell.",
+  "Ollama {v}, {n} Modelle."
+ ],
  "On this computer (whisper.cpp)": "Auf diesem Computer (whisper.cpp)",
  "On weekdays": "An Werktagen",
  "On weekdays at {time}": "An Werktagen um {time}",
@@ -762,8 +782,14 @@
  "Project page": "Projektseite",
  "Proofreader": "Korrektor",
  "Publisher: {p}": "Herausgeber: {p}",
- "Push {count} files to {repo}": "{count} Dateien nach {repo} pushen",
- "Pushed {count} files to {repo}": "{count} Dateien nach {repo} gepusht",
+ "Push {count} files to {repo}": [
+  "{count} Datei nach {repo} pushen",
+  "{count} Dateien nach {repo} pushen"
+ ],
+ "Pushed {count} files to {repo}": [
+  "{count} Datei nach {repo} gepusht",
+  "{count} Dateien nach {repo} gepusht"
+ ],
  "Query dashboards, metrics and logs in Grafana Cloud.": "Dashboards, Metriken und Logs in Grafana Cloud abfragen.",
  "Query events, funnels and reports in Mixpanel.": "Events, Funnels und Berichte in Mixpanel abfragen.",
  "Query traces and events in Honeycomb.": "Traces und Events in Honeycomb abfragen.",
@@ -801,7 +827,10 @@
  "Reading {x} on GitHub": "Liest {x} auf GitHub",
  "Reads, searches and edits files, only inside the folder you pick.": "Liest, durchsucht und ändert Dateien, nur im Ordner, den du wählst.",
  "Ready to connect": "Bereit zum Verbinden",
- "Ready · {n} tools": "Bereit · {n} Werkzeuge",
+ "Ready · {n} tools": [
+  "Bereit · {n} Werkzeug",
+  "Bereit · {n} Werkzeuge"
+ ],
  "Ready-made servers": "Fertige Server",
  "Ready. Everything is on this computer.": "Fertig. Alles ist auf diesem Computer.",
  "Reason: {r}": "Grund: {r}",
@@ -852,7 +881,7 @@
  "Restart the computer, then try again.": "Starte den Computer neu und versuche es dann noch einmal.",
  "Restore": "Wiederherstellen",
  "Restore from a backup…": "Aus einer Sicherung wiederherstellen…",
- "Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.": "Wiederhergestellt: {c} Chats, {m} Nachrichten, {f} Gedächtnis-Fakten, {r} Erinnerungen, {k} regelmäßige Aufgaben.",
+ "Restored: {list}.": "Wiederhergestellt: {list}.",
  "Restoring…": "Stelle wieder her…",
  "Resume": "Fortsetzen",
  "Retry": "Erneut versuchen",
@@ -972,10 +1001,22 @@
  "Something went wrong: {e}": "Etwas ist schiefgelaufen: {e}",
  "Soon": "Bald",
  "Sort my Downloads": "Sortiere meine Downloads",
- "Sort the emails into folders ({count})": "E-Mails in Ordner sortieren ({count})",
- "Sort the files in {place} ({count})": "Dateien in {place} sortieren ({count})",
- "Sorted the emails into folders ({count})": "E-Mails in Ordner sortiert ({count})",
- "Sorted the files in {place} ({count})": "Dateien in {place} sortiert ({count})",
+ "Sort {count} emails into folders": [
+  "{count} E-Mail in Ordner sortieren",
+  "{count} E-Mails in Ordner sortieren"
+ ],
+ "Sort {count} files in {place}": [
+  "{count} Datei in {place} sortieren",
+  "{count} Dateien in {place} sortieren"
+ ],
+ "Sorted {count} emails into folders": [
+  "{count} E-Mail in Ordner sortiert",
+  "{count} E-Mails in Ordner sortiert"
+ ],
+ "Sorted {count} files in {place}": [
+  "{count} Datei in {place} sortiert",
+  "{count} Dateien in {place} sortiert"
+ ],
  "Sound off": "Ton aus",
  "Sources:": "Quellen:",
  "Speech model": "Sprachmodell",
@@ -1223,7 +1264,10 @@
  "Weekly tidy-up of Downloads": "Wöchentliches Aufräumen der Downloads",
  "Welcome to Lanterna": "Willkommen bei Lanterna",
  "What Lanterna did": "Was Lanterna gemacht hat",
- "What Lanterna remembers about you ({n} facts)": "Was Lanterna über dich weiß ({n} Fakten)",
+ "What Lanterna remembers about you ({n} facts)": [
+  "Was Lanterna über dich weiß ({n} Fakt)",
+  "Was Lanterna über dich weiß ({n} Fakten)"
+ ],
  "What a tool is asked goes to that server. A web address gets it over the internet.": "Was ein Werkzeug gefragt wird, geht an diesen Server. Eine Webadresse bekommt es über das Internet.",
  "What did you do, what happened, and what did you expect?": "Was hast du gemacht, was ist passiert und was hast du erwartet?",
  "What goes to the server:": "Was an den Server geht:",
@@ -1280,7 +1324,10 @@
  "Your key stays on this computer, in the system's secure vault.": "Dein Schlüssel bleibt auf diesem Computer, im sicheren Speicher des Systems.",
  "Your mail app opens with the letter ready. Check it and press Send.": "Deine Mail-App öffnet sich mit der fertigen Nachricht. Prüfe sie und drück Senden.",
  "Your message": "Deine Nachricht",
- "Your message and {n} earlier messages of this chat": "Deine Nachricht und {n} frühere Nachrichten dieses Chats",
+ "Your message and {n} earlier messages of this chat": [
+  "Deine Nachricht und {n} frühere Nachricht dieses Chats",
+  "Deine Nachricht und {n} frühere Nachrichten dieses Chats"
+ ],
  "Your name": "Dein Name",
  "Your own instructions for every chat are in Settings → Chats.": "Deine eigenen Anweisungen für alle Chats findest du in Einstellungen → Chats.",
  "Your system has no secure key storage. Set the key as an environment variable instead, e.g. GROQ_API_KEY.": "Dein System hat keinen sicheren Schlüsselspeicher. Setze den Schlüssel stattdessen als Umgebungsvariable, z. B. GROQ_API_KEY.",
@@ -1323,7 +1370,10 @@
  "of {total}": "von {total}",
  "off": "aus",
  "ok": "ok",
- "older than {n} days": "älter als {n} Tage",
+ "older than {n} days": [
+  "älter als {n} Tag",
+  "älter als {n} Tage"
+ ],
  "on": "an",
  "on its own; Undo is in What Lanterna did": "selbst; Rückgängig unter Was Lanterna getan hat",
  "orange": "orange",
@@ -1354,24 +1404,75 @@
  "{m} min": "{m} Min.",
  "{m} stopped with an error (code {n}).": "{m} hat mit einem Fehler angehalten (Code {n}).",
  "{m}: {left} of {limit} requests left ({period}). Resets in {t}.": "{m}: {left} von {limit} Anfragen übrig ({period}). Zurückgesetzt in {t}.",
- "{m}: {n} requests today; the service doesn't say its limit.": "{m}: {n} Anfragen heute; der Dienst nennt sein Limit nicht.",
+ "{m}: {n} requests today; the service doesn't say its limit.": [
+  "{m}: {n} Anfrage heute; der Dienst nennt sein Limit nicht.",
+  "{m}: {n} Anfragen heute; der Dienst nennt sein Limit nicht."
+ ],
  "{name} no longer starts with the computer": "{name} startet nicht mehr mit dem Computer",
  "{name} starts with the computer": "{name} startet mit dem Computer",
  "{name}: this audio format can be turned into text only online (Groq). Save it as MP3 or WAV, or switch voice input to Groq in Settings.": "{name}: Dieses Audioformat kann nur online (Groq) in Text umgewandelt werden. Speichere es als MP3 oder WAV oder wähle Groq in den Einstellungen → Spracheingabe.",
  "{n} characters": "{n} Zeichen",
- "{n} files are back from the Recycle Bin.": "{n} Dateien sind aus dem Papierkorb zurück.",
- "{n} files are back where they were.": "{n} Dateien sind wieder dort, wo sie waren.",
+ "{n} chats": [
+  "{n} Chat",
+  "{n} Chats"
+ ],
+ "{n} files are back from the Recycle Bin.": [
+  "{n} Datei ist aus dem Papierkorb zurück.",
+  "{n} Dateien sind aus dem Papierkorb zurück."
+ ],
+ "{n} files are back where they were.": [
+  "{n} Datei ist wieder dort, wo sie war.",
+  "{n} Dateien sind wieder dort, wo sie waren."
+ ],
+ "{n} files still downloading are left alone.": [
+  "{n} Datei, die noch heruntergeladen wird, bleibt unberührt.",
+  "{n} Dateien, die noch heruntergeladen werden, bleiben unberührt."
+ ],
  "{n} h": "{n} Std.",
- "{n} had been moved or changed since and stayed.": "{n} wurden inzwischen verschoben oder geändert und sind geblieben.",
+ "{n} had been moved or changed since and stayed.": [
+  "{n} wurde inzwischen verschoben oder geändert und ist geblieben.",
+  "{n} wurden inzwischen verschoben oder geändert und sind geblieben."
+ ],
+ "{n} memory facts": [
+  "{n} Gedächtnis-Fakt",
+  "{n} Gedächtnis-Fakten"
+ ],
+ "{n} messages": [
+  "{n} Nachricht",
+  "{n} Nachrichten"
+ ],
  "{n} min": "{n} Min.",
- "{n} models are resting after a limit; Lanterna uses the others meanwhile.": "{n} Modelle pausieren nach einem Limit; Lanterna nutzt solange die anderen.",
- "{n} new files in Downloads: sort them?": "{n} neue Dateien in Downloads: sortieren?",
+ "{n} models are resting after a limit; Lanterna uses the others meanwhile.": [
+  "{n} Modell pausiert nach einem Limit; Lanterna nutzt solange die anderen.",
+  "{n} Modelle pausieren nach einem Limit; Lanterna nutzt solange die anderen."
+ ],
+ "{n} new files in Downloads: sort them?": [
+  "{n} neue Datei in Downloads: sortieren?",
+  "{n} neue Dateien in Downloads: sortieren?"
+ ],
  "{n} of 6 standard folders found.": "{n} von 6 Standardordnern gefunden.",
  "{n} refused": "{n} abgelehnt",
- "{n} requests today": "{n} Anfragen heute",
+ "{n} regular tasks": [
+  "{n} regelmäßige Aufgabe",
+  "{n} regelmäßige Aufgaben"
+ ],
+ "{n} reminders": [
+  "{n} Erinnerung",
+  "{n} Erinnerungen"
+ ],
+ "{n} requests today": [
+  "{n} Anfrage heute",
+  "{n} Anfragen heute"
+ ],
  "{n} s": "{n} s",
- "{n} tools": "{n} Werkzeuge",
- "{n} weren't in the Recycle Bin any more (or something with that name is there again).": "{n} waren nicht mehr im Papierkorb (oder dort liegt wieder etwas mit diesem Namen).",
+ "{n} tools": [
+  "{n} Werkzeug",
+  "{n} Werkzeuge"
+ ],
+ "{n} weren't in the Recycle Bin any more (or something with that name is there again).": [
+  "{n} war nicht mehr im Papierkorb (oder dort liegt wieder etwas mit diesem Namen).",
+  "{n} waren nicht mehr im Papierkorb (oder dort liegt wieder etwas mit diesem Namen)."
+ ],
  "{place}: {min}…{max}°C, chance of rain {rain}%": "{place}: {min}…{max}°C, Regenwahrscheinlichkeit {rain}%",
  "{p} answered, but not the way it should. The service may have changed or closed; try another one.": "{p} hat geantwortet, aber nicht wie erwartet. Der Dienst hat sich vielleicht geändert oder wurde eingestellt; versuch einen anderen.",
  "{p}% of the disk": "{p} % des Laufwerks",

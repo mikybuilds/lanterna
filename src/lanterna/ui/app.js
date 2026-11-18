@@ -228,7 +228,7 @@ const STR = {
   "Sign out and delete the copy in Google Drive": { uk: "Вийти й видалити копію з Google Drive", it: "Esci ed elimina la copia su Google Drive" },
   "Delete the encrypted copy of your chats from Google Drive? Chats on this device stay.": { uk: "Видалити зашифровану копію чатів з Google Drive? Чати на цьому пристрої залишаться.", it: "Eliminare la copia cifrata delle chat da Google Drive? Le chat su questo dispositivo restano." },
   "Couldn't sync: {error}": { uk: "Не вдалося синхронізувати: {error}", it: "Sincronizzazione non riuscita: {error}" },
-  "(tried {n} models)": { uk: "(спробувано моделей: {n})", it: "(provati {n} modelli)" },
+  "(tried {n} models)": { uk: ["(спробувано {n} модель)", "(спробувано {n} моделі)", "(спробувано {n} моделей)"], it: "(provati {n} modelli)" },
   "Requests today: {n}": { uk: "Запитів сьогодні: {n}", it: "Richieste oggi: {n}" },
   "Refused: {n}": { uk: "Відхилено: {n}", it: "Rifiutate: {n}" },
   "Update now": { uk: "Оновити зараз", it: "Aggiorna ora" },
@@ -297,14 +297,14 @@ const STR = {
   "Torrents": { uk: "Торенти", it: "Torrent" },
   "Fonts": { uk: "Шрифти", it: "Font" },
   "Other": { uk: "Інше", it: "Altro" },
-  "Sort the files in {place} ({count})": { uk: "Розкласти файли в папці {place} ({count})", it: "Ordinare i file in {place} ({count})" },
-  "Sorted the files in {place} ({count})": { uk: "Розкладено файли в папці {place} ({count})", it: "Ordinati i file in {place} ({count})" },
-  "Move to {to} ({count})": { uk: "Перемістити {count} шт. у {to}", it: "Spostare in {to} ({count})" },
-  "Moved to {to} ({count})": { uk: "Переміщено {count} шт. у {to}", it: "Spostati in {to} ({count})" },
+  "Sort {count} files in {place}": { uk: ["Розкласти {count} файл у папці {place}", "Розкласти {count} файли в папці {place}", "Розкласти {count} файлів у папці {place}"], it: "Ordinare {count} file in {place}" },
+  "Sorted {count} files in {place}": { uk: ["Розкладено {count} файл у папці {place}", "Розкладено {count} файли в папці {place}", "Розкладено {count} файлів у папці {place}"], it: ["Ordinato {count} file in {place}", "Ordinati {count} file in {place}"] },
+  "Move {count} items to {to}": { uk: ["Перемістити {count} елемент у {to}", "Перемістити {count} елементи в {to}", "Перемістити {count} елементів у {to}"], it: ["Spostare {count} elemento in {to}", "Spostare {count} elementi in {to}"] },
+  "Moved {count} items to {to}": { uk: ["Переміщено {count} елемент у {to}", "Переміщено {count} елементи в {to}", "Переміщено {count} елементів у {to}"], it: ["Spostato {count} elemento in {to}", "Spostati {count} elementi in {to}"] },
   "Rename {path} → {to}": { uk: "Перейменувати {path} → {to}", it: "Rinominare {path} → {to}" },
   "Renamed {path} → {to}": { uk: "Перейменовано {path} → {to}", it: "Rinominato {path} → {to}" },
-  "Move to the Recycle Bin ({count})": { uk: "Перемістити {count} шт. у Кошик", it: "Spostare nel Cestino ({count})" },
-  "Moved to the Recycle Bin ({count})": { uk: "Переміщено {count} шт. у Кошик", it: "Spostati nel Cestino ({count})" },
+  "Move {count} items to the Recycle Bin": { uk: ["Перемістити {count} елемент у Кошик", "Перемістити {count} елементи в Кошик", "Перемістити {count} елементів у Кошик"], it: ["Spostare {count} elemento nel Cestino", "Spostare {count} elementi nel Cestino"] },
+  "Moved {count} items to the Recycle Bin": { uk: ["Переміщено {count} елемент у Кошик", "Переміщено {count} елементи в Кошик", "Переміщено {count} елементів у Кошик"], it: ["Spostato {count} elemento nel Cestino", "Spostati {count} elementi nel Cestino"] },
   "Install {name}": { uk: "Встановити {name}", it: "Installare {name}" },
   "Installed {name}": { uk: "Встановлено {name}", it: "Installato {name}" },
   "Update {name}": { uk: "Оновити {name}", it: "Aggiornare {name}" },
@@ -321,7 +321,7 @@ const STR = {
   "{name} starts with the computer": { uk: "{name} запускається разом із комп'ютером", it: "{name} si avvia con il computer" },
   "Don't start {name} with the computer": { uk: "Не запускати {name} разом із комп'ютером", it: "Non avviare {name} con il computer" },
   "{name} no longer starts with the computer": { uk: "{name} більше не запускається разом із комп'ютером", it: "{name} non si avvia più con il computer" },
-  "Files still downloading are left alone ({n}).": { uk: "Файли, які ще завантажуються ({n}), не чіпаю.", it: "I file ancora in download ({n}) restano dove sono." },
+  "{n} files still downloading are left alone.": { uk: ["{n} файл, який ще завантажується, не чіпаю.", "{n} файли, які ще завантажуються, не чіпаю.", "{n} файлів, які ще завантажуються, не чіпаю."], it: ["{n} file ancora in download resta dov'è.", "{n} file ancora in download restano dove sono."] },
   "You can undo the sort afterwards.": { uk: "Розкладання можна буде скасувати.", it: "Potrai annullare l'ordinamento." },
   "Undo": { uk: "Повернути як було", it: "Ripristina" },
   "They go to the Recycle Bin: you can restore them from there.": { uk: "Вони підуть у Кошик: звідти їх можна відновити.", it: "Vanno nel Cestino: puoi recuperarli da lì." },
@@ -342,7 +342,7 @@ const STR = {
   "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
   "Writing the answer…": { uk: "Пишу відповідь…", it: "Sto scrivendo la risposta…" },
   "No folder": { uk: "Без папки", it: "Nessuna cartella" },
-  "Push {count} files to {repo}": { uk: "Запушити файлів: {count} у {repo}", it: "Fare push di {count} file su {repo}" },
+  "Push {count} files to {repo}": { uk: ["Запушити {count} файл у {repo}", "Запушити {count} файли в {repo}", "Запушити {count} файлів у {repo}"], it: "Fare push di {count} file su {repo}" },
   "Create the repository {name} on GitHub": { uk: "Створити репозиторій {name} на GitHub", it: "Creare il repository {name} su GitHub" },
   "branch {b}": { uk: "гілка {b}", it: "branch {b}" },
   "main branch": { uk: "основна гілка", it: "branch principale" },
@@ -378,10 +378,10 @@ const STR = {
   "Same as in Settings (none)": { uk: "Як у налаштуваннях (без папки)", it: "Come nelle impostazioni (nessuna)" },
   "Folder path": { uk: "Шлях до папки", it: "Percorso della cartella" },
   "{left} of {limit} left": { uk: "лишилось {left} з {limit}", it: "ne restano {left} su {limit}" },
-  "{n} requests today": { uk: "запитів сьогодні: {n}", it: "richieste oggi: {n}" },
+  "{n} requests today": { uk: ["{n} запит сьогодні", "{n} запити сьогодні", "{n} запитів сьогодні"], it: ["{n} richiesta oggi", "{n} richieste oggi"] },
   "Local model · no limits": { uk: "Локальна модель · без лімітів", it: "Modello locale · nessun limite" },
   "{m}: {left} of {limit} requests left ({period}). Resets in {t}.": { uk: "{m}: залишилось {left} з {limit} запитів ({period}). Скидається через {t}.", it: "{m}: restano {left} di {limit} richieste ({period}). Si azzera tra {t}." },
-  "{m}: {n} requests today; the service doesn't say its limit.": { uk: "{m}: запитів сьогодні — {n}; сервіс не каже свій ліміт.", it: "{m}: {n} richieste oggi; il servizio non dice il suo limite." },
+  "{m}: {n} requests today; the service doesn't say its limit.": { uk: ["{m}: {n} запит сьогодні; сервіс не каже свій ліміт.", "{m}: {n} запити сьогодні; сервіс не каже свій ліміт.", "{m}: {n} запитів сьогодні; сервіс не каже свій ліміт."], it: ["{m}: {n} richiesta oggi; il servizio non dice il suo limite.", "{m}: {n} richieste oggi; il servizio non dice il suo limite."] },
   "about — Google tells the exact number only when it is reached": { uk: "приблизно — точне число Google каже, тільки коли ліміт вичерпано", it: "circa — Google dice il numero esatto solo quando si raggiunge" },
   "per day": { uk: "на день", it: "al giorno" },
   "per minute": { uk: "на хвилину", it: "al minuto" },
@@ -389,7 +389,7 @@ const STR = {
   "Click for all limits": { uk: "Натисни, щоб побачити всі ліміти", it: "Clicca per tutti i limiti" },
   "Steps ({n})": { uk: "Кроки ({n})", it: "Passaggi ({n})" },
   "This card has expired. Ask again.": { uk: "Ця картка застаріла. Попроси ще раз.", it: "Questa scheda è scaduta. Chiedi di nuovo." },
-  "{n} characters": { uk: "{n} символів", it: "{n} caratteri" },
+  "{n} characters": { uk: ["{n} символ", "{n} символи", "{n} символів"], it: ["{n} carattere", "{n} caratteri"] },
   "Folder in Google Drive: {f}": { uk: "Папка в Google Drive: {f}", it: "Cartella su Google Drive: {f}" },
   "Folder in Google Drive: My Drive": { uk: "Папка в Google Drive: Мій диск", it: "Cartella su Google Drive: Il mio Drive" },
   "as a Google Doc": { uk: "як Google Документ", it: "come documento Google" },
@@ -442,8 +442,23 @@ const STR = {
   "of {total}": { uk: "з {total}", it: "su {total}" },
 };
 let LANG = "en";
+let S = null;          // backend state (declared before t(), which reads its strings)
+// which form a whole number takes, as CLDR counts (the same as i18n.plural): 0 = one; uk and pl: 1 = few
+// (2-4, but not 12-14), 2 = many; the other languages: 1 = everything but one (French: 0 is one too)
+const plural = c => {
+  const n = Math.abs(Math.trunc(typeof c === "number" ? c : +String(c ?? "").replace(/\D/g, "") || 0)), d = n % 10, h = n % 100;
+  if (LANG === "uk" || LANG === "pl") return (LANG === "pl" ? n === 1 : d === 1 && h !== 11) ? 0 : d >= 2 && d <= 4 && (h < 12 || h > 14) ? 1 : 2;
+  return n === 1 || (n === 0 && LANG === "fr") ? 0 : 1;
+};
+// a string with a count has a list of forms ("1 file", "2 files"; "1 файл", "3 файли", "5 файлів"): the n
+// (or count) picks one and is written as the language writes numbers; English forms come in S.strings too
 const t = (s, vars = {}) => {
-  let out = LANG === "en" ? s : (STR[s] && STR[s][LANG]) || (S && S.strings && S.strings[s]) || s;
+  let out = (LANG !== "en" && STR[s] && STR[s][LANG]) || (S && S.strings && S.strings[s]) || s;
+  if (Array.isArray(out)) {
+    const k = "n" in vars ? "n" : "count", c = vars[k];
+    out = out[Math.min(plural(c), out.length - 1)];
+    vars = { ...vars, [k]: typeof c === "number" ? c.toLocaleString(LANG) : c };
+  }
   for (const [k, v] of Object.entries(vars)) out = out.split("{" + k + "}").join(v);
   return out;
 };
@@ -759,7 +774,6 @@ async function watchAlerts() {
 }
 
 // ---------------------------------------------------------------- state
-let S = null;          // backend state
 let thread = null;     // current thread id
 let drawn = false;     // the main view was drawn once: a redraw keeps the open chat
 let busy = false;
@@ -3224,8 +3238,8 @@ async function paintLimit() {
   }
   if (r.limit == null) {
     b.classList.add("unknown"); fill.style.width = "0";
-    tx.textContent = t("{n} requests today", { n: (+r.used || 0).toLocaleString(LANG) });
-    b.title = t("{m}: {n} requests today; the service doesn't say its limit.", { m: r.label, n: r.used }) + "\n" + t("Click for all limits");
+    tx.textContent = t("{n} requests today", { n: +r.used || 0 });
+    b.title = t("{m}: {n} requests today; the service doesn't say its limit.", { m: r.label, n: +r.used || 0 }) + "\n" + t("Click for all limits");
     return;
   }
   const frac = Math.max(0, Math.min(1, r.left / Math.max(1, r.limit)));
@@ -3243,6 +3257,12 @@ let newChatFolder;      // a folder picked for a chat that has no messages yet (
 // ---------------------------------------------------------------- encrypted weekly backups (Settings → Chats)
 const BACKUP_ERR = { password: "The password is wrong.", format: "This file isn't a Lanterna backup, or it is damaged.",
   folder: "Lanterna can't write to this folder. Choose another one.", no_key: "Set a backup password first." };
+// "Restored: 3 chats, 40 messages, 2 reminders." each count in its form; empty memory, reminders, tasks left out
+const RESTORED = [["{n} chats", "chats"], ["{n} messages", "messages"], ["{n} memory facts", "facts"],
+  ["{n} reminders", "reminders"], ["{n} regular tasks", "tasks"]];
+const restoredText = r => t("Restored: {list}.", { list: RESTORED.filter(([, f], i) => i < 2 || r[f])
+  .map(([k, f]) => t(k, { n: +r[f] || 0 })).join(", ") });
+
 async function paintBackup(box) {
   if (!box) return;
   const s = await api.backup_status();
@@ -3308,8 +3328,7 @@ async function paintBackup(box) {
     if (!r.ok) { say(r); return; }
     err.textContent = ""; box.querySelector("#bk-ask").hidden = true;
     const n = r.chats + r.messages + r.facts + r.reminders + r.tasks;
-    toast(n ? t("Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.", { c: r.chats, m: r.messages, f: r.facts, r: r.reminders, k: r.tasks })
-      : t("Nothing to restore: everything in this backup is already here."), true);
+    toast(n ? restoredText(r) : t("Nothing to restore: everything in this backup is already here."), true);
     refreshThreads();
   };
   box.querySelector("#bk-restore").onclick = () => file.click();
@@ -3420,12 +3439,12 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   mkdir: "Create the folder {path}", move: "Move {path} → {to}", drive_folder: "Create the folder {name} in Google Drive",
   drive_upload: "Upload {path} to Google Drive", drive_text: "Save {name} to Google Drive",
   github_push: "Push {count} files to {repo}", github_new_repo: "Create the repository {name} on GitHub",
-  pc_sort: "Sort the files in {place} ({count})", pc_move: "Move to {to} ({count})", pc_rename: "Rename {path} → {to}",
-  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", auto_on: "Let Lanterna act on its own in this chat for {count} min", pc_trash: "Move to the Recycle Bin ({count})",
+  pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}", pc_rename: "Rename {path} → {to}",
+  pc_mkdir: "Create the folder {path}", pc_write: "Create {path} in {place}", auto_on: "Let Lanterna act on its own in this chat for {count} min", pc_trash: "Move {count} items to the Recycle Bin",
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}", app_add: "Add {to} to {name}",
   model_remove: "Remove the model {name} from Ollama", game_remove: "Remove the game {name} (Steam)", space_on: "Turn on Help free up disk space",
   sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
-  mail_sort: "Sort the emails into folders ({count})", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
+  mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
@@ -3465,13 +3484,13 @@ function actCard(c) {
   } else if (c.kind === "pc_sort") {
     meta.push(bytes(d.size));
     extra = `${groupRows(d.groups || [], d.count)}
-      ${d.skipped ?`<div class="cc-meta">${esc(t("Files still downloading are left alone ({n}).", { n: d.skipped }))}</div>` : ""}
+      ${d.skipped ?`<div class="cc-meta">${esc(t("{n} files still downloading are left alone.", { n: d.skipped }))}</div>` : ""}
       <div class="cc-meta">${esc(t("You can undo the sort afterwards."))}</div>`;
   } else if (c.kind === "pc_move" || c.kind === "pc_trash") {
     meta.push(bytes(d.size));
     extra = `${d.rule ? `<div class="cc-meta">${esc(t("Which files: {r}", { r: d.rule }))}</div>` : ""}
       <div class="cc-lbl">${t("Files")}</div>${fileList(d.files || [], d.count)}
-      ${d.skipped ? `<div class="cc-meta">${esc(t("Files still downloading are left alone ({n}).", { n: d.skipped }))}</div>` : ""}
+      ${d.skipped ? `<div class="cc-meta">${esc(t("{n} files still downloading are left alone.", { n: d.skipped }))}</div>` : ""}
       ${d.claimed ? `<div class="cc-meta">${esc(t("Already on another card: {n}", { n: d.claimed }))}</div>` : ""}
       ${d.reason ? `<div class="cc-meta">${esc(t("Reason: {r}", { r: d.reason }))}</div>` : ""}
       ${c.kind === "pc_trash" ? `<div class="cc-meta">${esc(t("They go to the Recycle Bin: you can restore them from there."))}</div>` : ""}`;
@@ -3510,7 +3529,7 @@ function actCard(c) {
     if (d.folder) fold = d.folder.split(/[\\/]/).filter(Boolean).pop();
     if (d.doc) meta.push(d.doc === "odt" ? t("a LibreOffice document (headings, lists and bold become real formatting)")
       : t("a Word document (headings, lists and bold become real formatting)"));
-    if (d.chars != null) meta.push(t("{n} characters", { n: d.chars.toLocaleString() }));
+    if (d.chars != null) meta.push(t("{n} characters", { n: d.chars }));
   }
   const prev = d.preview ? `<pre class="cc-prev">${esc(d.preview)}${(d.chars || 0) > 1500 ? "\n…" : ""}</pre>` : "";
   const el = h(`<div class="cc"><div class="cc-h">${icon(cardIcon(c.kind), "i cc-ic")}<b>${esc(title)}</b></div>

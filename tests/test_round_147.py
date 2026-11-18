@@ -164,13 +164,11 @@ def test_an_answer_that_counted_the_disk_draws_it_and_keeps_it(tmp_path, monkeyp
 UI = Path(__file__).parents[1] / "src" / "lanterna" / "ui"
 NEW_WORDS = ["KB", "MB", "Disk {d}", "{free} free of {total}", "almost full", "Files right on the disk", "Not counted",
              "Still counting: the sizes are at least these.", "{p}% of the disk", "of {total}",
-             "full again in {t}", "Files still downloading are left alone ({n}).",
+             "full again in {t}",
              # after the critic: a calm hello, the start rows, the disk's "Used" row, the steps, the limit's words
              "Hi, {n}.", "Hi.", "Explanations", "Safety", "Explain simply why the sky is blue", "Used", "Steps ({n})",
-             "{left} of {limit} left",
-             # a count as "(N)" in every language: no "Sort 1 files", "Move 1 items"
-             "Sort the files in {place} ({count})", "Sorted the files in {place} ({count})", "Move to {to} ({count})",
-             "Moved to {to} ({count})", "Move to the Recycle Bin ({count})", "Moved to the Recycle Bin ({count})"]
+             "{left} of {limit} left"]
+# b9 wrote these counts as "(N)"; since b10 they have their forms ("Sort 1 file", "3 файли"; round 148)
 COUNTED = ["Sort {count} files in {place}", "Sorted {count} files in {place}", "Move {count} items to {to}",
            "Moved {count} items to {to}", "Move {count} items to the Recycle Bin", "Moved {count} items to the Recycle Bin",
            "Sort {count} emails into folders", "Sorted {count} emails into folders"]
@@ -196,7 +194,8 @@ def test_the_new_words_are_in_every_language():
     for w in NEW_WORDS:
         assert re.search(r'^\s*' + re.escape(json.dumps(w, ensure_ascii=False)) + r'\s*:\s*\{\s*uk: "[^"]+", it: "[^"]+"',
                          table, re.M), w
-    for gone in ("reset in {t}", "{n} files still downloading are left alone.", *COUNTED):   # "1 files … are": read wrong
+    for gone in ("reset in {t}", "Sort the files in {place} ({count})", "Move to {to} ({count})",
+                 "Files still downloading are left alone ({n}).", "Sort the emails into folders ({count})"):
         assert gone not in js and gone not in i18n_py
         for lang in ("de", "es", "fr", "pl"):
             assert gone not in json.loads((UI.parent / "locale" / f"{lang}.json").read_text(encoding="utf-8"))
@@ -338,19 +337,24 @@ def test_the_step_going_on_is_shown_once():
 
 def test_a_card_with_one_thing_reads_right_in_english():
     from lanterna import i18n
-    said = [i18n.t(k, "en", place="Downloads", to="Documents", count=1) for k in NEW_WORDS[-6:]]
-    assert said == ["Sort the files in Downloads (1)", "Sorted the files in Downloads (1)", "Move to Documents (1)",
-                    "Moved to Documents (1)", "Move to the Recycle Bin (1)", "Moved to the Recycle Bin (1)"]
+    said = [i18n.t(k, "en", place="Downloads", to="Documents", count=1) for k in COUNTED]
+    assert said == ["Sort 1 file in Downloads", "Sorted 1 file in Downloads", "Move 1 item to Documents",
+                    "Moved 1 item to Documents", "Move 1 item to the Recycle Bin", "Moved 1 item to the Recycle Bin",
+                    "Sort 1 email into folders", "Sorted 1 email into folders"]
+    assert i18n.t(COUNTED[0], "en", place="Downloads", count=2) == "Sort 2 files in Downloads"
     js = _ui("app.js")
-    assert 'pc_sort: "Sort the files in {place} ({count})", pc_move: "Move to {to} ({count})"' in js
-    assert 'mail_sort: "Sort the emails into folders ({count})"' in js
+    assert 'pc_sort: "Sort {count} files in {place}", pc_move: "Move {count} items to {to}"' in js
+    assert 'mail_sort: "Sort {count} emails into folders"' in js
 
 
 @pytest.mark.parametrize("lang", ["en", "uk", "it", "de", "es", "fr", "pl"])
 def test_the_done_lines_of_moves_still_count_as_moves(lang):
     from lanterna import chat, i18n
-    for key in ("Moved to {to} ({count})", "Sorted the files in {place} ({count})"):   # "I moved them" is true after these
-        assert chat._MOVED_NOTE.search(i18n.t(key, lang, to="Documents", place="Downloads", count=2)), (lang, key)
+    for key in ("Moved {count} items to {to}", "Sorted {count} files in {place}", "Moved {count} items to the Recycle Bin"):
+        assert key in i18n._T and key in i18n.catalog("pl")                       # not a missing key read as English
+        for n in (1, 2, 5, 21):                                                    # "I moved them" is true after these
+            line = i18n.t(key, lang, to="Documents", place="Downloads", count=n)
+            assert chat._MOVED_NOTE.search(line), (lang, key, line)
 
 
 def test_the_last_words_of_the_critic():

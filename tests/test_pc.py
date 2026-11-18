@@ -300,7 +300,7 @@ def test_tools_only_when_the_talk_is_about_the_pc(tmp_path, monkeypatch):
     api.save_settings({"pc_access": False})
     assert not any(n.startswith(("pc_", "app_")) for n in names("відсортуй мені завантаження"))
     d = {"place": "downloads", "count": 3, "groups": [{"to": "Документи", "count": 3, "files": ["a", "b", "c"]}], "skipped": 1}
-    assert action_title("pc_sort", d, "", "uk") == "Розкласти файли в папці Завантаження (3)"
+    assert action_title("pc_sort", d, "", "uk") == "Розкласти 3 файли в папці Завантаження"
     assert "Документи" in card_text("pc_sort", d, "uk")
     assert action_title("sys_theme", {"theme": "dark"}, "", "it") == "Passare al tema scuro"
 
@@ -319,8 +319,8 @@ def test_confirm_and_undo_through_the_app(tmp_path, monkeypatch, home):
     api.actions.bind(cards, tid)
     api.toolbox.run("pc_sort", '{"place": "downloads"}')
     r = api.action_confirm(cards[-1]["id"])
-    assert r["state"] == "done" and r["text"] == "Розкладено файли в папці Завантаження (2)"
+    assert r["state"] == "done" and r["text"] == "Розкладено 2 файли в папці Завантаження"
     assert (home["downloads"] / "Документи" / "a.pdf").exists()
     u = api.pc_undo(cards[-1]["details"]["undo"])
-    assert u == {"ok": True, "text": "Файлів повернуто на місце: 2."} and (home["downloads"] / "a.pdf").exists()
+    assert u == {"ok": True, "text": "2 файли повернуто на місце."} and (home["downloads"] / "a.pdf").exists()
     assert api.pc_undo(cards[-1]["details"]["undo"])["ok"] is False

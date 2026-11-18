@@ -334,8 +334,11 @@ def test_new_languages_cover_every_string():
         assert lang in i18n.LANGS
         table = i18n.catalog(lang)
         assert not wanted - set(table), (lang, sorted(wanted - set(table))[:10])
-        bad = [k for k, v in table.items() if sorted(ph.findall(k)) != sorted(ph.findall(v)) or not v.strip()]
+        forms = lambda v: v if isinstance(v, list) else [v]    # noqa: E731  a string with a count: its forms
+        bad = [k for k, v in table.items() for f in forms(v) if sorted(ph.findall(k)) != sorted(ph.findall(f)) or not f.strip()]
         assert not bad, (lang, bad[:5])
+        wrong = [k for k, v in table.items() if isinstance(v, list) and len(v) != i18n.FORMS.get(lang, 2)]
+        assert not wrong, (lang, wrong[:5])                    # one, other; pl: one, few, many
     assert i18n.t("Hi, {n}.", "de", n="Mia") == "Hallo, Mia."
     assert i18n.t("Settings", "pl") == "Ustawienia"
     assert i18n.t("no such text", "fr") == "no such text"

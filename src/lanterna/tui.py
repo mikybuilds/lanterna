@@ -1102,6 +1102,9 @@ class AboutScreen(ModalScreen[None]):
 
 SET_TABS = [("general", "General"), ("models", "Models"), ("memory", "Memory and reminders"), ("chats", "Chats"),
             ("voice", "Voice"), ("pc", "Computer and tools"), ("account", "Account")]
+# a restored backup: each count in its form; empty memory, reminders and tasks are left out (the same as the window)
+RESTORED = (("{n} chats", "chats"), ("{n} messages", "messages"), ("{n} memory facts", "facts"),
+            ("{n} reminders", "reminders"), ("{n} regular tasks", "tasks"))
 
 
 class SettingsScreen(ModalScreen[str]):
@@ -1537,8 +1540,8 @@ class SettingsScreen(ModalScreen[str]):
             pw.value = ""
             if r.get("ok"):
                 n = sum(r[k] for k in ("chats", "messages", "facts", "reminders", "tasks"))
-                self.app.notify(t("Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.", lang,
-                                  c=r["chats"], m=r["messages"], f=r["facts"], r=r["reminders"], k=r["tasks"]) if n
+                parts = [t(k, lang, n=r[f]) for i, (k, f) in enumerate(RESTORED) if i < 2 or r[f]]   # each in its form
+                self.app.notify(t("Restored: {list}.", lang, list=", ".join(parts)) if n
                                 else t("Nothing to restore: everything in this backup is already here.", lang), timeout=10)
         if not r.get("ok"):
             self.app.notify(t(errs.get(r.get("error"), "Something went wrong: {e}"), lang, e=r.get("error", "")), severity="error")

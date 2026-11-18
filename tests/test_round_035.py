@@ -255,7 +255,7 @@ def test_window_gets_uk_and_it_strings_too():
     from lanterna import i18n
     assert i18n.catalog("uk")["What went to the model"] == "Що пішло в модель"
     assert i18n.catalog("it")["What went to the model"] == "Cosa è andato al modello"
-    assert i18n.catalog("en") == {}
+    assert i18n.catalog("en") == i18n._EN and all(isinstance(v, list) for v in i18n._EN.values())   # only count forms
 
 
 def test_final_round_body_keeps_tools_only_for_gemini():

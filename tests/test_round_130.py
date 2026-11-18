@@ -346,10 +346,11 @@ def test_undo_is_not_called_like_cancel_and_models_count_right():
     assert i18n.t("Undo", "uk") == "Повернути як було"
     for text in ("The old values are kept: Undo puts them back.", "on its own; Undo is in What Lanterna did"):
         assert "Скасувати" not in i18n.t(text, "uk") and "Повернути як було" in i18n.t(text, "uk")
-    assert i18n.t("(tried {n} models)", "uk", n=3) == "(спробувано моделей: 3)"   # 1.1.10b9: no gender (Lanterna is "she" elsewhere)
+    assert i18n.t("(tried {n} models)", "uk", n=3) == "(спробувано 3 моделі)"   # no gender (Lanterna is "she"); 1.1.10b10: forms
+    assert i18n.t("(tried {n} models)", "uk", n=5) == "(спробувано 5 моделей)"
     js = (UI / "app.js").read_text(encoding="utf-8")
     assert '"Undo": { uk: "Повернути як було", it: "Ripristina" }' in js
-    assert '"(tried {n} models)": { uk: "(спробувано моделей: {n})"' in js
+    assert '"(tried {n} models)": { uk: ["(спробувано {n} модель)", "(спробувано {n} моделі)", "(спробувано {n} моделей)"]' in js
 
 
 # ---------------------------------------------------------------- Connectors

@@ -2265,15 +2265,15 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "drive_text": ("Save {name} to Google Drive", "Saved {name} to Google Drive"),
             "github_push": ("Push {count} files to {repo}", "Pushed {count} files to {repo}"),
             "github_new_repo": ("Create the repository {name} on GitHub", "Opened GitHub to create {name}"),
-            "pc_sort": ("Sort the files in {place} ({count})", "Sorted the files in {place} ({count})"),
-            "pc_move": ("Move to {to} ({count})", "Moved to {to} ({count})"),
+            "pc_sort": ("Sort {count} files in {place}", "Sorted {count} files in {place}"),
+            "pc_move": ("Move {count} items to {to}", "Moved {count} items to {to}"),
             "pc_rename": ("Rename {path} → {to}", "Renamed {path} → {to}"),
             "pc_mkdir": ("Create the folder {path}", "Created the folder {path}"),
             "pc_write": ("Create {path} in {place}", "Created {path} in {place}"),
             "sys_look": (("Change: {name}", "Changed: {name}") if d.get("count", 1) == 1 else
                          ("Change {count} settings of the look", "Changed {count} settings of the look")),
             "auto_on": ("Let Lanterna act on its own in this chat for {count} min", "Lanterna acts on its own here for {count} min"),
-            "pc_trash": ("Move to the Recycle Bin ({count})", "Moved to the Recycle Bin ({count})"),
+            "pc_trash": ("Move {count} items to the Recycle Bin", "Moved {count} items to the Recycle Bin"),
             "app_install": ("Install {name}", "Installed {name}"), "app_upgrade": ("Update {name}", "Updated {name}"),
             "app_uninstall": ("Remove {name}", "Removed {name}"), "app_add": ("Add {to} to {name}", "Added {to} to {name}"),
             "model_remove": ("Remove the model {name} from Ollama", "Removed the model {name} from Ollama"),
@@ -2282,7 +2282,7 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "sys_theme": (f"Switch to the {d.get('theme')} theme", f"Switched to the {d.get('theme')} theme"),
             "sys_power": ("Switch the power plan to {name}", "Power plan: {name}"),
             "mcp_call": ("Use {name}", "Used {name}"),
-            "mail_sort": ("Sort the emails into folders ({count})", "Sorted the emails into folders ({count})"),
+            "mail_sort": ("Sort {count} emails into folders", "Sorted {count} emails into folders"),
             "mail_draft": ("Save a draft to {name}", "Saved a draft to {name}"),
             "mail_send": ("Send an email to {name}", "Sent an email to {name}"),
             "sys_startup": (("Start {name} with the computer", "{name} starts with the computer") if d.get("on") else
@@ -2322,7 +2322,7 @@ def card_text(kind: str, d: dict, lang: str) -> str:
         for g in d.get("groups", []):
             lines.append(f"📁 {g['to']} — {g['count']}: " + ", ".join(g["files"][:6]) + (" …" if g["count"] > 6 else ""))
         if d.get("skipped"):
-            lines.append(t("Files still downloading are left alone ({n}).", lang, n=d["skipped"]))
+            lines.append(t("{n} files still downloading are left alone.", lang, n=d["skipped"]))
         lines.append(t("You can undo the sort afterwards.", lang))
     elif kind in ("pc_move", "pc_trash"):
         files = d.get("files", [])
@@ -2330,7 +2330,7 @@ def card_text(kind: str, d: dict, lang: str) -> str:
             lines.append(t("Which files: {r}", lang, r=d["rule"]))
         lines.append(", ".join(files[:12]) + (f" … +{d.get('count', 0) - 12}" if d.get("count", 0) > 12 else ""))
         if d.get("skipped"):
-            lines.append(t("Files still downloading are left alone ({n}).", lang, n=d["skipped"]))
+            lines.append(t("{n} files still downloading are left alone.", lang, n=d["skipped"]))
         if d.get("claimed"):
             lines.append(t("Already on another card: {n}", lang, n=d["claimed"]))
         if kind == "pc_trash":

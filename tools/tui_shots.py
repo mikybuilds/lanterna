@@ -24,7 +24,8 @@ sys.path.insert(0, str(ROOT / "src"))
 SIZE = (110, 40)
 # words that are the same or that also appear inside normal text in another language
 SAME = {"ok", "Terminal", "Status", "Version", "Model", "Mode", "Local", "Name", "Service", "Torrents", "Videos", "RAM",
-        "Sync", "Score", "GB", "Updates", "Limits", "Programs", "Installed", "Memory", "Desktop", "Download"}
+        "Sync", "Score", "GB", "Updates", "Limits", "Programs", "Installed", "Memory", "Desktop", "Download",
+        "Plan"}                                       # the noun is "Plan" in de, es, fr, pl ("Plan: 2 von 5 erledigt")
 PRODUCTS = ("GitHub Models", "Google Drive")          # names, never translated
 ENGLISH_ON_PURPOSE = {"bugpreview"}                   # the bug report is written in English for the developer
 # the first screen asks in several languages at once; "Pause" is also a German word (a chat example says "eine Pause"),

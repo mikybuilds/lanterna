@@ -406,7 +406,8 @@ def _set_done(notes: str) -> bool:
     """One of these lines installed or set something up, in any app language."""
     global _set_note
     if _set_note is None:
-        alts = {re.sub(r"\\\{\w+\\\}", ".+", re.escape(i18n.t(k, lang))) for k in _SET_DONE for lang in i18n.LANGS}
+        alts = {re.sub(r"\\\{\w+\\\}", ".+", re.escape(f))                     # every form: "змінено 3 налаштування"
+                for k in _SET_DONE for lang in i18n.LANGS for f in i18n.forms(k, lang)}
         _set_note = re.compile(r"^✅ (?:" + "|".join(sorted(alts)) + ")", re.M)
     return bool(_set_note.search(notes))
 

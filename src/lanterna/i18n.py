@@ -136,9 +136,12 @@ _T: dict[str, dict[str, str]] = {
 
 
 @cache
-def catalog(lang: str) -> dict[str, str]:
-    """English text -> translation: uk/it from _T, the others from locale/<lang>.json. The window app gets it
-    whole, so a string translated only on the Python side still shows translated there."""
+def catalog(lang: str) -> dict[str, str | list[str]]:
+    """English text -> translation: uk/it from _T, the others from locale/<lang>.json, English only the forms of
+    strings with a count (_EN). The window app gets it whole, so a string translated only on the Python side
+    still shows translated there."""
+    if lang == "en":
+        return dict(_EN)
     if lang not in FILE_LANGS:
         return {k: v[lang] for k, v in _T.items() if lang in v}
     try:
@@ -147,13 +150,51 @@ def catalog(lang: str) -> dict[str, str]:
         return {}
 
 
-def t(text: str, lang: str = "en", **kw) -> str:
+# A string with a count can have a list of forms instead of one text: [one, other], and in uk and pl
+# [one, few, many] ("1 файл", "3 файли", "5 файлів"). The count is the n= (or count=) of t(). The window
+# picks the same form (plural() in app.js).
+FORMS = {"uk": 3, "pl": 3}                          # the others: 2
+
+
+def plural(n: int, lang: str) -> int:
+    """Which form a whole number takes, as CLDR counts: 0 = one; uk and pl: 1 = few (2-4, but not 12-14),
+    2 = many (5-20, 25…, and 11-14); the other languages: 1 = everything but one (French: 0 is one too)."""
+    n = abs(int(n))
+    d, h = n % 10, n % 100
+    if lang in ("uk", "pl"):
+        if (n == 1) if lang == "pl" else (d == 1 and h != 11):
+            return 0
+        return 1 if 2 <= d <= 4 and not 12 <= h <= 14 else 2
+    return 0 if n == 1 or (n == 0 and lang == "fr") else 1
+
+
+def _count(v) -> int:
+    """The count a placeholder holds: a number, or a number already written as text ("1 059")."""
+    try:
+        return abs(int(v))
+    except (TypeError, ValueError):
+        digits = "".join(c for c in str(v) if c.isdigit())
+        return int(digits) if digits else 0
+
+
+def _raw(text: str, lang: str) -> str | list[str]:
     if lang == "en":
-        s = text
-    elif lang in FILE_LANGS:
-        s = catalog(lang).get(text, text)
-    else:
-        s = _T.get(text, {}).get(lang, text)
+        return _EN.get(text, text)
+    if lang in FILE_LANGS:
+        return catalog(lang).get(text, text)
+    return _T.get(text, {}).get(lang, text)
+
+
+def forms(text: str, lang: str = "en") -> list[str]:
+    """Every form of a string in a language, not filled in (a string without a count has one)."""
+    s = _raw(text, lang)
+    return list(s) if isinstance(s, list) else [s]
+
+
+def t(text: str, lang: str = "en", **kw) -> str:
+    s = _raw(text, lang)
+    if isinstance(s, list):                         # the form for the count: "1 file", "2 files"
+        s = s[min(plural(_count(kw.get("n", kw.get("count", 0))), lang), len(s) - 1)]
     return s.format(**kw) if kw else s
 
 
@@ -289,7 +330,7 @@ _T.update({
     "Lanterna will start this program with your rights each time it opens:": {"uk": "Lanterna запускатиме цю програму з твоїми правами щоразу, коли відкривається:", "it": "Lanterna avvierà questo programma con i tuoi permessi ogni volta che si apre:"},
     "Lanterna will send tool requests to this address:": {"uk": "Lanterna надсилатиме запити інструментів на цю адресу:", "it": "Lanterna invierà le richieste degli strumenti a questo indirizzo:"},
     "Add it only if you trust where it comes from.": {"uk": "Додавай, лише якщо довіряєш джерелу.", "it": "Aggiungilo solo se ti fidi della fonte."},
-    "{n} tools": {"uk": "інструментів: {n}", "it": "{n} strumenti"},
+    "{n} tools": {"uk": ["{n} інструмент", "{n} інструменти", "{n} інструментів"], "it": ["{n} strumento", "{n} strumenti"]},
     "Starting…": {"uk": "Запускаю…", "it": "Avvio…"},
     "Didn't start: {error}": {"uk": "Не запустився: {error}", "it": "Non è partito: {error}"},
     "Tools: tick the ones that may run without asking": {"uk": "Інструменти: познач ті, що можуть працювати без питань", "it": "Strumenti: spunta quelli che possono funzionare senza chiedere"},
@@ -432,7 +473,6 @@ _T.update({
     "Password (at least {n} characters)": {"uk": "Пароль (щонайменше {n} символів)", "it": "Password (almeno {n} caratteri)"},
     "Restore": {"uk": "Відновити", "it": "Ripristina"},
     "Restore from a backup…": {"uk": "Відновити з копії…", "it": "Ripristina da un backup…"},
-    "Restored: {c} chats, {m} messages, {f} memory facts, {r} reminders, {k} regular tasks.": {"uk": "Відновлено: чатів — {c}, повідомлень — {m}, фактів пам'яті — {f}, нагадувань — {r}, регулярних завдань — {k}.", "it": "Ripristinati: {c} chat, {m} messaggi, {f} fatti in memoria, {r} promemoria, {k} attività regolari."},
     "Restoring…": {"uk": "Відновлюю…", "it": "Ripristino…"},
     "Saving the first backup…": {"uk": "Зберігаю першу копію…", "it": "Salvo il primo backup…"},
     "Set a password to turn on weekly backups. Lanterna keeps only a key made from it, in the Windows secure store, like your API keys. If you forget the password, the backups can't be opened.": {"uk": "Задай пароль, щоб увімкнути щотижневі копії. Lanterna зберігає лише ключ, зроблений з нього, у захищеному сховищі Windows, як і твої API-ключі. Якщо забудеш пароль, копії не відкрити.", "it": "Imposta una password per attivare i backup settimanali. Lanterna tiene solo una chiave ricavata da essa, nell'archivio sicuro di Windows, come le tue chiavi API. Se dimentichi la password, i backup non si possono aprire."},
@@ -511,7 +551,7 @@ _T.update({
     "Nothing found there either.": {"uk": "Там теж нічого не знайшлося.", "it": "Anche lì non c'è niente."},
     "Ask Lanterna how to connect “{q}”": {"uk": "Запитати Lanterna, як підключити «{q}»", "it": "Chiedi a Lanterna come collegare «{q}»"},
     "I want you to work with {q}. How can I connect it to you? If there is no connector, suggest another way.": {"uk": "Я хочу, щоб ти працював із {q}. Як мені підключити це до тебе? Якщо конектора немає, запропонуй інший спосіб.", "it": "Voglio che tu lavori con {q}. Come posso collegarlo a te? Se non c'è un connettore, proponi un altro modo."},
-    "Ready · {n} tools": {"uk": "Готово · інструментів: {n}", "it": "Pronto · strumenti: {n}"},
+    "Ready · {n} tools": {"uk": ["Готово · {n} інструмент", "Готово · {n} інструменти", "Готово · {n} інструментів"], "it": ["Pronto · {n} strumento", "Pronto · {n} strumenti"]},
     "Waiting for you to sign in in the browser…": {"uk": "Чекаю, поки ти увійдеш у браузері…", "it": "Aspetto che tu acceda nel browser…"},
     "Sign-in failed: {error}": {"uk": "Вхід не вдався: {error}", "it": "Accesso non riuscito: {error}"},
     "Sign in to use it": {"uk": "Увійди, щоб користуватися", "it": "Accedi per usarlo"},
@@ -556,8 +596,8 @@ _T.update({
     "In Yahoo account security, generate an app password.": {"uk": "У безпеці акаунта Yahoo створи пароль застосунку.", "it": "Nella sicurezza dell'account Yahoo genera una password per le app."},
     "Turn on IMAP access in Zoho Mail settings and create an app-specific password.": {"uk": "Увімкни доступ IMAP у налаштуваннях Zoho Mail і створи пароль для застосунку.", "it": "Attiva l'accesso IMAP nelle impostazioni di Zoho Mail e crea una password specifica per l'app."},
     "Use the IMAP and SMTP servers your mail service gives for mail programs.": {"uk": "Вкажи сервери IMAP і SMTP, які твоя пошта дає для поштових програм.", "it": "Usa i server IMAP e SMTP che il tuo servizio di posta indica per i programmi di posta."},
-    "Sort the emails into folders ({count})": {"uk": "Розкласти листи по папках: {count}", "it": "Ordina le email nelle cartelle ({count})"},
-    "Sorted the emails into folders ({count})": {"uk": "Листи розкладено по папках: {count}", "it": "Email ordinate nelle cartelle ({count})"},
+    "Sort {count} emails into folders": {"uk": ["Розкласти {count} лист по папках", "Розкласти {count} листи по папках", "Розкласти {count} листів по папках"], "it": "Ordinare {count} email nelle cartelle"},
+    "Sorted {count} emails into folders": {"uk": ["Розкладено {count} лист по папках", "Розкладено {count} листи по папках", "Розкладено {count} листів по папках"], "it": ["Ordinata {count} email nelle cartelle", "Ordinate {count} email nelle cartelle"]},
     "Save a draft to {name}": {"uk": "Зберегти чернетку для {name}", "it": "Salva una bozza per {name}"},
     "Saved a draft to {name}": {"uk": "Чернетку для {name} збережено", "it": "Bozza per {name} salvata"},
     "Send an email to {name}": {"uk": "Надіслати лист {name}", "it": "Invia un'email a {name}"},
@@ -724,8 +764,8 @@ _T.update({
     "all_left": {"uk": "усі три кнопки ліворуч", "it": "tutti e tre a sinistra"},
     "Change: {name}": {"uk": "Змінити: {name}", "it": "Cambiare: {name}"},
     "Changed: {name}": {"uk": "Змінено: {name}", "it": "Cambiato: {name}"},
-    "Change {count} settings of the look": {"uk": "Змінити вигляд системи (налаштувань: {count})", "it": "Cambiare l'aspetto ({count} impostazioni)"},
-    "Changed {count} settings of the look": {"uk": "Вигляд системи змінено (налаштувань: {count})", "it": "Aspetto cambiato ({count} impostazioni)"},
+    "Change {count} settings of the look": {"uk": ["Змінити {count} налаштування вигляду системи", "Змінити {count} налаштування вигляду системи", "Змінити {count} налаштувань вигляду системи"], "it": "Cambiare l'aspetto ({count} impostazioni)"},
+    "Changed {count} settings of the look": {"uk": ["Змінено {count} налаштування вигляду системи", "Змінено {count} налаштування вигляду системи", "Змінено {count} налаштувань вигляду системи"], "it": "Aspetto cambiato ({count} impostazioni)"},
     "Let Lanterna act on its own in this chat for {count} min": {"uk": "Дозволити Lanterna діяти самій у цій розмові на {count} хв", "it": "Lasciare che Lanterna agisca da sola in questa chat per {count} min"},
     "Lanterna acts on its own here for {count} min": {"uk": "Lanterna діє сама в цій розмові {count} хв", "it": "Lanterna agisce da sola qui per {count} min"},
     "The old values are kept: Undo puts them back.": {"uk": "Старі значення збережено: кнопка «Повернути як було» поверне їх.", "it": "I valori precedenti sono conservati: Ripristina li rimette."},
@@ -949,7 +989,7 @@ _T.update({
     "Limits": {"uk": "Ліміти", "it": "Limiti"},
     "How much of the free limits is left. Counted on this computer from what the services answer; nothing is sent.": {"uk": "Скільки залишилось безкоштовних лімітів. Рахується на цьому комп'ютері з того, що відповідають сервіси; нічого нікуди не надсилається.", "it": "Quanto resta dei limiti gratuiti. Calcolato su questo computer da ciò che rispondono i servizi; non viene inviato nulla."},
     "No requests to online models yet today.": {"uk": "Сьогодні ще не було запитів до онлайн-моделей.", "it": "Oggi ancora nessuna richiesta ai modelli online."},
-    "{n} requests today": {"uk": "{n} запитів сьогодні", "it": "{n} richieste oggi"},
+    "{n} requests today": {"uk": ["{n} запит сьогодні", "{n} запити сьогодні", "{n} запитів сьогодні"], "it": ["{n} richiesta oggi", "{n} richieste oggi"]},
     "{n} refused": {"uk": "{n} відхилено", "it": "{n} rifiutate"},
     "{left} of {limit} left today": {"uk": "сьогодні залишилось {left} з {limit}", "it": "oggi ne restano {left} su {limit}"},
     "full again in {t}": {"uk": "оновиться через {t}", "it": "si ricarica tra {t}"},
@@ -994,7 +1034,7 @@ _T.update({
     "Done": {"uk": "Готово", "it": "Fatto"},
     "Working…": {"uk": "Виконую…", "it": "Eseguo…"},
     "This card has expired. Ask again.": {"uk": "Ця картка застаріла. Попроси ще раз.", "it": "Questa scheda è scaduta. Chiedi di nuovo."},
-    "{n} characters": {"uk": "{n} символів", "it": "{n} caratteri"},
+    "{n} characters": {"uk": ["{n} символ", "{n} символи", "{n} символів"], "it": ["{n} carattere", "{n} caratteri"]},
     "Folder in Google Drive: {f}": {"uk": "Папка в Google Drive: {f}", "it": "Cartella su Google Drive: {f}"},
     "Folder in Google Drive: My Drive": {"uk": "Папка в Google Drive: Мій диск", "it": "Cartella su Google Drive: Il mio Drive"},
     "as a Google Doc": {"uk": "як Google Документ", "it": "come documento Google"},
@@ -1007,7 +1047,7 @@ _T.update({
     "Connected as {account}": {"uk": "Підключено як {account}", "it": "Collegato come {account}"},
     "Lets the assistant create folders and save files in your Google Drive, after you confirm each one. It sees only what it created itself.": {"uk": "Помічник зможе створювати папки й зберігати файли у твоєму Google Drive після того, як ти підтвердиш кожну дію. Він бачить тільки те, що створив сам.", "it": "L'assistente potrà creare cartelle e salvare file nel tuo Google Drive, dopo che confermi ogni azione. Vede solo ciò che ha creato lui."},
     "Google Drive was disconnected. Connect it again.": {"uk": "Google Drive відключено. Підключи його знову.", "it": "Google Drive è stato scollegato. Collegalo di nuovo."},
-    "(tried {n} models)": {"uk": "(спробувано моделей: {n})", "it": "(provati {n} modelli)"},
+    "(tried {n} models)": {"uk": ["(спробувано {n} модель)", "(спробувано {n} моделі)", "(спробувано {n} моделей)"], "it": "(provati {n} modelli)"},
     "Created {path}": {"uk": "Створено {path}", "it": "Creato {path}"},
     "Rewrote {path}": {"uk": "Переписано {path}", "it": "Riscritto {path}"},
     "Added to {path}": {"uk": "Дописано в {path}", "it": "Aggiunto a {path}"},
@@ -1051,8 +1091,8 @@ _T.update({
     "Reading {x} on GitHub": {"uk": "Читаю {x} на GitHub", "it": "Leggo {x} su GitHub"},
     "Preparing a push to {x}": {"uk": "Готую пуш у {x}", "it": "Preparo un push su {x}"},
     "Preparing a new repository {x}": {"uk": "Готую новий репозиторій {x}", "it": "Preparo un nuovo repository {x}"},
-    "Push {count} files to {repo}": {"uk": "Запушити файлів: {count} у {repo}", "it": "Fare push di {count} file su {repo}"},
-    "Pushed {count} files to {repo}": {"uk": "Запушено файлів: {count} у {repo}", "it": "Push di {count} file su {repo} fatto"},
+    "Push {count} files to {repo}": {"uk": ["Запушити {count} файл у {repo}", "Запушити {count} файли в {repo}", "Запушити {count} файлів у {repo}"], "it": "Fare push di {count} file su {repo}"},
+    "Pushed {count} files to {repo}": {"uk": ["Запушено {count} файл у {repo}", "Запушено {count} файли в {repo}", "Запушено {count} файлів у {repo}"], "it": "Push di {count} file su {repo} fatto"},
     "Create the repository {name} on GitHub": {"uk": "Створити репозиторій {name} на GitHub", "it": "Creare il repository {name} su GitHub"},
     "Opened GitHub to create {name}": {"uk": "Відкрито GitHub, щоб створити {name}", "it": "Aperto GitHub per creare {name}"},
 })
@@ -1083,14 +1123,14 @@ _T.update({
     "Torrents": {"uk": "Торенти", "it": "Torrent"},
     "Fonts": {"uk": "Шрифти", "it": "Font"},
     "Other": {"uk": "Інше", "it": "Altro"},
-    "Sort the files in {place} ({count})": {"uk": "Розкласти файли в папці {place} ({count})", "it": "Ordinare i file in {place} ({count})"},
-    "Sorted the files in {place} ({count})": {"uk": "Розкладено файли в папці {place} ({count})", "it": "Ordinati i file in {place} ({count})"},
-    "Move to {to} ({count})": {"uk": "Перемістити {count} шт. у {to}", "it": "Spostare in {to} ({count})"},
-    "Moved to {to} ({count})": {"uk": "Переміщено {count} шт. у {to}", "it": "Spostati in {to} ({count})"},
+    "Sort {count} files in {place}": {"uk": ["Розкласти {count} файл у папці {place}", "Розкласти {count} файли в папці {place}", "Розкласти {count} файлів у папці {place}"], "it": "Ordinare {count} file in {place}"},
+    "Sorted {count} files in {place}": {"uk": ["Розкладено {count} файл у папці {place}", "Розкладено {count} файли в папці {place}", "Розкладено {count} файлів у папці {place}"], "it": ["Ordinato {count} file in {place}", "Ordinati {count} file in {place}"]},
+    "Move {count} items to {to}": {"uk": ["Перемістити {count} елемент у {to}", "Перемістити {count} елементи в {to}", "Перемістити {count} елементів у {to}"], "it": ["Spostare {count} elemento in {to}", "Spostare {count} elementi in {to}"]},
+    "Moved {count} items to {to}": {"uk": ["Переміщено {count} елемент у {to}", "Переміщено {count} елементи в {to}", "Переміщено {count} елементів у {to}"], "it": ["Spostato {count} elemento in {to}", "Spostati {count} elementi in {to}"]},
     "Rename {path} → {to}": {"uk": "Перейменувати {path} → {to}", "it": "Rinominare {path} → {to}"},
     "Renamed {path} → {to}": {"uk": "Перейменовано {path} → {to}", "it": "Rinominato {path} → {to}"},
-    "Move to the Recycle Bin ({count})": {"uk": "Перемістити {count} шт. у Кошик", "it": "Spostare nel Cestino ({count})"},
-    "Moved to the Recycle Bin ({count})": {"uk": "Переміщено {count} шт. у Кошик", "it": "Spostati nel Cestino ({count})"},
+    "Move {count} items to the Recycle Bin": {"uk": ["Перемістити {count} елемент у Кошик", "Перемістити {count} елементи в Кошик", "Перемістити {count} елементів у Кошик"], "it": ["Spostare {count} elemento nel Cestino", "Spostare {count} elementi nel Cestino"]},
+    "Moved {count} items to the Recycle Bin": {"uk": ["Переміщено {count} елемент у Кошик", "Переміщено {count} елементи в Кошик", "Переміщено {count} елементів у Кошик"], "it": ["Spostato {count} elemento nel Cestino", "Spostati {count} elementi nel Cestino"]},
     "Install {name}": {"uk": "Встановити {name}", "it": "Installare {name}"},
     "Installed {name}": {"uk": "Встановлено {name}", "it": "Installato {name}"},
     "Update {name}": {"uk": "Оновити {name}", "it": "Aggiornare {name}"},
@@ -1108,7 +1148,7 @@ _T.update({
     "Don't start {name} with the computer": {"uk": "Не запускати {name} разом із комп'ютером", "it": "Non avviare {name} con il computer"},
     "{name} no longer starts with the computer": {"uk": "{name} більше не запускається разом із комп'ютером", "it": "{name} non si avvia più con il computer"},
     "Files": {"uk": "Файли", "it": "File"},
-    "Files still downloading are left alone ({n}).": {"uk": "Файли, які ще завантажуються ({n}), не чіпаю.", "it": "I file ancora in download ({n}) restano dove sono."},
+    "{n} files still downloading are left alone.": {"uk": ["{n} файл, який ще завантажується, не чіпаю.", "{n} файли, які ще завантажуються, не чіпаю.", "{n} файлів, які ще завантажуються, не чіпаю."], "it": ["{n} file ancora in download resta dov'è.", "{n} file ancora in download restano dove sono."]},
     "You can undo the sort afterwards.": {"uk": "Розкладання можна буде скасувати.", "it": "Potrai annullare l'ordinamento."},
     "Undo": {"uk": "Повернути як було", "it": "Ripristina"},
     "They go to the Recycle Bin: you can restore them from there.": {"uk": "Вони підуть у Кошик: звідти їх можна відновити.", "it": "Vanno nel Cestino: puoi recuperarli da lì."},
@@ -1128,8 +1168,8 @@ _T.update({
     "Let Lanterna help with this computer": {"uk": "Дозволити Lanterna допомагати з цим комп'ютером", "it": "Lascia che Lanterna aiuti con questo computer"},
     "Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.": {"uk": "Твої папки (Завантаження, Робочий стіл, Документи, Зображення, Відео, Музика), програми й кілька безпечних налаштувань. Дивитися Lanterna може сама; кожна зміна — переміщення, Кошик, встановлення, налаштування — чекає твого «Підтвердити». Назви файлів і файли, які вона відкриває, отримує модель, що зараз працює.", "it": "Le tue cartelle (Download, Scrivania, Documenti, Immagini, Video, Musica), i programmi e alcune impostazioni sicure. Lanterna guarda da sola; ogni modifica — spostare, il Cestino, installare, un'impostazione — aspetta la tua conferma. I nomi dei file e i file che apre vanno al modello in uso."},
     "This sort can't be undone any more (Lanterna was restarted or it was undone already).": {"uk": "Це розкладання вже не можна скасувати (Lanterna перезапускали або його вже скасовано).", "it": "Questo ordinamento non si può più annullare (Lanterna è stata riavviata o è già stato annullato)."},
-    "{n} files are back where they were.": {"uk": "Файлів повернуто на місце: {n}.", "it": "File tornati al loro posto: {n}."},
-    "{n} had been moved or changed since and stayed.": {"uk": "Ще {n} відтоді перемістили чи змінили — їх не чіпала.", "it": "Altri {n} erano stati spostati o cambiati e sono rimasti lì."},
+    "{n} files are back where they were.": {"uk": ["{n} файл повернуто на місце.", "{n} файли повернуто на місце.", "{n} файлів повернуто на місце."], "it": ["{n} file è tornato al suo posto.", "{n} file sono tornati al loro posto."]},
+    "{n} had been moved or changed since and stayed.": {"uk": ["Ще {n} файл відтоді перемістили чи змінили — його не чіпала.", "Ще {n} файли відтоді перемістили чи змінили — їх не чіпала.", "Ще {n} файлів відтоді перемістили чи змінили — їх не чіпала."], "it": ["{n} altro file era stato spostato o cambiato ed è rimasto lì.", "Altri {n} erano stati spostati o cambiati e sono rimasti lì."]},
 })
 
 
@@ -1164,7 +1204,7 @@ _T.update({
     "No key for any online service. Add one in Settings → Services.": {
         "uk": "Немає ключа жодного онлайн-сервісу. Додай його в Налаштуваннях → Сервіси.",
         "it": "Nessuna chiave per i servizi online. Aggiungine una in Impostazioni → Servizi."},
-    "Key works, {n} models.": {"uk": "Ключ працює, моделей: {n}.", "it": "La chiave funziona, {n} modelli."},
+    "Key works, {n} models.": {"uk": ["Ключ працює, {n} модель.", "Ключ працює, {n} моделі.", "Ключ працює, {n} моделей."], "it": ["La chiave funziona, {n} modello.", "La chiave funziona, {n} modelli."]},
     "The key was refused. Paste a new one in Settings.": {"uk": "Ключ не прийнято. Встав новий у Налаштуваннях.",
                                                           "it": "La chiave è stata rifiutata. Incollane una nuova nelle Impostazioni."},
     "Can't reach the service. Check the internet connection.": {"uk": "Сервіс недоступний. Перевір інтернет.",
@@ -1176,9 +1216,7 @@ _T.update({
     "Error: {error}": {"uk": "Помилка: {error}", "it": "Errore: {error}"},
     "No answer in 20 seconds.": {"uk": "Немає відповіді 20 секунд.", "it": "Nessuna risposta in 20 secondi."},
     "A key is saved.": {"uk": "Ключ збережено.", "it": "Chiave salvata."},
-    "{n} models are resting after a limit; Lanterna uses the others meanwhile.": {
-        "uk": "Моделей на паузі після ліміту: {n}; поки що Lanterna використовує інші.",
-        "it": "{n} modelli sono in pausa dopo un limite; intanto Lanterna usa gli altri."},
+    "{n} models are resting after a limit; Lanterna uses the others meanwhile.": {"uk": ["{n} модель на паузі після ліміту; поки що Lanterna використовує інші.", "{n} моделі на паузі після ліміту; поки що Lanterna використовує інші.", "{n} моделей на паузі після ліміту; поки що Lanterna використовує інші."], "it": ["{n} modello è in pausa dopo un limite; intanto Lanterna usa gli altri.", "{n} modelli sono in pausa dopo un limite; intanto Lanterna usa gli altri."]},
     "No system vault: keys and sign-ins can't be saved. On Linux install gnome-keyring or KWallet.": {
         "uk": "Немає системного сховища: ключі й входи не зберігаються. На Linux встанови gnome-keyring або KWallet.",
         "it": "Nessun archivio di sistema: chiavi e accessi non si possono salvare. Su Linux installa gnome-keyring o KWallet."},
@@ -1197,7 +1235,7 @@ _T.update({
     "No winget, dnf, apt or Flatpak found: Lanterna can't install programs.": {
         "uk": "Не знайдено winget, dnf, apt чи Flatpak: Lanterna не може встановлювати програми.",
         "it": "Nessun winget, dnf, apt o Flatpak: Lanterna non può installare programmi."},
-    "Ollama {v}, {n} models.": {"uk": "Ollama {v}, моделей: {n}.", "it": "Ollama {v}, {n} modelli."},
+    "Ollama {v}, {n} models.": {"uk": ["Ollama {v}, {n} модель.", "Ollama {v}, {n} моделі.", "Ollama {v}, {n} моделей."], "it": ["Ollama {v}, {n} modello.", "Ollama {v}, {n} modelli."]},
     "Ollama {v} runs, but no model is downloaded yet.": {"uk": "Ollama {v} працює, але жодної моделі ще не завантажено.",
                                                          "it": "Ollama {v} è attivo, ma non c'è ancora nessun modello scaricato."},
     "Not installed or not running. Optional: for chatting without internet.": {
@@ -1236,10 +1274,8 @@ _T.update({
     "Undone": {"uk": "Скасовано", "it": "Annullato"},
     "This change can't be undone.": {"uk": "Цю зміну не можна скасувати.", "it": "Questa modifica non si può annullare."},
     "Changed back.": {"uk": "Повернуто як було.", "it": "Ripristinato."},
-    "{n} files are back from the Recycle Bin.": {"uk": "Файлів повернуто з Кошика: {n}.", "it": "{n} file sono tornati dal Cestino."},
-    "{n} weren't in the Recycle Bin any more (or something with that name is there again).": {
-        "uk": "Не знайдено в Кошику: {n} (або на тому місці вже є файл із такою назвою).",
-        "it": "{n} non erano più nel Cestino (o lì c'è di nuovo qualcosa con quel nome)."},
+    "{n} files are back from the Recycle Bin.": {"uk": ["{n} файл повернуто з Кошика.", "{n} файли повернуто з Кошика.", "{n} файлів повернуто з Кошика."], "it": ["{n} file è tornato dal Cestino.", "{n} file sono tornati dal Cestino."]},
+    "{n} weren't in the Recycle Bin any more (or something with that name is there again).": {"uk": "Не знайдено в Кошику: {n} (або на тому місці вже є файл із такою назвою).", "it": ["{n} non era più nel Cestino (o lì c'è di nuovo qualcosa con quel nome).", "{n} non erano più nel Cestino (o lì c'è di nuovo qualcosa con quel nome)."]},
     "The folder was removed.": {"uk": "Папку прибрано.", "it": "La cartella è stata rimossa."},
     "The folder isn't empty any more, so it stayed.": {"uk": "Папка вже не порожня, тож вона залишилась.",
                                                        "it": "La cartella non è più vuota, quindi è rimasta."},
@@ -1251,11 +1287,8 @@ _T.update({
     "Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.": {
         "uk": "Раз на тиждень, якщо в Завантаженнях лежать нові файли, Lanterna створює чат із карткою, щоб розкласти їх по папках. Нічого не переміститься, поки ти не підтвердиш.",
         "it": "Una volta a settimana, se in Download ci sono nuovi file sparsi, Lanterna apre una chat con una scheda per metterli in cartelle. Nulla si sposta finché non confermi."},
-    "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": {
-        "uk": "Минув тиждень: у Завантаженнях лежить нових файлів: {n}. Розкласти їх по папках? Глянь картку нижче. (Вимкнути можна в Налаштуваннях → Комп'ютер.)",
-        "it": "È passata una settimana: in Download ci sono {n} nuovi file sparsi. Li metto in cartelle? Guarda la scheda qui sotto. (Si disattiva in Impostazioni → Computer.)"},
-    "{n} new files in Downloads: sort them?": {"uk": "Нових файлів у Завантаженнях: {n}. Розкласти?",
-                                               "it": "{n} nuovi file in Download: li riordino?"},
+    "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": {"uk": ["Минув тиждень: у Завантаженнях лежить {n} новий файл. Перенести його в папку? Глянь картку нижче. (Вимкнути можна в Налаштуваннях → Комп'ютер.)", "Минув тиждень: у Завантаженнях лежать {n} нові файли. Розкласти їх по папках? Глянь картку нижче. (Вимкнути можна в Налаштуваннях → Комп'ютер.)", "Минув тиждень: у Завантаженнях лежить {n} нових файлів. Розкласти їх по папках? Глянь картку нижче. (Вимкнути можна в Налаштуваннях → Комп'ютер.)"], "it": ["È passata una settimana: in Download c'è {n} nuovo file sparso. Lo metto in una cartella? Guarda la scheda qui sotto. (Si disattiva in Impostazioni → Computer.)", "È passata una settimana: in Download ci sono {n} nuovi file sparsi. Li metto in cartelle? Guarda la scheda qui sotto. (Si disattiva in Impostazioni → Computer.)"]},
+    "{n} new files in Downloads: sort them?": {"uk": ["{n} новий файл у Завантаженнях. Розкласти?", "{n} нові файли в Завантаженнях. Розкласти?", "{n} нових файлів у Завантаженнях. Розкласти?"], "it": ["{n} nuovo file in Download: lo riordino?", "{n} nuovi file in Download: li riordino?"]},
     "Help free up disk space": {"uk": "Допомога зі звільненням місця", "it": "Aiuto a liberare spazio"},
     "Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.": {
         "uk": "Lanterna покаже, що займає місце (великі й старі файли, старі інсталятори, Кошик), і попередить, коли диск майже заповнений. Видалення — тільки в Кошик і тільки після підтвердження.",
@@ -1273,11 +1306,9 @@ _T.update({
     "Sent to {model}": {"uk": "Надіслано в {model}", "it": "Inviato a {model}"},
     "Stayed on this computer ({model})": {"uk": "Залишилось на цьому комп'ютері ({model})", "it": "Rimasto su questo computer ({model})"},
     "Your message": {"uk": "Твоє повідомлення", "it": "Il tuo messaggio"},
-    "Your message and {n} earlier messages of this chat": {"uk": "Твоє повідомлення і попередні повідомлення цього чату: {n}",
-                                                           "it": "Il tuo messaggio e {n} messaggi precedenti di questa chat"},
+    "Your message and {n} earlier messages of this chat": {"uk": ["Твоє повідомлення і {n} попереднє повідомлення цього чату", "Твоє повідомлення і {n} попередні повідомлення цього чату", "Твоє повідомлення і {n} попередніх повідомлень цього чату"], "it": ["Il tuo messaggio e {n} messaggio precedente di questa chat", "Il tuo messaggio e {n} messaggi precedenti di questa chat"]},
     "Your name": {"uk": "Твоє ім'я", "it": "Il tuo nome"},
-    "What Lanterna remembers about you ({n} facts)": {"uk": "Що Lanterna пам'ятає про тебе (фактів: {n})",
-                                                      "it": "Cosa ricorda Lanterna di te ({n} fatti)"},
+    "What Lanterna remembers about you ({n} facts)": {"uk": ["Що Lanterna пам'ятає про тебе ({n} факт)", "Що Lanterna пам'ятає про тебе ({n} факти)", "Що Lanterna пам'ятає про тебе ({n} фактів)"], "it": ["Cosa ricorda Lanterna di te ({n} fatto)", "Cosa ricorda Lanterna di te ({n} fatti)"]},
     "Attached files: {names}": {"uk": "Прикріплені файли: {names}", "it": "File allegati: {names}"},
     "Photos: {n}": {"uk": "Фото: {n}", "it": "Foto: {n}"},
     "Names and sizes of files in your folders": {"uk": "Назви й розміри файлів у твоїх папках", "it": "Nomi e dimensioni dei file nelle tue cartelle"},
@@ -1483,9 +1514,7 @@ _T.update({
     "Already on another card: {n}": {
         "uk": "Уже на іншій картці: {n}",
         "it": "Già su un'altra scheda: {n}"},
-    "older than {n} days": {
-        "uk": "старші за {n} дн.",
-        "it": "più vecchi di {n} gg"},
+    "older than {n} days": {"uk": "старші за {n} дн.", "it": "più vecchi di {n} gg"},
     "name has «{x}»": {
         "uk": "у назві «{x}»",
         "it": "nel nome «{x}»"},
@@ -1665,3 +1694,50 @@ _T.update({
         "uk": "пораховано: {s}, файлів: {n}",
         "it": "contati finora: {s}, file: {n}"},
 })
+
+# A restored backup lists each count in its form (1.1.10b10)
+_T.update({
+    "Restored: {list}.": {"uk": "Відновлено: {list}.", "it": "Ripristinato: {list}."},
+    "{n} chats": {"uk": ["{n} чат", "{n} чати", "{n} чатів"], "it": "{n} chat"},
+    "{n} messages": {"uk": ["{n} повідомлення", "{n} повідомлення", "{n} повідомлень"], "it": ["{n} messaggio", "{n} messaggi"]},
+    "{n} memory facts": {"uk": ["{n} факт пам'яті", "{n} факти пам'яті", "{n} фактів пам'яті"], "it": ["{n} fatto in memoria", "{n} fatti in memoria"]},
+    "{n} reminders": {"uk": ["{n} нагадування", "{n} нагадування", "{n} нагадувань"], "it": "{n} promemoria"},
+    "{n} regular tasks": {"uk": ["{n} регулярне завдання", "{n} регулярні завдання", "{n} регулярних завдань"], "it": ["{n} attività regolare", "{n} attività regolari"]},
+})
+
+
+# English forms of the strings with a count: [one, other], the key is the other (i18n.t picks one)
+_EN: dict[str, list[str]] = {
+    "Sort {count} files in {place}": ["Sort {count} file in {place}", "Sort {count} files in {place}"],
+    "Sorted {count} files in {place}": ["Sorted {count} file in {place}", "Sorted {count} files in {place}"],
+    "Move {count} items to {to}": ["Move {count} item to {to}", "Move {count} items to {to}"],
+    "Moved {count} items to {to}": ["Moved {count} item to {to}", "Moved {count} items to {to}"],
+    "Move {count} items to the Recycle Bin": ["Move {count} item to the Recycle Bin", "Move {count} items to the Recycle Bin"],
+    "Moved {count} items to the Recycle Bin": ["Moved {count} item to the Recycle Bin", "Moved {count} items to the Recycle Bin"],
+    "Sort {count} emails into folders": ["Sort {count} email into folders", "Sort {count} emails into folders"],
+    "Sorted {count} emails into folders": ["Sorted {count} email into folders", "Sorted {count} emails into folders"],
+    "Push {count} files to {repo}": ["Push {count} file to {repo}", "Push {count} files to {repo}"],
+    "Pushed {count} files to {repo}": ["Pushed {count} file to {repo}", "Pushed {count} files to {repo}"],
+    "{n} files still downloading are left alone.": ["{n} file still downloading is left alone.", "{n} files still downloading are left alone."],
+    "{n} characters": ["{n} character", "{n} characters"],
+    "{n} files are back where they were.": ["{n} file is back where it was.", "{n} files are back where they were."],
+    "{n} files are back from the Recycle Bin.": ["{n} file is back from the Recycle Bin.", "{n} files are back from the Recycle Bin."],
+    "{n} weren't in the Recycle Bin any more (or something with that name is there again).": ["{n} wasn't in the Recycle Bin any more (or something with that name is there again).", "{n} weren't in the Recycle Bin any more (or something with that name is there again)."],
+    "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)": ["A week has passed: {n} new file is lying loose in Downloads. Shall I put it into a folder? Check the card below. (Turn this off in Settings → Computer.)", "A week has passed: {n} new files are lying loose in Downloads. Shall I sort them into folders? Check the card below. (Turn this off in Settings → Computer.)"],
+    "{n} new files in Downloads: sort them?": ["{n} new file in Downloads: sort it?", "{n} new files in Downloads: sort them?"],
+    "Key works, {n} models.": ["Key works, {n} model.", "Key works, {n} models."],
+    "{n} models are resting after a limit; Lanterna uses the others meanwhile.": ["{n} model is resting after a limit; Lanterna uses the others meanwhile.", "{n} models are resting after a limit; Lanterna uses the others meanwhile."],
+    "Ollama {v}, {n} models.": ["Ollama {v}, {n} model.", "Ollama {v}, {n} models."],
+    "Your message and {n} earlier messages of this chat": ["Your message and {n} earlier message of this chat", "Your message and {n} earlier messages of this chat"],
+    "What Lanterna remembers about you ({n} facts)": ["What Lanterna remembers about you ({n} fact)", "What Lanterna remembers about you ({n} facts)"],
+    "{n} tools": ["{n} tool", "{n} tools"],
+    "Ready · {n} tools": ["Ready · {n} tool", "Ready · {n} tools"],
+    "{n} requests today": ["{n} request today", "{n} requests today"],
+    "{m}: {n} requests today; the service doesn't say its limit.": ["{m}: {n} request today; the service doesn't say its limit.", "{m}: {n} requests today; the service doesn't say its limit."],
+    "older than {n} days": ["older than {n} day", "older than {n} days"],
+    "{n} chats": ["{n} chat", "{n} chats"],
+    "{n} messages": ["{n} message", "{n} messages"],
+    "{n} memory facts": ["{n} memory fact", "{n} memory facts"],
+    "{n} reminders": ["{n} reminder", "{n} reminders"],
+    "{n} regular tasks": ["{n} regular task", "{n} regular tasks"],
+}
