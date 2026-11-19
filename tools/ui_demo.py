@@ -48,7 +48,7 @@ Path(HOME, "settings.json").write_text(json.dumps({
     "space_help": True, "update_check": False, "sync_asked": True, "tray_told": True, "follow_ups": True,
 }), encoding="utf-8")
 
-from lanterna import __version__, diskmap, gui, plans, sources  # noqa: E402
+from lanterna import __version__, diskmap, gui, plans, sent, sources  # noqa: E402
 from lanterna import local as ollama  # noqa: E402
 from lanterna.hardware import Hardware, advise  # noqa: E402
 from lanterna.app import Api  # noqa: E402
@@ -231,41 +231,48 @@ DISK_FIG = diskmap.figure("C:\\", diskmap.Disk(int(445 * GB), int(383.6 * GB), i
                           int(22.0 * GB), int(368.2 * GB), True)
 COUNT = ("Дивлюсь, що займає диск — пораховано: {s} ГБ, файлів: {n}" if UK
          else "Looking at what takes up the disk — counted so far: {s} GB, files: {n}")
+FACTS = (["Олена вчиться на третьому курсі", "Любить короткі відповіді без зайвих слів"] if UK
+         else ["Anna is in her third year at university", "Likes short answers"])
+HOMEWORK = "домашка.pdf" if UK else "homework.pdf"
 
 
 def seed(api: Api) -> dict[str, int]:
     """Writes the made-up chats into the temporary database; returns the chats' ids by name."""
     st, now, ids = api.store, time.time(), {}
 
-    def chat(key: str, title: str, pairs: list[tuple[str, str, str]], ago: float, model: str = MODEL) -> int:
+    def chat(key: str, title: str, pairs: list[tuple[str, str, str]], ago: float, model: str = MODEL,
+             files: tuple = (), tools: tuple = ()) -> int:
         tid = st.new_thread(title)
-        for q, a, src in pairs:
+        for i, (q, a, src) in enumerate(pairs):
             st.add(tid, "user", q)
-            st.add(tid, "assistant", a, model, "", src)
+            # "What went to the model" under the answer, written the way the real app writes it
+            box = sent.build(model, False, 2 * i, True, len(FACTS), list(files), 0, list(tools))
+            st.add(tid, "assistant", a, model, sent.dumps(box), src)
         st._q("UPDATE threads SET updated=?, created=? WHERE id=?", (now - ago, now - ago, tid))
         ids[key] = tid
         return tid
 
     for i, (title, q, a) in enumerate(reversed(OLD)):
         chat(f"old{i}", title, [(q, a, "")], (12 + i * 70) * HOUR)
-    chat("weather", "Погода на вихідні" if UK else "Weekend weather", [(WEATHER_Q, WEATHER_A, sources.dumps(WEATHER_SRC))], 26 * HOUR)
+    chat("weather", "Погода на вихідні" if UK else "Weekend weather", [(WEATHER_Q, WEATHER_A, sources.dumps(WEATHER_SRC))],
+         26 * HOUR, tools=(("weather", json.dumps({"city": "Львів" if UK else "Lviv"})),))
     chat("math", "Площа кола" if UK else "Area of a circle",
-         [(MATH_Q + "\n\n📎 " + ("домашка.pdf" if UK else "homework.pdf"), MATH_A, "")], 5 * HOUR)
+         [(MATH_Q + "\n\n📎 " + HOMEWORK, MATH_A, "")], 5 * HOUR, files=(HOMEWORK,))
     tid = chat("theme", "Темна тема" if UK else "Dark theme",
                [("Увімкни темну тему" if UK else "Turn on the dark theme", "Картка нижче: підтвердь, і я перемкну." if UK
                  else "The card is below: confirm it and I'll switch.", "")], 4 * HOUR)
     st.add(tid, "assistant", "✅ " + ("Увімкнено темну тему" if UK else "Switched to the dark theme"), "")   # a card's note
     tid = chat("plan", "План на тиждень" if UK else "Plan for the week", [(PLAN_Q, PLAN_A, "")], 3 * HOUR)
     st.set_plan(tid, plans.dumps({"steps": [{"text": s, "done": i < 2} for i, s in enumerate(PLAN_STEPS)], "project": ""}))
-    tid = chat("sort", "Розібрати Завантаження" if UK else "Sort the Downloads", [(SORT_Q, SORT_A, "")], 1.5 * HOUR)
+    tid = chat("sort", "Розібрати Завантаження" if UK else "Sort the Downloads", [(SORT_Q, SORT_A, "")], 1.5 * HOUR,
+               tools=(("pc_list", json.dumps({"place": "downloads"})),))
     card(api, tid, "pc_sort", {"place": "downloads", "count": 174, "size": 2_468_000_000, "skipped": 1,
                                "groups": [{"to": to, "count": n, "files": fs} for to, n, fs in SORT_GROUPS]})
     tid = chat("disk", "Куди поділось місце на диску" if UK else "Where the disk space went",
                [(DISK_Q, DISK_A, sources.dumps({"disk": DISK_FIG}))], 0.2 * HOUR)
     card(api, tid, "game_remove", {"name": "Cities: Skylines", "appid": "255710", "size": "68.9 GB"})
     st.pin(ids["plan"])
-    for fact in (["Олена вчиться на третьому курсі", "Любить короткі відповіді без зайвих слів"] if UK
-                 else ["Anna is in her third year at university", "Likes short answers"]):
+    for fact in FACTS:
         st.add_fact(fact, force=True)
     return ids
 
