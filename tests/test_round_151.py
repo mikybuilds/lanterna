@@ -255,6 +255,27 @@ def test_a_playlist_is_read_before_its_card(monkeypatch):
         video.probe("yt-dlp", URL, lambda a, t: (1, "ERROR: [youtube:tab] PLx: The playlist does not exist"))
 
 
+def test_winget_without_links_keeps_programs_in_their_own_folders(tmp_path, monkeypatch):
+    # Developer Mode off (seen on a real PC): no links in Links; each program stays in its package's folder, added
+    # to the end of PATH, behind an older yt-dlp from pip that a plain PATH lookup would find first
+    pk = tmp_path / "Microsoft" / "WinGet" / "Packages"
+    ytd = pk / "yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe"
+    deno = pk / "DenoLand.Deno_Microsoft.Winget.Source_8wekyb3d8bbwe"
+    ff = pk / "yt-dlp.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe" / "ffmpeg-N-128251-win64-gpl" / "bin"
+    for d, exe in ((ytd, "yt-dlp.exe"), (deno, "deno.exe"), (ff, "ffmpeg.exe")):
+        d.mkdir(parents=True)
+        (d / exe).write_bytes(b"MZ")
+    (pk / "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe" / "bin").mkdir(parents=True)     # not one of ours
+    monkeypatch.setattr(video, "sys", type("S", (), {"platform": "win32"}))
+    env = {"LOCALAPPDATA": str(tmp_path), "PATH": "P"}
+    pip = "C:/Python/Scripts/yt-dlp.exe"
+    assert video.find(lambda name, path=None: pip, env) == str(ytd / "yt-dlp.exe")      # winget's, not pip's
+    links = tmp_path / "Microsoft" / "WinGet" / "Links"
+    assert video.child_path(env) == os.pathsep.join([str(links), str(ytd), str(deno), str(ff), "P"])
+    assert video.from_winget(str(ytd / "yt-dlp.exe"), env) and not video.from_winget(pip, env)
+    assert video.package_dirs({"PATH": "P"}) == []                      # no LOCALAPPDATA: nothing to look in
+
+
 def test_finding_yt_dlp_and_its_age(tmp_path, monkeypatch):
     links = tmp_path / "Microsoft" / "WinGet" / "Links"
     links.mkdir(parents=True)
@@ -475,6 +496,14 @@ PARTS_UK = ("У yt-dlp на цьому комп'ютері бракує част
             "завантажилось.")
 
 
+def test_a_bare_404_isnt_called_removed():
+    # Vimeo on a real PC: the page opens in the browser, yet yt-dlp gets a 404 for it
+    vimeo = "Unable to download webpage: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>)"
+    assert video.kind_of(vimeo) == "not_found"
+    assert video.kind_of("Video unavailable. This video has been removed by the uploader") == "gone"
+    assert video.kind_of("HTTP Error 410: Gone") == "gone"
+
+
 def test_a_yt_dlp_without_its_parts_is_told_apart():
     assert video.kind_of(IMPERSONATE) == "parts"      # pip's bare yt-dlp on Dailymotion (seen on a real PC)
     assert video.kind_of("ImportError: curl_cffi is not installed") == "parts"
@@ -534,6 +563,7 @@ def test_an_old_yt_dlp_is_offered_an_update(tmp_path, monkeypatch):
     ("too_big", "На диску замало вільного місця для цього відео."),
     ("cancelled", "Зупинено. Незавершені частини видалено."),
     ("other", "yt-dlp не зміг це завантажити: HTTP Error 403: Forbidden"),
+    ("not_found", "Сайт каже, що такого відео немає (помилка 404): можливо, його видалили, або сайт не віддає його yt-dlp."),
 ])
 def test_what_a_failed_download_says(tmp_path, monkeypatch, kind, text):
     api, _ = _video_api(tmp_path, monkeypatch)

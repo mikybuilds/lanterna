@@ -103,6 +103,8 @@ VIDEO_SAY = {
              "browser's cookies, so it can't download it.",
     "geo": "The site doesn't show this video in this country.",
     "gone": "The video isn't there: it was removed or it is private.",
+    "not_found": "The site says there is no such video (error 404): it may have been removed, or the site doesn't "
+                 "give it to yt-dlp.",
     "drm": "The video is protected against copying (DRM): it can only be watched on the site.",
     "live": "It is a live stream: it can be downloaded only after it ends.",
     "network": "Couldn't reach the site. Check the internet and try again.",
@@ -1965,7 +1967,7 @@ class Api:
                                        "again.", lang)
                 out["model"] += " A card to install the full yt-dlp is under the reply."
             return out
-        if kind in ("no_video", "other", "gone", "login", "js", "parts"):
+        if kind in ("no_video", "other", "gone", "not_found", "login", "js", "parts"):
             ver = video.version(exe)
             if video.is_old(ver):                          # sites change often: an old yt-dlp fails on them
                 out["text"] += " " + t("yt-dlp here is old ({version}), and sites change often: updating it may help.",

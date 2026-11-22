@@ -29,6 +29,8 @@ from typing import Callable
 from urllib.parse import urlsplit
 
 WINGET_ID = "yt-dlp.yt-dlp"            # winget brings yt-dlp.FFmpeg and DenoLand.Deno with it
+# winget's packages and the program each one keeps (FFmpeg's is in a bin folder inside its own folder)
+WINGET_PROGRAMS = ((WINGET_ID, "yt-dlp.exe"), ("DenoLand.Deno", "deno.exe"), ("yt-dlp.FFmpeg", "ffmpeg.exe"))
 LINUX_PKG = "yt-dlp"
 MAX_PLAYLIST = 50
 MAX_HEIGHT = 1080                       # the user's choice: up to 1080p, MP4 (plays everywhere)
@@ -53,7 +55,9 @@ ERRORS = (
     # before "login": YouTube's "Private video. Sign in if you've been granted access", "…the account associated
     # with this video has been terminated"
     ("gone", re.compile(r"private video|has been removed|no longer available|been terminated|does not exist|"
-                        r"HTTP Error 404|HTTP Error 410", re.I)),
+                        r"HTTP Error 410", re.I)),
+    # a bare 404: removed, or the site doesn't give it to yt-dlp (Vimeo answers 404 for a video that is there)
+    ("not_found", re.compile(r"HTTP Error 404", re.I)),
     ("geo", re.compile(r"country|geo[- ]?restrict|not available in your|region", re.I)),
     ("login", re.compile(r"sign in|\blog ?in\b|cookies|members[- ]only|age[- ]restricted|confirm your age|"
                          r"authenticat|requires? (an )?account", re.I)),
@@ -131,21 +135,45 @@ def links_dirs(env: dict | None = None) -> list[Path]:
     return out
 
 
+def package_dirs(env: dict | None = None) -> list[Path]:
+    """The folders of winget's yt-dlp, Deno and FFmpeg themselves. Without Developer Mode (and not as an admin)
+    winget can't make links in Links: each program stays in its package's folder, which goes to the end of PATH,
+    behind an older yt-dlp (pip's, say), and a running Lanterna's PATH doesn't have it at all."""
+    if sys.platform != "win32":
+        return []
+    env = env if env is not None else os.environ
+    out = []
+    for base, sub in ((env.get("LOCALAPPDATA", ""), ("Microsoft", "WinGet", "Packages")),
+                      (env.get("ProgramFiles", ""), ("WinGet", "Packages"))):
+        if not base:
+            continue
+        for pid, exe in WINGET_PROGRAMS:
+            for d in sorted(Path(base, *sub).glob(f"{pid}_*")):       # yt-dlp.yt-dlp_Microsoft.Winget.Source_…
+                hits = [d / exe] if (d / exe).is_file() else sorted(d.glob(f"*/bin/{exe}"))
+                out += [h.parent for h in hits[:1]]
+    return out
+
+
+def winget_dirs(env: dict | None = None) -> list[Path]:
+    """Where winget keeps yt-dlp and its helpers: its Links folders, then the packages' own folders."""
+    return [*links_dirs(env), *package_dirs(env)]
+
+
 def from_winget(exe: str, env: dict | None = None) -> bool:
     """yt-dlp is winget's: the full build (curl_cffi and YouTube's solver inside, FFmpeg and Deno beside it)."""
-    return any(str(exe).lower().startswith(str(d).lower()) for d in links_dirs(env))
+    return any(str(exe).lower().startswith(str(d).lower()) for d in winget_dirs(env))
 
 
 def child_path(env: dict | None = None) -> str:
     env = env if env is not None else os.environ
-    extra = [str(d) for d in links_dirs(env)]
+    extra = [str(d) for d in winget_dirs(env)]
     return os.pathsep.join([*extra, env.get("PATH", "")])
 
 
 def find(which: Callable[..., str | None] = shutil.which, env: dict | None = None) -> str:
     """yt-dlp's path, or "". winget's copy first (the card installs it and winget keeps it fresh), then any other."""
     exe = "yt-dlp.exe" if sys.platform == "win32" else "yt-dlp"
-    for d in links_dirs(env):
+    for d in winget_dirs(env):
         if (d / exe).is_file():
             return str(d / exe)
     found = which("yt-dlp", path=child_path(env))

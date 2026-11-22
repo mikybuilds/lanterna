@@ -1244,6 +1244,7 @@
  "The service didn't answer in time. Check the internet connection.": "Usługa nie odpowiedziała na czas. Sprawdź połączenie z internetem.",
  "The service doesn't say how much is left; it is shown when the limit is reached.": "Usługa nie podaje, ile zostało; pokazuje się to po osiągnięciu limitu.",
  "The site doesn't show this video in this country.": "Strona nie pokazuje tego filmu w tym kraju.",
+ "The site says there is no such video (error 404): it may have been removed, or the site doesn't give it to yt-dlp.": "Strona mówi, że takiego filmu nie ma (błąd 404): może został usunięty albo strona nie daje go yt-dlp.",
  "The sound goes to {name}": "Dźwięk idzie teraz na {name}",
  "The sound service starts again: the sound stops for a moment, and a program that was playing may need to start again. Nothing else changes.": "Usługa dźwięku uruchomi się ponownie: dźwięk na chwilę zniknie, a program, który grał, może trzeba będzie uruchomić jeszcze raz. Nic więcej się nie zmieni.",
  "The speech engine didn't work this time.": "Tym razem silnik mowy nie zadziałał.",

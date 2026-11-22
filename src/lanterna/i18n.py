@@ -1989,6 +1989,9 @@ _T.update({
     "The video isn't there: it was removed or it is private.": {
         "uk": "Відео немає: його видалили або воно приватне.",
         "it": "Il video non c'è: è stato rimosso o è privato."},
+    "The site says there is no such video (error 404): it may have been removed, or the site doesn't give it to yt-dlp.": {
+        "uk": "Сайт каже, що такого відео немає (помилка 404): можливо, його видалили, або сайт не віддає його yt-dlp.",
+        "it": "Il sito dice che questo video non c'è (errore 404): forse è stato rimosso, oppure il sito non lo dà a yt-dlp."},
     "The video is protected against copying (DRM): it can only be watched on the site.": {
         "uk": "Відео захищене від копіювання (DRM): його можна дивитися лише на сайті.",
         "it": "Il video è protetto dalla copia (DRM): si può guardare solo sul sito."},
