@@ -85,6 +85,7 @@ TOOL_TEXT = {
     "fix_cache": ("Preparing to clear a cache", ""),
     "fix_verify": ("Preparing Steam's file check: {x}", "program"),
     "fix_windows": ("Preparing a fix in Windows", ""),
+    "fix_system": ("Preparing a fix in the system", ""),
 }
 CYRILLIC = re.compile(r"[Ѐ-ӿ]")
 CYRILLIC_LANGS = ("uk", "ru", "be", "bg", "sr", "mk")

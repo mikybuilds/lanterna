@@ -7,6 +7,7 @@ display. It names files and searches, never their contents.
 from __future__ import annotations
 
 import json
+import sys
 from urllib.parse import urlparse
 
 from .scam import refuse
@@ -16,6 +17,8 @@ FILE_NAMES = {"pc_list", "pc_overview", "pc_find", "pc_duplicates", "pc_space", 
 FILE_READ = {"pc_read", "folder_read", "github_read", "fix_read"}
 FIX_PROGRAM = "Names of files in the folders of {what}, lines from its logs, what Windows noted about it"
 FIX_WINDOWS = "A check of Windows ({what}): its devices, settings and recent records"
+FIX_PROGRAM_LINUX = "Names of files in the folders of {what}, lines from its logs, what the system noted about it"
+FIX_SYSTEM = "A check of the system ({what}): its devices, settings and recent records"
 PC_INFO = {"pc_info", "pc_load", "pc_startup", "pc_power"}
 PROGRAMS = {"app_installed", "app_updates"}
 
@@ -33,8 +36,11 @@ SECOND = "A second opinion: the same question to another model, without the firs
 
 def build(model: str, local: bool, history: int, name: bool, facts: int, files: list[str], photos: int,
           tools: list[tuple[str, str]], summary: bool = False, old_files: list[str] | None = None,
-          parts: list[str] | None = None, second: bool = False, private: bool = False) -> list[dict]:
-    """[{"t": template, "v": vars}] — the first line says where it went."""
+          parts: list[str] | None = None, second: bool = False, private: bool = False,
+          win: bool | None = None) -> list[dict]:
+    """[{"t": template, "v": vars}] — the first line says where it went. win: Windows or Linux words for fix_check
+    (this computer's by default)."""
+    win = sys.platform == "win32" if win is None else win
     out = [{"t": "Stayed on this computer ({model})" if local else "Sent to {model}", "v": {"model": model or "?"}}]
     out.append({"t": "Your message and {n} earlier messages of this chat" if history else "Your message", "v": {"n": history}})
     if private:
@@ -87,7 +93,8 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
         elif tool == "fix_check":                     # what "why doesn't it work" looked at and sent along
             from .fixit import area_of
             what = _arg(args, "what").strip() or "?"
-            once(FIX_WINDOWS if area_of(what) else FIX_PROGRAM, {"what": what})
+            once((FIX_WINDOWS if win else FIX_SYSTEM) if area_of(what) else (FIX_PROGRAM if win else FIX_PROGRAM_LINUX),
+                 {"what": what})
     return out
 
 

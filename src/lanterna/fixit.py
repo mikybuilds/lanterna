@@ -6,16 +6,19 @@ finds the program (Steam, Epic, GOG, Xbox or the list of installed programs), lo
 what is out of place (a folder renamed by a "skip the intro videos" trick, a mod or an injector next to the game),
 reads its newest log and crash reports in its own folders, and what Windows noted itself (crashes and the file
 they happened in, the graphics driver, programs that hook into games). Windows itself too: sound, internet, the
-printer and updates.
+printer and updates. On Linux the same, from fixlinux.py: Steam (with Proton), Heroic, Lutris, Flatpak and the
+installed apps; sound, internet, printers and updates of the system.
 
 Looking is immediate and changes nothing. A fix comes only from this list, each one on a card (or done at once
 when the user let Lanterna act on its own in the chat), and each can be undone where that is possible:
 - rename a file or folder of the program back, or turn one off by renaming it;
 - change one setting in one of its settings files (the old file is kept);
 - move mods or injector files aside into a folder next to them;
-- clear a cache folder (into the Recycle Bin: the program makes a new one);
+- clear a cache folder (into the Recycle Bin or the Trash: the program makes a new one);
 - Steam's own check of a game's files;
-- Windows: clear the DNS cache, turn off a proxy left on, choose the default printer, clear stuck print jobs.
+- Windows: clear the DNS cache, turn off a proxy left on, choose the default printer, clear stuck print jobs;
+- Linux: choose the sound output, turn the sound on, restart the user's own sound service, turn off the desktop's
+  proxy, choose the default printer, clear the user's own stuck print jobs.
 No other commands are ever run, and a program has to be closed before its files change.
 
 Never read or changed: system folders, browsers, password managers, wallets, mail, messengers and remote-access
@@ -31,8 +34,10 @@ import difflib
 import html
 import json
 import os
+import platform
 import re
 import shutil
+import socket
 import sys
 import threading
 import time
@@ -76,11 +81,12 @@ AREAS = {
 SECRET_DIRS = {"local storage", "session storage", "indexeddb", "leveldb", "cookies", "network", "login data",
                "databases", "service worker", "blob_storage", "webstorage", "partitions", "user data", "tdata",
                "credentials", "protect", "vault", "crypto", ".ssh", ".gnupg", "keys", "keystore", "wallets",
-               "userdata", "secrets", "tokens", "accounts", "profiles"}
+               "userdata", "secrets", "tokens", "accounts", "profiles",
+               "keyrings", ".pki", "nssdb", ".password-store", "kwalletd", "gnome-keyring", "goa-1.0"}   # Linux
 _SECRET_NAME = re.compile(r"passw|secret|token|cookie|credential|oauth|\bauth|session|wallet|api_?key|private|"
                           r"licen[cs]e|account|login|keychain|mnemonic|\bseed\b|vault|sitemanager|recentservers|"
                           r"loginusers|^config\.vdf$|^localconfig\.vdf$|^ssfn|\.(pem|pfx|p12|key|ppk|kdbx|ovpn|"
-                          r"keystore|jks|asc|gpg|sqlite|db)$|^id_(rsa|dsa|ecdsa|ed25519)", re.I)
+                          r"keystore|jks|asc|gpg|sqlite|db|keyring|kwl)$|^id_(rsa|dsa|ecdsa|ed25519)", re.I)
 TEXT_EXT = {".log", ".txt", ".ini", ".cfg", ".conf", ".config", ".json", ".xml", ".yaml", ".yml", ".toml",
             ".properties", ".lua", ".csv", ".md", ".vdf", ".acf", ".runtime-xml", ".err", ".out"}
 SETTINGS_EXT = {".ini", ".cfg", ".conf", ".json", ".properties", ".txt"}
@@ -100,7 +106,12 @@ PRIVATE = re.compile(r"chrome|chromium|firefox|mozilla|microsoft edge|msedge|\bo
                      r"\bparsec\b|nordvpn|expressvpn|surfshark|mullvad|windscribe|cyberghost|tunnelbear|veracrypt|"
                      r"gpg4win|kleopatra|authy|authenticator|yubico|\bbank|^steam$|epic games launcher|gog galaxy|"
                      r"^ea app$|^ea$|ubisoft connect|battle\.net|rockstar games launcher|riot client|^origin$|"
-                     r"amazon games|itch\.io|lanterna", re.I)
+                     r"amazon games|itch\.io|lanterna|"
+                     # Linux: its browsers, mail, messengers, passwords, remote access and launchers with sign-ins
+                     r"epiphany|gnome web|^web$|falkon|konqueror|midori|qutebrowser|zen browser|evolution|geary|"
+                     r"kmail|kontact|claws mail|^element$|fractal|nheko|pidgin|hexchat|gajim|kotatogram|ayugram|"
+                     r"seahorse|passwords and keys|kwallet|gnome secrets|^secrets$|remmina|krdc|gnome connections|"
+                     r"^connections$|nomachine|x2go|heroic|^lutris$|^bottles$|minigalaxy|^itch$", re.I)
 # first-level folders in AppData and Documents that are never a program's data place
 DENY_DIRS = {"microsoft", "google", "mozilla", "packages", "temp", "tmp", "programs", "bravesoftware",
              "operasoftware", "vivaldi", "yandex", "comms", "connecteddevicesplatform", "virtualstore", "crashdumps",
@@ -114,7 +125,14 @@ DENY_DIRS = {"microsoft", "google", "mozilla", "packages", "temp", "tmp", "progr
              "peerdistrepub", "placeholdertilelogofolder", "iconcache", "history", "inetcache", "inetcookies",
              "fontcache", "explorer", "windows", "windowsapps", "programs", "applicationdata", "appdata",
              "unrealengine", "unrealenginelauncher", "epicgames", "unity", "unitytechnologies", "nuget", "npm",
-             "yarn", "cargo", "go", "python", "conda", "anaconda", "jupyter", "gradle", "maven", "android"}
+             "yarn", "cargo", "go", "python", "conda", "anaconda", "jupyter", "gradle", "maven", "android",
+             # Linux: ~/.config, ~/.local/share and ~/.cache of the desktop itself, the launchers and the drivers
+             "lutris", "heroic", "bottles", "flatpak", "trash", "keyrings", "applications", "gnomeshell", "dconf",
+             "pulse", "systemd", "autostart", "gtk30", "gtk40", "fontconfig", "fonts", "icons", "thumbnails",
+             "mesashadercache", "mesashadercachedb", "nautilus", "ibus", "evolution", "goa10", "menus", "kde",
+             "plasma", "akonadi", "baloo", "kwalletd", "tracker", "tracker3", "gvfsmetadata", "gstreamer10",
+             "wireplumber", "pipewire", "xorg", "wine", "protonfixes", "umu", "mangohud", "vkbasalt", "gamescope",
+             "glcache", "containers", "keepassxc", "remmina", "evolutiondataserver"}
 GENERIC_KEYS = {"game", "games", "the", "launcher", "client", "app", "apps", "program", "programs", "steam", "epic",
                 "microsoft", "windows", "nvidia", "google", "binaries", "win64", "engine", "content", "data",
                 "common", "unity", "unreal", "setup", "update", "updater", "crashreportclient", "unitycrashhandler",
@@ -125,7 +143,10 @@ GENERIC_KEYS = {"game", "games", "the", "launcher", "client", "app", "apps", "pr
                 "browser", "webhelper", "overlay", "server", "platform", "runtime", "runtimes", "redist", "launch",
                 "crashhandler", "crashpad", "crashreporter", "logs", "cache", "config", "settings", "plugins",
                 "packages", "assets", "default", "shared", "system", "driver", "drivers", "support", "studio"}
-GENERIC_USERS = {"user", "admin", "administrator", "owner", "player", "gamer", "test", "pc", "home", "guest", "default"}
+GENERIC_USERS = {"user", "admin", "administrator", "owner", "player", "gamer", "test", "pc", "home", "guest", "default",
+                 # Linux computers are often named after the system: masking it would hide "Fedora Linux 41"
+                 "localhost", "localhost-live", "fedora", "ubuntu", "debian", "linux", "archlinux", "manjaro", "mint",
+                 "linuxmint", "pop-os", "nobara", "bazzite", "steamdeck", "kali", "raspberrypi", "opensuse", "endeavour"}
 SKIP_SCAN = {"_commonredist", "redist", "redistributables", "directx", "vcredist", "__installer", "installers",
              "thirdparty", ".git", "node_modules", "__pycache__", "shadercache", "derivedddatacache"}
 SKIP_EXE = {"unrealcefsubprocess", "steamwebhelper", "qtwebengineprocess", "uplaywebcore", "cefsubprocess",
@@ -159,10 +180,15 @@ LOG_SKIP = {"screenshots", "screenshot", "videos", "movies", "captures", "photos
 VIDEO_EXT = {".bk2", ".bik", ".usm", ".webm", ".mp4", ".wmv", ".avi", ".mkv", ".mov", ".ogv", ".bink"}
 _OFF = re.compile(r"^(?P<base>.+?)(?:[ ._-](?:old|bak|backup|orig|original|disabled|disable|off|unused|copy|копія|копия)"
                   r"\d*|\s-\s(?:copy|копія|копия)(?:\s\(\d+\))?|~)$", re.I)
-CACHE_PLACES = ("steam_shaders", "nvidia_cache", "amd_cache", "d3d_cache", "intel_cache")
+CACHE_PLACES = ("steam_shaders", "nvidia_cache", "amd_cache", "d3d_cache", "intel_cache", "mesa_cache")
 CACHE_NAMES = {"steam_shaders": "Steam's shader cache of the game", "nvidia_cache": "the NVIDIA driver's shader cache",
                "amd_cache": "the AMD driver's shader cache", "d3d_cache": "the DirectX shader cache",
-               "intel_cache": "the Intel driver's shader cache"}
+               "intel_cache": "the Intel driver's shader cache", "mesa_cache": "the Mesa driver's shader cache"}
+ANTICHEAT = {"easyanticheat": "Easy Anti-Cheat", "battleye": "BattlEye"}
+GAME_SOURCES = ("steam", "epic", "gog", "xbox", "heroic-epic", "heroic-gog", "lutris")
+# parts of a Flatpak id that name no program (com.spotify.Client, org.kde.kdenlive, io.github.<person>.App)
+APPID_WORDS = {"github", "gitlab", "kde", "gnome", "desktop", "client", "browser", "studio", "app", "launcher",
+               "player", "editor"}
 
 # ---------------------------------------------------------------- what Windows' notes mean
 EXC_CODES = {
@@ -246,7 +272,7 @@ PRINTER_STATUS = {1: "other", 2: "unknown", 3: "ready", 4: "printing", 5: "warmi
 PRINTER_ERROR = {3: "little paper", 4: "no paper", 5: "little toner or ink", 6: "no toner or ink", 7: "a door is open",
                  8: "paper is jammed", 9: "offline", 10: "it needs service", 11: "the output tray is full"}
 VIRTUAL_PRINTERS = re.compile(r"microsoft print to pdf|xps document writer|onenote|\bfax\b|send to|pdf24|"
-                              r"adobe pdf|cutepdf|pdfcreator|foxit", re.I)
+                              r"adobe pdf|cutepdf|pdfcreator|foxit|cups-?pdf|^pdf$|print to file", re.I)
 VPN = re.compile(r"vpn|wireguard|tap-windows|openvpn|wintun|nordlynx|proton|anyconnect|fortinet|hamachi|zerotier|"
                  r"tailscale|radmin", re.I)
 
@@ -448,21 +474,23 @@ def nvidia_version(v: str) -> str:
 @dataclass
 class Program:
     name: str
-    source: str                         # steam | epic | gog | xbox | app
-    folder: str = ""                    # where it is installed ("" = not known)
-    appid: str = ""                     # Steam's app id, Epic's app name, GOG's id
+    source: str                         # steam | epic | gog | xbox | app; Linux: heroic-epic | heroic-gog | lutris |
+    folder: str = ""                    # flatpak | snap. Where it is installed ("" = not known)
+    appid: str = ""                     # Steam's app id, Epic's app name, GOG's id, a Flatpak id, a Snap name
     version: str = ""
     publisher: str = ""
     exe: str = ""                       # the main program file, when the source says
     note: str = ""                      # e.g. "the install isn't finished" (Epic)
+    prefix: str = ""                    # Linux: the Proton or Wine prefix a Windows game runs in
 
     @property
     def private(self) -> bool:
         return bool(PRIVATE.search(self.name) or PRIVATE.search(self.publisher or ""))
 
     def label(self) -> str:
-        return {"steam": f"Steam game {self.appid}", "epic": "Epic Games", "gog": "GOG", "xbox": "Xbox app"}.get(
-            self.source, "program")
+        return {"steam": f"Steam game {self.appid}", "epic": "Epic Games", "gog": "GOG", "xbox": "Xbox app",
+                "heroic-epic": "Epic Games in Heroic", "heroic-gog": "GOG in Heroic", "lutris": "Lutris",
+                "flatpak": f"Flatpak app {self.appid}", "snap": f"Snap app {self.appid}"}.get(self.source, "program")
 
 
 @dataclass
@@ -475,6 +503,7 @@ class Scan:
     logs: list[Path] = field(default_factory=list)
     unity: tuple[str, str] = ("", "")                       # company and product (Unity's app.info)
     aside: list[str] = field(default_factory=list)          # what Lanterna moved aside before
+    anticheat: set[str] = field(default_factory=set)        # Easy Anti-Cheat, BattlEye (Linux: they decide online play)
     count: int = 0
     cut: bool = False
     at: float = field(default_factory=time.time)
@@ -568,6 +597,9 @@ class _ENTRY(ctypes.Structure):
 
 def _processes() -> list[tuple[str, str]]:
     """(name, full path) of the programs running now; the path is '' where Windows doesn't show it."""
+    if sys.platform.startswith("linux"):
+        from .fixlinux import processes
+        return processes()
     if sys.platform != "win32":
         return []
     from ctypes import wintypes
@@ -601,6 +633,15 @@ def _processes() -> list[tuple[str, str]]:
     finally:
         k.CloseHandle(snap)
     return out
+
+
+def tcp_probe(host: str, port: int, timeout: float = 3.0) -> bool:
+    """Whether a direct connection to an address works (the internet without site names)."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def _refresh_wininet() -> None:
@@ -655,6 +696,11 @@ def _private_ip(ip: str) -> bool:
         a >= 224 or (a == 100 and 64 <= b <= 127)
 
 
+# the public DNS servers everyone uses: they say nothing about the user (and a hint may name one)
+PUBLIC_DNS = {"1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9", "149.112.112.112", "208.67.222.222",
+              "208.67.220.220"}
+
+
 # ---------------------------------------------------------------- the helper itself
 class Fixer:
     def __init__(self, actions, runner: Callable[..., tuple[int, str]] = run, platform_: str = sys.platform, reg=None,
@@ -663,17 +709,26 @@ class Fixer:
                  trash: Callable[[list[Path]], None] | None = None, printers=None,
                  refresh_net: Callable[[], None] = _refresh_wininet, drives: Callable[[], list[str]] = _drives,
                  now: Callable[[], float] = time.time, data_dir: Path | None = None,
-                 procs: Callable[[], list[tuple[str, str]]] = _processes):
+                 procs: Callable[[], list[tuple[str, str]]] = _processes, root: Path | None = None,
+                 probe: Callable[[str, int], bool] = tcp_probe, uname: Callable[[], str] = platform.release):
         from .pcsys import WinReg
         self.actions, self.run, self.platform, self.procs = actions, runner, platform_, procs
-        self.reg = reg if reg is not None else (WinReg() if platform_ == "win32" else None)
+        self.win, self.linux = platform_ == "win32", platform_.startswith("linux")
+        self.reg = reg if reg is not None else (WinReg() if self.win else None)
         self._envd = {str(k).upper(): str(v) for k, v in (os.environ if env is None else env).items()}
         self.home = Path(home or Path.home())
-        self.user = self._env("USERNAME") if user is None else user
-        self.pc = self._env("COMPUTERNAME") if pc is None else pc
+        self.root = Path(root) if root is not None else Path("/")    # Linux: where / is (a folder in the tests)
+        self.user = (self._env("USERNAME") or self._env("USER") or self._env("LOGNAME")) if user is None else user
+        if pc is None:
+            pc = self._env("COMPUTERNAME") or (socket.gethostname() if env is None and not self.win else "")
+        self.pc = pc
         self._steam_base = steam_base
         self.open_url, self.refresh_net, self.drives, self.now = open_url, refresh_net, drives, now
+        self.probe, self.uname = probe, uname
         self._trash = trash
+        if printers is None and not self.win:
+            from .fixlinux import CupsPrinters
+            printers = CupsPrinters(runner, self.home)
         self.printers = printers if printers is not None else WinPrinters()
         self._data = data_dir
         self._progs: list[Program] = []
@@ -727,15 +782,19 @@ class Fixer:
         text = str(text or "")
         sep = r"[\\/]+"
         for h in sorted(self._homes, key=len, reverse=True):
-            parts = [re.escape(x) for x in re.split(r"[\\/]+", h) if x]
-            if parts:
+            raw = [x for x in re.split(r"[\\/]+", h) if x]
+            parts = [re.escape(x) for x in raw]
+            if parts and self.win:
                 text = re.sub(sep.join(parts) + r"(?![\w-])", "%USERPROFILE%", text, flags=re.I)
+            elif parts:                                  # /home/<user>/.config → ~/.config (Z:\home\<user> too)
+                lead = "" if re.fullmatch(r"[A-Za-z]:", raw[0]) else sep
+                text = re.sub(lead + sep.join(parts) + r"(?![\w-])", "~", text)
+        text = _EMAIL.sub("<email>", text)               # before the names: olena@… goes whole, not as <user>@…
         for name, mask in ((self.user, "<user>"), (self.pc, "<pc>")):
             if name and len(name) >= 3 and name.lower() not in GENERIC_USERS:
                 text = re.sub(rf"(?i)(?<![\w]){re.escape(name)}(?![\w])", mask, text)
-        text = _EMAIL.sub("<email>", text)
         text = _STEAMID.sub("<steam id>", text)
-        text = _IPV4.sub(lambda m: m.group(0) if _private_ip(m.group(0)) or
+        text = _IPV4.sub(lambda m: m.group(0) if _private_ip(m.group(0)) or m.group(0) in PUBLIC_DNS or
                          _VERSIONISH.search(text[max(0, m.start() - 12):m.start()]) else "<ip>", text)
         text = _MAC.sub("<mac>", text)
         text = _URL_SECRET.sub(r"\1••••", text)
@@ -745,6 +804,14 @@ class Fixer:
         finds = sensitive.find(text)
         return sensitive.mask(text, finds) if finds else text
 
+    def unmask(self, text: str) -> str:
+        """A path or a name the model has the way clean() showed it (<user>, <pc>), as it is on this computer."""
+        text = str(text or "")
+        for name, mask in ((self.user, "<user>"), (self.pc, "<pc>")):
+            if name:
+                text = text.replace(mask, name)
+        return text
+
     # ---------------------------------------------------------------- the installed programs
     def programs(self) -> list[Program]:
         with self._lock:
@@ -752,7 +819,12 @@ class Fixer:
                 return self._progs
         found: list[Program] = []
         seen: set[str] = set()
-        for source in (self._steam, self._epic, self._gog, self._xbox, self._installed):
+        if self.win:
+            sources = [self._steam, self._epic, self._gog, self._xbox, self._installed]
+        else:
+            from . import fixlinux
+            sources = [self._steam] + fixlinux.programs(self)
+        for source in sources:
             try:
                 items = source()
             except Exception:                              # noqa: BLE001  one broken source doesn't hide the rest
@@ -772,7 +844,11 @@ class Fixer:
         base = self.steam_base()
         if not base:
             return []
-        return [Program(g.name, "steam", g.folder, appid=g.appid) for g in diskmap.steam_games(base, self.platform == "win32")
+        if not self.win:
+            from .fixlinux import steam_prefix
+        return [Program(g.name, "steam", g.folder, appid=g.appid,
+                        prefix="" if self.win else steam_prefix(g.folder, g.appid))
+                for g in diskmap.steam_games(base, self.win)
                 if g.appid != "228980" and not re.match(r"steamworks|proton\b|steam linux runtime", g.name, re.I)]
 
     def _epic(self) -> list[Program]:
@@ -859,6 +935,9 @@ class Fixer:
 
     def _bad_root(self, p: Path) -> bool:
         """A folder too big or too important to be one program's folder (a disk, Windows, Program Files…)."""
+        if not self.win:
+            from .fixlinux import bad_root
+            return bad_root(self, p)
         try:
             p = p.resolve()
         except OSError:
@@ -886,6 +965,10 @@ class Fixer:
     # ---------------------------------------------------------------- one program by name
     def _score(self, q: str, p: Program) -> float:
         names = [norm(p.name)] + ([norm(Path(p.folder).name)] if p.folder else [])
+        if p.source in ("flatpak", "snap") and p.appid:        # org.gimp.GIMP is "gimp" too; a Snap by its own name
+            parts = p.appid.split(".")
+            names += [norm(x) for x in (parts[1:] if len(parts) > 1 else parts)
+                      if len(x) >= 3 and x.lower() not in APPID_WORDS]
         ql, qc = _latin(q), _latin(q).replace(" ", "")
         best = 0.0
         for n in names:
@@ -918,7 +1001,7 @@ class Fixer:
         top = hits[0][0]
         same = [p for s, p in hits if s >= top - 0.001]
         # a game and its own tools (editor, server, soundtrack): the shortest name is the game
-        return sorted(same, key=lambda p: (p.source == "app", len(p.name)))
+        return sorted(same, key=lambda p: (p.source not in GAME_SOURCES, len(p.name)))
 
     def program(self, name: str) -> Program:
         hits = self.find(name)
@@ -941,7 +1024,7 @@ class Fixer:
             return "Lanterna couldn't read the list of installed programs here."
         q = _latin(name).replace(" ", "")
         close = sorted(progs, key=lambda p: -difflib.SequenceMatcher(None, q, compact(p.name)).ratio())[:6]
-        games = [p.name for p in progs if p.source in ("steam", "epic", "gog", "xbox")][:25]
+        games = [p.name for p in progs if p.source in GAME_SOURCES][:25]
         return (f"No installed program is called '{name}'. Closest names: {'; '.join(p.name for p in close)}."
                 + (f" Games here: {'; '.join(games)}." if games else "") +
                 " Call again with the name as installed (in Latin letters, as the game or program calls itself).")
@@ -994,6 +1077,10 @@ class Fixer:
                     continue
                 low = e.name.lower()
                 rel = Path(e.path).relative_to(root).as_posix()
+                if is_dir and low in ANTICHEAT:
+                    s.anticheat.add(ANTICHEAT[low])
+                elif not is_dir and low.startswith(("easyanticheat", "beclient", "beservice")):
+                    s.anticheat.add(ANTICHEAT["easyanticheat" if low.startswith("easy") else "battleye"])
                 if is_dir and low == TURNED_OFF.lower():
                     s.aside.append(rel)
                     continue
@@ -1011,8 +1098,9 @@ class Fixer:
                 if kind and not in_mods and (not is_dir or _has_content(Path(e.path))):   # the game's pak names
                     s.mods.append({"rel": rel, "dir": is_dir, "what": kind})
                 if not is_dir:
-                    if low.endswith(".exe") and Path(low).stem not in SKIP_EXE:
-                        s.exes.append(rel)
+                    if (low.endswith(".exe") and Path(low).stem not in SKIP_EXE) or low.endswith((".x86_64", ".x86")) \
+                            or (not self.win and not Path(low).suffix and st.st_mode & 0o111 and st.st_size > 100_000):
+                        s.exes.append(rel)                       # Linux games: game.x86_64, or a big runnable file
                     elif low.endswith(".log"):
                         s.logs.append(Path(e.path))
                 if updated and st.st_mtime > updated + 3600 and not _churn(rel, is_dir):
@@ -1073,9 +1161,23 @@ class Fixer:
                 break
         return out
 
+    def _bases(self, p: Program) -> list[tuple[str, Path, str]]:
+        """Where its own folders may be: (label, folder, how): 'nested' = a folder named like it there, or one level
+        deeper; 'flat' = a folder named like it; 'self' = that folder itself (Linux: a Flatpak app's own)."""
+        if not self.win:
+            from .fixlinux import bases
+            return bases(self, p)
+        out = [("local", self.local(), "nested"), ("roaming", self.roaming(), "nested"),
+               ("locallow", self.home / "AppData" / "LocalLow", "nested")]
+        if p.source != "app":                             # Documents holds the user's own files: games only
+            docs = self.documents()
+            out += [("mygames", docs / "My Games", "flat"), ("documents", docs, "flat"),
+                    ("saved", self.saved_games(), "nested")]
+        return out
+
     def places(self, p: Program | None, scan: Scan | None = None) -> dict[str, Path]:
-        """Where its files are: install, its data folders (local, roaming, locallow, mygames, documents, saved) and
-        the shader caches."""
+        """Where its files are: install, its data folders (local, roaming, locallow, mygames, documents, saved;
+        Linux: config, data, cache, and those of its Proton prefix) and the shader caches."""
         out: dict[str, Path] = {}
         if p is not None:
             if p.folder and Path(p.folder).is_dir() and not self._bad_root(Path(p.folder)):
@@ -1083,27 +1185,32 @@ class Fixer:
             if not p.private:
                 scan = scan or self.scan(p)
                 keys = self._keys(p, scan)
-                bases = [("local", self.local(), True), ("roaming", self.roaming(), True),
-                         ("locallow", self.home / "AppData" / "LocalLow", True)]
-                if p.source != "app":                     # Documents holds the user's own files: games only
-                    docs = self.documents()
-                    bases += [("mygames", docs / "My Games", False), ("documents", docs, False),
-                              ("saved", self.saved_games(), True)]
-                for label, base, nested in bases:
-                    for d in self._match(base, keys, nested):
+                for label, base, how in self._bases(p):
+                    found = ([base] if base.is_dir() else []) if how == "self" else \
+                        self._match(base, keys, how == "nested")
+                    for d in found:
                         if any(_same(d, x) for x in out.values()) or self._inside_data(d):
                             continue
                         n = sum(1 for k in out if k.rstrip("0123456789") == label)
                         out[label if not n else f"{label}{n + 1}"] = d
+                if self.linux:
+                    from .fixlinux import proton_log
+                    log = proton_log(self, p)
+                    if log is not None:
+                        out["proton_log"] = log                 # one file: what Proton wrote while the game ran
             if p.source == "steam" and p.appid and p.folder:
                 sc = Path(p.folder).parent.parent / "shadercache" / p.appid
                 if sc.is_dir():
                     out["steam_shaders"] = sc
-        local = self.local()
-        for label, d in (("nvidia_cache", local / "NVIDIA" / "DXCache"), ("amd_cache", local / "AMD" / "DxCache"),
-                         ("d3d_cache", local / "D3DSCache"), ("intel_cache", local / "Intel" / "ShaderCache")):
-            if d.is_dir():
-                out[label] = d
+        if self.win:
+            local = self.local()
+            for label, d in (("nvidia_cache", local / "NVIDIA" / "DXCache"), ("amd_cache", local / "AMD" / "DxCache"),
+                             ("d3d_cache", local / "D3DSCache"), ("intel_cache", local / "Intel" / "ShaderCache")):
+                if d.is_dir():
+                    out[label] = d
+        elif self.linux:
+            from .fixlinux import driver_caches
+            out.update(driver_caches(self))
         return out
 
     def _inside_data(self, d: Path) -> bool:
@@ -1121,15 +1228,22 @@ class Fixer:
             who = p.name if p else "This computer"
             raise WorkError(f"{who} has no place '{place}'. Places: {', '.join(places) or 'none'} (see fix_check).")
         root = places[place].resolve()
-        rel = str(rel or "").strip().strip('"').replace("\\", "/")
-        if self.user:
-            rel = rel.replace("<user>", self.user)                  # paths come back the way clean() showed them
+        rel = self.unmask(str(rel or "").strip().strip('"').replace("\\", "/"))   # the way clean() showed it
+        if root.is_file():                                          # a place that is one file (Proton's log)
+            if rel.strip("/") not in ("", ".", place, root.name) and Path(rel).name != root.name:
+                raise WorkError(f"The place '{place}' is one file: give path '{root.name}'.")
+            return root.parent, root
+        target = None
         if rel and (re.match(r"^[A-Za-z]:/", rel) or rel.startswith("%")):
             target = Path(_expand(rel, lambda v: str(self.home) if v.upper() == "USERPROFILE" else self._env(v)))
             if not target.is_absolute():
                 raise WorkError("Give a path inside the place, as fix_check or fix_list showed it.")
             target = target.resolve()
-        else:
+        elif rel and not self.win and (rel == "~" or rel.startswith(("~/", "/"))):
+            t = (self.home / rel[2:] if rel.startswith("~/") else self.home if rel == "~" else Path(rel)).resolve()
+            if rel.startswith("~") or t == root or t.is_relative_to(root):
+                target = t                     # '/Content/Movies' that isn't a whole path: inside the place after all
+        if target is None:
             parts = [x for x in rel.split("/") if x not in ("", ".")]
             if ".." in parts:
                 raise WorkError("Give a path inside the place, without '..'.")
@@ -1193,7 +1307,10 @@ class Fixer:
         logs = list(scan.logs) if scan else []
         crashes: list[Path] = []
         for name, root in places.items():
-            if name == "install" or name in CACHE_PLACES:
+            if name == "install" or name in CACHE_PLACES or name.rstrip("0123456789") == "cache":
+                continue
+            if root.is_file():                                   # Proton's log
+                logs.append(root)
                 continue
             todo: deque[tuple[Path, int]] = deque([(root, 0)])
             seen = 0
@@ -1366,8 +1483,8 @@ class Fixer:
         return out
 
     @staticmethod
-    def overlay_lines(names: set[str]) -> list[str]:
-        found = sorted({label for name, label in OVERLAYS.items() if name in names})
+    def overlay_lines(names: set[str], table: dict[str, str] | None = None) -> list[str]:
+        found = sorted({label for name, label in (OVERLAYS if table is None else table).items() if name in names})
         return [f"Running now (these can hook into games: overlays, recorders, audio tools): {', '.join(found)}"] \
             if found else []
 
@@ -1381,21 +1498,32 @@ class Fixer:
         """Its programs running now: by where they run from (by name only where Windows hides the path)."""
         if p is None:
             return []
-        folder = os.path.normcase(os.path.normpath(p.folder)) + os.sep if p.folder else ""
-        exe = os.path.normcase(p.exe) if p.exe else ""
+        sep = os.sep if self.win else "/"
+
+        def key(x: str) -> str:
+            return os.path.normcase(os.path.normpath(x)).replace(os.sep, sep)
+        folder = key(p.folder) + sep if p.folder else ""
+        exes = {key(p.exe)} | ({key(os.path.realpath(p.exe))} if not self.win else set()) if p.exe else set()
         named = {x for x in self.exe_stems(p, self.scan(p) if p.folder else None) if x not in GENERIC_EXE}
         # a game inside Steam's folder is the game's, not Steam's: the deepest folder wins
-        deeper = [f for f in (os.path.normcase(os.path.normpath(x.folder)) + os.sep for x in self.programs()
-                              if x.folder) if folder and f.startswith(folder) and f != folder]
+        deeper = [f for f in (key(x.folder) + sep for x in self.programs() if x.folder)
+                  if folder and f.startswith(folder) and f != folder]
+        # Linux: Steam starts a game with 'SteamLaunch AppId=…', a Flatpak app runs in its own scope
+        marks = {f"steam-app:{p.appid}" if p.source == "steam" and p.appid else "",
+                 f"flatpak:{p.appid}" if p.source == "flatpak" and p.appid else ""} - {""}
         hits = set()
         try:
             procs = self.procs() if procs is None else procs
         except OSError:
             procs = []
         for name, path in procs:
-            low = os.path.normcase(path) if path else ""
+            if path.startswith(("steam-app:", "flatpak:")):
+                if path in marks:
+                    hits.add(p.name)
+                continue
+            low = key(path) if path else ""
             if low and ((folder and low.startswith(folder) and not any(low.startswith(f) for f in deeper))
-                        or low == exe):
+                        or low in exes):
                 hits.add(Path(path).name)
             elif not low and Path(name).stem.lower() in named:
                 hits.add(name)
@@ -1403,8 +1531,8 @@ class Fixer:
 
     # ---------------------------------------------------------------- fix_check
     def check(self, what: str, problem: str = "", limit: int = 3800) -> str:
-        if self.platform != "win32":
-            return "Lanterna checks programs and Windows on Windows for now (Linux comes next)."
+        if not (self.win or self.linux):
+            return "Lanterna checks programs and the system on Windows and Linux only."
         if not norm(what):
             raise WorkError("Say what doesn't work: the program's name, or sound / internet / printer / updates.")
         area = area_of(what)
@@ -1421,7 +1549,11 @@ class Fixer:
 
     def check_program(self, p: Program, problem: str = "", limit: int = 3800) -> str:
         box: dict = {}
-        th = threading.Thread(target=lambda: box.update(self.windows_facts()), daemon=True)
+        lx = None
+        if not self.win:
+            from . import fixlinux as lx
+        th = threading.Thread(target=lambda: box.update(self.windows_facts() if lx is None else lx.facts(self)),
+                              daemon=True)
         th.start()
         info = self._steam_info(p)
         scan = self.scan(p)
@@ -1444,14 +1576,15 @@ class Fixer:
             head.append(f"Installed in (place install): {p.folder}" if "install" in places else
                         f"Its folder {p.folder} isn't there (or can't be looked at).")
         else:
-            head.append("Its install folder isn't known.")
+            head.append("Its install folder isn't known." if lx is None else lx.install_line(self, p))
         head.append(f"It is running now ({', '.join(running)}): close it before changing its files." if running
                     else "It isn't running now.")
         if p.note:
             head.append(f"! {p.note}")
         if p.private:
             head.append("Its data is private (a browser, a password manager, a wallet, mail, a messenger or a launcher "
-                        "with sign-ins): Lanterna doesn't read it, only what Windows noted.")
+                        f"with sign-ins): Lanterna doesn't read it, only what {'Windows' if self.win else 'the system'} "
+                        "noted.")
 
         found: list[str] = []
         if scan:
@@ -1521,7 +1654,18 @@ class Fixer:
             steam.append("! The Visual C++ 2015-2022 runtime (x64) isn't installed: programs often won't start without "
                          "it (app_install Microsoft.VCRedist.2015+.x64).")
 
-        crash = self.crash_lines(facts, p, exes) if facts else []
+        if lx is None:
+            crash = self.crash_lines(facts, p, exes) if facts else []
+            system = self.gpu_lines(facts) + self.overlay_lines(names)
+            prog: list[str] = []
+            noted, calm = "Windows noted in the last 30 days:", "- No crashes or hangs of it."
+        else:
+            crash = lx.crash_lines(self, facts, p, exes, scan) if facts else []
+            system = lx.gpu_lines(self, facts, game=p.source in GAME_SOURCES or bool(p.prefix)) + \
+                self.overlay_lines(names, lx.OVERLAYS)
+            prog = lx.program_lines(self, p, scan)
+            noted = "The system noted (crashes: last 30 days; the graphics card and memory: last 7 days):"
+            calm = "- No crashes of it."
         reports = [x for x in (self.crash_report(f) for f in crashes[:2]) if x]
         log_head, log_problems, log_last = [], [], []
         if logs:
@@ -1543,7 +1687,6 @@ class Fixer:
         elif not p.private:
             log_head = ["No log of it was found in its folders."]
 
-        system = self.gpu_lines(facts) + self.overlay_lines(names)
         place_lines = [f"- {k}: {v}" for k, v in places.items() if k not in CACHE_PLACES]
         caches = [k for k in places if k in CACHE_PLACES]
         if caches:
@@ -1553,8 +1696,8 @@ class Fixer:
         sections = [
             (0, "", head),
             (0, "Found in its folder:", found) if scan else (9, "", []),
-            (1, "Windows noted in the last 30 days:", crash or ["- No crashes or hangs of it."]) if facts else
-            (9, "", []),
+            (1, "", prog),
+            (1, noted, crash or [calm]) if facts else (9, "", []),
             (1, "", log_head),
             (1, "Error lines in the newest log:" if log_head and logs else "", log_problems),
             (2, "Crash reports of it:", reports),
@@ -1571,6 +1714,10 @@ class Fixer:
     def _where(self, places: dict[str, Path], f: Path) -> str:
         for k, root in places.items():
             try:
+                if root.is_file():
+                    if _same(f, root):
+                        return f"{k} ({root.name})"
+                    continue
                 if f.resolve().is_relative_to(root.resolve()):
                     return f"{k}/{f.resolve().relative_to(root.resolve()).as_posix()}"
             except (OSError, ValueError):
@@ -1579,6 +1726,9 @@ class Fixer:
 
     # ---------------------------------------------------------------- Windows itself
     def check_area(self, area: str, limit: int = 3800) -> str:
+        if not self.win:
+            from .fixlinux import AREAS as linux
+            return self.clean(_fit(linux[area](self), limit))
         make = {"sound": self._sound, "internet": self._internet, "printer": self._printer, "updates": self._updates}
         return self.clean(_fit(make[area](), limit))
 
@@ -1859,6 +2009,8 @@ class Fixer:
 
     # ---------------------------------------------------------------- the fixes (cards)
     def _changeable(self, place: str, root: Path, target: Path) -> None:
+        if place == "proton_log":
+            raise WorkError("Proton's log is only read: Proton writes it again when the game starts.")
         parts = [x.lower() for x in target.relative_to(root).parts]
         if place.rstrip("0123456789") == "saved" or any(x in SAVE_DIRS for x in parts):
             raise WorkError("Lanterna never changes saved games.")
@@ -1971,8 +2123,9 @@ class Fixer:
             try:
                 f.write_bytes(data)
             except PermissionError:
-                raise WorkError("Windows didn't let Lanterna write it (the file is read-only, or a program holds it). "
-                                "Nothing was changed.") from None
+                raise WorkError(("Windows didn't let Lanterna write it (the file is read-only, or a program holds it)."
+                                 if self.win else "The system didn't let Lanterna write it (the file is read-only).") +
+                                " Nothing was changed.") from None
             self.forget(p)
             self.actions.note_undo({"type": "restore_backup", "path": str(f), "backup": backup})
             return f"{place}/{rel}: {key} = {value} (the old file is kept)"
@@ -2043,12 +2196,16 @@ class Fixer:
         place = str(place or "").strip().lower()
         p = self._who(program, place)
         root, d = self._path(p, place, path)
+        own = place.rstrip("0123456789") == "cache"           # Linux: its folder in ~/.cache is a cache as a whole
         if place not in CACHE_PLACES:
             parts = [x.lower() for x in d.relative_to(root).parts]
-            if d == root or not any("cache" in x for x in parts):
-                raise WorkError("fix_cache is for cache folders only: a place like nvidia_cache / d3d_cache / "
-                                "steam_shaders, or a folder with 'cache' in its name.")
-            self._changeable(place, root, d)
+            if not own and (d == root or not any("cache" in x for x in parts)):
+                raise WorkError("fix_cache is for cache folders only: a place like " +
+                                ("nvidia_cache / d3d_cache / steam_shaders" if self.win else
+                                 "mesa_cache / nvidia_cache / steam_shaders or its cache") +
+                                ", or a folder with 'cache' in its name.")
+            if d != root:
+                self._changeable(place, root, d)
         if not d.is_dir():
             raise WorkError(f"There is no folder '{path}' in {place}.")
         size, count, _kinds = _tree(d)
@@ -2057,6 +2214,7 @@ class Fixer:
         self._closed(p)
         label = CACHE_NAMES.get(place, "") if d == root else f"{place}/{self._rel(root, d)}"
         self._no_twin("fix_cache", path=label or place)
+        bin_ = "the Recycle Bin" if self.win else "the Trash"
 
         def go() -> str:
             self._closed(p, confirm=True)
@@ -2067,10 +2225,12 @@ class Fixer:
             if p is not None:
                 self.forget(p)
             self.actions.note_undo({"type": "trash", "paths": [str(d)]})
-            return f"cleared {label or place} ({_size(size)} into the Recycle Bin)"
-        self.actions.propose("fix_cache", {"name": p.name if p else "", "place": place, "path": label or place,
-                                           "size": _size(size), "count": count, "driver": p is None,
-                                           "why": self.clean(why)[:300]}, go)
+            return f"cleared {label or place} ({_size(size)} into {bin_})"
+        details = {"name": p.name if p else "", "place": place, "path": label or place, "size": _size(size),
+                   "count": count, "driver": p is None, "why": self.clean(why)[:300]}
+        if not self.win:
+            details["linux"] = True                       # the card says the Trash, not the Recycle Bin
+        self.actions.propose("fix_cache", details, go)
         return WAITING
 
     def propose_verify(self, program: str) -> str:
@@ -2090,11 +2250,29 @@ class Fixer:
         if p.source == "gog":
             return ("Not a Steam game: the user checks it in GOG Galaxy: the game → the settings icon next to Play → "
                     "Manage installation → Verify / Repair. Tell them these steps.")
+        if p.source.startswith("heroic"):
+            return ("Not a Steam game: the user checks it in Heroic: the game → its menu (⋮) → Verify and Repair. Tell "
+                    "them these steps.")
+        if p.source == "lutris":
+            return ("Lutris can't check a game's files: the user installs it again in Lutris (for a GOG or Epic game, "
+                    "Heroic can verify it). Tell the user.")
+        if p.source == "flatpak":
+            return (f"Not a Steam game. A Flatpak app is checked and repaired with 'flatpak repair --user' (or 'sudo "
+                    f"flatpak repair' when it is installed for all users) in Terminal, or by installing {p.appid} again "
+                    "in Software. Tell the user.")
+        if p.source == "snap":
+            return (f"Not a Steam game. If it broke after an update, 'sudo snap revert {p.appid}' in Terminal goes back "
+                    "to the version before; otherwise install it again in Software. Tell the user.")
+        if not self.win:
+            return ("Not a Steam game. A program from the system's packages is repaired by installing it again: in "
+                    "Software, or in Terminal (Fedora: 'sudo dnf reinstall <package>'; Ubuntu: 'sudo apt install "
+                    "--reinstall <package>'). It needs the computer's password, so tell the user.")
         return ("Not a Steam game. To repair a program: Settings → Apps → Installed apps → it → … → Modify or Repair "
                 "(when it offers that), or install it again (app_install / app_upgrade). Tell the user.")
 
     def propose_windows(self, action: str, printer: str = "") -> str:
         a = str(action or "").strip().lower().replace("-", "_").replace(" ", "_")
+        printer = self.unmask(printer)                            # "<user>'s printer", as clean() showed it
         if a in ("dns", "flush_dns", "flushdns"):
             self._no_twin("fix_dns")
 
@@ -2155,8 +2333,22 @@ class Fixer:
             return WAITING
         raise WorkError("action: dns, proxy_off, default_printer or print_queue.")
 
-    # ---------------------------------------------------------------- Undo of the Windows fixes
+    def propose_system(self, action: str, name: str = "") -> str:
+        """Linux: the fixes in the system (fixlinux.propose)."""
+        if self.win:
+            return self.propose_windows(action, name)
+        from .fixlinux import propose
+        return propose(self, action, name)
+
+    # ---------------------------------------------------------------- Undo of the fixes in the system
+    def undo_sound(self, u: dict) -> bool:
+        from .fixlinux import undo_sound
+        return undo_sound(self, u)
+
     def undo_proxy(self, u: dict) -> bool:
+        if u.get("linux"):
+            from .fixlinux import undo_proxy
+            return undo_proxy(self, u)
         if u.get("enable") == 1:
             self.reg.set("HKEY_CURRENT_USER", INET, "ProxyEnable", 1, "REG_DWORD")
         if u.get("pac"):
@@ -2165,6 +2357,9 @@ class Fixer:
         return True
 
     def undo_printer(self, u: dict) -> bool:
+        if u.get("linux"):
+            from .fixlinux import undo_printer
+            return undo_printer(self, u)
         if u.get("legacy") is None:
             self.reg.delete("HKEY_CURRENT_USER", WINDOWS_NT, "LegacyDefaultPrinterMode")
         else:
@@ -2225,7 +2420,7 @@ def area_of(q: str, strict: bool = True) -> str:
 def _pick_name(want: str, names: list[str]) -> str:
     q = str(want or "").strip().lower()
     if not names:
-        raise WorkError("Windows has no printers set up.")
+        raise WorkError("No printers are set up on this computer.")
     if not q:
         raise WorkError("Say which printer: " + "; ".join(names))
     exact = [n for n in names if n.lower() == q]
@@ -2388,22 +2583,31 @@ def vdf_tree(text: str) -> dict:
 
 # ---------------------------------------------------------------- tools
 def fix_tools(fx: Fixer, limit: Callable[[], int] = lambda: 3800) -> list:
-    if fx.platform != "win32":
+    if not (fx.win or fx.linux):
         return []
     from .tools import Tool, _obj
+    win = fx.win
     s = {"type": "string"}
     prog = {"type": "string", "description": "the program's name as fix_check showed it"}
-    place = {"type": "string", "description": "a place from fix_check: install, local, roaming, locallow, mygames, "
-                                              "documents, saved, or a cache"}
+    place = {"type": "string", "description": "a place from fix_check: " + (
+        "install, local, roaming, locallow, mygames, documents, saved, or a cache" if win else
+        "install, config, data, cache, local, roaming, locallow, mygames, documents, saved, proton_log, or a cache")}
     path = {"type": "string", "description": "a path inside the place, as fix_check / fix_list show it"}
     why = {"type": "string", "description": "why, in a few words in the user's language (shown on the card)"}
     card = "The user confirms it on a card, so don't ask in text first."
-    return [
-        Tool("fix_check", "Find out why a game, a program or part of Windows doesn't work. Call it FIRST, before asking "
-             "the user anything, when something won't start, crashes, freezes, goes black, shows an error, or there "
-             "is no sound / internet / printing / updates. It finds the program (Steam, Epic, GOG, Xbox, installed), "
-             "looks through its folder for what is out of place (renamed folders, mods), reads its newest log and "
-             "crash reports, and what Windows noted (crashes, the graphics driver, overlays). Only looks.",
+    check = ("Find out why a game, a program or part of Windows doesn't work. Call it FIRST, before asking the user "
+             "anything, when something won't start, crashes, freezes, goes black, shows an error, or there is no sound "
+             "/ internet / printing / updates. It finds the program (Steam, Epic, GOG, Xbox, installed), looks through "
+             "its folder for what is out of place (renamed folders, mods), reads its newest log and crash reports, and "
+             "what Windows noted (crashes, the graphics driver, overlays). Only looks." if win else
+             "Find out why a game, a program or part of the system doesn't work. Call it FIRST, before asking the user "
+             "anything, when something won't start, crashes, freezes, goes black, shows an error, or there is no sound "
+             "/ internet / printing / updates. It finds the program (Steam with Proton, Heroic, Lutris, Flatpak, "
+             "installed apps), looks through its folder for what is out of place (renamed folders, mods), reads its "
+             "newest log (Proton's too) and crash reports, and what the system noted (crashes, the graphics driver, "
+             "running out of memory, overlays). Only looks.")
+    tools = [
+        Tool("fix_check", check,
              _obj({"what": {"type": "string", "description": "the program's name as installed, e.g. 'S.T.A.L.K.E.R. "
                                                              "2'; or sound, internet, printer, updates"},
                    "problem": {"type": "string", "description": "what is wrong, in a few words"}}, ["what"]),
@@ -2436,18 +2640,38 @@ def fix_tools(fx: Fixer, limit: Callable[[], int] = lambda: 3800) -> list:
              _obj({"program": prog, "place": place, "paths": {"type": "array", "items": s}, "why": why},
                   ["program", "place", "paths"]),
              lambda program, place, paths, why="": fx.propose_aside(program, place, paths, why), "📦"),
-        Tool("fix_cache", "Clear a cache: a place nvidia_cache / amd_cache / d3d_cache (program may be empty) or "
-             "steam_shaders, or a program's folder with 'cache' in its name. Into the Recycle Bin; it is made again. "
-             + card,
+        Tool("fix_cache", ("Clear a cache: a place nvidia_cache / amd_cache / d3d_cache (program may be empty) or "
+                           "steam_shaders, or a program's folder with 'cache' in its name. Into the Recycle Bin; it is "
+                           "made again. " if win else
+                           "Clear a cache: a place mesa_cache / nvidia_cache (program may be empty), steam_shaders, a "
+                           "program's place cache, or a folder with 'cache' in its name. Into the Trash; it is made "
+                           "again. ") + card,
              _obj({"program": prog, "place": place, "path": path, "why": why}, ["place"]),
              lambda place, program="", path="", why="": fx.propose_cache(program, place, path, why), "🧹"),
         Tool("fix_verify", "Steam's own check of a game's files: it downloads again what is missing or changed "
-             "(renamed folders, replaced files). For Epic and GOG it says how the user does it. " + card,
+             "(renamed folders, replaced files). " + ("For Epic and GOG it says how the user does it. " if win else
+                                                       "For other games and apps it says how the user does it. ") + card,
              _obj({"program": prog}, ["program"]), lambda program: fx.propose_verify(program), "🔍"),
-        Tool("fix_windows", "A fix in Windows: dns (clear the DNS cache), proxy_off (turn off a proxy that was left on), "
-             "default_printer (make a printer the default), print_queue (remove stuck print jobs of a printer). " + card,
-             _obj({"action": {"type": "string", "enum": ["dns", "proxy_off", "default_printer", "print_queue"]},
-                   "printer": {"type": "string", "description": "the printer's name (for the printer actions)"}},
-                  ["action"]),
-             lambda action, printer="": fx.propose_windows(action, printer), "🛠"),
     ]
+    if win:
+        tools.append(Tool(
+            "fix_windows", "A fix in Windows: dns (clear the DNS cache), proxy_off (turn off a proxy that was left on), "
+            "default_printer (make a printer the default), print_queue (remove stuck print jobs of a printer). " + card,
+            _obj({"action": {"type": "string", "enum": ["dns", "proxy_off", "default_printer", "print_queue"]},
+                  "printer": {"type": "string", "description": "the printer's name (for the printer actions)"}},
+                 ["action"]),
+            lambda action, printer="": fx.propose_windows(action, printer), "🛠"))
+    else:
+        tools.append(Tool(
+            "fix_system", "A fix in the system: sound_output (send the sound to another output), sound_on (turn on a "
+            "muted or very quiet output; name empty = the default one), mic_on (the same for a microphone), "
+            "sound_restart (start the user's sound service again), proxy_off (turn off the desktop's proxy), "
+            "default_printer (make a printer the default), print_queue (remove the user's stuck print jobs of a "
+            "printer). " + card,
+            _obj({"action": {"type": "string", "enum": ["sound_output", "sound_on", "mic_on", "sound_restart",
+                                                        "proxy_off", "default_printer", "print_queue"]},
+                  "name": {"type": "string", "description": "the output, the microphone or the printer, as fix_check "
+                                                            "showed it"}},
+                 ["action"]),
+            lambda action, name="": fx.propose_system(action, name), "🛠"))
+    return tools

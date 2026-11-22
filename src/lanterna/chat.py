@@ -505,8 +505,9 @@ FIX_GUIDE = (
     "(or sound / internet / printer / updates) in this same turn. Take the strongest clue (marked !), check it on the "
     "web with the program's name (web_search, read_page), look closer with fix_list / fix_read if needed, then explain "
     "the cause in plain words and fix it with ONE fix_* card (fix_rename puts back a renamed folder, fix_aside turns "
-    "mods off, fix_setting changes one setting, fix_cache, fix_verify, fix_windows). If it says the program is "
-    "running, ask the user to close it first. Afterwards say what to check, and what to do if it happens again. "
+    "mods off, fix_setting changes one setting, fix_cache, fix_verify, fix_windows or fix_system). If it says the "
+    "program is running, ask the user to close it first. Afterwards say what to check, and what to do if it happens "
+    "again. "
     "Never invent a cause the report doesn't show: if nothing stands out, say so and ask one short question (when "
     "exactly it happens, the exact error)."
 )

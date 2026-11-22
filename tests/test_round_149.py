@@ -275,11 +275,12 @@ def test_long_reports_lose_the_least_needed_lines_first():
     assert fixit._fit([(0, "", ["x" * 300])], 100) == "x" * 100
 
 
-def test_on_linux_there_are_no_fix_tools_yet(tmp_path):
-    fx = fixit.Fixer(Actions(), platform_="linux", reg=None, env={}, home=tmp_path, user="olena", pc="pc",
+def test_on_other_systems_there_are_no_fix_tools(tmp_path):
+    # round 150: Linux has them too (test_round_150); a Mac doesn't
+    fx = fixit.Fixer(Actions(), platform_="darwin", reg=None, env={}, home=tmp_path, user="olena", pc="pc",
                      printers=FakePrinters([], ""), procs=lambda: [], drives=lambda: [], data_dir=tmp_path / "home")
     assert fixit.fix_tools(fx) == []
-    assert fx.check("stalker 2") == "Lanterna checks programs and Windows on Windows for now (Linux comes next)."
+    assert fx.check("stalker 2") == "Lanterna checks programs and the system on Windows and Linux only."
 
 
 # ---------------------------------------------------------------- 3. the fixes: one card each, with Undo
@@ -591,7 +592,8 @@ def test_what_went_to_the_model_and_the_working_line():
     items = sent.build("M", False, 0, False, 0, [], 0,
                        [("fix_check", '{"what": "S.T.A.L.K.E.R. 2"}'), ("fix_check", '{"what": "no sound"}'),
                         ("fix_list", '{"program": "x", "place": "install"}'),
-                        ("fix_read", '{"program": "x", "place": "local", "path": "Saved/Logs/Stalker2.log"}')])
+                        ("fix_read", '{"program": "x", "place": "local", "path": "Saved/Logs/Stalker2.log"}')],
+                       win=True)                     # round 150: Linux says "the system" (test_round_150)
     lines = sent.view(sent.dumps(items), "uk")
     assert "Назви файлів у папках S.T.A.L.K.E.R. 2, рядки з журналів програми й записи Windows про неї" in lines
     assert "Перевірка Windows (no sound): її пристрої, налаштування й останні записи" in lines
@@ -616,7 +618,8 @@ def test_the_window_shows_the_fix_cards_and_the_start_row():
     assert 'd.driver ? "Clear the shader cache" : "Clear the cache of {name}"' in JS
     assert 'k === "fix_cache" ? "trash" : k.startsWith("fix_") ? "wrench"' in JS
     start = JS[JS.index("function showEmpty()"):JS.index("const FILE_LINE")]
-    assert 'fix = pc && S.platform === "win32"' in start and '"Fixes", "A game or a program doesn\'t work?' in start
+    assert 'fix = pc && (S.platform === "win32" || S.platform === "linux")' in start   # round 150: Linux too
+    assert '"Fixes", "A game or a program doesn\'t work?' in start
     fill = start[start.index('if (b.dataset.fill === "fix")'):]
     fill = fill[:fill.index("return;")]
     assert 't("Doesn\'t work:")' in fill and "click()" not in fill   # it fills the box; the user names the program

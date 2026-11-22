@@ -148,8 +148,10 @@ class Action:
 AUTO_KINDS = {"write_new", "write_append", "write_replace", "mkdir", "move",
               "pc_write", "pc_sort", "pc_move", "pc_rename", "pc_mkdir", "pc_trash",
               "sys_theme", "sys_power", "sys_startup", "sys_look", "app_install", "app_upgrade",
-              # fixes that can be undone (not Steam's check of files, not clearing print jobs)
-              "fix_rename", "fix_setting", "fix_aside", "fix_cache", "fix_dns", "fix_proxy", "fix_printer"}
+              # fixes that can be undone (not Steam's check of files, not clearing print jobs, not a restart of
+              # the sound service: it stops the sound of a call or a game for a moment)
+              "fix_rename", "fix_setting", "fix_aside", "fix_cache", "fix_dns", "fix_proxy", "fix_printer",
+              "fix_sound", "fix_unmute"}
 AUTO_MAX_MIN = 120
 
 

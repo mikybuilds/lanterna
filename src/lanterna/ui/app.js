@@ -1792,7 +1792,7 @@ function showEmpty() {
   // their words in the box (the message, the link or the program's name goes after them). Without the computer: the
   // weather and a plan instead (and no Fixes).
   const name = S.settings.name;
-  const pc = S.settings.pc_access !== false, fix = pc && S.platform === "win32";    // finding what doesn't work: Windows for now
+  const pc = S.settings.pc_access !== false, fix = pc && (S.platform === "win32" || S.platform === "linux");   // finding what doesn't work
   const rows = (pc
     ? [["folder", "Files", "Sort my Downloads"], ["disk", "Disk", "What takes up space on my disk?"]]
     : [["sun", "Weather", "What's the weather tomorrow?"], ["calendar", "Plan", "Help me plan my week"]])
@@ -3460,11 +3460,13 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}",
   fix_rename: "Rename {path} → {to} in {name}", fix_setting: "Change {key} in {name}", fix_aside: "Turn off mods of {name} ({count})",
   fix_verify: "Check the files of {name} in Steam", fix_dns: "Clear the DNS cache", fix_proxy: "Turn off the proxy",
-  fix_printer: "Make {name} the default printer", fix_queue: "Clear the print queue of {name}" };
+  fix_printer: "Make {name} the default printer", fix_queue: "Clear the print queue of {name}",
+  fix_sound: "Send the sound to {name}", fix_unmute: "Turn on the sound of {name}", fix_sound_restart: "Restart the sound service" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
   if (c.kind === "fix_cache") return d.driver ? "Clear the shader cache" : "Clear the cache of {name}";
+  if (c.kind === "fix_unmute" && d.mic) return "Turn on the microphone {name}";   // an output and a mic share names
   if (c.kind === "sys_theme") return d.theme === "dark" ? "Switch to the dark theme" : "Switch to the light theme";
   if (c.kind === "sys_startup") return d.on ? "Start {name} with the computer" : "Don't start {name} with the computer";
   if (c.kind === "sys_look") return (d.count || 1) === 1 ? "Change: {name}" : "Change {count} settings of the look";
@@ -3477,7 +3479,8 @@ const cardIcon = k => k === "auto_on" ? "auto" : k === "sys_look" ? "palette" : 
 const FIX_PLACES = { install: "The program's folder", local: "Its folder in AppData\\Local", roaming: "Its folder in AppData\\Roaming",
   locallow: "Its folder in AppData\\LocalLow", mygames: "Its folder in Documents\\My Games", documents: "Its folder in Documents",
   steam_shaders: "Steam's shader cache", nvidia_cache: "The NVIDIA driver's shader cache", amd_cache: "The AMD driver's shader cache",
-  d3d_cache: "The DirectX shader cache", intel_cache: "The Intel driver's shader cache" };
+  d3d_cache: "The DirectX shader cache", intel_cache: "The Intel driver's shader cache",
+  config: "Its settings folder", data: "Its data folder", cache: "Its cache folder", mesa_cache: "The Mesa driver's shader cache" };
 const FIX_TEXT = { fix_rename: "Undo puts the old name back.", fix_setting: "The old file is kept: Undo puts it back.",
   fix_aside: "They go to the folder {to} next to them: Undo puts them back.",
   fix_cache: "It goes to the Recycle Bin, and a new one is made (the first start may take a little longer).",
@@ -3485,7 +3488,12 @@ const FIX_TEXT = { fix_rename: "Undo puts the old name back.", fix_setting: "The
   fix_dns: "Windows forgets the addresses of sites it remembered and asks for them again. Nothing else changes.",
   fix_proxy: "Programs will connect to the internet directly. Undo turns the proxy back on.",
   fix_printer: "Windows stops choosing the default printer by itself. Undo puts the old one back.",
-  fix_queue: "The stuck print jobs are removed: print what you need again. This can't be undone." };
+  fix_queue: "The stuck print jobs are removed: print what you need again. This can't be undone.",
+  fix_cache_linux: "It goes to the Trash, and a new one is made (the first start may take a little longer).",
+  fix_printer_linux: "It becomes your default printer. Undo puts the old one back.",
+  fix_sound: "Programs play their sound there from now on. Undo puts the old output back.",
+  fix_unmute: "Undo puts the volume back as it was.",
+  fix_sound_restart: "The sound service starts again: the sound stops for a moment, and a program that was playing may need to start again. Nothing else changes." };
 const fixPlace = p => t(FIX_PLACES[String(p || "").replace(/\d+$/, "")] || "The program's folder");
 function fixExtra(k, d) {
   const line = s => `<div class="cc-meta">${esc(s)}</div>`;
@@ -3501,10 +3509,13 @@ function fixExtra(k, d) {
   } else if (k === "fix_cache") {
     const p = String(d.path || ""), inside = p.startsWith(d.place + "/") ? p.slice(d.place.length + 1) : "";
     out += `<div class="cc-meta">${where}${inside ? " · " + esc(inside) : ""}${d.size ? " · " + esc(sizeStr(d.size)) : ""}</div>`;
-  } else if ((k === "fix_proxy" && d.server) || (k === "fix_printer" && d.was)) {
+  } else if ((k === "fix_proxy" && d.server) || ((k === "fix_printer" || k === "fix_sound") && d.was)) {
     out += line(t("Now: {x}", { x: d.server || d.was }));
+  } else if (k === "fix_unmute" && d.volume != null) {
+    out += line(t("Now: {x}", { x: `${d.volume}%${d.muted ? " 🔇" : ""}${d.to ? ` → ${d.to}%` : ""}` }));
   }
-  return out + (FIX_TEXT[k] ? line(t(FIX_TEXT[k], { to: d.to || "" })) : "");
+  const key = d.linux && FIX_TEXT[k + "_linux"] ? k + "_linux" : k;   // the same text as Linux's in fix_card_lines
+  return out + (FIX_TEXT[key] ? line(t(FIX_TEXT[key], { to: d.to || "" })) : "");
 }
 
 function actCard(c) {

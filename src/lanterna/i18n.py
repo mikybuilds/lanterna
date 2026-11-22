@@ -1882,6 +1882,75 @@ _T.update({
     "A check of Windows ({what}): its devices, settings and recent records": {
         "uk": "Перевірка Windows ({what}): її пристрої, налаштування й останні записи",
         "it": "Un controllo di Windows ({what}): i suoi dispositivi, le impostazioni e le registrazioni recenti"},
+    "Turn on the microphone {name}": {
+        "uk": "Увімкнути мікрофон {name}",
+        "it": "Attivare il microfono {name}"},
+    "Turned on the microphone {name}": {
+        "uk": "Мікрофон {name} увімкнено",
+        "it": "Microfono {name} attivato"},
+    "Its settings folder": {
+        "uk": "Її папка з налаштуваннями",
+        "it": "La sua cartella delle impostazioni"},
+    "Its data folder": {
+        "uk": "Її папка з даними",
+        "it": "La sua cartella dei dati"},
+    "Its cache folder": {
+        "uk": "Її папка з кешем",
+        "it": "La sua cartella della cache"},
+    "The Mesa driver's shader cache": {
+        "uk": "Кеш шейдерів драйвера Mesa",
+        "it": "La cache degli shader del driver Mesa"},
+    "It goes to the Trash, and a new one is made (the first start may take a little longer).": {
+        "uk": "Він піде в Смітник, а новий створиться сам (перший запуск може тривати трохи довше).",
+        "it": "Va nel Cestino e ne viene creata una nuova (il primo avvio può durare un po' di più)."},
+    "It becomes your default printer. Undo puts the old one back.": {
+        "uk": "Він стане твоїм принтером за замовчуванням. Кнопка «Повернути як було» поверне старий.",
+        "it": "Diventa la tua stampante predefinita. Ripristina rimette quella di prima."},
+    "Programs play their sound there from now on. Undo puts the old output back.": {
+        "uk": "Відтепер звук програм іде туди. Кнопка «Повернути як було» поверне попередній вихід звуку.",
+        "it": "D'ora in poi i programmi mandano lì il loro audio. Ripristina rimette l'uscita di prima."},
+    "Undo puts the volume back as it was.": {
+        "uk": "Кнопка «Повернути як було» поверне гучність, як була.",
+        "it": "Ripristina rimette il volume com'era."},
+    "The sound service starts again: the sound stops for a moment, and a program that was playing may need to start again. Nothing else changes.": {
+        "uk": "Служба звуку запуститься знову: звук на мить зникне, а програму, що саме грала, можливо, доведеться запустити ще раз. Більше нічого не зміниться.",
+        "it": "Il servizio audio riparte: il suono si ferma per un attimo e un programma che stava suonando potrebbe dover ripartire. Nient'altro cambia."},
+    "Send the sound to {name}": {
+        "uk": "Перемкнути звук на {name}",
+        "it": "Mandare l'audio a {name}"},
+    "The sound goes to {name}": {
+        "uk": "Звук тепер іде на {name}",
+        "it": "L'audio va a {name}"},
+    "Turn on the sound of {name}": {
+        "uk": "Увімкнути звук {name}",
+        "it": "Attivare l'audio di {name}"},
+    "Turned on the sound of {name}": {
+        "uk": "Звук {name} увімкнено",
+        "it": "Audio di {name} attivato"},
+    "Restart the sound service": {
+        "uk": "Перезапустити службу звуку",
+        "it": "Riavviare il servizio audio"},
+    "Restarted the sound service": {
+        "uk": "Службу звуку перезапущено",
+        "it": "Servizio audio riavviato"},
+    "The system didn't take the old proxy back.": {
+        "uk": "Система не повернула старий проксі.",
+        "it": "Il sistema non ha ripreso il vecchio proxy."},
+    "The system didn't accept the old default printer.": {
+        "uk": "Система не прийняла старий принтер за замовчуванням.",
+        "it": "Il sistema non ha accettato la vecchia stampante predefinita."},
+    "The old sound device isn't there any more.": {
+        "uk": "Старого звукового пристрою вже немає.",
+        "it": "Il vecchio dispositivo audio non c'è più."},
+    "Preparing a fix in the system": {
+        "uk": "Готую виправлення в системі",
+        "it": "Preparo una correzione nel sistema"},
+    "Names of files in the folders of {what}, lines from its logs, what the system noted about it": {
+        "uk": "Назви файлів у папках {what}, рядки з журналів програми й записи системи про неї",
+        "it": "Nomi dei file nelle cartelle di {what}, righe dai suoi log, cosa ne ha annotato il sistema"},
+    "A check of the system ({what}): its devices, settings and recent records": {
+        "uk": "Перевірка системи ({what}): її пристрої, налаштування й останні записи",
+        "it": "Un controllo del sistema ({what}): i suoi dispositivi, le impostazioni e le registrazioni recenti"},
 })
 
 

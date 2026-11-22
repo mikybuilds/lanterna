@@ -586,9 +586,15 @@ class Api:
                 if left:
                     text += " " + t("{n} had been moved or changed since and stayed.", lang, n=left)
                 ok = back > 0 or not left
-            elif u["type"] in ("proxy", "printer"):
-                ok = (self.fixer.undo_proxy if u["type"] == "proxy" else self.fixer.undo_printer)(u)
-                text = t("Changed back.", lang) if ok else t("Windows didn't accept the old default printer.", lang)
+            elif u["type"] in ("proxy", "printer", "sound"):
+                undo = {"proxy": self.fixer.undo_proxy, "printer": self.fixer.undo_printer,
+                        "sound": self.fixer.undo_sound}[u["type"]]
+                ok = undo(u)
+                fail = {"proxy": "The system didn't take the old proxy back.",
+                        "printer": "The system didn't accept the old default printer." if u.get("linux") else
+                        "Windows didn't accept the old default printer.",
+                        "sound": "The old sound device isn't there any more."}[u["type"]]
+                text = t("Changed back.", lang) if ok else t(fail, lang)
             elif u["type"] == "trash":
                 back, gone = restore_from_trash(u["paths"])
                 text = t("{n} files are back from the Recycle Bin.", lang, n=back)
@@ -2304,7 +2310,11 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "fix_dns": ("Clear the DNS cache", "Cleared the DNS cache"),
             "fix_proxy": ("Turn off the proxy", "Turned off the proxy"),
             "fix_printer": ("Make {name} the default printer", "{name} is the default printer"),
-            "fix_queue": ("Clear the print queue of {name}", "Cleared the print queue of {name}")}
+            "fix_queue": ("Clear the print queue of {name}", "Cleared the print queue of {name}"),
+            "fix_sound": ("Send the sound to {name}", "The sound goes to {name}"),
+            "fix_unmute": (("Turn on the microphone {name}", "Turned on the microphone {name}") if d.get("mic") else
+                           ("Turn on the sound of {name}", "Turned on the sound of {name}")),
+            "fix_sound_restart": ("Restart the sound service", "Restarted the sound service")}
     if kind.startswith("fix_"):
         d = {**d, "place": ""}                               # its places are Lanterna's words, not the user's folders
         if kind == "fix_rename":
@@ -2410,7 +2420,10 @@ FIX_PLACES = {"install": "The program's folder", "local": "Its folder in AppData
               "mygames": "Its folder in Documents\\My Games", "documents": "Its folder in Documents",
               "steam_shaders": "Steam's shader cache", "nvidia_cache": "The NVIDIA driver's shader cache",
               "amd_cache": "The AMD driver's shader cache", "d3d_cache": "The DirectX shader cache",
-              "intel_cache": "The Intel driver's shader cache"}
+              "intel_cache": "The Intel driver's shader cache",
+              # Linux: its folders in ~/.config, ~/.local/share and ~/.cache (a Flatpak app's own), the Mesa driver
+              "config": "Its settings folder", "data": "Its data folder", "cache": "Its cache folder",
+              "mesa_cache": "The Mesa driver's shader cache"}
 FIX_TEXT = {
     "fix_rename": "Undo puts the old name back.",
     "fix_setting": "The old file is kept: Undo puts it back.",
@@ -2422,6 +2435,13 @@ FIX_TEXT = {
     "fix_proxy": "Programs will connect to the internet directly. Undo turns the proxy back on.",
     "fix_printer": "Windows stops choosing the default printer by itself. Undo puts the old one back.",
     "fix_queue": "The stuck print jobs are removed: print what you need again. This can't be undone.",
+    # Linux (a card with "linux" in it takes the text of kind + "_linux" when there is one)
+    "fix_cache_linux": "It goes to the Trash, and a new one is made (the first start may take a little longer).",
+    "fix_printer_linux": "It becomes your default printer. Undo puts the old one back.",
+    "fix_sound": "Programs play their sound there from now on. Undo puts the old output back.",
+    "fix_unmute": "Undo puts the volume back as it was.",
+    "fix_sound_restart": "The sound service starts again: the sound stops for a moment, and a program that was "
+                         "playing may need to start again. Nothing else changes.",
 }
 
 
@@ -2448,10 +2468,14 @@ def fix_card_lines(kind: str, d: dict, lang: str) -> list[str]:
         lines.append(fix_place(place, lang) + (f": {inside}" if inside else "") + f" · {d.get('size', '')}")
     elif kind == "fix_proxy" and d.get("server"):
         lines.append(t("Now: {x}", lang, x=d["server"]))
-    elif kind == "fix_printer" and d.get("was"):
+    elif kind in ("fix_printer", "fix_sound") and d.get("was"):
         lines.append(t("Now: {x}", lang, x=d["was"]))
-    if kind in FIX_TEXT:
-        lines.append(t(FIX_TEXT[kind], lang, to=d.get("to", "")))
+    elif kind == "fix_unmute" and d.get("volume") is not None:
+        lines.append(t("Now: {x}", lang, x=f"{d['volume']}%" + (" 🔇" if d.get("muted") else "") +
+                       (f" → {d['to']}%" if d.get("to") else "")))
+    key = kind + "_linux" if d.get("linux") and kind + "_linux" in FIX_TEXT else kind
+    if key in FIX_TEXT:
+        lines.append(t(FIX_TEXT[key], lang, to=d.get("to", "")))
     return lines
 
 
