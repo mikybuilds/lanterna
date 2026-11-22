@@ -131,6 +131,8 @@ class Api:
         from . import pccontrol
         self.look = pccontrol.Look(self.actions, self.places)
         self.launcher = pccontrol.Launcher(self.places)
+        from . import fixit
+        self.fixer = fixit.Fixer(self.actions)                # why doesn't it work: looks, then fixes from a fixed list
         from . import mail as mailbox
         self.mail = mailbox.Connector()                       # the user's mailbox (app password in the vault)
         from . import mcp
@@ -310,6 +312,7 @@ class Api:
             return []
         from .apps import app_tools
         from .devtools import dev_tools
+        from .fixit import fix_tools
         from .pcfiles import place_tools, space_tools
         from .pccontrol import control_tools
         from .pcsys import system_tools
@@ -320,6 +323,7 @@ class Api:
                             ("sys", lambda: system_tools(self.system)),
                             ("pc", lambda: self._disk_tools()),
                             ("sys", lambda: control_tools(self.look, self.launcher, self.places)),
+                            ("fix", lambda: fix_tools(self.fixer, limit=lambda: self.toolbox.page_limit)),
                             ("sys", lambda: self._auto_tools())):
             try:
                 tools = make()
@@ -577,10 +581,14 @@ class Api:
         try:
             if u["type"] == "moves":
                 back, left = hist.undo_moves(u["moves"], self.places.roots())
-                text = t("{n} files are back where they were.", lang, n=back)
+                text = (t("The old name is back.", lang) if u.get("rename") and back else
+                        t("{n} files are back where they were.", lang, n=back))
                 if left:
                     text += " " + t("{n} had been moved or changed since and stayed.", lang, n=left)
                 ok = back > 0 or not left
+            elif u["type"] in ("proxy", "printer"):
+                ok = (self.fixer.undo_proxy if u["type"] == "proxy" else self.fixer.undo_printer)(u)
+                text = t("Changed back.", lang) if ok else t("Windows didn't accept the old default printer.", lang)
             elif u["type"] == "trash":
                 back, gone = restore_from_trash(u["paths"])
                 text = t("{n} files are back from the Recycle Bin.", lang, n=back)
@@ -2286,7 +2294,21 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "mail_draft": ("Save a draft to {name}", "Saved a draft to {name}"),
             "mail_send": ("Send an email to {name}", "Sent an email to {name}"),
             "sys_startup": (("Start {name} with the computer", "{name} starts with the computer") if d.get("on") else
-                            ("Don't start {name} with the computer", "{name} no longer starts with the computer"))}
+                            ("Don't start {name} with the computer", "{name} no longer starts with the computer")),
+            "fix_rename": ("Rename {path} → {to} in {name}", "Renamed {path} → {to} in {name}"),
+            "fix_setting": ("Change {key} in {name}", "Changed {key} in {name}"),
+            "fix_aside": ("Turn off mods of {name} ({count})", "Turned off mods of {name} ({count})"),
+            "fix_cache": (("Clear the shader cache", "Cleared the shader cache") if d.get("driver") else
+                          ("Clear the cache of {name}", "Cleared the cache of {name}")),
+            "fix_verify": ("Check the files of {name} in Steam", "Opened Steam's check of {name}"),
+            "fix_dns": ("Clear the DNS cache", "Cleared the DNS cache"),
+            "fix_proxy": ("Turn off the proxy", "Turned off the proxy"),
+            "fix_printer": ("Make {name} the default printer", "{name} is the default printer"),
+            "fix_queue": ("Clear the print queue of {name}", "Cleared the print queue of {name}")}
+    if kind.startswith("fix_"):
+        d = {**d, "place": ""}                               # its places are Lanterna's words, not the user's folders
+        if kind == "fix_rename":
+            d["path"] = str(d.get("path", "")).rsplit("/", 1)[-1]
     place = t(str(d.get("place", "")).title(), lang) if d.get("place") else ""
     if kind == "sys_look":
         d = {**d, "name": t(d.get("name", ""), lang)}
@@ -2298,7 +2320,7 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
     elif kind == "app_add":
         to = ", ".join(t(p, lang) for p in d.get("parts", []))
     out = t(keys.get(kind, ("Change", "Done"))[int(done)], lang, place=place,
-            **{k: str(to if k == "to" else d.get(k, "")) for k in ("path", "to", "name", "repo", "count")})
+            **{k: str(to if k == "to" else d.get(k, "")) for k in ("path", "to", "name", "repo", "count", "key")})
     if done and kind.startswith("app_") and d.get("checked"):
         out += " · " + t(d["checked"], lang)                # what the look afterwards found (apps.CHECKED…)
     saved = " (the old version is saved in "
@@ -2377,7 +2399,60 @@ def card_text(kind: str, d: dict, lang: str) -> str:
     elif kind in ("write_new", "pc_write") and d.get("doc"):
         lines.append(t("a LibreOffice document (headings, lists and bold become real formatting)" if d["doc"] == "odt"
                        else "a Word document (headings, lists and bold become real formatting)", lang))
+    elif kind.startswith("fix_"):
+        lines += fix_card_lines(kind, d, lang)
     return "\n".join(x for x in lines if x)
+
+
+# where a fix happens, in the user's words (fixit's place names are short words for the model)
+FIX_PLACES = {"install": "The program's folder", "local": "Its folder in AppData\\Local",
+              "roaming": "Its folder in AppData\\Roaming", "locallow": "Its folder in AppData\\LocalLow",
+              "mygames": "Its folder in Documents\\My Games", "documents": "Its folder in Documents",
+              "steam_shaders": "Steam's shader cache", "nvidia_cache": "The NVIDIA driver's shader cache",
+              "amd_cache": "The AMD driver's shader cache", "d3d_cache": "The DirectX shader cache",
+              "intel_cache": "The Intel driver's shader cache"}
+FIX_TEXT = {
+    "fix_rename": "Undo puts the old name back.",
+    "fix_setting": "The old file is kept: Undo puts it back.",
+    "fix_aside": "They go to the folder {to} next to them: Undo puts them back.",
+    "fix_cache": "It goes to the Recycle Bin, and a new one is made (the first start may take a little longer).",
+    "fix_verify": "Steam checks the game's files and downloads again what is missing or changed. Mods that replaced "
+                  "the game's files may be undone.",
+    "fix_dns": "Windows forgets the addresses of sites it remembered and asks for them again. Nothing else changes.",
+    "fix_proxy": "Programs will connect to the internet directly. Undo turns the proxy back on.",
+    "fix_printer": "Windows stops choosing the default printer by itself. Undo puts the old one back.",
+    "fix_queue": "The stuck print jobs are removed: print what you need again. This can't be undone.",
+}
+
+
+def fix_place(place: str, lang: str) -> str:
+    p = str(place or "")
+    return t(FIX_PLACES.get(p.rstrip("0123456789"), "The program's folder"), lang)
+
+
+def fix_card_lines(kind: str, d: dict, lang: str) -> list[str]:
+    """What a fix card says (the window shows the same with its own layout)."""
+    lines = [t("Reason: {r}", lang, r=d["why"])] if d.get("why") else []
+    if kind == "fix_rename":
+        lines.append(f"{fix_place(d.get('place'), lang)}: {d.get('path', '')} → {d.get('to', '')}")
+    elif kind == "fix_setting":
+        lines.append(f"{fix_place(d.get('place'), lang)}: {d.get('path', '')}")
+        lines.append((f"[{d['section']}] " if d.get("section") else "") +
+                     f"{d.get('key', '')}: {d.get('from') or '—'} → {d.get('to', '')}")
+    elif kind == "fix_aside":
+        files = d.get("files", [])
+        lines.append(", ".join(files[:12]) + (f" … +{len(files) - 12}" if len(files) > 12 else ""))
+    elif kind == "fix_cache":                   # path: "local/ShaderCache", or the English name of a whole cache
+        place, path = str(d.get("place") or ""), str(d.get("path") or "")
+        inside = path.split("/", 1)[1] if path.startswith(place + "/") else ""
+        lines.append(fix_place(place, lang) + (f": {inside}" if inside else "") + f" · {d.get('size', '')}")
+    elif kind == "fix_proxy" and d.get("server"):
+        lines.append(t("Now: {x}", lang, x=d["server"]))
+    elif kind == "fix_printer" and d.get("was"):
+        lines.append(t("Now: {x}", lang, x=d["was"]))
+    if kind in FIX_TEXT:
+        lines.append(t(FIX_TEXT[kind], lang, to=d.get("to", "")))
+    return lines
 
 
 _FILE_BLOCK = re.compile(r"\[File: ([^\]\n]+)\]\n```\n.*?\n```(?:\n\[…file cut, too long\])?", re.S)

@@ -220,6 +220,21 @@ SORT_GROUPS = ([("Документи", 34, ["Договір оренди.pdf", "
                 ("Music", 24, ["Track 01.mp3"]),
                 ("Archives", 8, ["Coursework.zip", "Holiday photos.rar"])])
 
+FIX_GAME = "S.T.A.L.K.E.R. 2: Heart of Chornobyl"
+FIX_Q = ("Сталкер 2 запускається, але після логотипа тільки чорний екран. Що не так?" if UK
+         else "Stalker 2 starts, but after the logo there is only a black screen. What's wrong?")
+FIX_A = ("""Знайшла причину. У папці гри є **Content\\Movies_old**, а звичайної папки **Movies** немає. Так роблять, щоб пропустити заставки, але Stalker 2 після цього часто зависає на чорному екрані: гра чекає відео, якого не бачить.
+
+Гра зараз закрита, тож папці можна повернути стару назву. Картка нижче: нічого не зміниться, поки ти не натиснеш «Підтвердити».
+
+Потім запусти гру. Якщо чорний екран лишиться, перевір файли гри в Steam: він сам завантажить те, чого бракує.""" if UK else
+         """I found the cause. The game's folder has **Content\\Movies_old** and no usual **Movies** folder. People do this to skip the intro videos, but Stalker 2 then often stops at a black screen: the game waits for videos it can't see.
+
+The game is closed now, so the folder can get its old name back. The card is below: nothing changes until you press Confirm.
+
+Then start the game. If the black screen stays, check the game's files in Steam: it downloads again whatever is missing.""")
+FIX_WHY = ("Відео гри сховано перейменуванням папки, через це чорний екран" if UK
+           else "The game's videos are hidden by a renamed folder: that causes the black screen")
 FOLLOW = (["Як очистити кеш NVIDIA?", "Які моделі Ollama можна видалити?", "Покажи найбільші файли"] if UK
           else ["How do I clear the NVIDIA cache?", "Which Ollama models can I remove?", "Show me the biggest files"])
 THINK = ("Думаю, що саме займає диск" if UK else "Thinking about what fills the disk")
@@ -268,6 +283,11 @@ def seed(api: Api) -> dict[str, int]:
                tools=(("pc_list", json.dumps({"place": "downloads"})),))
     card(api, tid, "pc_sort", {"place": "downloads", "count": 174, "size": 2_468_000_000, "skipped": 1,
                                "groups": [{"to": to, "count": n, "files": fs} for to, n, fs in SORT_GROUPS]})
+    tid = chat("fix", "Чорний екран у Сталкері" if UK else "Black screen in Stalker 2", [(FIX_Q, FIX_A, "")], 0.6 * HOUR,
+               tools=(("fix_check", json.dumps({"what": FIX_GAME})),
+                      ("web_search", json.dumps({"query": "stalker 2 black screen Movies_old"}))))
+    card(api, tid, "fix_rename", {"name": FIX_GAME, "place": "install", "path": "Stalker2/Content/Movies_old",
+                                  "to": "Movies", "is_dir": True, "why": FIX_WHY})
     tid = chat("disk", "Куди поділось місце на диску" if UK else "Where the disk space went",
                [(DISK_Q, DISK_A, sources.dumps({"disk": DISK_FIG}))], 0.2 * HOUR)
     card(api, tid, "game_remove", {"name": "Cities: Skylines", "appid": "255710", "size": "68.9 GB"})

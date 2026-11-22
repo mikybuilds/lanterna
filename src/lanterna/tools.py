@@ -47,7 +47,7 @@ class Tool:
 
 # "Why" for the "what I'm doing" line. Only on web and computer tools: every extra word costs tokens on free plans.
 INTENT_TOOLS = {"web_search", "read_page"}
-INTENT_GROUPS = {"pc", "apps", "sys"}
+INTENT_GROUPS = {"pc", "apps", "sys", "fix"}
 INTENT = {"type": "string", "description": "optional: why you call it, 3-8 words in the user's language, "
                                            "e.g. 'to find the exact function name' (shown to the user)"}
 
@@ -419,6 +419,27 @@ GROUPS = {
                       r"illegal byte|cannot find -l|ld returned|collect2|not recognized|command not found|"
                       r"не (є|розпізна)\w* (внутрішн|як)|програмуван|programming|programmier|programación|"
                       r"programmation|programowan|программирован", re.I),
+    # something doesn't work: a game or a program won't start, crashes, goes black; no sound, internet or printing
+    # (fixit.py: Lanterna looks for the cause itself, then fixes it from a fixed list)
+    "fix": re.compile(r"не (працю|запуска|відкрива|вмика|грає|показу|друку|встановлю|оновлю|чути|відповіда|реагу|"
+                      r"підключа|з.єдну|вантаж|завантажу\w*ся)|не хоче (працю|запуска|відкрива|вмика)|перестал|"
+                      r"переста[єв] (працю|запуска|відкрива|вмика)|злама|полама|глюч|глюк|\bбаг(и|у|ів|ом|а)?\b|"
+                      r"виліт|вилета|краш|зависа|завис\b|фриз|чорн\w* екран|біл\w* екран|син\w* екран|bsod|помилк|"
+                      r"збій|збо[їю]|нема\w* (звуку|інтернету|зв.язку|мережі|сигналу|зображення)|пропа\w* (звук|інтернет|"
+                      r"зв.язок|мереж|зображен)|зник\w* (звук|інтернет|зв.язок|мереж)|інтернет\w* (не|пропа|зник|"
+                      r"відвал|повільн)|вайфай (не|пропа)|принтер|друк|оновлен\w* (не|завис|помилк)|\bлага|тормоз|"
+                      r"гальму|\bфпс\b|\bfps\b|просіда|статер|stutter|doesn.?t work|does not work|not working|"
+                      r"won.?t (start|open|launch|load|run|print|connect|update|install)|can.?t (start|open|launch|"
+                      r"hear|connect|print)|\bcrash|freez|\bhangs?\b|black screen|blue screen|no sound|no audio|"
+                      r"no internet|no connection|\bbroken\b|glitch|\bstuck\b|error|troubleshoot|printer|printing|"
+                      r"non (funziona|parte|si apre|si avvia|stampa)|si blocca|crasha|schermo nero|nessun suono|"
+                      r"niente audio|errore|stampant|funktioniert nicht|startet nicht|stürzt|absturz|hängt|"
+                      r"schwarzer bildschirm|kein ton|kein internet|fehler|drucker|no funciona|no (arranca|abre|"
+                      r"inicia|imprime)|se (cierra|cuelga|congela)|pantalla negra|sin sonido|sin internet|impresora|"
+                      r"ne (marche|fonctionne|démarre|s.ouvre|se lance|imprime) pas|plante|écran noir|pas de son|"
+                      r"pas d.internet|erreur|imprimante|nie (działa|uruchamia|włącza|drukuje)|zawiesza|crashuje|"
+                      r"czarny ekran|brak (dźwięku|internetu)|błąd|drukark|не (работает|запускается|открывается)|"
+                      r"вылета|зависает|ошибк", re.I),
     # a task plan of this chat that isn't finished (chat.Conversation._context): the plan tool stays on
     "plan": re.compile(r"\(task plan\)"),
     # making things: games, little programs, game mods, websites (projects.py) and the task list (plans.py)
@@ -447,7 +468,7 @@ READ_ONLY_TOOLS = frozenset((*LOOKUP_TOOLS, "list_reminders", "list_tasks", "sea
                              "github_read", "mail_folders", "mail_list", "mail_read", "pc_info", "pc_load", "pc_startup",
                              "pc_power", "pc_look", "pc_space", "pc_folders", "pc_overview", "pc_list", "pc_find",
                              "pc_read", "pc_duplicates", "pc_dev", "pc_disk", "app_search", "app_info", "app_installed", "app_updates",
-                             "plan", "project_list", "project_read", "project_check"))
+                             "plan", "project_list", "project_read", "project_check", "fix_check", "fix_list", "fix_read"))
 
 
 class LookupOnly:

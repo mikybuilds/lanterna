@@ -12,8 +12,10 @@ from urllib.parse import urlparse
 from .scam import refuse
 
 FILE_NAMES = {"pc_list", "pc_overview", "pc_find", "pc_duplicates", "pc_space", "pc_folders", "folder_list",
-              "folder_search", "drive_list", "github_list", "github_repos"}
-FILE_READ = {"pc_read", "folder_read", "github_read"}
+              "folder_search", "drive_list", "github_list", "github_repos", "fix_list"}
+FILE_READ = {"pc_read", "folder_read", "github_read", "fix_read"}
+FIX_PROGRAM = "Names of files in the folders of {what}, lines from its logs, what Windows noted about it"
+FIX_WINDOWS = "A check of Windows ({what}): its devices, settings and recent records"
 PC_INFO = {"pc_info", "pc_load", "pc_startup", "pc_power"}
 PROGRAMS = {"app_installed", "app_updates"}
 
@@ -82,6 +84,10 @@ def build(model: str, local: bool, history: int, name: bool, facts: int, files: 
             once("Exchange rates from the National Bank of Ukraine (nothing about you)")
         elif tool == "weather":
             once("A city name to Open-Meteo (weather): {city}", {"city": _arg(args, "city") or _arg(args, "place")})
+        elif tool == "fix_check":                     # what "why doesn't it work" looked at and sent along
+            from .fixit import area_of
+            what = _arg(args, "what").strip() or "?"
+            once(FIX_WINDOWS if area_of(what) else FIX_PROGRAM, {"what": what})
     return out
 
 

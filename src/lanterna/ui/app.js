@@ -434,6 +434,10 @@ const STR = {
   "Files right on the disk": { uk: "Файли просто на диску", it: "File direttamente sul disco" },
   "Explanations": { uk: "Пояснення", it: "Spiegazioni" },
   "Safety": { uk: "Безпека", it: "Sicurezza" },
+  "Fixes": { uk: "Виправлення", it: "Riparazioni" },
+  "A game or a program doesn't work? Find the cause": { uk: "Гра чи програма не працює? Знайти причину", it: "Un gioco o un programma non funziona? Trova la causa" },
+  "Doesn't work:": { uk: "Не працює:", it: "Non funziona:" },
+  "Name the game or program and say what goes wrong. Lanterna looks for the cause first, then offers a fix on a card.": { uk: "Напиши назву гри чи програми і що з нею не так. Lanterna спершу шукає причину, а потім пропонує виправлення на картці.", it: "Scrivi il nome del gioco o del programma e cosa non va. Lanterna cerca prima la causa, poi propone una correzione su una scheda." },
   "Explain simply why the sky is blue": { uk: "Поясни простими словами, чому небо блакитне", it: "Spiegami in modo semplice perché il cielo è azzurro" },
   "Used": { uk: "Зайнято", it: "Occupato" },
   "Not counted": { uk: "Не пораховано", it: "Non contato" },
@@ -696,7 +700,7 @@ const TOOL_ICON = { "⏰": "bell", "🔁": "auto", "💬": "chat", "🧠": "book
   "⬇": "save", "💾": "save", "🗑": "trash", "📊": "chart", "📈": "chart", "🗂": "folder", "📁": "folder", "📂": "folder", "✏": "edit",
   "📝": "edit", "⚙": "gear", "🌓": "contrast", "💻": "monitor", "🚀": "ext", "🔋": "battery", "🌐": "globe", "🎨": "palette", "🧪": "check",
   "☁": "cloud", "🐙": "branch", "🌿": "branch", "📬": "mail", "🧩": "puzzle", "🧰": "wrench", "🛠": "wrench", "📋": "list", "🤖": "auto",
-  "✋": "info", "❓": "info", "🔌": "plug", "⚠": "warn" };
+  "✋": "info", "❓": "info", "🔌": "plug", "⚠": "warn", "🩺": "search", "🧹": "trash" };
 const toolChip = s => { const [emo, ...rest] = String(s).split(" "); const name = rest.join(" ");
   return `<div class="tool">${icon(TOOL_ICON[emo.replace(/\uFE0F/g, "")] || "wrench")}<span>${esc(t(TOOL_TEXT[name] || name))}</span></div>`; };
 
@@ -1784,21 +1788,30 @@ function calling(name) {
 }
 
 function showEmpty() {
-  // the lamp and a hello, then five numbered things to try. A click sends the example; the scam check only puts its
-  // question in the box (the message or the link goes after it). Without the computer: the weather and a plan instead.
+  // the lamp and a hello, then numbered things to try. A click sends the example; the scam check and Fixes only put
+  // their words in the box (the message, the link or the program's name goes after them). Without the computer: the
+  // weather and a plan instead (and no Fixes).
   const name = S.settings.name;
-  const rows = (S.settings.pc_access !== false
+  const pc = S.settings.pc_access !== false, fix = pc && S.platform === "win32";    // finding what doesn't work: Windows for now
+  const rows = (pc
     ? [["folder", "Files", "Sort my Downloads"], ["disk", "Disk", "What takes up space on my disk?"]]
     : [["sun", "Weather", "What's the weather tomorrow?"], ["calendar", "Plan", "Help me plan my week"]])
+    .concat(fix ? [["wrench", "Fixes", "A game or a program doesn't work? Find the cause", "fix"]] : [])
     .concat([["bell", "Reminders", "Remind me in 20 minutes to take a break"], ["bulb", "Explanations", "Explain simply why the sky is blue"]]);
   const row = (n, ic, nm, ex) => `<span class="n" aria-hidden="true">0${n}</span>${icon(ic)}<span class="nm">${t(nm)}</span><span class="ex">${ex}</span>${icon("arrow", "i go")}`;
   $("#msgs").innerHTML = `<div class="empty">
     <div class="start-head"><div class="start-lamp">${lamp()}</div>
       <h2>${name ? t("Hi, {n}.", { n: esc(calling(name)) }) : t("Hi.")}</h2><p>${t("What's on your mind?")}</p></div>
-    <ol class="start-list">${rows.map(([ic, nm, ex], k) => `<li><button>${row(k + 1, ic, nm, t(ex))}</button></li>`).join("")}
-      <li><button data-fill="scam">${row(5, "shield", "Safety", t("Is this a scam? Check a message or a link"))}</button></li></ol></div>`;
+    <ol class="start-list">${rows.map(([ic, nm, ex, f], k) => `<li><button${f ? ` data-fill="${f}"` : ""}>${row(k + 1, ic, nm, t(ex))}</button></li>`).join("")}
+      <li><button data-fill="scam">${row(rows.length + 1, "shield", "Safety", t("Is this a scam? Check a message or a link"))}</button></li></ol></div>`;
   $("#msgs").querySelectorAll(".start-list button").forEach(b => b.onclick = () => {   // one click sends it
     const i = $("#input");
+    if (b.dataset.fill === "fix") {                       // the name of the game or program goes after it
+      i.value = t("Doesn't work:") + " "; i.oninput(); i.focus();
+      i.setSelectionRange(i.value.length, i.value.length);
+      toast(t("Name the game or program and say what goes wrong. Lanterna looks for the cause first, then offers a fix on a card."), false, null, "wrench");
+      return;
+    }
     if (b.dataset.fill) {                                 // the question first: the message or link is pasted after it
       i.value = t("Is this a scam? ").trim() + String.fromCharCode(10); i.oninput(); i.focus();
       i.setSelectionRange(i.value.length, i.value.length);
@@ -3444,24 +3457,65 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   app_install: "Install {name}", app_upgrade: "Update {name}", app_uninstall: "Remove {name}", app_add: "Add {to} to {name}",
   model_remove: "Remove the model {name} from Ollama", game_remove: "Remove the game {name} (Steam)", space_on: "Turn on Help free up disk space",
   sys_power: "Switch the power plan to {name}", mcp_call: "Use {name}",
-  mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}" };
+  mail_sort: "Sort {count} emails into folders", mail_draft: "Save a draft to {name}", mail_send: "Send an email to {name}",
+  fix_rename: "Rename {path} → {to} in {name}", fix_setting: "Change {key} in {name}", fix_aside: "Turn off mods of {name} ({count})",
+  fix_verify: "Check the files of {name} in Steam", fix_dns: "Clear the DNS cache", fix_proxy: "Turn off the proxy",
+  fix_printer: "Make {name} the default printer", fix_queue: "Clear the print queue of {name}" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
+  if (c.kind === "fix_cache") return d.driver ? "Clear the shader cache" : "Clear the cache of {name}";
   if (c.kind === "sys_theme") return d.theme === "dark" ? "Switch to the dark theme" : "Switch to the light theme";
   if (c.kind === "sys_startup") return d.on ? "Start {name} with the computer" : "Don't start {name} with the computer";
   if (c.kind === "sys_look") return (d.count || 1) === 1 ? "Change: {name}" : "Change {count} settings of the look";
   return ACT_KEYS[c.kind] || "Change";
 }
 const cardIcon = k => k === "auto_on" ? "auto" : k === "sys_look" ? "palette" : k === "model_remove" || k === "game_remove" ? "trash" : k === "space_on" ? "chart" : k === "mcp_call" ? "puzzle" : k.startsWith("mail_") ? "mail" : k.startsWith("github_") ? "branch" : k.startsWith("drive_") ? "cloud" : k === "pc_trash" ? "trash" :
-  k.startsWith("pc_") ? "folder" : k.startsWith("app_") ? "package" : k.startsWith("sys_") ? "gear" : "file";
+  k === "fix_cache" ? "trash" : k.startsWith("fix_") ? "wrench" : k.startsWith("pc_") ? "folder" : k.startsWith("app_") ? "package" : k.startsWith("sys_") ? "gear" : "file";
+
+// a fix card (fixit): why, where, what changes and what Undo does; the same as fix_card_lines in app.py
+const FIX_PLACES = { install: "The program's folder", local: "Its folder in AppData\\Local", roaming: "Its folder in AppData\\Roaming",
+  locallow: "Its folder in AppData\\LocalLow", mygames: "Its folder in Documents\\My Games", documents: "Its folder in Documents",
+  steam_shaders: "Steam's shader cache", nvidia_cache: "The NVIDIA driver's shader cache", amd_cache: "The AMD driver's shader cache",
+  d3d_cache: "The DirectX shader cache", intel_cache: "The Intel driver's shader cache" };
+const FIX_TEXT = { fix_rename: "Undo puts the old name back.", fix_setting: "The old file is kept: Undo puts it back.",
+  fix_aside: "They go to the folder {to} next to them: Undo puts them back.",
+  fix_cache: "It goes to the Recycle Bin, and a new one is made (the first start may take a little longer).",
+  fix_verify: "Steam checks the game's files and downloads again what is missing or changed. Mods that replaced the game's files may be undone.",
+  fix_dns: "Windows forgets the addresses of sites it remembered and asks for them again. Nothing else changes.",
+  fix_proxy: "Programs will connect to the internet directly. Undo turns the proxy back on.",
+  fix_printer: "Windows stops choosing the default printer by itself. Undo puts the old one back.",
+  fix_queue: "The stuck print jobs are removed: print what you need again. This can't be undone." };
+const fixPlace = p => t(FIX_PLACES[String(p || "").replace(/\d+$/, "")] || "The program's folder");
+function fixExtra(k, d) {
+  const line = s => `<div class="cc-meta">${esc(s)}</div>`;
+  const where = `<span class="cc-fold">${icon("folder")}${esc(fixPlace(d.place))}</span>`;
+  let out = d.why ? `<p class="cc-desc">${esc(t("Reason: {r}", { r: d.why }))}</p>` : "";
+  if (k === "fix_rename") {
+    out += `<div class="cc-meta">${where}</div><pre class="cc-prev">${esc(d.path || "")}\n→ ${esc(d.to || "")}</pre>`;
+  } else if (k === "fix_setting") {
+    out += `<div class="cc-meta">${where} · ${esc(d.path || "")}</div><pre class="cc-prev">${esc((d.section ? `[${d.section}]\n` : "") +
+      `${d.key || ""} = ${d.from || "—"}\n→ ${d.key || ""} = ${d.to || ""}`)}</pre>`;
+  } else if (k === "fix_aside") {
+    out += `<div class="cc-meta">${where}</div><div class="cc-lbl">${t("Files")}</div>${fileList(d.files || [], d.count)}`;
+  } else if (k === "fix_cache") {
+    const p = String(d.path || ""), inside = p.startsWith(d.place + "/") ? p.slice(d.place.length + 1) : "";
+    out += `<div class="cc-meta">${where}${inside ? " · " + esc(inside) : ""}${d.size ? " · " + esc(sizeStr(d.size)) : ""}</div>`;
+  } else if ((k === "fix_proxy" && d.server) || (k === "fix_printer" && d.was)) {
+    out += line(t("Now: {x}", { x: d.server || d.was }));
+  }
+  return out + (FIX_TEXT[k] ? line(t(FIX_TEXT[k], { to: d.to || "" })) : "");
+}
 
 function actCard(c) {
   const d = c.details || {};
   let to = d.to || "";
   if (c.kind === "pc_move" && d.to_place) to = placeName(d.to_place) + (to && to !== "." ? "/" + to : "");
   if (c.kind === "app_add") to = (d.parts || []).map(p => t(p)).join(", ");
-  const title = t(actKey(c), { path: d.path || "", to, name: t(d.name || ""), repo: d.repo || "", count: c.kind === "auto_on" ? d.minutes : d.count || 0, place: placeName(d.place) });
+  const fix = c.kind.startsWith("fix_");                // its places are Lanterna's words, its name is a program's
+  const path = c.kind === "fix_rename" ? String(d.path || "").split(/[\\/]/).pop() : d.path || "";
+  const title = t(actKey(c), { path, to, name: fix ? d.name || "" : t(d.name || ""), repo: d.repo || "", key: d.key || "",
+    count: c.kind === "auto_on" ? d.minutes : d.count || 0, place: fix ? "" : placeName(d.place) });
   const meta = [];
   let fold = "";                                       // the folder a file goes to, with its icon before the other details
   const gh = c.kind.startsWith("github_");
@@ -3521,6 +3575,8 @@ function actCard(c) {
     extra = `<div class="cc-meta">${esc(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm."))}</div>`;
   } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
     if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
+  } else if (fix) {
+    extra = fixExtra(c.kind, d);
   } else if (c.kind.startsWith("drive_")) {
     if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
     if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));

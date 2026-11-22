@@ -42,6 +42,7 @@ PAGES = {
     "datetime": ("dateandtime", "datetime"), "language": ("regionlanguage", "region"),
     "notifications": ("notifications", "notifications"), "printers": ("printers", "printers"),
     "apps": ("appsfeatures", "applications"), "battery": ("batterysaver", "power"),
+    "troubleshoot": ("troubleshoot", None),
 }
 
 
@@ -53,9 +54,10 @@ def _decode(b: bytes) -> str:
         return b.decode(cp, "replace")
 
 
-def run(args: list[str], timeout: float = 20) -> tuple[int, str]:
+def run(args: list[str], timeout: float = 20, env: dict | None = None) -> tuple[int, str]:
     try:
-        r = subprocess.run(args, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL, creationflags=_NO_WINDOW)
+        r = subprocess.run(args, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL, creationflags=_NO_WINDOW,
+                           env=env)
     except (OSError, subprocess.SubprocessError) as e:
         return 127, str(e)
     return r.returncode, _decode(r.stdout or b"") + (_decode(r.stderr) if r.stderr else "")
@@ -95,6 +97,33 @@ class WinReg:
             raise WorkError("Lanterna only changes settings of the current user.")
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, path) as k:
             winreg.SetValueEx(k, name, 0, getattr(winreg, kind), value)
+
+    def delete(self, hive: str, path: str, name: str) -> None:
+        """Removes one value (current user only); a value that isn't there is fine."""
+        import winreg
+        if hive != "HKEY_CURRENT_USER":
+            raise WorkError("Lanterna only changes settings of the current user.")
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path, 0, winreg.KEY_SET_VALUE) as k:
+                winreg.DeleteValue(k, name)
+        except FileNotFoundError:
+            pass
+
+    def subkeys(self, hive: str, path: str) -> list[str]:
+        import winreg
+        out = []
+        try:
+            with winreg.OpenKey(getattr(winreg, hive), path) as k:
+                i = 0
+                while True:
+                    try:
+                        out.append(winreg.EnumKey(k, i))
+                    except OSError:
+                        break
+                    i += 1
+        except OSError:
+            pass
+        return out
 
 
 def _filetime_now() -> bytes:

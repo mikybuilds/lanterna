@@ -390,6 +390,7 @@ class ActCard(Vertical):
         d = c.get("details", {})
         k = c["kind"]
         icon = ("🤖 " if k == "auto_on" else "🎨 " if k == "sys_look" else "☁️ " if k.startswith("drive_") else "🐙 " if k.startswith("github_") else "🗑 " if k == "pc_trash" else
+                "🧹 " if k == "fix_cache" else "🛠 " if k.startswith("fix_") else
                 "🗂 " if k.startswith("pc_") else "📦 " if k.startswith("app_") else "⚙️ " if k.startswith("sys_") else "🧩 " if k == "mcp_call" else "📬 " if k.startswith("mail_") else "📁 ")
         yield Static(icon + action_title(k, d, "", lang), markup=False)
         body = card_text(k, d, lang)

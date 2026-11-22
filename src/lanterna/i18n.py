@@ -1706,6 +1706,185 @@ _T.update({
 })
 
 
+# Find and fix what doesn't work (1.1.11b1)
+_T.update({
+    "Rename {path} → {to} in {name}": {
+        "uk": "Перейменувати {path} → {to} у {name}",
+        "it": "Rinominare {path} → {to} in {name}"},
+    "Renamed {path} → {to} in {name}": {
+        "uk": "Перейменовано {path} → {to} у {name}",
+        "it": "Rinominato {path} → {to} in {name}"},
+    "Change {key} in {name}": {
+        "uk": "Змінити {key} у {name}",
+        "it": "Cambiare {key} in {name}"},
+    "Changed {key} in {name}": {
+        "uk": "Змінено {key} у {name}",
+        "it": "Cambiato {key} in {name}"},
+    "Turn off mods of {name} ({count})": {
+        "uk": "Вимкнути моди {name} ({count})",
+        "it": "Disattivare le mod di {name} ({count})"},
+    "Turned off mods of {name} ({count})": {
+        "uk": "Вимкнено моди {name} ({count})",
+        "it": "Disattivate le mod di {name} ({count})"},
+    "Clear the shader cache": {
+        "uk": "Очистити кеш шейдерів",
+        "it": "Svuotare la cache degli shader"},
+    "Cleared the shader cache": {
+        "uk": "Кеш шейдерів очищено",
+        "it": "Cache degli shader svuotata"},
+    "Clear the cache of {name}": {
+        "uk": "Очистити кеш {name}",
+        "it": "Svuotare la cache di {name}"},
+    "Cleared the cache of {name}": {
+        "uk": "Кеш {name} очищено",
+        "it": "Cache di {name} svuotata"},
+    "Check the files of {name} in Steam": {
+        "uk": "Перевірити файли {name} у Steam",
+        "it": "Verificare i file di {name} in Steam"},
+    "Opened Steam's check of {name}": {
+        "uk": "Відкрито перевірку файлів {name} у Steam",
+        "it": "Avviata in Steam la verifica di {name}"},
+    "Clear the DNS cache": {
+        "uk": "Очистити кеш DNS",
+        "it": "Svuotare la cache DNS"},
+    "Cleared the DNS cache": {
+        "uk": "Кеш DNS очищено",
+        "it": "Cache DNS svuotata"},
+    "Turn off the proxy": {
+        "uk": "Вимкнути проксі",
+        "it": "Disattivare il proxy"},
+    "Turned off the proxy": {
+        "uk": "Проксі вимкнено",
+        "it": "Proxy disattivato"},
+    "Make {name} the default printer": {
+        "uk": "Зробити {name} принтером за замовчуванням",
+        "it": "Impostare {name} come stampante predefinita"},
+    "{name} is the default printer": {
+        "uk": "{name} тепер принтер за замовчуванням",
+        "it": "{name} è la stampante predefinita"},
+    "Clear the print queue of {name}": {
+        "uk": "Очистити чергу друку {name}",
+        "it": "Svuotare la coda di stampa di {name}"},
+    "Cleared the print queue of {name}": {
+        "uk": "Чергу друку {name} очищено",
+        "it": "Coda di stampa di {name} svuotata"},
+    "The old name is back.": {
+        "uk": "Стару назву повернуто.",
+        "it": "Il vecchio nome è tornato."},
+    "Windows didn't accept the old default printer.": {
+        "uk": "Windows не прийняла старий принтер за замовчуванням.",
+        "it": "Windows non ha accettato la vecchia stampante predefinita."},
+    "The program's folder": {
+        "uk": "Папка програми",
+        "it": "La cartella del programma"},
+    "Its folder in AppData\\Local": {
+        "uk": "Її папка в AppData\\Local",
+        "it": "La sua cartella in AppData\\Local"},
+    "Its folder in AppData\\Roaming": {
+        "uk": "Її папка в AppData\\Roaming",
+        "it": "La sua cartella in AppData\\Roaming"},
+    "Its folder in AppData\\LocalLow": {
+        "uk": "Її папка в AppData\\LocalLow",
+        "it": "La sua cartella in AppData\\LocalLow"},
+    "Its folder in Documents\\My Games": {
+        "uk": "Її папка в Документах\\My Games",
+        "it": "La sua cartella in Documenti\\My Games"},
+    "Its folder in Documents": {
+        "uk": "Її папка в Документах",
+        "it": "La sua cartella in Documenti"},
+    "Steam's shader cache": {
+        "uk": "Кеш шейдерів Steam",
+        "it": "La cache degli shader di Steam"},
+    "The NVIDIA driver's shader cache": {
+        "uk": "Кеш шейдерів драйвера NVIDIA",
+        "it": "La cache degli shader del driver NVIDIA"},
+    "The AMD driver's shader cache": {
+        "uk": "Кеш шейдерів драйвера AMD",
+        "it": "La cache degli shader del driver AMD"},
+    "The DirectX shader cache": {
+        "uk": "Кеш шейдерів DirectX",
+        "it": "La cache degli shader di DirectX"},
+    "The Intel driver's shader cache": {
+        "uk": "Кеш шейдерів драйвера Intel",
+        "it": "La cache degli shader del driver Intel"},
+    "Undo puts the old name back.": {
+        "uk": "Кнопка «Повернути як було» поверне стару назву.",
+        "it": "Ripristina rimette il vecchio nome."},
+    "The old file is kept: Undo puts it back.": {
+        "uk": "Старий файл збережено: кнопка «Повернути як було» поверне його.",
+        "it": "Il vecchio file è conservato: Ripristina lo rimette."},
+    "They go to the folder {to} next to them: Undo puts them back.": {
+        "uk": "Вони перейдуть у папку {to} поруч: кнопка «Повернути як було» поверне їх.",
+        "it": "Vanno nella cartella {to} lì accanto: Ripristina li rimette."},
+    "It goes to the Recycle Bin, and a new one is made (the first start may take a little longer).": {
+        "uk": "Він піде в Кошик, а новий створиться сам (перший запуск може тривати трохи довше).",
+        "it": "Va nel Cestino e ne viene creata una nuova (il primo avvio può durare un po' di più)."},
+    "Steam checks the game's files and downloads again what is missing or changed. Mods that replaced the game's files may be undone.": {
+        "uk": "Steam перевірить файли гри й знову завантажить те, чого бракує або що змінено. Моди, які замінили файли гри, можуть зникнути.",
+        "it": "Steam verifica i file del gioco e riscarica ciò che manca o è cambiato. Le mod che hanno sostituito file del gioco potrebbero essere annullate."},
+    "Windows forgets the addresses of sites it remembered and asks for them again. Nothing else changes.": {
+        "uk": "Windows забуде запам'ятовані адреси сайтів і запитає їх знову. Більше нічого не зміниться.",
+        "it": "Windows dimentica gli indirizzi dei siti che ricordava e li chiede di nuovo. Nient'altro cambia."},
+    "Programs will connect to the internet directly. Undo turns the proxy back on.": {
+        "uk": "Програми під'єднуватимуться до інтернету напряму. Кнопка «Повернути як було» знову ввімкне проксі.",
+        "it": "I programmi si collegheranno a internet direttamente. Ripristina riattiva il proxy."},
+    "Windows stops choosing the default printer by itself. Undo puts the old one back.": {
+        "uk": "Windows більше не вибиратиме принтер за замовчуванням сама. Кнопка «Повернути як було» поверне старий.",
+        "it": "Windows smette di scegliere da sé la stampante predefinita. Ripristina rimette quella di prima."},
+    "The stuck print jobs are removed: print what you need again. This can't be undone.": {
+        "uk": "Завислі завдання друку буде прибрано: надрукуй потрібне ще раз. Цього не можна скасувати.",
+        "it": "I lavori di stampa bloccati vengono tolti: stampa di nuovo ciò che ti serve. Non si può annullare."},
+    "Looking for what is wrong: {x}": {
+        "uk": "Шукаю, що не так: {x}",
+        "it": "Cerco cosa non va: {x}"},
+    "Looking for what is wrong": {
+        "uk": "Шукаю, що не так",
+        "it": "Cerco cosa non va"},
+    "Looking in the program's folder: {x}": {
+        "uk": "Дивлюсь у папці програми: {x}",
+        "it": "Guardo nella cartella del programma: {x}"},
+    "Looking in the program's folder": {
+        "uk": "Дивлюсь у папці програми",
+        "it": "Guardo nella cartella del programma"},
+    "Preparing to rename {x}": {
+        "uk": "Готую перейменування {x}",
+        "it": "Preparo la rinomina di {x}"},
+    "Preparing to rename": {
+        "uk": "Готую перейменування",
+        "it": "Preparo la rinomina"},
+    "Preparing to change {x}": {
+        "uk": "Готую зміну {x}",
+        "it": "Preparo la modifica di {x}"},
+    "Preparing to change": {
+        "uk": "Готую зміну",
+        "it": "Preparo la modifica"},
+    "Preparing to turn off mods: {x}": {
+        "uk": "Готую вимкнення модів: {x}",
+        "it": "Preparo la disattivazione delle mod: {x}"},
+    "Preparing to turn off mods": {
+        "uk": "Готую вимкнення модів",
+        "it": "Preparo la disattivazione delle mod"},
+    "Preparing to clear a cache": {
+        "uk": "Готую очищення кешу",
+        "it": "Preparo lo svuotamento di una cache"},
+    "Preparing Steam's file check: {x}": {
+        "uk": "Готую перевірку файлів у Steam: {x}",
+        "it": "Preparo la verifica dei file in Steam: {x}"},
+    "Preparing Steam's file check": {
+        "uk": "Готую перевірку файлів у Steam",
+        "it": "Preparo la verifica dei file in Steam"},
+    "Preparing a fix in Windows": {
+        "uk": "Готую виправлення у Windows",
+        "it": "Preparo una correzione in Windows"},
+    "Names of files in the folders of {what}, lines from its logs, what Windows noted about it": {
+        "uk": "Назви файлів у папках {what}, рядки з журналів програми й записи Windows про неї",
+        "it": "Nomi dei file nelle cartelle di {what}, righe dai suoi log, cosa ne ha annotato Windows"},
+    "A check of Windows ({what}): its devices, settings and recent records": {
+        "uk": "Перевірка Windows ({what}): її пристрої, налаштування й останні записи",
+        "it": "Un controllo di Windows ({what}): i suoi dispositivi, le impostazioni e le registrazioni recenti"},
+})
+
+
 # English forms of the strings with a count: [one, other], the key is the other (i18n.t picks one)
 _EN: dict[str, list[str]] = {
     "Sort {count} files in {place}": ["Sort {count} file in {place}", "Sort {count} files in {place}"],

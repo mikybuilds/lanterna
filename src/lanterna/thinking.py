@@ -76,6 +76,15 @@ TOOL_TEXT = {
     "project_list": ("Looking at the projects", ""),
     "project_check": ("Checking the project for mistakes", ""),
     "project_open": ("Opening the project", ""),
+    "fix_check": ("Looking for what is wrong: {x}", "what"),
+    "fix_list": ("Looking in the program's folder: {x}", "program"),
+    "fix_read": ("Reading {x}", "path"),
+    "fix_rename": ("Preparing to rename {x}", "path"),
+    "fix_setting": ("Preparing to change {x}", "key"),
+    "fix_aside": ("Preparing to turn off mods: {x}", "program"),
+    "fix_cache": ("Preparing to clear a cache", ""),
+    "fix_verify": ("Preparing Steam's file check: {x}", "program"),
+    "fix_windows": ("Preparing a fix in Windows", ""),
 }
 CYRILLIC = re.compile(r"[Ѐ-ӿ]")
 CYRILLIC_LANGS = ("uk", "ru", "be", "bg", "sr", "mk")
