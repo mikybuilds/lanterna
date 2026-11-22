@@ -104,6 +104,7 @@ flowchart TB
 | Looking at the computer | `diskmap.py`, `diskuse.py`, `devtools.py`, `hardware.py` | What fills the whole disk (one walk on several threads), compilers and runtimes on PATH, what the PC can run locally |
 | Why something doesn't work | `fixit.py`, `fixlinux.py` | Finds a game or program, looks through its folders, logs and what the system noted (or sound, internet, printers, updates); fixes from a fixed list, one card each, with Undo where it can. Windows and Linux (Steam with Proton, Heroic, Lutris, Flatpak; PipeWire, NetworkManager, CUPS, dnf / apt / rpm-ostree) |
 | Things Lanterna makes | `projects.py`, `docmake.py` | Games, little programs and mods in its own folder; real .docx / .odt / .csv files |
+| Videos from a link | `video.py` | Runs yt-dlp (from winget or the system's packages, installed on a card) with fixed options only: one video or a playlist the user asked for, up to 1080p MP4 or MP3, only into Downloads; its progress for the line under the reply, its errors in plain words; Stop ends the whole process tree |
 | Connectors | `mcp.py`, `oauth.py`, `github.py`, `gdrive.py`, `mail.py` | MCP servers, sign-in pages, pushes to GitHub, files in Drive, IMAP / SMTP |
 | Data | `store.py`, `config.py`, `keys.py`, `sync.py`, `backup.py`, `export.py` | SQLite, settings, the vault, encrypted sync and backups |
 | Privacy helpers | `sensitive.py`, `sent.py` | Warns before a card number or password goes to an online model; shows what each reply sent |

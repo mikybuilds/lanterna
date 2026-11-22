@@ -99,9 +99,43 @@ def _cut(text: str) -> str:
     return text if len(text) <= LABEL else text[:LABEL - 1].rstrip() + "…"
 
 
+MAX_SAVED = 60                  # files (or a playlist's folder) a reply saved, shown under it
+
+
+def saved(files: list, folder: str = "") -> list[dict]:
+    """What a download saved, as it is kept with the reply: [{"path", "size"}], or one {"path", "folder": True}
+    for a playlist's folder (the files are in it)."""
+    if folder:
+        return [{"path": str(folder), "folder": True, "count": len(files)}]
+    out = []
+    for p in files[:MAX_SAVED]:
+        try:
+            size = p.stat().st_size
+        except (OSError, AttributeError):
+            size = 0
+        out.append({"path": str(p), "size": size})
+    return out
+
+
+def _saved_view(items) -> list[dict]:
+    out = []
+    for x in items if isinstance(items, list) else []:
+        path = x.get("path") if isinstance(x, dict) else None
+        if not isinstance(path, str) or not path or len(path) > 1000 or "\n" in path:
+            continue
+        name = path.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+        item = {"path": path, "label": _cut(name), "folder": x.get("folder") is True}
+        for k in ("size", "count"):                     # only when known (a file that is gone has no size)
+            if _size(x.get(k)) and x[k] > 0:
+                item[k] = x[k]
+        out.append(item)
+    return out[:MAX_SAVED]
+
+
 def view(raw: str) -> dict:
-    """For display: {"read": [{"url", "site", "label"}], "found": [...]}; {} when nothing was noted (older replies).
-    The scam check runs again, so a link a newer version knows as fake isn't shown either."""
+    """For display: {"read": [{"url", "site", "label"}], "found": [...], "saved": [{"path", "label", "size"…}]}; {}
+    when nothing was noted (older replies). The scam check runs again, so a link a newer version knows as fake isn't
+    shown either. "saved": files Lanterna itself saved for this reply (a downloaded video), opened by their path."""
     try:
         data = json.loads(raw or "{}")
     except ValueError:
@@ -109,14 +143,17 @@ def view(raw: str) -> dict:
     if not isinstance(data, dict):
         return {}
     out: dict[str, list] = {"read": [], "found": []}
-    for kind in out:
+    for kind in ("read", "found"):
         for x in data.get(kind) or []:
             url = x.get("url") if isinstance(x, dict) else None
             if isinstance(url, str) and _ok(url):
                 # a page without a title from the search: its address, readable ("/wiki/Львів", not "%D0%9B…")
                 plain = site(url) + (unquote(urlsplit(url).path).rstrip("/") if kind == "read" else "")
                 out[kind].append({"url": url, "site": site(url), "label": _cut(str(x.get("title") or "") or plain)})
-    return out if out["read"] or out["found"] else {}
+    files = _saved_view(data.get("saved"))
+    if files:
+        out["saved"] = files
+    return out if out["read"] or out["found"] or files else {}
 
 
 def _size(v) -> bool:

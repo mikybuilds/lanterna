@@ -939,6 +939,16 @@ details.srcs-s ol { margin: 6px 0 0; padding-left: 22px; }
 details.srcs-s li { margin: 3px 0; overflow-wrap: anywhere; }
 .srcs-site { color: var(--faint); margin-left: 6px; font-family: var(--mono); font-size: .923em; }
 
+/* a file Lanterna saved for a reply (a video from a link): its name opens it, «Show in folder» beside it */
+.saved { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.saved-f { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.saved-f .link { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--text); cursor: pointer; }
+.saved-f .link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-f .link .i { width: 18px; height: 18px; flex: none; color: var(--amber); }
+.saved-f .link:hover span { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
+.saved-n { flex: none; color: var(--faint); font-family: var(--mono); font-size: 12px; }
+.saved-f .btn { flex: none; margin-left: auto; gap: 6px; }
+
 /* a second opinion: the same question, another model, right under the first answer */
 .msg.bot.second .body { border-left: 2px solid var(--line-2); padding-left: 16px; }
 .second-tag { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font: 500 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }

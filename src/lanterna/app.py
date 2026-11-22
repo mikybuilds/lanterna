@@ -76,6 +76,7 @@ class _Stream:
         self.sent = ""
         self.sources = ""                  # the web pages its tools really opened or found (sources.py)
         self.disk: dict | None = None      # pc_disk's figure of the disk (diskmap.figure): drawn above the reply
+        self.saved: list[dict] = []        # files a video download saved for this reply (sources.saved): links under it
         self.stop = threading.Event()      # the user pressed Stop: the answer ends where it is
         self.stopped = False
         self.redo = False                  # the words so far were withdrawn: the next poll sends the whole text again
@@ -85,6 +86,39 @@ class _Stream:
 
 
 COUNTED = "counted so far: {s}, files: {n}"
+
+# Replies about a download from a link that didn't happen (App._video_say), by what went wrong
+VIDEO_SAY = {
+    "local": "This link leads to this computer or the home network: Lanterna doesn't download from there.",
+    "no_installer": "To download videos Lanterna needs the free program yt-dlp, and there is no winget, dnf or apt here "
+                    "to install it with. It is at https://github.com/yt-dlp/yt-dlp",
+    "no_ytdlp": "Without yt-dlp Lanterna can't download videos. When you want it, send the link again and confirm the card.",
+    "not_seen": "yt-dlp is installed, but Lanterna doesn't see it yet: restart Lanterna and send the link again.",
+    "busy": "The card to install yt-dlp is already there, under an earlier reply: confirm it and, when it is installed, "
+            "send the link again.",
+    "stopped": "Stopped. The unfinished parts were removed.",
+    "halted": "Stopped. Nothing was downloaded.",
+    "playlist_no": "Nothing was downloaded: the card with the playlist wasn't confirmed.",
+    "login": "This site gives the video only to people who signed in. Lanterna doesn't use your passwords or the "
+             "browser's cookies, so it can't download it.",
+    "geo": "The site doesn't show this video in this country.",
+    "gone": "The video isn't there: it was removed or it is private.",
+    "drm": "The video is protected against copying (DRM): it can only be watched on the site.",
+    "live": "It is a live stream: it can be downloaded only after it ends.",
+    "network": "Couldn't reach the site. Check the internet and try again.",
+    "no_space": "There isn't enough free space on the disk for this video.",
+    "ffmpeg": "The picture and the sound couldn't be put together: FFmpeg is missing or didn't work.",
+    "no_video": "There is no video at this link that yt-dlp could take.",
+    "js": "YouTube now needs one more free program, Deno (https://deno.com), and it isn't on this computer.",
+    "other": "yt-dlp couldn't download it: {error}",
+}
+
+
+def _size_of(p) -> int:
+    try:
+        return p.stat().st_size
+    except OSError:
+        return 0
 
 
 def _size_in(n: float, lang: str) -> str:
@@ -324,6 +358,7 @@ class Api:
                             ("pc", lambda: self._disk_tools()),
                             ("sys", lambda: control_tools(self.look, self.launcher, self.places)),
                             ("fix", lambda: fix_tools(self.fixer, limit=lambda: self.toolbox.page_limit)),
+                            ("video", lambda: self._video_tools()),
                             ("sys", lambda: self._auto_tools())):
             try:
                 tools = make()
@@ -1577,6 +1612,14 @@ class Api:
             self.store.rename(tid, (text or ", ".join(prep.names + [n for n, _ in audio])).splitlines()[0][:60])
         st.files = list(prep.names) + [n for n, _ in audio]
         st.parts = list(prep.parts)
+        from . import scam, video
+        url = "" if files or audio or not self.settings.pc_access else video.bare_link(text)
+        # a message that is only a link to a video: Lanterna downloads it itself, no model needed (another link
+        # alone is tried only when yt-dlp is there; a page without a video then goes to the model as before).
+        # A link that looks like a scam is never opened: it goes to the model, which explains the signs
+        if url and not scam.refuse(url) and (video.video_site(url) or video.find()):
+            threading.Thread(target=self._run_video, args=(sid, tid, url, full, history), daemon=True).start()
+            return {"ok": True, "stream": sid}
         threading.Thread(target=self._run, args=(sid, tid, full, history, prep.images, audio), daemon=True).start()
         return {"ok": True, "stream": sid}
 
@@ -1745,7 +1788,10 @@ class Api:
                 len(images or []), st.used, summary=bool(summary), old_files=_files_in(history[upto:][-earlier:] if earlier else []),
                 parts=st.parts, second=st.second, private=private))
             from . import sources
-            st.sources = sources.dumps(box.data())
+            noted = box.data()
+            if st.saved:                                    # what video_download saved: its links under the reply
+                noted = {**noted, "saved": st.saved}
+            st.sources = sources.dumps(noted)
             if reply.strip():                               # stopped before a word: nothing is kept
                 self.store.add(tid, "assistant", reply, cur.label if cur else "", st.sent, st.sources)
             if (not stopped and not st.second and reply.strip() and any(n == "plan" for n, _ in st.used)
@@ -1779,6 +1825,298 @@ class Api:
             self._here.st = None
             with st.lock:
                 st.done = True
+
+    # ---------------------------------------------------------------- videos from a link (video.py: yt-dlp)
+    def _run_video(self, sid: str, tid: int, url: str, text: str, history: list[dict]) -> None:
+        """A message that is only a link to a video: Lanterna downloads it into Downloads itself, without a model.
+        The "what I'm doing" line shows the progress; the reply says what was saved, its link under it."""
+        st = self._streams[sid]
+        handed = False
+        self.actions.bind(st.cards, tid)
+        self._here.st = st
+        try:
+            out = self._video_get(st, tid, url, step=True)
+            if out.get("no_video"):                         # a page without a video: the model answers as before
+                handed = True
+                self.actions.bind(None)
+                self._here.st = None
+                with st.lock:
+                    st.steps.live = ""
+                self._run(sid, tid, text, history)
+                return
+            from . import sources
+            st.sources = sources.dumps({"saved": out["saved"]}) if out.get("saved") else ""
+            self.store.add(tid, "assistant", out["text"], "", "", st.sources)
+            with st.lock:
+                st.pieces = [out["text"]]
+                st.stopped = bool(out.get("stopped"))
+                st.final = True
+        except Exception as e:                              # never leave the UI waiting
+            bugreport.remember_error(type(e).__name__, str(e))
+            with st.lock:
+                st.error = {"kind": "other", "message": str(e)[:300]}
+        finally:
+            if not handed:
+                self.actions.bind(None)
+                self._here.st = None
+                with st.lock:
+                    st.done = True
+
+    def _video_get(self, st: _Stream, tid: int, url: str, audio: bool = False, playlist: bool = False,
+                   step: bool = False) -> dict:
+        """Downloads from a link into Downloads. {"text": the reply in the user's language, "model": the same for the
+        model, "saved": sources.saved(...), "no_video": a page yt-dlp found no video on (not a video site),
+        "stopped": Stop was pressed}."""
+        from urllib.parse import urlsplit
+
+        from . import sources, video
+        lang = self.settings.lang
+        if step:
+            with st.lock:
+                st.steps.note(t("Looking for the video: {site}", lang, site=sources.site(url)))
+        on_site = video.video_site(url)
+        place = video.where(urlsplit(url).hostname or "")
+        if place != "public":                             # never this computer or the home network
+            return self._video_say("local" if place == "local" else "network")
+        exe = video.find()
+        if not exe:
+            got = self._video_install(st)
+            if isinstance(got, dict):
+                return got
+            exe = got
+        name = ""                                           # the playlist's title, from its card
+        if playlist:
+            try:
+                info = video.probe(exe, url)
+            except video.VideoError as e:
+                return self._video_failed(st, exe, url, video.kind_of(str(e)), str(e), on_site)
+            if info["playlist"] and info["count"] > 1:
+                count, name = min(info["count"], video.MAX_PLAYLIST), info["title"]
+                a = self.actions.propose("video_playlist", {"name": name, "count": count, "total": info["count"],
+                                                            "files": info["entries"][:count], "url": url,
+                                                            "audio": audio}, lambda: "ok")
+                state = self._card_answer(st, a.id)
+                if state != "done":
+                    return self._video_say("halted" if state == "stopped" else "playlist_no")
+            else:
+                playlist = False                            # one video after all
+        job = video.Job(exe, url, self._save_folder(), audio=audio, playlist=playlist, ffmpeg=video.has_ffmpeg())
+        res = job.run(st.stop, on_progress=lambda p: self._video_progress(st, p, audio))
+        with st.lock:
+            st.steps.live = ""
+        if res.error:
+            return self._video_failed(st, exe, url, res.error, res.detail, on_site)
+        size = sum(_size_of(p) for p in res.files)
+        if playlist and res.folder:
+            facts = {"n": len(res.files), "title": name or res.folder.name}
+            key = "Saved {n} files from the playlist «{title}» into a folder of their own in Downloads."
+            text, model = t(key, lang, **facts), t(key, "en", **facts)
+            if res.detail:                                  # some of them didn't come
+                text += " " + t("Not all of them came: {error}", lang, error=res.detail)
+                model += " Not all of them came: " + res.detail
+            saved = sources.saved(res.files, folder=str(res.folder))
+        else:
+            f = res.files[-1]
+            quality = (f.suffix[1:].upper() if audio or f.suffix.lower() in (".mp3", ".m4a", ".opus")
+                       else f"{res.height}p" if res.height else "")
+            what = ", ".join(x for x in (quality, _size_in(size, lang) if size else "") if x)
+            facts = {"title": res.title or f.stem, "what": what}
+            text = t("Saved «{title}» in Downloads ({what}).", lang, **facts) if what else t(
+                "Saved «{title}» in Downloads.", lang, **facts)
+            model = t("Saved «{title}» in Downloads ({what}).", "en", **{**facts, "what": what or f.suffix[1:]})
+            if res.playlist > 1:
+                text += "\n\n" + t("The link is a playlist of {n} videos: I saved only this one. To get them all, write "
+                                   "“download the whole playlist” and the link.", lang, n=res.playlist)
+                model += (f" The link is a playlist of {res.playlist} videos and only this one was asked for: the whole "
+                          "playlist needs playlist=true.")
+            saved = sources.saved(res.files)
+        return {"text": text, "saved": saved,
+                "model": model + " The file's link is under your reply by itself: don't write its path or a link."}
+
+    def _video_say(self, kind: str, **kw) -> dict:
+        """A reply about a download that didn't happen, in the user's language and (for the model) in English."""
+        key = VIDEO_SAY[kind]
+        return {"text": t(key, self.settings.lang, **kw), "model": "Not downloaded: " + t(key, "en", **kw),
+                "stopped": kind in ("stopped", "halted")}
+
+    def _video_failed(self, st: _Stream, exe: str, url: str, kind: str, detail: str, on_site: bool) -> dict:
+        from . import video
+        if kind == "cancelled":
+            return self._video_say("stopped")
+        if kind == "no_video" and not on_site:
+            return {"no_video": True, "text": "", "model": "Not downloaded: yt-dlp found no video at this link."}
+        if kind == "too_big":
+            kind = "no_space"
+        out = self._video_say(kind if kind in VIDEO_SAY else "other", error=detail or "?")
+        lang = self.settings.lang
+        youtube = any(h in url for h in ("youtube.com", "youtu.be"))
+        need_deno = youtube and kind in ("js", "no_video", "other", "login") and not shutil.which(
+            "deno", path=video.child_path())
+        if need_deno:                                       # YouTube needs Deno now; winget's yt-dlp brings it
+            out = self._video_say("js")
+            if "winget" in self.apps.managers() and self._video_card("install", "DenoLand.Deno"):
+                out["text"] += " " + t("A card to install it is below: confirm it, then send the link again.", lang)
+            return out
+        if kind in ("no_video", "other", "gone", "login", "js"):
+            ver = video.version(exe)
+            if video.is_old(ver):                          # sites change often: an old yt-dlp fails on them
+                out["text"] += " " + t("yt-dlp here is old ({version}), and sites change often: updating it may help.",
+                                       lang, version=ver)
+                out["model"] += f" yt-dlp is old ({ver}): updating it may help."
+                links = video.links_dirs()
+                if links and any(str(exe).startswith(str(d)) for d in links) and self._video_card("upgrade",
+                                                                                                    video.WINGET_ID):
+                    out["text"] += " " + t("A card to update it is below.", lang)
+        return out
+
+    def _video_card(self, op: str, pid: str) -> bool:
+        """A card to install or update a helper program for videos (it isn't waited for); False when none came."""
+        try:
+            self.apps.propose(op, pid, "winget")
+            return True
+        except Exception:                                   # noqa: BLE001  (already installed, a card waits…)
+            return False
+
+    def _video_install(self, st: _Stream) -> str | dict:
+        """yt-dlp isn't there: the usual card to install it (winget's brings FFmpeg and Deno too), and the reply
+        waits for the user's answer. yt-dlp's path, or the reply to give instead."""
+        from . import video
+        from .workspace import WorkError
+        lang = self.settings.lang
+        have = self.apps.managers()
+        src = "winget" if "winget" in have else next((m for m in ("dnf", "apt") if m in have), "")
+        if not src:
+            return self._video_say("no_installer")
+        pid = video.WINGET_ID if src == "winget" else video.LINUX_PKG
+        if self.apps._busy(pid)[0]:                         # its card from an earlier link waits, or it installs now
+            return self._video_say("busy")
+        with st.lock:
+            st.steps.note(t("Videos need the free program yt-dlp: a card to install it", lang))
+        n = len(st.cards)
+        try:
+            self.apps.propose("install", pid, src)
+        except WorkError as e:                              # installed, but not where Lanterna looks for it
+            return self._video_say("not_seen" if "already installed" in str(e) else "other", error=str(e))
+        if len(st.cards) <= n:
+            return self._video_say("no_ytdlp")
+        state = self._card_answer(st, st.cards[-1]["id"])
+        if state != "done":
+            return self._video_say("halted" if state == "stopped" else "no_ytdlp")
+        exe = video.find()
+        if not exe:
+            return self._video_say("not_seen")
+        with st.lock:
+            st.steps.note(t("yt-dlp is installed", lang))
+        return exe
+
+    def _card_answer(self, st: _Stream, aid: str) -> str:
+        """Waits for the user's answer to a card shown in this reply: "done", "cancelled", "failed", "expired", or
+        "stopped" (Stop was pressed). The reply stays open meanwhile, with its card."""
+        from .workspace import EXPIRE
+        end = time.time() + EXPIRE
+        while time.time() < end:
+            a = self.actions.get(aid)
+            state = a.state if a else "expired"
+            if state not in ("pending", "running"):
+                return state
+            if st.stop.is_set():
+                if state == "pending":
+                    self.actions.cancel(aid)
+                return "stopped"
+            time.sleep(0.4)
+        return "expired"
+
+    def _video_progress(self, st: _Stream, p, audio: bool) -> None:
+        lang = self.settings.lang
+        title = p.title if len(p.title) <= 60 else p.title[:59].rstrip() + "…"
+        x = f"{p.done * 100 // p.total}%" if p.total else _size_in(p.done, lang) if p.done else "…"
+        key = ("Turning «{title}» into MP3" if audio else "Putting the picture and the sound of «{title}» together"
+               ) if p.part == "join" else ("Downloading the sound of «{title}»: {x}" if p.part == "audio" and not audio
+                                           else "Downloading «{title}»: {x}")
+        line = t(key, lang, title=title or "…", x=x)
+        if p.count > 1:
+            line = t("{i} of {n}", lang, i=p.index or 1, n=p.count) + " · " + line
+        with st.lock:
+            st.steps.live = line
+
+    def _video_tools(self) -> list:
+        """video_download for the model: what a bare link doesn't cover (only the sound as MP3, a whole playlist, a
+        link with words around it). Group "video": offered when the talk is about downloading or videos."""
+        from . import scam, video
+        from .tools import Tool, _obj
+
+        def run(url: str, audio: bool = False, playlist: bool = False) -> str:
+            link = video.bare_link(str(url or ""))
+            if not link:
+                return "Error: url must be one web link (http or https)."
+            why = scam.refuse(link)                     # like read_page: a link that looks like a scam isn't opened
+            if why:
+                return why
+            st = getattr(self._here, "st", None)
+            if st is None:
+                return "Error: video_download works only while answering in a chat."
+            out = self._video_get(st, self.actions.tid(), link, audio=bool(audio), playlist=bool(playlist))
+            if out.get("saved"):
+                with st.lock:
+                    st.saved += out["saved"]
+            return out["model"]
+
+        tool = Tool("video_download", "Download a video, or only its sound as MP3 (audio=true), from a web link into the "
+                    "user's Downloads folder with yt-dlp: YouTube, TikTok, Instagram, X, Facebook, Vimeo, Twitch, "
+                    "SoundCloud and over a thousand other sites, also a page with a video in it. One video, up to 1080p "
+                    "MP4. playlist=true: the whole playlist the link is in (at most 50 videos), after the user confirms "
+                    "a card with the list. The first time it may show a card to install yt-dlp. Use it when the user "
+                    "asks to download or save a video, a song or the sound of a video. The file's link appears under "
+                    "your reply by itself: never write its path or a link to it, and never send the user to download "
+                    "sites or other programs.",
+                    _obj({"url": {"type": "string"},
+                          "audio": {"type": "boolean", "description": "only the sound, as MP3"},
+                          "playlist": {"type": "boolean", "description": "the whole playlist (at most 50 videos)"}},
+                         ["url"]), run, "⬇️")
+        tool.group = "video"
+        return [tool]
+
+    def open_download(self, path: str) -> bool:
+        """The link under a reply: opens a video or sound Lanterna downloaded (its player), or a playlist's folder.
+        Only those, inside Downloads: the window can't open any path."""
+        p = self._downloaded(path)
+        if p is None:
+            return False
+        from . import pcfiles
+        if p.is_dir():
+            pcfiles._open_in_file_manager(p)
+            return True
+        if sys.platform == "win32":
+            import os
+            try:
+                os.startfile(str(p))                        # noqa: S606  (a video or sound file in Downloads)
+                return True
+            except OSError:
+                return False
+        return quiet.open_url(str(p))
+
+    def show_download(self, path: str) -> bool:
+        """«Show in folder» next to that link."""
+        p = self._downloaded(path)
+        if p is None:
+            return False
+        from . import pcfiles
+        pcfiles._open_in_file_manager(p)
+        return True
+
+    def _downloaded(self, path: str):
+        from pathlib import Path
+
+        from . import video
+        try:
+            folder = self._save_folder().resolve()
+            p = Path(str(path or "")).resolve()
+            p.relative_to(folder)
+        except (OSError, ValueError):
+            return None
+        if p == folder or not p.exists() or (p.is_file() and p.suffix.lower() not in video.MEDIA):
+            return None
+        return p
 
     def stop_answer(self, sid: str) -> bool:
         """Stop (the button or Esc): the answer ends where it is; the words written so far stay in the chat."""
@@ -2314,7 +2652,8 @@ def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False)
             "fix_sound": ("Send the sound to {name}", "The sound goes to {name}"),
             "fix_unmute": (("Turn on the microphone {name}", "Turned on the microphone {name}") if d.get("mic") else
                            ("Turn on the sound of {name}", "Turned on the sound of {name}")),
-            "fix_sound_restart": ("Restart the sound service", "Restarted the sound service")}
+            "fix_sound_restart": ("Restart the sound service", "Restarted the sound service"),
+            "video_playlist": ("Download {count} videos from «{name}»", "Downloading {count} videos from «{name}»")}
     if kind.startswith("fix_"):
         d = {**d, "place": ""}                               # its places are Lanterna's words, not the user's folders
         if kind == "fix_rename":
@@ -2411,7 +2750,24 @@ def card_text(kind: str, d: dict, lang: str) -> str:
                        else "a Word document (headings, lists and bold become real formatting)", lang))
     elif kind.startswith("fix_"):
         lines += fix_card_lines(kind, d, lang)
+    elif kind == "video_playlist":
+        lines += video_card_lines(d, lang)
     return "\n".join(x for x in lines if x)
+
+
+def video_card_lines(d: dict, lang: str) -> list[str]:
+    """A playlist's card: the videos in it, and where they go."""
+    files = [str(x) for x in d.get("files") or []]
+    lines = [f"{i}. {x}" for i, x in enumerate(files[:12], 1)] + ([f"… +{len(files) - 12}"] if len(files) > 12 else [])
+    if (d.get("total") or 0) > (d.get("count") or 0):
+        lines.append(t("Only the first {count} of {total}.", lang, count=d["count"], total=d["total"]))
+    lines.append(t(PLAYLIST_WHERE[bool(d.get("audio"))], lang))
+    return lines
+
+
+# where a playlist's card says its files go: videos (False) or only their sound (True)
+PLAYLIST_WHERE = {False: "Into a folder of its own in Downloads, up to 1080p (MP4).",
+                  True: "Into a folder of its own in Downloads, only the sound (MP3)."}
 
 
 # where a fix happens, in the user's words (fixit's place names are short words for the model)

@@ -249,6 +249,16 @@ COUNT = ("Дивлюсь, що займає диск — пораховано: {
 FACTS = (["Олена вчиться на третьому курсі", "Любить короткі відповіді без зайвих слів"] if UK
          else ["Anna is in her third year at university", "Likes short answers"])
 HOMEWORK = "домашка.pdf" if UK else "homework.pdf"
+# videos from a link: a link alone (Lanterna downloads it itself, no model), then the sound of a playlist (the model's
+# video_download); the files are made up, under the demo's own folder
+VIDEO_URL, PLAYLIST_URL = "https://youtu.be/aqz-KE-bpKQ", "https://www.youtube.com/playlist?list=PL6B3937A5D230E335"
+VIDEO_A = ("Збережено «Big Buck Bunny» у Завантаженнях (1080p, 263,2 МБ)." if UK
+           else "Saved «Big Buck Bunny» in Downloads (1080p, 263.2 MB).")
+PLAYLIST_Q = (f"Скачай увесь цей плейлист, тільки звук: {PLAYLIST_URL}" if UK
+              else f"Download this whole playlist, only the sound: {PLAYLIST_URL}")
+PLAYLIST_A = ("Готово: 12 пісень із плейлиста «Blender Open Movies» лежать в окремій папці в Завантаженнях, у форматі MP3."
+              if UK else "Done: 12 songs from the playlist «Blender Open Movies» are in a folder of their own in "
+              "Downloads, as MP3.")
 
 
 def seed(api: Api) -> dict[str, int]:
@@ -279,6 +289,17 @@ def seed(api: Api) -> dict[str, int]:
     st.add(tid, "assistant", "✅ " + ("Увімкнено темну тему" if UK else "Switched to the dark theme"), "")   # a card's note
     tid = chat("plan", "План на тиждень" if UK else "Plan for the week", [(PLAN_Q, PLAN_A, "")], 3 * HOUR)
     st.set_plan(tid, plans.dumps({"steps": [{"text": s, "done": i < 2} for i, s in enumerate(PLAN_STEPS)], "project": ""}))
+    tid, down = st.new_thread("Відео з YouTube" if UK else "A video from YouTube"), HOME / "Downloads"
+    st.add(tid, "user", VIDEO_URL)
+    st.add(tid, "assistant", VIDEO_A, "", "", sources.dumps({"saved": [            # no model: Lanterna did it itself
+        {"path": str(down / "Big Buck Bunny [aqz-KE-bpKQ].mp4"), "size": 276_000_000}]}))
+    st.add(tid, "user", PLAYLIST_Q)
+    box = sent.build(MODEL, False, 2, True, len(FACTS), [], 0,
+                     [("video_download", json.dumps({"url": PLAYLIST_URL, "audio": True, "playlist": True}))])
+    st.add(tid, "assistant", PLAYLIST_A, MODEL, sent.dumps(box), sources.dumps({"saved": [
+        {"path": str(down / "Blender Open Movies"), "folder": True, "count": 12}]}))
+    st._q("UPDATE threads SET updated=?, created=? WHERE id=?", (now - 2.5 * HOUR, now - 2.5 * HOUR, tid))
+    ids["video"] = tid
     tid = chat("sort", "Розібрати Завантаження" if UK else "Sort the Downloads", [(SORT_Q, SORT_A, "")], 1.5 * HOUR,
                tools=(("pc_list", json.dumps({"place": "downloads"})),))
     card(api, tid, "pc_sort", {"place": "downloads", "count": 174, "size": 2_468_000_000, "skipped": 1,

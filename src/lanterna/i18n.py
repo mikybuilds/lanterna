@@ -1954,6 +1954,155 @@ _T.update({
 })
 
 
+# Videos from a link (1.1.11b3, video.py)
+_T.update({
+    "This link leads to this computer or the home network: Lanterna doesn't download from there.": {
+        "uk": "Це посилання веде на цей комп'ютер або в домашню мережу: звідти Lanterna не завантажує.",
+        "it": "Questo link porta a questo computer o alla rete di casa: da lì Lanterna non scarica."},
+    "To download videos Lanterna needs the free program yt-dlp, and there is no winget, dnf or apt here to install it with. It is at https://github.com/yt-dlp/yt-dlp": {
+        "uk": "Щоб завантажувати відео, Lanterna потрібна безкоштовна програма yt-dlp, а тут немає winget, dnf чи apt, щоб її встановити. Вона тут: https://github.com/yt-dlp/yt-dlp",
+        "it": "Per scaricare i video Lanterna ha bisogno del programma gratuito yt-dlp, e qui non c'è winget, dnf o apt per installarlo. Si trova su https://github.com/yt-dlp/yt-dlp"},
+    "Without yt-dlp Lanterna can't download videos. When you want it, send the link again and confirm the card.": {
+        "uk": "Без yt-dlp Lanterna не може завантажувати відео. Коли захочеш, надішли посилання ще раз і підтверди картку.",
+        "it": "Senza yt-dlp Lanterna non può scaricare video. Quando vuoi, manda di nuovo il link e conferma la scheda."},
+    "yt-dlp is installed, but Lanterna doesn't see it yet: restart Lanterna and send the link again.": {
+        "uk": "yt-dlp встановлено, але Lanterna його ще не бачить: перезапусти Lanterna і надішли посилання ще раз.",
+        "it": "yt-dlp è installato, ma Lanterna non lo vede ancora: riavvia Lanterna e manda di nuovo il link."},
+    "The card to install yt-dlp is already there, under an earlier reply: confirm it and, when it is installed, send the link again.": {
+        "uk": "Картка для встановлення yt-dlp уже є, під однією з попередніх відповідей: підтверди її, а коли програма встановиться, надішли посилання ще раз.",
+        "it": "La scheda per installare yt-dlp c'è già, sotto una risposta precedente: confermala e, quando è installato, manda di nuovo il link."},
+    "Stopped. The unfinished parts were removed.": {
+        "uk": "Зупинено. Незавершені частини видалено.",
+        "it": "Fermato. Le parti non finite sono state eliminate."},
+    "Stopped. Nothing was downloaded.": {
+        "uk": "Зупинено. Нічого не завантажено.",
+        "it": "Fermato. Non è stato scaricato niente."},
+    "Nothing was downloaded: the card with the playlist wasn't confirmed.": {
+        "uk": "Нічого не завантажено: картку з плейлистом не підтверджено.",
+        "it": "Non è stato scaricato niente: la scheda con la playlist non è stata confermata."},
+    "This site gives the video only to people who signed in. Lanterna doesn't use your passwords or the browser's cookies, so it can't download it.": {
+        "uk": "Цей сайт віддає відео лише тим, хто увійшов в акаунт. Lanterna не користується твоїми паролями чи cookie браузера, тому не може його завантажити.",
+        "it": "Questo sito dà il video solo a chi ha fatto l'accesso. Lanterna non usa le tue password né i cookie del browser, quindi non può scaricarlo."},
+    "The site doesn't show this video in this country.": {
+        "uk": "Сайт не показує це відео в цій країні.",
+        "it": "Il sito non mostra questo video in questo paese."},
+    "The video isn't there: it was removed or it is private.": {
+        "uk": "Відео немає: його видалили або воно приватне.",
+        "it": "Il video non c'è: è stato rimosso o è privato."},
+    "The video is protected against copying (DRM): it can only be watched on the site.": {
+        "uk": "Відео захищене від копіювання (DRM): його можна дивитися лише на сайті.",
+        "it": "Il video è protetto dalla copia (DRM): si può guardare solo sul sito."},
+    "It is a live stream: it can be downloaded only after it ends.": {
+        "uk": "Це пряма трансляція: її можна завантажити лише після завершення.",
+        "it": "È una diretta: si può scaricare solo dopo che è finita."},
+    "Couldn't reach the site. Check the internet and try again.": {
+        "uk": "Не вдалося зв'язатися із сайтом. Перевір інтернет і спробуй ще раз.",
+        "it": "Impossibile raggiungere il sito. Controlla la connessione e riprova."},
+    "There isn't enough free space on the disk for this video.": {
+        "uk": "На диску замало вільного місця для цього відео.",
+        "it": "Sul disco non c'è abbastanza spazio libero per questo video."},
+    "The picture and the sound couldn't be put together: FFmpeg is missing or didn't work.": {
+        "uk": "Не вдалося з'єднати зображення і звук: FFmpeg немає або він не спрацював.",
+        "it": "Non è stato possibile unire immagine e audio: FFmpeg manca o non ha funzionato."},
+    "There is no video at this link that yt-dlp could take.": {
+        "uk": "За цим посиланням немає відео, яке yt-dlp міг би взяти.",
+        "it": "A questo link non c'è un video che yt-dlp possa prendere."},
+    "YouTube now needs one more free program, Deno (https://deno.com), and it isn't on this computer.": {
+        "uk": "YouTube тепер потребує ще однієї безкоштовної програми, Deno (https://deno.com), а її на цьому комп'ютері немає.",
+        "it": "Ora YouTube richiede un altro programma gratuito, Deno (https://deno.com), e su questo computer non c'è."},
+    "yt-dlp couldn't download it: {error}": {
+        "uk": "yt-dlp не зміг це завантажити: {error}",
+        "it": "yt-dlp non è riuscito a scaricarlo: {error}"},
+    "Looking for the video: {site}": {
+        "uk": "Шукаю відео: {site}",
+        "it": "Cerco il video: {site}"},
+    "Saved {n} files from the playlist «{title}» into a folder of their own in Downloads.": {
+        "uk": ["Збережено {n} файл із плейлиста «{title}» в окрему папку в Завантаженнях.", "Збережено {n} файли з плейлиста «{title}» в окрему папку в Завантаженнях.", "Збережено {n} файлів із плейлиста «{title}» в окрему папку в Завантаженнях."],
+        "it": ["Salvato {n} file della playlist «{title}» in una cartella a parte in Download.", "Salvati {n} file della playlist «{title}» in una cartella a parte in Download."]},
+    "Not all of them came: {error}": {
+        "uk": "Не все завантажилося: {error}",
+        "it": "Non sono arrivati tutti: {error}"},
+    "Saved «{title}» in Downloads ({what}).": {
+        "uk": "Збережено «{title}» у Завантаженнях ({what}).",
+        "it": "Salvato «{title}» in Download ({what})."},
+    "Saved «{title}» in Downloads.": {
+        "uk": "Збережено «{title}» у Завантаженнях.",
+        "it": "Salvato «{title}» in Download."},
+    "The link is a playlist of {n} videos: I saved only this one. To get them all, write “download the whole playlist” and the link.": {
+        "uk": "Це посилання на плейлист із {n} відео: збережено лише це. Щоб отримати всі, напиши «завантаж увесь плейлист» і посилання.",
+        "it": "Il link è una playlist di {n} video: ho salvato solo questo. Per averli tutti, scrivi «scarica tutta la playlist» e il link."},
+    "A card to install it is below: confirm it, then send the link again.": {
+        "uk": "Картка, щоб її встановити, нижче: підтверди її, а тоді надішли посилання ще раз.",
+        "it": "Qui sotto c'è una scheda per installarlo: confermala, poi manda di nuovo il link."},
+    "yt-dlp here is old ({version}), and sites change often: updating it may help.": {
+        "uk": "yt-dlp тут старий ({version}), а сайти часто змінюються: оновлення може допомогти.",
+        "it": "Qui yt-dlp è vecchio ({version}) e i siti cambiano spesso: aggiornarlo può aiutare."},
+    "A card to update it is below.": {
+        "uk": "Картка для оновлення нижче.",
+        "it": "Qui sotto c'è una scheda per aggiornarlo."},
+    "Videos need the free program yt-dlp: a card to install it": {
+        "uk": "Для відео потрібна безкоштовна програма yt-dlp: картка, щоб її встановити",
+        "it": "Per i video serve il programma gratuito yt-dlp: una scheda per installarlo"},
+    "yt-dlp is installed": {
+        "uk": "yt-dlp встановлено",
+        "it": "yt-dlp è installato"},
+    "Turning «{title}» into MP3": {
+        "uk": "Перетворюю «{title}» на MP3",
+        "it": "Converto «{title}» in MP3"},
+    "Putting the picture and the sound of «{title}» together": {
+        "uk": "З'єдную зображення і звук «{title}»",
+        "it": "Unisco immagine e audio di «{title}»"},
+    "Downloading the sound of «{title}»: {x}": {
+        "uk": "Завантажую звук «{title}»: {x}",
+        "it": "Scarico l'audio di «{title}»: {x}"},
+    "Downloading «{title}»: {x}": {
+        "uk": "Завантажую «{title}»: {x}",
+        "it": "Scarico «{title}»: {x}"},
+    "{i} of {n}": {
+        "uk": "{i} з {n}",
+        "it": "{i} di {n}"},
+    "Download {count} videos from «{name}»": {
+        "uk": "Завантажити {count} відео з «{name}»",
+        "it": "Scaricare {count} video da «{name}»"},
+    "Downloading {count} videos from «{name}»": {
+        "uk": "Завантажую {count} відео з «{name}»",
+        "it": "Scarico {count} video da «{name}»"},
+    "Only the first {count} of {total}.": {
+        "uk": "Лише перші {count} із {total}.",
+        "it": "Solo i primi {count} su {total}."},
+    "Into a folder of its own in Downloads, up to 1080p (MP4).": {
+        "uk": "В окрему папку в Завантаженнях, до 1080p (MP4).",
+        "it": "In una cartella a parte in Download, fino a 1080p (MP4)."},
+    "Into a folder of its own in Downloads, only the sound (MP3).": {
+        "uk": "В окрему папку в Завантаженнях, лише звук (MP3).",
+        "it": "In una cartella a parte in Download, solo l'audio (MP3)."},
+    "Files: {n}": {
+        "uk": "Файлів: {n}",
+        "it": "File: {n}"},
+    "B": {"uk": "Б", "it": "B"},
+    "KB": {"uk": "КБ", "it": "KB"},
+    "MB": {"uk": "МБ", "it": "MB"},
+    "TB": {"uk": "ТБ", "it": "TB"},
+    "Saved:": {
+        "uk": "Збережено:",
+        "it": "Salvato:"},
+    "Downloading from {x}": {
+        "uk": "Завантажую з {x}",
+        "it": "Scarico da {x}"},
+    "the sound": {
+        "uk": "звук",
+        "it": "l'audio"},
+    "the internet": {
+        "uk": "інтернет",
+        "it": "internet"},
+    "the printer": {
+        "uk": "принтер",
+        "it": "la stampante"},
+    "the updates": {
+        "uk": "оновлення",
+        "it": "gli aggiornamenti"},
+})
+
 # English forms of the strings with a count: [one, other], the key is the other (i18n.t picks one)
 _EN: dict[str, list[str]] = {
     "Sort {count} files in {place}": ["Sort {count} file in {place}", "Sort {count} files in {place}"],
@@ -1988,4 +2137,5 @@ _EN: dict[str, list[str]] = {
     "{n} memory facts": ["{n} memory fact", "{n} memory facts"],
     "{n} reminders": ["{n} reminder", "{n} reminders"],
     "{n} regular tasks": ["{n} regular task", "{n} regular tasks"],
+    "Saved {n} files from the playlist «{title}» into a folder of their own in Downloads.": ["Saved {n} file from the playlist «{title}» into a folder of its own in Downloads.", "Saved {n} files from the playlist «{title}» into a folder of their own in Downloads."],
 }

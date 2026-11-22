@@ -3320,8 +3320,20 @@ class _ChatScreen(Screen):
 
 def sources_box(src: dict, lang: str) -> list:
     """Under a reply: the pages its tools really opened (whole links: terminals open them), and, folded, the search
-    results it saw. Never links the model wrote itself."""
+    results it saw. Never links the model wrote itself. First what Lanterna saved for the reply (a downloaded video):
+    its name is a file:// link the terminal opens, its whole path under it."""
     out: list = []
+    if src.get("saved"):
+        from pathlib import Path
+
+        from rich.text import Text
+        body = Text(t("Saved:", lang))
+        for f in src["saved"]:
+            p = Path(f["path"])
+            body.append("\n• ")
+            body.append(f["label"], style=f"link {p.as_uri()}" if p.is_absolute() else "")
+            body.append("\n  " + f["path"])
+        out.append(Static(body, classes="srcs"))
     if src.get("read"):
         out.append(Static(t("Sources:", lang) + "\n" + "\n".join(f"• {s['label']}\n  {s['url']}" for s in src["read"]),
                           markup=False, classes="muted srcs"))         # the address on its own line: one click opens it

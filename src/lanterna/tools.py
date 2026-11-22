@@ -442,6 +442,11 @@ GROUPS = {
                       r"вылета|зависает|ошибк", re.I),
     # a task plan of this chat that isn't finished (chat.Conversation._context): the plan tool stays on
     "plan": re.compile(r"\(task plan\)"),
+    # a video, a song or its sound from a link (video.py; a link alone is downloaded without the model)
+    "video": re.compile(r"скача|скачу|завантаж|збереж|download|save|scaric|salva|herunterlad|speicher|descarg|guard|"
+                        r"télécharg|telecharg|enregistr|pobier|zapisz|сохрани|mp3|mp4|плейлист|playlist|відео|video|"
+                        r"ролик|кліп|clip|музик|music|пісн|song|youtube|ютуб|youtu\.be|tiktok|тікток|instagram|"
+                        r"інстаграм|reels?\b|shorts\b|vimeo|twitch|soundcloud", re.I),
     # making things: games, little programs, game mods, websites (projects.py) and the task list (plans.py)
     "make": re.compile(r"\bгр(а|и|у|ою|і)\b|\bігр|міні-?гр|\bмод(и|у|а|ом|ів|ами)?\b|модик|аддон|датапак|плагін|"
                        r"ресурс-?пак|текстур-?пак|скрипт|програмк|міні-?програм|веб-?сторінк|лендінг|"

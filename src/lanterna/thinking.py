@@ -86,7 +86,10 @@ TOOL_TEXT = {
     "fix_verify": ("Preparing Steam's file check: {x}", "program"),
     "fix_windows": ("Preparing a fix in Windows", ""),
     "fix_system": ("Preparing a fix in the system", ""),
+    "video_download": ("Downloading from {x}", "url"),
 }
+# fix_check's areas are English words for the model ("updates"): the line says them in the user's language
+AREA_WORDS = {"sound": "the sound", "internet": "the internet", "printer": "the printer", "updates": "the updates"}
 CYRILLIC = re.compile(r"[Ѐ-ӿ]")
 CYRILLIC_LANGS = ("uk", "ru", "be", "bg", "sr", "mk")
 
@@ -115,6 +118,8 @@ def tool_step(name: str, arguments: str, lang: str = "en", why: bool = True) -> 
     x = args.get(key, "") if key else name
     if key == "url":
         x = urlparse(str(x)).netloc or x
+    elif name == "fix_check" and str(x).strip().lower() in AREA_WORDS:
+        x = t(AREA_WORDS[str(x).strip().lower()], lang)
     x = _short(x or "")
     if "{x}" in text and not x:                   # no argument: say it without the colon / name
         text = text.replace(": {x}", "").replace(" {x}", "")

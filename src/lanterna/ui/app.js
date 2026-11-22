@@ -813,11 +813,17 @@ async function boot() {
 
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-href]");
-  if (a) { e.preventDefault(); api.open_url(a.dataset.href); }
+  if (a) { e.preventDefault(); api.open_url(a.dataset.href); return; }
+  const f = e.target.closest("a[data-file]");                 // a file Lanterna saved for a reply (savedBox)
+  if (f) { e.preventDefault(); api.open_download(f.dataset.file); return; }
+  const s = e.target.closest("button[data-show]");
+  if (s) { e.preventDefault(); api.show_download(s.dataset.show); }
 });
 document.addEventListener("keydown", e => {                  // Enter on a link reached with Tab
   const a = e.key === "Enter" && !e.isComposing && e.target.closest && e.target.closest("a[data-href]");
   if (a) { e.preventDefault(); api.open_url(a.dataset.href); }
+  const f = e.key === "Enter" && !e.isComposing && e.target.closest && e.target.closest("a[data-file]");
+  if (f) { e.preventDefault(); api.open_download(f.dataset.file); }      // a file Lanterna saved for a reply
 });
 
 // "Copied" for a moment on a copy button (a tick instead of the icon)
@@ -982,6 +988,14 @@ const TIER_TEXT = {
 const gb = x => `${(Math.round((x || 0) * 10) / 10).toLocaleString(LANG)} ${t("GB")}`;
 let pullTimer = null;
 
+// a saved file's size as its reply writes it (pcfiles.size_text: 1024-based, one decimal): 263,2 МБ · 512 Б
+function fileSize(n) {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  for (n = Math.max(0, +n || 0); n >= 1024 && i < units.length - 1; i++) n /= 1024;
+  return (i ? n.toLocaleString(LANG, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })
+    : String(Math.round(n))) + " " + t(units[i]);
+}
 // a size in bytes as people read it: 2,3 GB · 48 MB · 12 KB (GB as Lanterna's tools count them: 1024³)
 function bytes(n) {
   n = Math.max(0, +n || 0);
@@ -1841,15 +1855,23 @@ function sentBox(lines) {
     <ul>${lines.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>`;
 }
 
+// what Lanterna saved for this reply (a video from a link): its name opens it (its player; a playlist: its folder),
+// «Show in folder» beside it. The backend opens only video and sound files inside Downloads, not any path.
+function savedBox(src) {
+  const saved = (src && src.saved) || [];
+  if (!saved.length) return "";
+  return `<div class="saved">${saved.map(f => `<div class="saved-f"><a class="link" data-file="${esc(f.path)}" title="${esc(f.path)}" role="link" tabindex="0">${icon(f.folder ? "folder" : fileIcon(f.label))}<span>${esc(f.label)}</span></a>${f.size ? `<span class="saved-n">${esc(fileSize(f.size))}</span>` : f.count ? `<span class="saved-n">${esc(t("Files: {n}", { n: f.count }))}</span>` : ""}<button class="btn ghost small" data-show="${esc(f.path)}">${icon("folder")}${esc(t("Show in folder"))}</button></div>`).join("")}</div>`;
+}
+
 // «Sources» under a reply: only the pages its tools really opened (and, folded, the search results it saw),
 // never links the model wrote itself. The label is short; the whole address shows on hover before a click.
 function sourcesBox(src) {
   const read = (src && src.read) || [], found = (src && src.found) || [];
-  if (!read.length && !found.length) return "";
+  if (!read.length && !found.length) return savedBox(src);
   const link = s => s.url.startsWith("https://")
     ? `<a class="link" data-href="${esc(s.url)}" title="${esc(s.url)}">${esc(s.label)}</a>`
     : `<span title="${esc(s.url)}">${esc(s.label)}</span>`;          // the browser opens https links only
-  return `<div class="srcs">${read.length ? `<div class="srcs-r"><span class="srcs-h" title="${esc(t("Only pages Lanterna really opened for this answer, not links the model wrote itself"))}">${esc(t("Sources:"))}</span>${read.map(link).join("")}</div>` : ""}${found.length ? `<details class="srcs-s"><summary>${icon("search")} ${esc(t("Search results: {n}", { n: found.length }))}</summary>
+  return `${savedBox(src)}<div class="srcs">${read.length ? `<div class="srcs-r"><span class="srcs-h" title="${esc(t("Only pages Lanterna really opened for this answer, not links the model wrote itself"))}">${esc(t("Sources:"))}</span>${read.map(link).join("")}</div>` : ""}${found.length ? `<details class="srcs-s"><summary>${icon("search")} ${esc(t("Search results: {n}", { n: found.length }))}</summary>
     <ol>${found.map(s => `<li>${link(s)} <span class="srcs-site">${esc(s.site)}</span></li>`).join("")}</ol></details>` : ""}</div>`;
 }
 
@@ -3461,7 +3483,8 @@ const ACT_KEYS = { write_new: "Create {path}", write_replace: "Rewrite {path}", 
   fix_rename: "Rename {path} → {to} in {name}", fix_setting: "Change {key} in {name}", fix_aside: "Turn off mods of {name} ({count})",
   fix_verify: "Check the files of {name} in Steam", fix_dns: "Clear the DNS cache", fix_proxy: "Turn off the proxy",
   fix_printer: "Make {name} the default printer", fix_queue: "Clear the print queue of {name}",
-  fix_sound: "Send the sound to {name}", fix_unmute: "Turn on the sound of {name}", fix_sound_restart: "Restart the sound service" };
+  fix_sound: "Send the sound to {name}", fix_unmute: "Turn on the sound of {name}", fix_sound_restart: "Restart the sound service",
+  video_playlist: "Download {count} videos from «{name}»" };
 const placeName = p => p ? t(p.charAt(0).toUpperCase() + p.slice(1)) : "";
 function actKey(c) {
   const d = c.details || {};
@@ -3473,7 +3496,7 @@ function actKey(c) {
   return ACT_KEYS[c.kind] || "Change";
 }
 const cardIcon = k => k === "auto_on" ? "auto" : k === "sys_look" ? "palette" : k === "model_remove" || k === "game_remove" ? "trash" : k === "space_on" ? "chart" : k === "mcp_call" ? "puzzle" : k.startsWith("mail_") ? "mail" : k.startsWith("github_") ? "branch" : k.startsWith("drive_") ? "cloud" : k === "pc_trash" ? "trash" :
-  k === "fix_cache" ? "trash" : k.startsWith("fix_") ? "wrench" : k.startsWith("pc_") ? "folder" : k.startsWith("app_") ? "package" : k.startsWith("sys_") ? "gear" : "file";
+  k === "fix_cache" ? "trash" : k.startsWith("fix_") ? "wrench" : k === "video_playlist" ? "film" : k.startsWith("pc_") ? "folder" : k.startsWith("app_") ? "package" : k.startsWith("sys_") ? "gear" : "file";
 
 // a fix card (fixit): why, where, what changes and what Undo does; the same as fix_card_lines in app.py
 const FIX_PLACES = { install: "The program's folder", local: "Its folder in AppData\\Local", roaming: "Its folder in AppData\\Roaming",
@@ -3588,6 +3611,10 @@ function actCard(c) {
     if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
   } else if (fix) {
     extra = fixExtra(c.kind, d);
+  } else if (c.kind === "video_playlist") {         // the videos of the playlist, and where they go
+    const more = (d.total || 0) > (d.count || 0) ? t("Only the first {count} of {total}.", { count: d.count, total: d.total }) + " " : "";
+    const where = d.audio ? "Into a folder of its own in Downloads, only the sound (MP3)." : "Into a folder of its own in Downloads, up to 1080p (MP4).";
+    extra = `${fileList(d.files || [], d.count || 0, d.audio ? "music" : "film")}<div class="cc-meta">${esc(more + t(where))}</div>`;
   } else if (c.kind.startsWith("drive_")) {
     if (d.folder !== undefined) meta.push(d.folder ? t("Folder in Google Drive: {f}", { f: d.folder }) : t("Folder in Google Drive: My Drive"));
     if (c.kind === "drive_text") meta.push(d.doc ? t("as a Google Doc") : t("as a text file"));
