@@ -110,6 +110,8 @@ VIDEO_SAY = {
     "ffmpeg": "The picture and the sound couldn't be put together: FFmpeg is missing or didn't work.",
     "no_video": "There is no video at this link that yt-dlp could take.",
     "js": "YouTube now needs one more free program, Deno (https://deno.com), and it isn't on this computer.",
+    "parts": "The yt-dlp on this computer lacks a part that this site needs (curl_cffi), so it couldn't download "
+             "the video.",
     "other": "yt-dlp couldn't download it: {error}",
 }
 
@@ -1957,15 +1959,19 @@ class Api:
             if "winget" in self.apps.managers() and self._video_card("install", "DenoLand.Deno"):
                 out["text"] += " " + t("A card to install it is below: confirm it, then send the link again.", lang)
             return out
-        if kind in ("no_video", "other", "gone", "login", "js"):
+        if kind == "parts" and not video.from_winget(exe):  # pip's bare yt-dlp: winget's full one has that part
+            if "winget" in self.apps.managers() and self._video_card("install", video.WINGET_ID):
+                out["text"] += " " + t("A card to install the full yt-dlp is below: confirm it, then send the link "
+                                       "again.", lang)
+                out["model"] += " A card to install the full yt-dlp is under the reply."
+            return out
+        if kind in ("no_video", "other", "gone", "login", "js", "parts"):
             ver = video.version(exe)
             if video.is_old(ver):                          # sites change often: an old yt-dlp fails on them
                 out["text"] += " " + t("yt-dlp here is old ({version}), and sites change often: updating it may help.",
                                        lang, version=ver)
                 out["model"] += f" yt-dlp is old ({ver}): updating it may help."
-                links = video.links_dirs()
-                if links and any(str(exe).startswith(str(d)) for d in links) and self._video_card("upgrade",
-                                                                                                    video.WINGET_ID):
+                if video.from_winget(exe) and self._video_card("upgrade", video.WINGET_ID):
                     out["text"] += " " + t("A card to update it is below.", lang)
         return out
 

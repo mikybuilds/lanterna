@@ -2034,6 +2034,12 @@ _T.update({
     "A card to install it is below: confirm it, then send the link again.": {
         "uk": "Картка, щоб її встановити, нижче: підтверди її, а тоді надішли посилання ще раз.",
         "it": "Qui sotto c'è una scheda per installarlo: confermala, poi manda di nuovo il link."},
+    "The yt-dlp on this computer lacks a part that this site needs (curl_cffi), so it couldn't download the video.": {
+        "uk": "У yt-dlp на цьому комп'ютері бракує частини, яка потрібна цьому сайту (curl_cffi), тому відео не завантажилось.",
+        "it": "Su questo computer yt-dlp non ha una parte che serve a questo sito (curl_cffi), quindi il video non è stato scaricato."},
+    "A card to install the full yt-dlp is below: confirm it, then send the link again.": {
+        "uk": "Картка, щоб встановити повний yt-dlp, нижче: підтверди її, а тоді надішли посилання ще раз.",
+        "it": "Qui sotto c'è una scheda per installare yt-dlp completo: confermala, poi manda di nuovo il link."},
     "yt-dlp here is old ({version}), and sites change often: updating it may help.": {
         "uk": "yt-dlp тут старий ({version}), а сайти часто змінюються: оновлення може допомогти.",
         "it": "Qui yt-dlp è vecchio ({version}) e i siti cambiano spesso: aggiornarlo può aiutare."},

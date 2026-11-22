@@ -47,6 +47,8 @@ _VERSION = re.compile(r"^(\d{4})\.(\d{2})\.(\d{2})")
 ERRORS = (
     ("live", re.compile(r"live event will begin|is_live|is a live|premieres in|upcoming live", re.I)),
     ("drm", re.compile(r"\bDRM\b", re.I)),
+    # a yt-dlp without its optional parts (pip's bare one): the site wants it to look like a browser (curl_cffi)
+    ("parts", re.compile(r"impersonat|curl[_-]?cffi", re.I)),
     ("js", re.compile(r"javascript runtime|js runtime|n challenge|nsig|signature solving|\bjsc\b", re.I)),
     # before "login": YouTube's "Private video. Sign in if you've been granted access", "…the account associated
     # with this video has been terminated"
@@ -127,6 +129,11 @@ def links_dirs(env: dict | None = None) -> list[Path]:
         if base:
             out.append(Path(base, *sub))
     return out
+
+
+def from_winget(exe: str, env: dict | None = None) -> bool:
+    """yt-dlp is winget's: the full build (curl_cffi and YouTube's solver inside, FFmpeg and Deno beside it)."""
+    return any(str(exe).lower().startswith(str(d).lower()) for d in links_dirs(env))
 
 
 def child_path(env: dict | None = None) -> str:

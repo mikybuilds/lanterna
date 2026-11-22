@@ -468,6 +468,51 @@ def test_youtube_without_deno_offers_deno(tmp_path, monkeypatch):
                           "посилання ще раз.")
 
 
+IMPERSONATE = ("The extractor is attempting impersonation, but none of these impersonate targets are available: "
+               "firefox. See  https://github.com/yt-dlp/yt-dlp#impersonation  for information on installing the "
+               "required dependencies")
+PARTS_UK = ("У yt-dlp на цьому комп'ютері бракує частини, яка потрібна цьому сайту (curl_cffi), тому відео не "
+            "завантажилось.")
+
+
+def test_a_yt_dlp_without_its_parts_is_told_apart():
+    assert video.kind_of(IMPERSONATE) == "parts"      # pip's bare yt-dlp on Dailymotion (seen on a real PC)
+    assert video.kind_of("ImportError: curl_cffi is not installed") == "parts"
+
+
+def test_a_bare_yt_dlp_offers_the_full_one_from_winget(tmp_path, monkeypatch):
+    api, _ = _video_api(tmp_path, monkeypatch, exe="C:/Python/Scripts/yt-dlp.exe")      # pip's, not winget's
+    monkeypatch.setattr(video, "Job", _job_class(Result(error="parts", detail=IMPERSONATE)))
+    monkeypatch.setattr(video, "links_dirs", lambda env=None: [tmp_path / "Links"])
+    monkeypatch.setattr(api.apps, "managers", lambda: ["winget"])
+    cards = []
+    monkeypatch.setattr(api.apps, "propose", lambda op, pid, source="", parts=None: cards.append((op, pid, source)))
+    p, _ = _until_done(api, api.send(api.new_thread()["id"], "https://www.dailymotion.com/video/x5kesuj")["stream"])
+    assert cards == [("install", "yt-dlp.yt-dlp", "winget")]
+    assert p["final"] == PARTS_UK + (" Картка, щоб встановити повний yt-dlp, нижче: підтверди її, а тоді надішли "
+                                      "посилання ще раз.")
+    assert "impersonat" not in p["final"]              # never yt-dlp's own English
+
+
+def test_winget_s_own_yt_dlp_is_not_offered_again(tmp_path, monkeypatch):
+    links = tmp_path / "Links"
+    api, _ = _video_api(tmp_path, monkeypatch, exe=str(links / "yt-dlp.exe"))
+    monkeypatch.setattr(video, "Job", _job_class(Result(error="parts", detail=IMPERSONATE)))
+    monkeypatch.setattr(video, "links_dirs", lambda env=None: [links])
+    monkeypatch.setattr(video, "is_old", lambda *a, **k: False)
+    monkeypatch.setattr(api.apps, "managers", lambda: ["winget"])
+    cards = []
+    monkeypatch.setattr(api.apps, "propose", lambda *a, **k: cards.append(a))
+    p, _ = _until_done(api, api.send(api.new_thread()["id"], "https://www.dailymotion.com/video/x5kesuj")["stream"])
+    assert cards == [] and p["final"] == PARTS_UK
+    assert video.from_winget(str(links / "yt-dlp.exe").upper()) and not video.from_winget("C:/Python/yt-dlp.exe")
+
+
+def test_no_second_opinion_under_a_reply_no_model_wrote():
+    # a video saved from a link has no model's name under it: another model would only get the bare link
+    assert 'if (bots.length < 3 && bot.querySelector(".meta")) {' in JS
+
+
 def test_an_old_yt_dlp_is_offered_an_update(tmp_path, monkeypatch):
     links = tmp_path / "Links"
     api, _ = _video_api(tmp_path, monkeypatch, exe=str(links / "yt-dlp.exe"))
@@ -637,6 +682,7 @@ def test_every_video_string_is_translated():
            "Saved {n} files from the playlist «{title}» into a folder of their own in Downloads.",
            "The link is a playlist of {n} videos: I saved only this one. To get them all, write “download the whole "
            "playlist” and the link.", "A card to install it is below: confirm it, then send the link again.",
+           "A card to install the full yt-dlp is below: confirm it, then send the link again.",
            "yt-dlp here is old ({version}), and sites change often: updating it may help.",
            "Turning «{title}» into MP3", "Putting the picture and the sound of «{title}» together",
            "Downloading the sound of «{title}»: {x}", "Downloading «{title}»: {x}", "{i} of {n}",

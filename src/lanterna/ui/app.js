@@ -1782,7 +1782,7 @@ function paintLastActions() {
   const again = h(`<button class="btn ghost small last-act">${icon("refresh")} ${esc(t("Retry"))}</button>`);
   again.onclick = () => { if (busy) return; bots.forEach(b => b.remove()); clearLastActions(); send({ retry: true, text: "", files: [], again: true }); };
   bot.querySelector(".body").append(again);
-  if (bots.length < 3) {
+  if (bots.length < 3 && bot.querySelector(".meta")) {          // a model wrote it (a video saved from a link: none)
     const two = h(`<button class="btn ghost small last-act" title="${esc(t("The same question to another model, to compare. The first answer stays."))}">${icon("users")} ${esc(t("Second opinion"))}</button>`);
     two.onclick = () => { if (busy) return; clearLastActions(); send({ retry: true, text: "", files: [], second: true }); };
     bot.querySelector(".body").append(two);
