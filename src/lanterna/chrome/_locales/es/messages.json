@@ -1,0 +1,47 @@
+{
+ "name": {
+  "message": "Lanterna"
+ },
+ "description": {
+  "message": "Lanterna, el asistente gratuito de tu ordenador, lee páginas y trabaja en tu navegador: hace clic, escribe y rellena formularios."
+ },
+ "open": {
+  "message": "Abrir Lanterna"
+ },
+ "ask_page": {
+  "message": "Preguntar a Lanterna sobre esta página"
+ },
+ "ask_selection": {
+  "message": "Preguntar a Lanterna sobre «%s»"
+ },
+ "ask_link": {
+  "message": "Preguntar a Lanterna sobre este enlace"
+ },
+ "off_title": {
+  "message": "Lanterna no está abierta"
+ },
+ "off_text": {
+  "message": "Abre Lanterna en este ordenador: el panel se conecta solo. Los chats, los modelos y cada decisión se quedan en Lanterna; la extensión solo hace en el navegador lo que Lanterna pide."
+ },
+ "retry": {
+  "message": "Reintentar"
+ },
+ "reset_title": {
+  "message": "¿Conectar con esta Lanterna?"
+ },
+ "reset_text": {
+  "message": "La Lanterna de este ordenador no es la que estaba conectada a la extensión: se instaló de nuevo o es otra copia. Conecta solo si la abriste tú."
+ },
+ "connect": {
+  "message": "Conectar"
+ },
+ "what": {
+  "message": "¿Qué es Lanterna?"
+ },
+ "pair_title": {
+  "message": "Conectar este Chrome"
+ },
+ "pair_text": {
+  "message": "Lanterna está conectada a otra copia de esta extensión. En Lanterna, abre Ajustes → Chrome y pulsa «Conectar Chrome»: después este panel se conecta solo."
+ }
+}

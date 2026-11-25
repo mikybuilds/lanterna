@@ -82,10 +82,17 @@ class _Stream:
         self.redo = False                  # the words so far were withdrawn: the next poll sends the whole text again
         self.weak = ""                     # a weaker model makes changes on the computer: its name, said once
         self.counted = ("", 0.0)           # pc_disk's count so far for the "what I'm doing" line, and when it was read
+        self.tid = 0                       # the chat it answers in
+        self.panel = False                 # asked from Chrome's side panel: the browser tools are on offer
+        self.browser = False               # its tools worked in Chrome (Stop on the page stops it)
         self.lock = threading.Lock()
 
 
 COUNTED = "counted so far: {s}, files: {n}"
+
+# what the extension shows on a page while Lanterna works there (in the user's language, see Api._browser_hello)
+BROWSER_WORDS = {"working": "Lanterna is working in this tab", "stop": "Stop",
+                 "recording": "Lanterna is recording your steps", "stop_recording": "Stop recording"}
 
 # Replies about a download from a link that didn't happen (App._video_say), by what went wrong
 VIDEO_SAY = {
@@ -181,12 +188,28 @@ class Api:
         from . import projects
         self.projects = projects.Projects()                   # Documents/Lanterna projects (games, programs, mods)
         self._here = threading.local()                        # the answer this thread is writing (its task plan)
+        from pathlib import Path
+
+        from . import browser
+        self.actions.mode = lambda: self._mode("pc")         # Settings: ask first, semi-automatic or automatic
+        self.browser = browser.Bridge(ui_dir=Path(__file__).with_name("ui"), api=self)
+        self.browser.hello = self._browser_hello
+        self.browser.on_event = self._browser_event
+        self._browser_list = browser.make_tools(browser.Tools(
+            self.browser, mode=lambda: self._mode("browser"), site_ok=self._site_ok, never_site=self._site_never,
+            ask=self._browser_ask, can_see=self._can_see, limit=lambda: self.toolbox.page_limit,
+            focus=lambda: self.toolbox.focus, allowed_file=self._upload_ok))
+        self._browser_wanted = False                          # the window app listens for the extension (not tests)
+        self._ext_reloaded = ""                               # the extension was told to load its newer files
+        self._recording = False                               # the user's steps in Chrome are being recorded
+        self._dl_allowed = 0.0                                # when a click that downloads a file was allowed
+        self._recorded: dict | None = None                    # …and what came of them: a shortcut to save
         make = self._make_tools()
         self.toolbox = Toolbox(self.store, lang=lambda: self.settings.lang,
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
                                + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools()
                                + mailbox.mail_tools(self.mail, self.actions) + [self._connector_tool()] + self.mcp.tools()
-                               + make)
+                               + self._browser_tools() + make)
         self.actions.on_auto = self._auto_run                 # "do it on your own" in a chat (see _auto_tools)
         self.toolbox.after = self._auto_said
         self._router: Router | None = None
@@ -257,7 +280,7 @@ class Api:
 
     _BOOLS = {"onboarded", "auto_cloud", "update_check", "warn_private", "sync_asked", "pc_access", "tidy_weekly", "space_help",
               "local_fallback", "ai_titles", "follow_ups", "compact_chats", "ask_first", "auto_memory", "tray", "tray_told",
-              "hotkey_moved", "copied_text", "morning", "tts_auto", "remind_closed"}
+              "hotkey_moved", "copied_text", "morning", "tts_auto", "remind_closed", "modes_linked", "browser_on"}
 
     def save_settings(self, patch: dict) -> dict:
         from . import shell
@@ -290,6 +313,7 @@ class Api:
                 setattr(self.settings, k, bool(v) if k in self._BOOLS else v.strip()[:40] if isinstance(v, str) else v)
         if "hotkey" in patch and self._desk and self._desk.shell:
             self._desk.shell.set_hotkey(self.settings.hotkey)
+        self._save_modes(patch)
         if {"lang", "name"} & set(patch or {}):
             self.settings.profile_at = time.time()
         if set(SYNC_PREFS) & set(patch or {}):
@@ -345,6 +369,24 @@ class Api:
             self._router = None
         return self.state()
 
+    def _save_modes(self, patch: dict) -> None:
+        """How much Lanterna asks first: one mode for the computer and Chrome while they are linked."""
+        from .workspace import PC_MODES
+        s = self.settings
+        for k in ("pc_mode", "browser_mode"):
+            if patch.get(k) in PC_MODES:
+                setattr(s, k, patch[k])
+        if s.modes_linked and {"pc_mode", "browser_mode", "modes_linked"} & set(patch):
+            one = patch.get("browser_mode") if patch.get("browser_mode") in PC_MODES and "pc_mode" not in patch else s.pc_mode
+            s.pc_mode = s.browser_mode = one if one in PC_MODES else "semi"
+        if "browser_on" in patch and self._browser_wanted:
+            if s.browser_on:
+                self.browser.start()
+            else:
+                self.browser.stop()
+        if {"pc_mode", "browser_mode", "modes_linked", "lang"} & set(patch):
+            self.browser.tell(self._browser_hello())
+
     def _pc_tools(self) -> list:
         if not self.settings.pc_access:
             return []
@@ -372,6 +414,240 @@ class Api:
                 tl.group = group
             out += tools
         return out
+
+    # ---------------------------------------------------------------- Chrome: Lanterna's extension (browser.py)
+    def _mode(self, where: str = "pc") -> str:
+        """How much Lanterna asks first on this computer ("pc") or in Chrome ("browser"): ask, semi or full."""
+        from .workspace import PC_MODES
+        s = self.settings
+        m = s.browser_mode if where == "browser" and not s.modes_linked else s.pc_mode
+        return m if m in PC_MODES else "semi"
+
+    def _browser_tools(self) -> list:
+        return self._browser_list if self.settings.browser_on and self.browser.connected else []
+
+    def start_browser(self) -> bool:
+        """Listens for Lanterna's Chrome extension (the window app and the dev server, not the tests)."""
+        from . import browser
+        self._browser_wanted = True
+        try:
+            browser.install_copy()                          # the folder Chrome loads the extension from
+        except OSError:
+            pass
+        return self.browser.start() if self.settings.browser_on else False
+
+    def _browser_hello(self) -> dict:
+        lang = self.settings.lang
+        return {"lang": lang, "mode": self._mode("browser"),
+                "words": {k: t(v, lang) for k, v in BROWSER_WORDS.items()}}
+
+    def _browser_event(self, m: dict) -> None:
+        what = m.get("what")
+        if what == "stop":                                  # Stop on the page, or the debugger bar was closed
+            for st in list(self._streams.values()):
+                if st.browser and not st.done:
+                    st.stop.set()
+        elif what == "connected":
+            self._browser_connected()
+        elif what == "download":
+            self._browser_download(m.get("item") or {})
+        elif what == "record_stop":
+            self.browser_record_stop()
+
+    def _browser_connected(self) -> None:
+        """An extension older than this Lanterna loads its new files (copied into Lanterna's folder), once."""
+        from . import browser
+        link = self.browser.link
+        have, want = (link.info.get("v", "") if link else ""), browser.manifest_version()
+        if have and want and have != want and self._ext_reloaded != want:
+            self._ext_reloaded = want
+            try:
+                browser.install_copy()
+                self.browser.call("reload_extension", timeout=5)
+            except (OSError, browser.BrowserError):
+                pass
+
+    def _browser_quiet(self, cmd: str, **args) -> None:
+        from . import browser
+        try:
+            self.browser.call(cmd, timeout=10, **args)
+        except browser.BrowserError:
+            pass
+
+    def _browser_ask(self, d: dict) -> str:
+        """A card before an action in Chrome; the tool waits for the answer: "allow", "site" (that site is allowed
+        from now on), "no", "stopped", or "unattended" (nobody can answer now: a scheduled task)."""
+        st = getattr(self._here, "st", None)
+        if st is None or not self.actions.tid():
+            return "unattended"
+        a = self.actions.propose("browser_act", dict(d), lambda: "ok")
+        a.noted = True                                      # the tool's answer tells the model; no line in the chat
+        a.logged = d.get("reason") in ("", "risky_site")    # important ones go into What Lanterna did
+        state = self._card_answer(st, a.id)
+        if state == "done":
+            if d.get("reason") == "download":
+                self._dl_allowed = time.time()              # the file this click starts needs no second card
+            return "site" if a.details.get("chosen") == "site" else "allow"
+        return "stopped" if state == "stopped" else "no"
+
+    def _browser_download(self, item: dict) -> None:
+        """A download that started right after Lanterna's action waits (paused in Chrome) for the user's OK, unless
+        the user just allowed the click that starts it (a card that said it downloads a file): one card, not two."""
+        from pathlib import Path
+
+        from . import browser
+        st = next((x for x in list(self._streams.values()) if x.browser and not x.done and x.tid), None)
+        allowed, self._dl_allowed = time.time() - self._dl_allowed < 60, 0.0
+        if st is None or allowed or self._mode("browser") == "full":   # (no answer now: its click was checked)
+            self._browser_quiet("download", id=item.get("id"), allow=True)
+            return
+        url = str(item.get("url") or "")
+        self.actions.bind(st.cards, st.tid)
+        try:
+            a = self.actions.propose("browser_act", {
+                "action": "download", "site": browser.site_of(url), "reason": "download", "url": url[:500],
+                "file": Path(str(item.get("name") or "")).name or browser.site_of(url), "size": item.get("size") or 0,
+                "mode": self._mode("browser")}, lambda: "ok")
+        finally:
+            self.actions.bind(None)
+        a.noted = True
+        state = self._card_answer(st, a.id)
+        self._browser_quiet("download", id=item.get("id"), allow=state == "done")
+
+    def action_confirm_site(self, aid: str) -> dict:
+        """«Allow on this site» on a Chrome card: ordinary actions there need no card from now on."""
+        a = self.actions.get(str(aid))
+        if a and a.kind == "browser_act" and a.state == "pending" and a.details.get("site_ok") and a.details.get("site"):
+            self.browser_site(a.details["site"], "allow")
+            a.details["chosen"] = "site"
+        return self.action_confirm(aid)
+
+    def browser_site(self, site: str, rule: str) -> dict:
+        """Settings → Chrome: a site allowed ("allow": no cards for ordinary actions while Lanterna asks first),
+        never touched ("never"), or neither ("")."""
+        from . import browser
+        site = browser.clean_site(site)
+        if not site:
+            return {"ok": False, "error": "site"}
+        sites = {k: v for k, v in self.settings.browser_sites.items() if k != site}
+        never = [x for x in self.settings.browser_never if x != site]
+        if rule == "allow":
+            sites[site] = "allow"
+        elif rule == "never":
+            never.append(site)
+        self.settings.browser_sites, self.settings.browser_never = dict(list(sites.items())[-300:]), never[-300:]
+        self.settings.save()
+        return {"ok": True, **self.browser_status()}
+
+    def _site_ok(self, site: str) -> bool:
+        from . import browser
+        return browser.clean_site(site) in self.settings.browser_sites
+
+    def _site_never(self, site: str) -> bool:
+        from . import browser
+        s = browser.clean_site(site)
+        return bool(s) and any(s == n or s.endswith("." + n) for n in self.settings.browser_never)
+
+    def _can_see(self) -> bool:
+        """A model of the list can look at pictures (a screenshot of the page)."""
+        try:
+            return any(c.vision for c in self._get_router().candidates)
+        except ProviderError:
+            return False
+
+    def _upload_ok(self, path: str) -> str:
+        """A file in the user's own folders (Documents, Downloads…) or the chat's working folder may be given to a
+        site: its full path; "" = not allowed."""
+        from pathlib import Path
+
+        from .pcfiles import known_folders
+        try:
+            roots = [Path(x) for x in known_folders().values()]
+            folder = self._folder_for(self.actions.tid())
+            if folder:
+                roots.append(Path(folder))
+            f = Path(str(path or "").strip().strip('"')).expanduser()
+            if not f.is_absolute():
+                f = (Path(folder) if folder else Path.home()) / f
+            f = f.resolve()
+            inside = any(r.exists() and (r.resolve() == f.parent or r.resolve() in f.parents) for r in roots)
+        except (OSError, ValueError):
+            return ""
+        secret = f.name.startswith(".") or f.suffix.lower() in (".kdbx", ".pem", ".key", ".pfx", ".p12", ".env", ".ppk")
+        return str(f) if inside and f.is_file() and not secret else ""
+
+    def browser_status(self) -> dict:
+        """Settings → Chrome and the side panel: is the extension there, which tab, the mode, the sites."""
+        from . import browser
+        st = self.browser.status()
+        return {**st, "on": self.settings.browser_on, "listening": bool(self.browser.server),
+                "mode": self._mode("browser"), "pc_mode": self._mode("pc"), "linked": self.settings.modes_linked,
+                "sites": sorted(self.settings.browser_sites), "never": sorted(self.settings.browser_never),
+                "folder": str(browser.extension_dir()), "id": browser.EXT_ID,
+                "recording": self._recording, "recorded": bool(self._recorded)}
+
+    def browser_folder(self) -> dict:
+        """«Open the extension's folder»: what Chrome's «Load unpacked» asks for (copied there first)."""
+        from . import browser, pcfiles
+        try:
+            folder, _ = browser.install_copy()
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        self.browser.allow_pairing(600)                     # the extension loaded from it may connect (installing)
+        pcfiles._open_in_file_manager(folder)
+        return {"ok": True, "path": str(folder)}
+
+    def browser_pair(self) -> dict:
+        """«Connect Chrome»: a new extension (installed again, or in another Chrome) may connect for 2 minutes."""
+        self.browser.allow_pairing(120)
+        return {"ok": True}
+
+    def browser_record_start(self) -> dict:
+        """«Record»: Lanterna writes down what the user does in the active tab, to repeat it later as a shortcut."""
+        from . import browser
+        try:
+            r = self.browser.call("record_start")
+        except browser.BrowserError as e:
+            return {"ok": False, "error": str(e)}
+        self._recording, self._recorded = True, None
+        return {"ok": True, "tab": r.get("tab")}
+
+    def browser_record_stop(self) -> dict:
+        from . import browser
+        try:
+            r = self.browser.call("record_stop")
+        except browser.BrowserError as e:
+            self._recording = False
+            return {"ok": False, "error": str(e)}
+        self._recording = False
+        steps = browser.steps_text(r.get("steps") or [])
+        self._recorded = {"text": steps, "at": time.time()} if steps else None
+        return {"ok": bool(steps), "text": steps}
+
+    def browser_recorded_take(self) -> dict:
+        """The recorded steps, once: the window turns them into a shortcut the user names."""
+        r, self._recorded = self._recorded, None
+        return r or {}
+
+    # ---- "/" shortcuts: a saved prompt the user calls by its name in the message box
+    def shortcuts(self) -> list[dict]:
+        return [dict(x) for x in self.settings.shortcuts if isinstance(x, dict)]
+
+    def shortcut_save(self, name: str, text: str, old: str = "") -> dict:
+        name = re.sub(r"[^\w-]+", "-", str(name or "").strip().lstrip("/").lower()).strip("-")[:30]
+        text = str(text or "").strip()[:4000]
+        if not name or not text:
+            return {"ok": False, "error": "empty"}
+        items = [x for x in self.shortcuts() if x.get("name") not in (name, old)]
+        items.append({"name": name, "text": text, "at": time.time()})
+        self.settings.shortcuts = sorted(items, key=lambda x: x["name"])[:100]
+        self.settings.save()
+        return {"ok": True, "name": name, "items": self.shortcuts()}
+
+    def shortcut_delete(self, name: str) -> dict:
+        self.settings.shortcuts = [x for x in self.shortcuts() if x.get("name") != name]
+        self.settings.save()
+        return {"ok": True, "items": self.shortcuts()}
 
     # ---------------------------------------------------------------- making things: the task plan and projects
     def _make_tools(self) -> list:
@@ -564,15 +840,17 @@ class Api:
         return {"text": r.get("text", ""), "auto": True}
 
     def _auto_said(self, out: str) -> str:
-        from .workspace import WAITING
+        from .workspace import AUTO_KINDS, WAITING
         ran = self.actions.take_auto()
         if not ran:
             return out
         lines = []
         for a in ran:
+            why = ("the user let Lanterna act on its own in this chat" if a.details.get("auto_by") != "mode"
+                   else "the mode in Settings lets Lanterna do this without asking")
             if a.state == "done":
-                lines.append(f"Done right away (the user let Lanterna act on its own in this chat): {a.result}. It can "
-                             "be undone in What Lanterna did.")
+                lines.append(f"Done right away ({why}): {a.result}." + (
+                    " It can be undone in What Lanterna did." if a.kind in AUTO_KINDS else ""))   # a sent letter can't
             else:
                 lines.append(f"Tried right away, but it failed: {a.result}")
         said = " ".join(lines)
@@ -1582,8 +1860,9 @@ class Api:
             return {"ok": False, "text": ""}
         return {"ok": True, "text": _short_files(self._undo_last(int(tid)))}
 
-    def send(self, tid: int, text: str, files: list[dict] | None = None, again: bool = False) -> dict:
-        """again: answer the last question again (Retry) — it replaces the old answer instead of piling up."""
+    def send(self, tid: int, text: str, files: list[dict] | None = None, again: bool = False, where: str = "") -> dict:
+        """again: answer the last question again (Retry) — it replaces the old answer instead of piling up.
+        where="panel": asked in Chrome's side panel (the browser tools are on offer, about the tab in front)."""
         text = (text or "").strip()
         tid = int(tid)
         if again and self.store.thread(tid):
@@ -1607,6 +1886,7 @@ class Api:
                 return {"ok": False, "error": "file", "message": bad}
         sid = uuid.uuid4().hex
         st = _Stream(self.settings.lang)
+        st.panel = where == "panel"
         self._streams[sid] = st
         history = _history(self.store.messages(tid))
         full = "\n\n".join(x for x in (text, prep.text) if x)
@@ -1719,6 +1999,9 @@ class Api:
         earlier = min(len(history) - upto, MAX_HISTORY)     # earlier messages that really go to the model
         self.actions.bind(st.cards, tid)
         self._here.st = st                                  # the plan tool shows its changes in this answer
+        st.tid = tid
+        from . import browser
+        browser.begin_answer()                              # its own tab in Chrome, its own screenshots
         try:
             from . import plans
             plan = {} if st.second else plans.load(self.store.plan(tid))
@@ -1741,7 +2024,10 @@ class Api:
                                 instructions=self._instructions(tid),
                                 auto_cloud=self.settings.mode == "auto" and self.settings.auto_cloud,
                                 plan_text=plans.for_model(plan) if plan else "",
-                                cards_waiting=bool(self.cards(tid)))
+                                cards_waiting=bool(self.cards(tid)),
+                                browser_note=browser.system_note(self.browser, self._mode("browser"))
+                                if self._browser_tools() else "",
+                                context_note="(browser)" if st.panel else "")
             gen = conv.ask(text, images or None)
             for p in gen:
                 if st.stop.is_set():
@@ -1760,6 +2046,8 @@ class Api:
                                         self.settings.lang, n=round(p.seconds), m=p.model.label))
                     elif isinstance(p, ToolUse):
                         st.used.append((p.name, p.arguments))
+                        if p.name.startswith("browser_"):
+                            st.browser = True               # Stop on the page stops this answer
                         if p.name == "plan" and '"steps"' not in (p.arguments or ""):
                             continue                        # a step marked done: the plan over the message box shows it
                         # the line under the reply says what it did, with what (the search words, the program)
@@ -1829,6 +2117,8 @@ class Api:
             self._here.st = None
             with st.lock:
                 st.done = True
+            if st.browser:                                  # "Lanterna is working in this tab" goes away
+                threading.Thread(target=self._browser_quiet, args=("idle",), daemon=True).start()
 
     # ---------------------------------------------------------------- videos from a link (video.py: yt-dlp)
     def _run_video(self, sid: str, tid: int, url: str, text: str, history: list[dict]) -> None:
@@ -2449,8 +2739,13 @@ class Api:
         from . import tasks as tk
         lang = self.settings.lang
         try:
-            conv = Conversation(self._get_router(), self.settings.name, lang=lang,
-                                toolbox=tk.safe_toolbox(self.store, lambda: lang))
+            from . import browser
+            box = tk.safe_toolbox(self.store, lambda: lang)
+            box._extra = self._browser_tools                # while the extension is there
+            browser.begin_answer()
+            conv = Conversation(self._get_router(), self.settings.name, lang=lang, toolbox=box,
+                                browser_note=browser.system_note(self.browser, self._mode("browser"))
+                                if self._browser_tools() else "")
             for _ in conv.ask(tk.TASK_SYSTEM + "\n\n" + tk.prompt(task, dt.datetime.now())):
                 pass
             reply = (conv.last_reply or "").strip()
@@ -2537,7 +2832,7 @@ class Api:
             if n >= 5:
                 tid = self.store.new_thread(t("Weekly tidy-up", lang))
                 sink: list = []
-                self.actions.bind(sink, tid)
+                self.actions.bind(sink, tid, alone=False)         # a suggestion: its card waits in every mode
                 try:
                     self.places.propose_sort("downloads", "", "type")
                 except Exception:                           # noqa: BLE001  nothing to sort after all
@@ -2614,8 +2909,43 @@ class Api:
             self._wake.clear()
 
 
+BROWSER_TITLES = {
+    "open": ("Open {url} in Chrome", "Opened {url} in Chrome"), "go": ("Go to {url} in Chrome", "Went to {url} in Chrome"),
+    "read": ("Look at {site} in Chrome", "Looked at {site} in Chrome"),
+    "click": ("Click «{target}» on {site}", "Clicked «{target}» on {site}"),
+    "hover": ("Point at «{target}» on {site}", "Pointed at «{target}» on {site}"),
+    "type": ("Type on {site}", "Typed on {site}"), "key": ("Press {keys} on {site}", "Pressed {keys} on {site}"),
+    "scroll": ("Scroll the page on {site}", "Scrolled the page on {site}"),
+    "drag": ("Drag on the page on {site}", "Dragged on the page on {site}"),
+    "fill": ("Fill in fields on {site} ({count})", "Filled in fields on {site} ({count})"),
+    "js": ("Run a script on {site}", "Ran a script on {site}"),
+    "close": ("Close the tab «{target}»", "Closed the tab «{target}»"),
+    "upload": ("Give {file} to {site}", "Gave {file} to {site}"),
+    "download": ("Download {file}", "Downloaded {file}"),
+}
+
+
+def browser_title(d: dict, lang: str, done: bool = False) -> str:
+    """A Chrome card's line (the same words as browserTitle in app.js)."""
+    act = str(d.get("action") or "")
+    act = {"double_click": "click", "right_click": "click"}.get(act, act)
+    if act == "click" and not d.get("target"):
+        key = ("Click on {site}", "Clicked on {site}")
+    elif act == "close" and not (d.get("target") or d.get("title")):
+        key = ("Close a tab", "Closed a tab")
+    else:
+        key = BROWSER_TITLES.get(act, ("Do this in Chrome", "Done in Chrome"))
+    url = str(d.get("url") or "")
+    short = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
+    return t(key[int(done)], lang, url=short[:60] + ("…" if len(short) > 60 else ""), site=d.get("site") or "",
+             target=str(d.get("target") or d.get("title") or "")[:60], keys=d.get("keys") or "",
+             count=d.get("count") or len(d.get("fields") or []), file=d.get("file") or "")
+
+
 def action_title(kind: str, d: dict, result: str, lang: str, done: bool = False) -> str:
     """One line about a proposed (or, with done, finished) change in the interface language; stored in the chat too."""
+    if kind == "browser_act":
+        return browser_title(d, lang, done)
     link = result.split("|", 1)[1] if "|" in (result or "") else ""
     keys = {"write_new": ("Create {path}", "Created {path}"), "write_replace": ("Rewrite {path}", "Rewrote {path}"),
             "write_append": ("Add to {path}", "Added to {path}"),
@@ -2690,7 +3020,7 @@ AUTO_TEXT = ("Without asking: files and folders (deleting only to the Recycle Bi
              "programs from the catalog. Still asks: removing programs, mail, GitHub, Google Drive, other services. "
              "Every change is in What Lanterna did, with Undo. You can stop it any time.")
 SPACE_TEXT = ("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you "
-              "when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.")
+              "when the disk is almost full. Removing goes only to the Recycle Bin.")
 GAME_TEXT = "Steam asks once more, then removes it: about {s} is freed. Steam can download it again later."
 
 

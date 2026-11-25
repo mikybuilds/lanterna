@@ -105,6 +105,7 @@ flowchart TB
 | Why something doesn't work | `fixit.py`, `fixlinux.py` | Finds a game or program, looks through its folders, logs and what the system noted (or sound, internet, printers, updates); fixes from a fixed list, one card each, with Undo where it can. Windows and Linux (Steam with Proton, Heroic, Lutris, Flatpak; PipeWire, NetworkManager, CUPS, dnf / apt / rpm-ostree) |
 | Things Lanterna makes | `projects.py`, `docmake.py` | Games, little programs and mods in its own folder; real .docx / .odt / .csv files |
 | Videos from a link | `video.py` | Runs yt-dlp (from winget or the system's packages, installed on a card) with fixed options only: one video or a playlist the user asked for, up to 1080p MP4 or MP3, only into Downloads; its progress for the line under the reply, its errors in plain words; Stop ends the whole process tree |
+| Chrome | `browser.py`, `chrome/` | A Manifest V3 extension (`chrome/`) that only carries out commands: `chrome.debugger` for real clicks, keys and pictures, a page script for reading the page and filling forms, the tab group and the line at the bottom. `browser.py` serves its side panel and a WebSocket on 127.0.0.1, checks the key both ways, judges every action (what a click, a key, an address or a script would do) and shows a card when the mode asks for one |
 | Connectors | `mcp.py`, `oauth.py`, `github.py`, `gdrive.py`, `mail.py` | MCP servers, sign-in pages, pushes to GitHub, files in Drive, IMAP / SMTP |
 | Data | `store.py`, `config.py`, `keys.py`, `sync.py`, `backup.py`, `export.py` | SQLite, settings, the vault, encrypted sync and backups |
 | Privacy helpers | `sensitive.py`, `sent.py` | Warns before a card number or password goes to an online model; shows what each reply sent |
@@ -118,10 +119,18 @@ flowchart TB
   the router, the rest times, the health marks that survive a restart (`health.py`) and the local limit counter
   (`limits.py`) exist. Most of the code that looks complicated is there to make an unreliable free service feel
   reliable.
-- **A card for every change.** Models make mistakes, and a wrong move or install can't always be undone. So the
-  model can only propose, the user confirms, and `history.py` keeps what Undo needs. A user can let Lanterna act on
-  its own in one chat for a limited time (up to 2 hours), but only for changes that stay on this computer and can be
-  undone. Mail, GitHub, Google Drive, removing programs and outside tools always ask.
+- **A card for every change, unless the mode says otherwise.** Models make mistakes, and a wrong move or install
+  can't always be undone. So the model can only propose, and `history.py` keeps what Undo needs. The user picks how
+  much Lanterna asks first (`workspace.PC_MODES`): every change, only the ones that can't be undone (the default,
+  semi-automatic), or none. A user can also let Lanterna act on its own in one chat for a limited time (up to 2
+  hours), but only for changes that stay on this computer and can be undone. Mail, GitHub, Google Drive, removing
+  programs and outside tools ask unless the mode is Automatic, and the card for acting on its own always shows.
+- **Chrome: the extension carries out, Lanterna decides.** The extension has no model and no rules of its own; every
+  action comes from `browser.Tools`, which judges it first (a send, delete, buy or download button, a password or
+  card field, an address that looks like a scam, a script) and shows a card when the mode asks for one. Typing
+  passwords or card details, buying, paying, making accounts and CAPTCHAs are refused in every mode. Only Lanterna's
+  own extension (its ID comes from the key in `manifest.json`) may connect, only to 127.0.0.1, and both sides prove
+  they know a shared key before anything else. Page text goes to the model marked as data.
 - **Fixed lists instead of free commands.** The model never gets a shell. Settings it can change come from a fixed
   list, programs come only from the official catalogs, files only inside the user's standard folders or the folder
   the user picked, and files Windows would run (`.exe`, `.bat`, `.ps1`…) are never written.

@@ -2,6 +2,7 @@
 // Lanterna window UI. Talks to the Python backend through pywebview (window) or HTTP (dev mode, ?token=…).
 
 const TOKEN = new URLSearchParams(location.search).get("token");
+const PANEL = location.hash === "#panel";      // Chrome's side panel: Lanterna's extension shows this page there
 const QUICK = location.hash === "#quick";      // the small quick-question window (Windows, hotkey / tray)
 const api = new Proxy({}, {
   get: (_, name) => (...args) => window.pywebview && window.pywebview.api
@@ -260,7 +261,7 @@ const STR = {
   "{n} min": { uk: "{n} хв", it: "{n} min" },
   "{n} h": { uk: "{n} год", it: "{n} h" },
   "Working folder": { uk: "Робоча папка", it: "Cartella di lavoro" },
-  "Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.": { uk: "Lanterna може переглядати файли в одній папці, яку ти вибереш, і створювати чи змінювати там файли після того, як ти підтвердиш кожну зміну. Вона нічого не видаляє й не бачить нічого поза цією папкою.", it: "Lanterna può guardare i file in una cartella che scegli tu, e creare o modificare file lì dopo che confermi ogni modifica. Non elimina mai nulla e non vede nulla fuori da questa cartella." },
+  "Lanterna can look at the files in one folder you choose, and create or change files there (with a card first or at once, as the mode in Settings → Computer says). It never deletes anything and sees nothing outside this folder.": { uk: "Lanterna може переглядати файли в одній папці, яку ти вибереш, і створювати чи змінювати там файли (спершу з карткою або одразу — як каже режим у Налаштування → Комп'ютер). Вона нічого не видаляє й не бачить нічого поза цією папкою.", it: "Lanterna può guardare i file in una cartella che scegli tu, e creare o modificare file lì (prima con una scheda o subito, come dice la modalità in Impostazioni → Computer). Non elimina mai nulla e non vede nulla fuori da questa cartella." },
   "The files it opens are sent to the model in use (to the online service in Cloud mode).": { uk: "Файли, які вона відкриває, надсилаються моделі, що зараз працює (у хмарному режимі — онлайн-сервісу).", it: "I file che apre vengono inviati al modello in uso (al servizio online in modalità Cloud)." },
   "Choose a folder": { uk: "Вибрати папку", it: "Scegli una cartella" },
   "Stop using it": { uk: "Більше не використовувати", it: "Non usarla più" },
@@ -338,7 +339,7 @@ const STR = {
   "It can be turned back on the same way.": { uk: "Так само можна буде увімкнути назад.", it: "Si può riattivare allo stesso modo." },
   "Computer": { uk: "Комп'ютер", it: "Computer" },
   "Let Lanterna help with this computer": { uk: "Дозволити Lanterna допомагати з цим комп'ютером", it: "Lascia che Lanterna aiuti con questo computer" },
-  "Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.": { uk: "Твої папки (Завантаження, Робочий стіл, Документи, Зображення, Відео, Музика), програми й кілька безпечних налаштувань. Дивитися Lanterna може сама; кожна зміна — переміщення, Кошик, встановлення, налаштування — чекає твого «Підтвердити». Назви файлів і файли, які вона відкриває, отримує модель, що зараз працює.", it: "Le tue cartelle (Download, Scrivania, Documenti, Immagini, Video, Musica), i programmi e alcune impostazioni sicure. Lanterna guarda da sola; ogni modifica — spostare, il Cestino, installare, un'impostazione — aspetta la tua conferma. I nomi dei file e i file che apre vanno al modello in uso." },
+  "Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; whether it asks before a change (moving, the Recycle Bin, installing, a setting) depends on the mode below. File names and the files it opens go to the model in use.": { uk: "Твої папки (Завантаження, Робочий стіл, Документи, Зображення, Відео, Музика), програми й кілька безпечних налаштувань. Дивитися Lanterna може сама; чи питати перед зміною (переміщення, Кошик, встановлення, налаштування), каже режим нижче. Назви файлів і файли, які вона відкриває, отримує модель, що зараз працює.", it: "Le tue cartelle (Download, Scrivania, Documenti, Immagini, Video, Musica), i programmi e alcune impostazioni sicure. Lanterna guarda da sola; se chiedere prima di una modifica (spostare, il Cestino, installare, un'impostazione) lo decide la modalità qui sotto. I nomi dei file e i file che apre vanno al modello in uso." },
   "Thinking…": { uk: "Думаю…", it: "Sto pensando…" },
   "Writing the answer…": { uk: "Пишу відповідь…", it: "Sto scrivendo la risposta…" },
   "No folder": { uk: "Без папки", it: "Nessuna cartella" },
@@ -371,7 +372,7 @@ const STR = {
   "Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.": { uk: "«Відключити» забуває вхід на цьому комп'ютері. Щоб забрати доступ і на GitHub: GitHub → Settings → Applications.", it: "Disconnetti dimentica l'accesso su questo computer. Per rimuoverlo anche su GitHub: GitHub → Settings → Applications." },
   "New chats start with this folder; each chat can change it under the message box.": { uk: "З цією папкою починають нові чати; кожен чат може змінити її під полем вводу.", it: "Le nuove chat iniziano con questa cartella; ogni chat può cambiarla sotto il campo del messaggio." },
   "Folder of this chat": { uk: "Папка цього чату", it: "Cartella di questa chat" },
-  "Lanterna can read and (after you confirm) change files only in this folder.": { uk: "Lanterna читає і (після твого підтвердження) змінює файли тільки в цій папці.", it: "Lanterna legge e (dopo la tua conferma) modifica i file solo in questa cartella." },
+  "Lanterna can read and change files only in this folder.": { uk: "Lanterna читає і змінює файли тільки в цій папці.", it: "Lanterna legge e modifica file solo in questa cartella." },
   "Choose another folder…": { uk: "Вибрати іншу папку…", it: "Scegli un'altra cartella…" },
   "No folder for this chat": { uk: "Без папки для цього чату", it: "Nessuna cartella per questa chat" },
   "Same as in Settings: {name}": { uk: "Як у налаштуваннях: {name}", it: "Come nelle impostazioni: {name}" },
@@ -444,6 +445,76 @@ const STR = {
   "Still counting: the sizes are at least these.": { uk: "Ще рахую: розміри щонайменше такі.", it: "Sto ancora contando: le dimensioni sono almeno queste." },
   "{p}% of the disk": { uk: "{p}% диска", it: "{p}% del disco" },
   "of {total}": { uk: "з {total}", it: "su {total}" },
+  "No tab": { uk: "Немає вкладки", it: "Nessuna scheda" },
+  "Record my steps": { uk: "Записати мої кроки", it: "Registra i miei passi" },
+  "No steps were recorded.": { uk: "Жодного кроку не записано.", it: "Non è stato registrato nessun passo." },
+  "Do the steps in the tab, then press Stop recording.": { uk: "Зроби кроки у вкладці, потім натисни «Зупинити запис».", it: "Fai i passi nella scheda, poi premi Ferma la registrazione." },
+  "About this text from «{title}»:": { uk: "Про цей текст зі сторінки «{title}»:", it: "Su questo testo da «{title}»:" },
+  "About this link: {url}": { uk: "Про це посилання: {url}", it: "Su questo link: {url}" },
+  "About the page «{title}»:": { uk: "Про сторінку «{title}»:", it: "Sulla pagina «{title}»:" },
+  "Shortcuts": { uk: "Швидкі команди", it: "Scorciatoie" },
+  "New shortcut": { uk: "Нова швидка команда", it: "Nuova scorciatoia" },
+  "No shortcuts yet: make one": { uk: "Швидких команд ще немає: створи першу", it: "Ancora nessuna scorciatoia: creane una" },
+  "Edit the shortcut": { uk: "Змінити швидку команду", it: "Modifica la scorciatoia" },
+  "Lanterna wrote down your steps. Give them a name: typing / and the name does them again.": { uk: "Lanterna записала твої кроки. Дай їм назву: тоді / з цією назвою повторить їх.", it: "Lanterna ha annotato i tuoi passi. Dagli un nome: scrivendo / e il nome li rifà." },
+  "Name (you type it after /)": { uk: "Назва (її пишеш після /)", it: "Nome (lo scrivi dopo /)" },
+  "for example: homework": { uk: "наприклад: домашка", it: "per esempio: compiti" },
+  "What Lanterna should do": { uk: "Що має зробити Lanterna", it: "Cosa deve fare Lanterna" },
+  "Give the shortcut a name and what it should do.": { uk: "Дай швидкій команді назву й напиши, що вона має робити.", it: "Dai alla scorciatoia un nome e scrivi cosa deve fare." },
+  "Saved: type /{name} in the message box.": { uk: "Збережено: напиши /{name} у полі повідомлення.", it: "Salvato: scrivi /{name} nella casella del messaggio." },
+  "No shortcuts yet.": { uk: "Швидких команд ще немає.", it: "Ancora nessuna scorciatoia." },
+  "Chrome": { uk: "Chrome", it: "Chrome" },
+  "A shortcut is a message you save once and call with / and its name in the message box. Lanterna can also write one from the steps you do in Chrome (the record button in its side panel).": { uk: "Швидка команда — це повідомлення, яке ти зберігаєш один раз і викликаєш у полі повідомлення через / і її назву. Lanterna може й сама написати таку команду з кроків, які ти робиш у Chrome (кнопка запису в її бічній панелі).", it: "Una scorciatoia è un messaggio che salvi una volta e richiami con / e il suo nome nella casella del messaggio. Lanterna può anche scriverne una dai passi che fai in Chrome (il pulsante di registrazione nel suo pannello laterale)." },
+  "From {site}": { uk: "З {site}", it: "Da {site}" },
+  "Text": { uk: "Текст", it: "Testo" },
+  "Fields": { uk: "Поля", it: "Campi" },
+  "Script": { uk: "Скрипт", it: "Script" },
+  "File: {f}": { uk: "Файл: {f}", it: "File: {f}" },
+  "Mode: {m} · Settings → Chrome": { uk: "Режим: {m} · Налаштування → Chrome", it: "Modalità: {m} · Impostazioni → Chrome" },
+  "Lanterna waits for your answer.": { uk: "Lanterna чекає на твою відповідь.", it: "Lanterna aspetta la tua risposta." },
+  "Don't allow": { uk: "Не дозволяти", it: "Non consentire" },
+  "Allow on this site": { uk: "Дозволити на цьому сайті", it: "Consenti su questo sito" },
+  "Allow": { uk: "Дозволити", it: "Consenti" },
+  "Allowed on {site}": { uk: "Дозволено на {site}", it: "Consentito su {site}" },
+  "Allowed": { uk: "Дозволено", it: "Consentito" },
+  "Not allowed": { uk: "Не дозволено", it: "Non consentito" },
+  "It sends, publishes or confirms something.": { uk: "Це щось надсилає, публікує або підтверджує.", it: "Invia, pubblica o conferma qualcosa." },
+  "It deletes or removes something.": { uk: "Це щось видаляє або прибирає.", it: "Elimina o rimuove qualcosa." },
+  "It downloads a file to this computer.": { uk: "Це завантажує файл на цей комп'ютер.", it: "Scarica un file su questo computer." },
+  "It sends a form.": { uk: "Це надсилає форму.", it: "Invia un modulo." },
+  "It gives a site access to your account or data.": { uk: "Це дає сайту доступ до твого акаунта або даних.", it: "Dà a un sito l'accesso al tuo account o ai tuoi dati." },
+  "It installs something.": { uk: "Це щось встановлює.", it: "Installa qualcosa." },
+  "It signs in to a site.": { uk: "Це вхід на сайт.", it: "Accede a un sito." },
+  "It opens a page of this computer or of the home network.": { uk: "Це відкриває сторінку цього комп'ютера або домашньої мережі.", it: "Apre una pagina di questo computer o della rete di casa." },
+  "It gives a file from this computer to the site.": { uk: "Це передає сайту файл із цього комп'ютера.", it: "Dà al sito un file di questo computer." },
+  "The script can change the page or send data.": { uk: "Скрипт може змінити сторінку або надіслати дані.", it: "Lo script può cambiare la pagina o inviare dati." },
+  "A key that can do something on this site (send, delete…).": { uk: "Клавіша, яка може щось зробити на цьому сайті (надіслати, видалити…).", it: "Un tasto che può fare qualcosa su questo sito (inviare, eliminare…)." },
+  "It closes a tab Lanterna didn't open.": { uk: "Це закриває вкладку, яку Lanterna не відкривала.", it: "Chiude una scheda che Lanterna non ha aperto." },
+  "A bank, payment, crypto or government site.": { uk: "Сайт банку, оплати, криптовалюти або держустанови.", it: "Un sito di banca, pagamenti, cripto o pubblica amministrazione." },
+  "A card before every action in Chrome. «Allow on this site» lets ordinary actions there go on without asking.": { uk: "Картка перед кожною дією в Chrome. «Дозволити на цьому сайті» пускає звичайні дії там без запитань.", it: "Una scheda prima di ogni azione in Chrome. «Consenti su questo sito» lascia andare lì le azioni normali senza chiedere." },
+  "Reading, clicking, typing and scrolling go on at once. Sending, publishing, deleting, downloads and giving access ask first.": { uk: "Читання, натискання, введення тексту й прокручування відбуваються одразу. Надсилання, публікація, видалення, завантаження й надання доступу спершу питають.", it: "Leggere, cliccare, scrivere e scorrere avvengono subito. Inviare, pubblicare, eliminare, scaricare e dare accesso chiedono prima." },
+  "No cards in Chrome. Lanterna still never types passwords or card details, never buys or pays, never makes accounts or solves CAPTCHAs.": { uk: "Без карток у Chrome. Lanterna все одно ніколи не вводить паролі чи дані карток, нічого не купує й не оплачує, не створює акаунтів і не розв'язує капчі.", it: "Nessuna scheda in Chrome. Lanterna comunque non scrive mai password o dati delle carte, non compra né paga, non crea account e non risolve CAPTCHA." },
+  "Open chrome://extensions in Chrome and turn on Developer mode (top right).": { uk: "Відкрий chrome://extensions у Chrome і ввімкни «Режим розробника» (угорі праворуч).", it: "Apri chrome://extensions in Chrome e attiva Modalità sviluppatore (in alto a destra)." },
+  "Press «Load unpacked» and choose the folder the button below opens.": { uk: "Натисни «Завантажити розпаковане розширення» й вибери папку, яку відкриває кнопка нижче.", it: "Premi «Carica estensione non pacchettizzata» e scegli la cartella che apre il pulsante qui sotto." },
+  "Leave Developer mode on: without it Chrome turns off extensions loaded from a folder, Lanterna's too.": { uk: "Не вимикай «Режим розробника»: без нього Chrome вимикає розширення, завантажені з папки, і Lanterna теж.", it: "Lascia attiva Modalità sviluppatore: senza, Chrome disattiva le estensioni caricate da una cartella, anche quella di Lanterna." },
+  "Pin Lanterna on Chrome's toolbar: its button (or Alt+L) opens Lanterna next to the page.": { uk: "Закріпи Lanterna на панелі Chrome: її кнопка (або Alt+L) відкриває Lanterna поруч зі сторінкою.", it: "Fissa Lanterna nella barra di Chrome: il suo pulsante (o Alt+L) apre Lanterna accanto alla pagina." },
+  "Connected: {b}": { uk: "Підключено: {b}", it: "Collegato: {b}" },
+  "Not connected yet": { uk: "Ще не підключено", it: "Non ancora collegato" },
+  "None yet.": { uk: "Поки жодного.", it: "Ancora nessuno." },
+  "None.": { uk: "Жодного.", it: "Nessuno." },
+  "Let Lanterna work in Chrome": { uk: "Дозволити Lanterna працювати в Chrome", it: "Lascia che Lanterna lavori in Chrome" },
+  "With Lanterna's extension it can read pages, click, type and fill forms in your Chrome, in the tabs you see. Lanterna must be running (in the tray is enough).": { uk: "З розширенням Lanterna вона може читати сторінки, натискати, писати й заповнювати форми у твоєму Chrome, у вкладках, які ти бачиш. Lanterna має бути запущена (досить, щоб була в треї).", it: "Con l'estensione di Lanterna può leggere pagine, cliccare, scrivere e compilare moduli nel tuo Chrome, nelle schede che vedi. Lanterna deve essere in esecuzione (basta che sia nell'area di notifica)." },
+  "Tab in front: {t}": { uk: "Вкладка спереду: {t}", it: "Scheda in primo piano: {t}" },
+  "Open the extension's folder": { uk: "Відкрити папку розширення", it: "Apri la cartella dell'estensione" },
+  "How much Lanterna asks first in Chrome": { uk: "Як часто Lanterna питає перед дією в Chrome", it: "Quanto chiede Lanterna prima di agire in Chrome" },
+  "The same as on the computer": { uk: "Так само, як на комп'ютері", it: "Come sul computer" },
+  "One mode for changes on this computer and for Chrome.": { uk: "Один режим для змін на цьому комп'ютері й для Chrome.", it: "Una sola modalità per le modifiche su questo computer e per Chrome." },
+  "Sites allowed without asking (Ask first mode)": { uk: "Сайти, де можна без запитань (режим «Питати спершу»)", it: "Siti consentiti senza chiedere (modalità Chiedi prima)" },
+  "Sites Lanterna never touches": { uk: "Сайти, яких Lanterna ніколи не торкається", it: "Siti che Lanterna non tocca mai" },
+  "for example: mybank.com": { uk: "наприклад: mybank.com", it: "per esempio: mybank.com" },
+  "This isn't a site's address.": { uk: "Це не адреса сайту.", it: "Questo non è l'indirizzo di un sito." },
+  "Connect Chrome": { uk: "Підключити Chrome", it: "Collega Chrome" },
+  "Lanterna lets a new Chrome connect for the next 2 minutes: open Lanterna's panel in Chrome.": { uk: "Наступні 2 хвилини Lanterna прийме новий Chrome: відкрий панель Lanterna в Chrome.", it: "Per i prossimi 2 minuti Lanterna accetta un nuovo Chrome: apri il pannello di Lanterna in Chrome." },
 };
 let LANG = "en";
 let S = null;          // backend state (declared before t(), which reads its strings)
@@ -793,6 +864,13 @@ async function boot() {
   if (QUICK) {
     const ready = S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local");
     if (ready) return renderQuick();
+    $("#app").className = "";
+    $("#app").innerHTML = `<div class="quick-note">${esc(t("Finish setting up Lanterna in the main window first."))}</div>`;
+    return;
+  }
+  if (PANEL) {
+    const ready = S.settings.onboarded && (S.providers.some(p => p.has_key) || S.settings.mode === "local");
+    if (ready) return renderPanel();
     $("#app").className = "";
     $("#app").innerHTML = `<div class="quick-note">${esc(t("Finish setting up Lanterna in the main window first."))}</div>`;
     return;
@@ -1223,6 +1301,8 @@ function renderMain() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
     else if (e.key === "Enter" && e.shiftKey && listEnter(inp)) { e.preventDefault(); fit(); }
   };
+  inp.addEventListener("input", shortcutMenu);           // "/" and a name: a saved shortcut
+  inp.addEventListener("keydown", shortcutKeys, true);   // before Enter sends
   $("#send").onclick = () => (busy ? stopAnswer() : send());
   $("#mic").onclick = micClick;
   if (recording) $("#mic").classList.add("rec");
@@ -1306,6 +1386,136 @@ function renderQuick() {
   $("#q-open").onclick = () => api.open_in_main(thread);
   $("#q-close").onclick = () => api.quick_hide();
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !document.querySelector(".veil:not(.closing)")) api.quick_hide(); });
+}
+
+// ---------------------------------------------------------------- Chrome's side panel (Lanterna's extension)
+const MODES = [["ask", "Ask first"], ["semi", "Semi-automatic"], ["full", "Automatic"]];
+let panelState = {};
+let recDialog = false;                                 // the "name this shortcut" dialog is open
+function renderPanel() {
+  renderMain();
+  document.body.classList.add("panel");
+  $(".main").insertBefore(h(`<div class="pbar">
+      <span class="tabchip" id="p-tab">${icon("globe")}<span>${esc(t("No tab"))}</span></span>
+      <select class="field p-mode" id="p-mode" aria-label="${esc(t("How much Lanterna asks first"))}" title="${esc(t("How much Lanterna asks first"))}">
+        ${MODES.map(([m, l]) => `<option value="${m}">${esc(t(l))}</option>`).join("")}</select>
+      <button class="iconbtn" id="p-rec" title="${esc(t("Record my steps"))}" aria-label="${esc(t("Record my steps"))}">${icon("rec")}</button>
+    </div>`), $("#scroll"));
+  $("#p-mode").onchange = async e => { S = await api.save_settings({ browser_mode: e.target.value }); paintPanel(); };
+  $("#p-rec").onclick = async () => {
+    const b = $("#p-rec");
+    b.disabled = true;
+    try {
+      const r = panelState.recording ? await api.browser_record_stop() : await api.browser_record_start();
+      if (!r.ok && r.error) toast(t("Couldn't do it: {error}", { error: r.error }));
+      else if (!r.ok) toast(t("No steps were recorded."));
+      else if (!r.tab) await takeRecorded();
+      else toast(t("Do the steps in the tab, then press Stop recording."));
+    } finally { b.disabled = false; paintPanel(); }
+  };
+  window.addEventListener("message", e => {               // "Ask Lanterna" in the page's menu (sidepanel.js)
+    if (String(e.origin).startsWith("chrome-extension://") && e.data && e.data.lanterna === "ask" && e.data.ask) panelAsk(e.data.ask);
+  });
+  paintPanel();
+  setInterval(paintPanel, 3000);
+}
+
+async function paintPanel() {
+  let st;
+  try { st = await api.browser_status(); } catch (e) { return; }
+  panelState = st;
+  const chip = $("#p-tab");
+  if (!chip) return;
+  const tab = st.tab || {};
+  chip.querySelector("span").textContent = tab.title || tab.url || t("No tab");
+  chip.title = tab.url || "";
+  const sel = $("#p-mode");
+  if (sel && document.activeElement !== sel) sel.value = st.mode;
+  const rec = $("#p-rec");
+  rec.classList.toggle("rec", !!st.recording);
+  rec.title = rec.ariaLabel = t(st.recording ? "Stop recording" : "Record my steps");
+  if (st.recorded && !recDialog) await takeRecorded();
+}
+
+async function takeRecorded() {
+  const r = await api.browser_recorded_take();
+  if (r && r.text && !recDialog) shortcutDialog({ text: r.text, recorded: true });
+}
+
+function panelAsk(ask) {
+  const inp = $("#input");
+  if (!inp || busy) return;
+  const title = String(ask.title || "").slice(0, 120);
+  if (ask.kind === "selection" && ask.text) inp.value = t("About this text from «{title}»:", { title }) + "\n\n" + String(ask.text).slice(0, 4000) + "\n\n";
+  else if (ask.kind === "link" && ask.url) inp.value = t("About this link: {url}", { url: ask.url }) + "\n";
+  else inp.value = t("About the page «{title}»:", { title }) + " ";
+  inp.oninput(); inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+
+// "/" shortcuts: a saved message the user calls by its name (Settings → Chrome, or made from recorded steps)
+let SHORTCUTS = null;
+async function shortcutMenu() {
+  const inp = $("#input");
+  const m = /^\/([\w-]*)$/.exec(inp.value);
+  let menu = document.querySelector(".sc-menu");
+  if (!m) { if (menu) menu.remove(); return; }
+  if (SHORTCUTS === null) SHORTCUTS = await api.shortcuts();
+  if (!/^\/([\w-]*)$/.test(inp.value)) return;          // it changed while the list was coming
+  const items = SHORTCUTS.filter(x => x.name.startsWith(m[1].toLowerCase())).slice(0, 8);
+  if (!menu) { menu = h(`<div class="sc-menu" role="listbox" aria-label="${esc(t("Shortcuts"))}"></div>`); $(".composer .box").before(menu); }
+  menu.innerHTML = items.map((x, i) => `<button role="option" data-n="${esc(x.name)}" class="${i ? "" : "on"}"><b>/${esc(x.name)}</b><span>${esc(x.text.replace(/\s+/g, " ").slice(0, 90))}</span></button>`).join("")
+    + `<button role="option" data-new class="${items.length ? "" : "on"}">${icon("plus")}<span>${esc(t(SHORTCUTS.length ? "New shortcut" : "No shortcuts yet: make one"))}</span></button>`;
+  menu.querySelectorAll("button").forEach(b => b.onmousedown = e => { e.preventDefault(); pickShortcut(b); });
+}
+
+function shortcutKeys(e) {
+  const menu = document.querySelector(".sc-menu");
+  if (!menu || e.isComposing) return;
+  const opts = [...menu.querySelectorAll("button")];
+  let i = opts.findIndex(o => o.classList.contains("on"));
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (opts[i]) opts[i].classList.remove("on");
+    i = (i + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length;
+    opts[i].classList.add("on");
+  } else if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
+    e.preventDefault(); e.stopImmediatePropagation();
+    pickShortcut(opts[Math.max(0, i)]);
+  } else if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); menu.remove(); }
+}
+
+function pickShortcut(b) {
+  const inp = $("#input");
+  const menu = document.querySelector(".sc-menu");
+  if (menu) menu.remove();
+  if (!b) return;
+  if (b.dataset.new !== undefined) { inp.value = ""; inp.oninput(); shortcutDialog({}); return; }
+  const x = (SHORTCUTS || []).find(s => s.name === b.dataset.n);
+  if (x) { inp.value = x.text; inp.oninput(); inp.focus(); }
+}
+
+function shortcutDialog(sc, after) {
+  recDialog = true;
+  const v = dialog(t(sc.name ? "Edit the shortcut" : "New shortcut"), `<section class="sc-form">
+      ${sc.recorded ? `<p class="muted">${esc(t("Lanterna wrote down your steps. Give them a name: typing / and the name does them again."))}</p>` : ""}
+      <label class="cc-lbl" for="sc-name">${esc(t("Name (you type it after /)"))}</label>
+      <input class="field" id="sc-name" maxlength="30" value="${esc(sc.name || "")}" placeholder="${esc(t("for example: homework"))}">
+      <label class="cc-lbl" for="sc-text">${esc(t("What Lanterna should do"))}</label>
+      <textarea class="field" id="sc-text" rows="8" maxlength="4000">${esc(sc.text || "")}</textarea>
+      <div class="dlg-btns"><button class="btn ghost small" id="sc-no">${esc(t("Cancel"))}</button>
+        <button class="btn primary small" id="sc-ok">${esc(t("Save"))}</button></div></section>`, () => { recDialog = false; });
+  const close = () => v.querySelector("header button").click();
+  $("#sc-no", v).onclick = close;
+  $("#sc-ok", v).onclick = async () => {
+    const r = await api.shortcut_save($("#sc-name", v).value, $("#sc-text", v).value, sc.name || "");
+    if (!r.ok) { toast(t("Give the shortcut a name and what it should do.")); return; }
+    SHORTCUTS = r.items;
+    close();
+    toast(t("Saved: type /{name} in the message box.", { name: r.name }));
+    if (after) after();
+  };
+  setTimeout(() => $("#sc-name", v).focus(), 50);
 }
 
 // text the user copied a moment ago: one click to translate, explain or fix it (nothing is sent before the click)
@@ -2029,7 +2239,7 @@ async function send(retryText) {
   if (!second) planWorking(true);                    // its step glows while the answer is coming
   scrollDown(true);
   clearLastActions();
-  const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again);
+  const r = second ? await api.second_opinion(thread) : await api.send(thread, text, files.map(f => ({ name: f.name, data: f.data })), again, PANEL ? "panel" : "");
   if (live && live.el === bot && r.ok) { live.sid = r.stream; if (live.stopping) api.stop_answer(r.stream); }
   refreshThreads().then(l => { const th = l.find(x => x.id === thread); if (th && thread > 0) setTitle(th.title || t("New chat")); });
   if (!r.ok) {
@@ -2263,6 +2473,7 @@ const SET_TABS = [
   ["chats", "Chats", ["Working folder", "Chats", "Instructions and roles", "Backups"]],
   ["voice", "Voice", ["Voice input", "Reading aloud"]],
   ["pc", "Computer", ["Always at hand", "Computer", "MCP servers", "Connectors"]],
+  ["chrome", "Chrome", ["Chrome", "Shortcuts"]],
   ["account", "Account", ["Account and sync", "Found a bug?"]],
 ];
 let setTab = (() => { try { return localStorage.getItem("set-tab") || "general"; } catch (e) { return "general"; } })();
@@ -2456,11 +2667,20 @@ function openSettings() {
       </div>
       <h4 style="margin-top:22px">${t("Computer")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="pc-access" ${S.settings.pc_access !== false ? "checked" : ""}>
-        <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.")}</small></span></label>
+        <span><b>${t("Let Lanterna help with this computer")}</b><small>${t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; whether it asks before a change (moving, the Recycle Bin, installing, a setting) depends on the mode below. File names and the files it opens go to the model in use.")}</small></span></label>
       <label class="check"><input type="checkbox" id="tidy-weekly" ${S.settings.tidy_weekly ? "checked" : ""}>
         <span><b>${t("Weekly tidy-up of Downloads")}</b><small>${t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.")}</small></span></label>
       <label class="check"><input type="checkbox" id="space-help" ${S.settings.space_help ? "checked" : ""}>
-        <span><b>${t("Help free up disk space")}</b><small>${t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.")}</small></span></label>
+        <span><b>${t("Help free up disk space")}</b><small>${t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin.")}</small></span></label>
+      <div class="mode-set"><b>${t("How much Lanterna asks first")}</b>${modeSeg("pc-mode", S.settings.pc_mode)}
+        <small class="muted" id="pc-mode-note">${esc(t(PC_MODE_NOTE[S.settings.pc_mode] || PC_MODE_NOTE.semi))}</small>
+        <small class="muted">${esc(t("Never, in any mode: passwords, card details, payments, new accounts."))}</small></div>
+      <h4 style="margin-top:22px">${t("Chrome")}</h4>
+      <div id="chrome-set"></div>
+      <h4 style="margin-top:22px">${t("Shortcuts")}</h4>
+      <p class="muted" style="margin:0 0 6px;font-size:13px">${t("A shortcut is a message you save once and call with / and its name in the message box. Lanterna can also write one from the steps you do in Chrome (the record button in its side panel).")}</p>
+      <div id="shortcuts"></div>
+      <button class="btn ghost small" id="sc-add" style="margin-top:8px">${icon("plus")} ${t("New shortcut")}</button>
       <h4 style="margin-top:22px">${t("Updates")}</h4>
       <label class="check" style="margin-top:0"><input type="checkbox" id="upd-check" ${S.settings.update_check !== false ? "checked" : ""}>
         <span><b>${t("Check for a new version when Lanterna starts")}</b><small>${t("A plain request to the project's release page, nothing about you.")}</small></span></label>
@@ -2501,6 +2721,15 @@ function openSettings() {
     if (wp) wp.onchange = async () => { S = await api.save_settings({ warn_private: wp.checked }); };
     const pa = $("#pc-access", body);
     pa.onchange = async () => { S = await api.save_settings({ pc_access: pa.checked }); };
+    $("#pc-mode", body).querySelectorAll("[data-m]").forEach(b => b.onclick = async () => {
+      S = await api.save_settings({ pc_mode: b.dataset.m });
+      paintModeSeg($("#pc-mode", body), S.settings.pc_mode);
+      $("#pc-mode-note", body).textContent = t(PC_MODE_NOTE[S.settings.pc_mode]);
+      chromeSettings($("#chrome-set", body));
+    });
+    chromeSettings($("#chrome-set", body));
+    paintShortcuts($("#shortcuts", body));
+    $("#sc-add", body).onclick = () => shortcutDialog({}, () => paintShortcuts($("#shortcuts", body)));
     for (const [id, key] of [["#tidy-weekly", "tidy_weekly"], ["#space-help", "space_help"], ["#ai-titles", "ai_titles"], ["#follow-ups", "follow_ups"], ["#compact-chats", "compact_chats"], ["#ask-first", "ask_first"], ["#auto-memory", "auto_memory"]]) {
       const el = $(id, body);
       el.onchange = async () => { S = await api.save_settings({ [key]: el.checked }); };
@@ -3431,7 +3660,7 @@ function folderMenu() {
   const defName = def ? def.split(/[\\/]/).filter(Boolean).pop() : "";
   const m = h(`<div class="fold-menu" role="menu">
     <div class="fm-head"><b>${esc(t("Folder of this chat"))}</b><small>${esc(path || t("No folder"))}</small>
-      <p>${esc(t("Lanterna can read and (after you confirm) change files only in this folder."))}</p></div>
+      <p>${esc(t("Lanterna can read and change files only in this folder."))}</p></div>
     <button data-a="pick">${icon("folder")} ${esc(t("Choose another folder…"))}</button>
     ${path ? `<button data-a="none">${icon("x")} ${esc(t("No folder for this chat"))}</button>` : ""}
     ${b.dataset.own && def !== path ? `<button data-a="def">${icon("refresh")} ${esc(def ? t("Same as in Settings: {name}", { name: defName }) : t("Same as in Settings (none)"))}</button>` : ""}
@@ -3541,7 +3770,62 @@ function fixExtra(k, d) {
   return out + (FIX_TEXT[key] ? line(t(FIX_TEXT[key], { to: d.to || "" })) : "");
 }
 
+const BROWSER_KEYS = { open: "Open {url} in Chrome", go: "Go to {url} in Chrome", read: "Look at {site} in Chrome",
+  click: "Click «{target}» on {site}", hover: "Point at «{target}» on {site}", type: "Type on {site}",
+  key: "Press {keys} on {site}", scroll: "Scroll the page on {site}", drag: "Drag on the page on {site}",
+  fill: "Fill in fields on {site} ({count})", js: "Run a script on {site}", close: "Close the tab «{target}»",
+  upload: "Give {file} to {site}", download: "Download {file}" };
+const BROWSER_WHY = { send: "It sends, publishes or confirms something.", delete: "It deletes or removes something.",
+  download: "It downloads a file to this computer.", form: "It sends a form.",
+  access: "It gives a site access to your account or data.", install: "It installs something.",
+  login: "It signs in to a site.", local: "It opens a page of this computer or of the home network.",
+  upload: "It gives a file from this computer to the site.", script: "The script can change the page or send data.",
+  shortcut: "A key that can do something on this site (send, delete…).", close: "It closes a tab Lanterna didn't open.",
+  risky_site: "A bank, payment, crypto or government site." };
+const MODE_NAME = { ask: "Ask first", semi: "Semi-automatic", full: "Automatic" };
+function browserTitle(d) {
+  let act = d.action || "";
+  if (act === "double_click" || act === "right_click") act = "click";
+  const key = act === "click" && !d.target ? "Click on {site}" : act === "close" && !(d.target || d.title) ? "Close a tab"
+    : BROWSER_KEYS[act] || "Do this in Chrome";
+  const short = String(d.url || "").replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+  return t(key, { url: short.length > 60 ? short.slice(0, 60) + "…" : short, site: d.site || "", target: String(d.target || d.title || "").slice(0, 60),
+    keys: d.keys || "", count: d.count || (d.fields || []).length, file: d.file || "" });
+}
+function browserCard(c) {
+  const d = c.details || {};
+  let body = d.reason && BROWSER_WHY[d.reason] ? `<p class="cc-desc">${esc(t(BROWSER_WHY[d.reason]))}</p>` : "";
+  if (d.url && !["open", "go", "download"].includes(d.action)) body += `<div class="cc-meta">${esc(String(d.url).slice(0, 160))}</div>`;
+  if (d.action === "download" && d.url) body += `<div class="cc-meta">${esc(t("From {site}", { site: d.site || "" }))}${d.size ? " · " + esc(typeof d.size === "number" ? bytes(d.size) : sizeStr(d.size)) : ""}</div>`;
+  if (d.text) body += `<div class="cc-lbl">${esc(t("Text"))}</div><pre class="cc-prev">${esc(d.text)}</pre>`;
+  if ((d.fields || []).length) body += `<div class="cc-lbl">${esc(t("Fields"))}</div><pre class="cc-prev">${esc(d.fields.join("\n"))}</pre>`;
+  if (d.code) body += `<div class="cc-lbl">${esc(t("Script"))}</div><pre class="cc-prev">${esc(d.code)}</pre>`;
+  if (d.file && d.action === "upload") body += `<div class="cc-meta">${esc(t("File: {f}", { f: d.file }))}</div>`;
+  body += `<div class="cc-meta">${esc(t("Mode: {m} · Settings → Chrome", { m: t(MODE_NAME[d.mode] || "Ask first") }))}</div>`;
+  const el = h(`<div class="cc browser-cc"><div class="cc-h">${icon("globe", "i cc-ic")}<b>${esc(browserTitle(d))}</b></div>${body}
+    <div class="cc-foot"><span class="cc-q">${t("Lanterna waits for your answer.")}</span>
+      <button class="btn ghost small" data-a="no">${t("Don't allow")}</button>
+      ${d.site_ok ? `<button class="btn ghost small" data-a="site">${t("Allow on this site")}</button>` : ""}
+      <button class="btn primary small" data-a="yes">${t("Allow")}</button></div></div>`);
+  const foot = el.querySelector(".cc-foot");
+  const done = r => {
+    el.classList.add("st-" + (r.state === "done" ? "done" : r.state === "cancelled" ? "cancelled" : "expired"));
+    const site = ((r.details || {}).chosen || d.chosen) === "site";
+    foot.innerHTML = `<span class="cc-q">${r.state === "done" ? `${icon("check", "i ok-ic")}<span class="ok">${esc(t(site ? "Allowed on {site}" : "Allowed", { site: d.site || "" }))}</span>`
+      : r.state === "cancelled" ? `${icon("x")}<span>${esc(t("Not allowed"))}</span>` : `${icon("info")}<span>${esc(t("This card has expired. Ask again."))}</span>`}</span>`;
+  };
+  if (c.state !== "pending") done(c);
+  el.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => {
+    el.querySelectorAll("[data-a]").forEach(x => x.disabled = true);
+    const a = b.dataset.a;
+    const r = await (a === "yes" ? api.action_confirm(c.id) : a === "site" ? api.action_confirm_site(c.id) : api.action_cancel(c.id));
+    done(a === "site" && r.state === "done" ? { ...r, details: { chosen: "site" } } : r);
+  });
+  return el;
+}
+
 function actCard(c) {
+  if (c.kind === "browser_act") return browserCard(c);
   const d = c.details || {};
   let to = d.to || "";
   if (c.kind === "pc_move" && d.to_place) to = placeName(d.to_place) + (to && to !== "." ? "/" + to : "");
@@ -3606,7 +3890,7 @@ function actCard(c) {
   } else if (c.kind === "game_remove") {
     extra = `<div class="cc-meta">${esc(t("Steam asks once more, then removes it: about {s} is freed. Steam can download it again later.", { s: sizeStr(d.size) }))}</div>`;
   } else if (c.kind === "space_on") {
-    extra = `<div class="cc-meta">${esc(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm."))}</div>`;
+    extra = `<div class="cc-meta">${esc(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin."))}</div>`;
   } else if (c.kind === "sys_theme" || c.kind === "sys_power") {
     if (d.was) meta.push(t("Now: {x}", { x: t(d.was) }));
   } else if (fix) {
@@ -3663,12 +3947,83 @@ function actCard(c) {
   return el;
 }
 
+// ---------------------------------------------------------------- Settings → Chrome and the modes
+const PC_MODE_NOTE = {
+  ask: "A card before every change: nothing happens until you confirm it.",
+  semi: "Changes that can be undone (files and folders, the look and settings, installing from the catalog) happen at once. Mail, GitHub, Google Drive, removing programs and other services still ask.",
+  full: "No cards: Lanterna does the changes at once. Every change is in What Lanterna did." };
+const CHROME_MODE_NOTE = {
+  ask: "A card before every action in Chrome. «Allow on this site» lets ordinary actions there go on without asking.",
+  semi: "Reading, clicking, typing and scrolling go on at once. Sending, publishing, deleting, downloads and giving access ask first.",
+  full: "No cards in Chrome. Lanterna still never types passwords or card details, never buys or pays, never makes accounts or solves CAPTCHAs." };
+const modeSeg = (id, cur) => `<div class="seg" id="${id}">${MODES.map(([m, l]) => `<button data-m="${m}" class="${m === cur ? "on" : ""}" aria-pressed="${m === cur}">${esc(t(l))}</button>`).join("")}</div>`;
+function paintModeSeg(seg, cur) {
+  seg.querySelectorAll("[data-m]").forEach(b => { b.classList.toggle("on", b.dataset.m === cur); b.setAttribute("aria-pressed", b.dataset.m === cur); });
+}
+
+async function chromeSettings(box) {
+  if (!box || !box.isConnected) return;
+  const st = await api.browser_status();
+  const steps = ["Open chrome://extensions in Chrome and turn on Developer mode (top right).",
+    "Press «Load unpacked» and choose the folder the button below opens.",
+    "Pin Lanterna on Chrome's toolbar: its button (or Alt+L) opens Lanterna next to the page.",
+    "Leave Developer mode on: without it Chrome turns off extensions loaded from a folder, Lanterna's too."];
+  const state = st.connected ? t("Connected: {b}", { b: st.browser || "Chrome" }) : st.listening ? t("Not connected yet") : t("Off");
+  const list = (items, kind) => items.length ? `<div class="site-list">${items.map(x => `<span class="site">${esc(x)}<button data-rm="${esc(x)}" data-k="${kind}" title="${esc(t("Remove"))}" aria-label="${esc(t("Remove"))}">${icon("x")}</button></span>`).join("")}</div>`
+    : `<p class="faint" style="margin:4px 0 0;font-size:13px">${esc(t(kind === "allow" ? "None yet." : "None."))}</p>`;
+  box.innerHTML = `
+    <label class="check" style="margin-top:0"><input type="checkbox" id="br-on" ${st.on ? "checked" : ""}>
+      <span><b>${t("Let Lanterna work in Chrome")}</b><small>${t("With Lanterna's extension it can read pages, click, type and fill forms in your Chrome, in the tabs you see. Lanterna must be running (in the tray is enough).")}</small></span></label>
+    <div class="card chrome-card"><div class="row"><div class="grow"><b>${esc(state)}</b>${st.connected && st.tab ? `<small>${esc(t("Tab in front: {t}", { t: st.tab.title || st.tab.url || "" }))}</small>` : ""}</div>
+      ${!st.connected && st.listening ? `<button class="btn ghost small" id="br-pair">${t("Connect Chrome")}</button>` : ""}
+      <button class="btn ghost small" id="br-folder">${icon("folder")} ${t("Open the extension's folder")}</button></div>
+      ${st.connected ? "" : `<ol class="steps">${steps.map(x => `<li>${esc(t(x))}</li>`).join("")}</ol>`}</div>
+    <div class="mode-set"><b>${t("How much Lanterna asks first in Chrome")}</b>${modeSeg("br-mode", st.mode)}
+      <small class="muted">${esc(t(CHROME_MODE_NOTE[st.mode] || CHROME_MODE_NOTE.semi))}</small>
+      <label class="check"><input type="checkbox" id="br-linked" ${st.linked ? "checked" : ""}>
+        <span><b>${t("The same as on the computer")}</b><small>${t("One mode for changes on this computer and for Chrome.")}</small></span></label></div>
+    <div class="cc-lbl">${t("Sites allowed without asking (Ask first mode)")}</div>${list(st.sites || [], "allow")}
+    <div class="cc-lbl" style="margin-top:10px">${t("Sites Lanterna never touches")}</div>${list(st.never || [], "never")}
+    <div class="keyrow" style="margin-top:6px"><div class="wrap"><input class="field" id="br-never" maxlength="100" placeholder="${esc(t("for example: mybank.com"))}"></div>
+      <button class="btn ghost" id="br-never-add" title="${esc(t("Add"))}" aria-label="${esc(t("Add"))}">${icon("plus")}</button></div>`;
+  $("#br-on", box).onchange = async e => { S = await api.save_settings({ browser_on: e.target.checked }); chromeSettings(box); };
+  $("#br-folder", box).onclick = async () => { const r = await api.browser_folder(); if (!r.ok) toast(t("Couldn't do it: {error}", { error: r.error || "" })); };
+  const pair = $("#br-pair", box);
+  if (pair) pair.onclick = async () => { await api.browser_pair(); toast(t("Lanterna lets a new Chrome connect for the next 2 minutes: open Lanterna's panel in Chrome.")); };
+  $("#br-linked", box).onchange = async e => { S = await api.save_settings({ modes_linked: e.target.checked }); chromeSettings(box); };
+  $("#br-mode", box).querySelectorAll("[data-m]").forEach(b => b.onclick = async () => {
+    S = await api.save_settings({ browser_mode: b.dataset.m });
+    chromeSettings(box);
+    const pc = document.querySelector("#pc-mode");
+    if (pc) { paintModeSeg(pc, S.settings.pc_mode); $("#pc-mode-note").textContent = t(PC_MODE_NOTE[S.settings.pc_mode]); }
+  });
+  box.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => { await api.browser_site(b.dataset.rm, ""); chromeSettings(box); });
+  const add = async () => {
+    const v = $("#br-never", box).value.trim();
+    if (!v) return;
+    const r = await api.browser_site(v, "never");
+    if (!r.ok) toast(t("This isn't a site's address.")); else chromeSettings(box);
+  };
+  $("#br-never-add", box).onclick = add;
+  $("#br-never", box).onkeydown = e => { if (e.key === "Enter") add(); };
+}
+
+async function paintShortcuts(box) {
+  if (!box || !box.isConnected) return;
+  SHORTCUTS = await api.shortcuts();
+  box.innerHTML = SHORTCUTS.length ? SHORTCUTS.map(x => `<div class="row sc-row"><div class="grow"><b>/${esc(x.name)}</b><small>${esc(x.text.replace(/\s+/g, " ").slice(0, 140))}</small></div>
+      <button class="btn ghost small" data-e="${esc(x.name)}">${t("Change")}</button><button class="btn ghost small" data-d="${esc(x.name)}">${t("Remove")}</button></div>`).join("")
+    : `<p class="faint" style="margin:0;font-size:13px">${esc(t("No shortcuts yet."))}</p>`;
+  box.querySelectorAll("[data-e]").forEach(b => b.onclick = () => shortcutDialog(SHORTCUTS.find(x => x.name === b.dataset.e), () => paintShortcuts(box)));
+  box.querySelectorAll("[data-d]").forEach(b => b.onclick = async () => { SHORTCUTS = (await api.shortcut_delete(b.dataset.d)).items; paintShortcuts(box); });
+}
+
 // ---------------------------------------------------------------- working folder
 async function workdirPanel(box) {
   if (!box || !box.isConnected) return;
   const w = await api.workdir();
   const errs = { not_found: t("There is no such folder."), too_broad: t("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.") };
-  box.innerHTML = `<p class="muted sync-p">${t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.")}
+  box.innerHTML = `<p class="muted sync-p">${t("Lanterna can look at the files in one folder you choose, and create or change files there (with a card first or at once, as the mode in Settings → Computer says). It never deletes anything and sees nothing outside this folder.")}
       ${t("The files it opens are sent to the model in use (to the online service in Cloud mode).")}
       ${t("New chats start with this folder; each chat can change it under the message box.")}</p>
     ${w.path ? `<div class="row"><div class="grow"><b>${icon("folder")} ${esc(w.name || w.path)}</b><small>${esc(w.path)}${w.missing ? " · " + t("not found") : ""}</small></div>

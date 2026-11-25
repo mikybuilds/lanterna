@@ -20,4 +20,6 @@ def _no_background_loops(monkeypatch):
 
     def without_loops(self, store=None, scheduler=True):
         init(self, store, scheduler=False)
+        # tests written before the modes (24.11) expect a card before every change, as in the "ask" mode
+        self.settings.pc_mode = self.settings.browser_mode = "ask"
     monkeypatch.setattr(app.Api, "__init__", without_loops)

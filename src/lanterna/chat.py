@@ -18,6 +18,7 @@ SUMMARY_EVERY = 10        # …and the older part is summarized again once this 
 MAX_TOOL_ROUNDS = 4       # tool calls per answer, then the model must reply
 PLAN_ROUNDS = 12          # …while it works through a plan or makes project files (the user chose 12)
 FIX_ROUNDS = 8            # …while it finds why something doesn't work (look, search the web, read, fix)
+BROWSER_ROUNDS = 30       # …while it works in Chrome: every look and every click is a round of its own
 EMPTY_NUDGE = ("(Your last turn had no text for me. Answer my question above now, in plain words, using what you "
                "already found. Do not search again.)")
 REPEAT_NOTE = ("Not run: you already made this (or an almost identical) {name} call in this answer, and its result "
@@ -799,6 +800,7 @@ class _Work:
     failed: list[tuple[str, str, str]] = field(default_factory=list)   # (name, arguments, error) of those that failed
     asked: list[dict] = field(default_factory=list)             # questions for the user (ask_user)
     redo: bool = False                       # answering again after Lanterna's check (REDO_NOTE)
+    see: bool = False                        # a screenshot of Chrome goes with the next round (a model that sees)
     careful: bool = False                    # changes on the computer: strong models (careful_turn)
 
 
@@ -818,6 +820,8 @@ class Conversation:
     plan_text: str = ""                    # the chat's unfinished task plan, as the model reads it (plans.for_model)
     out_of_rounds: bool = False            # the last answer ended at the tool-round limit (its work may not be done)
     cards_waiting: bool = False            # a card of this chat waits for the user: "press Confirm" is right
+    browser_note: str = ""                 # how to work in Chrome (browser.system_note), when its tools are offered
+    context_note: str = ""                 # words that choose tool groups too, e.g. "(browser)" from Chrome's panel
 
     def _system(self, text: str) -> dict:
         cur = used_model(self.router)
@@ -843,7 +847,8 @@ class Conversation:
         recent = [m.get("content") for m in self.history[-6:] if isinstance(m.get("content"), str)]
         # an unfinished plan keeps the plan tool on, whatever the words of "go on" are, and its steps keep the
         # tools of the job on (a game's files, the user's folders)
-        return " ".join([*recent, text or "", f"(task plan) {self.plan_text}" if self.plan_text else ""])
+        parts = [*recent, text or "", f"(task plan) {self.plan_text}" if self.plan_text else ""]
+        return " ".join([*parts, self.context_note] if self.context_note else parts)    # (browser): Chrome's side panel
 
     def _messages(self, text: str, images: list[str] | None = None) -> list[dict]:
         ask = text
@@ -920,6 +925,8 @@ class Conversation:
             msgs[0]["content"] += ASK_WANTED if wants_questions(text) else ASK_HINT
         if not schemas or self.router.lacks_tools():
             msgs[0]["content"] += NO_TOOLS_NOTE
+        elif self.browser_note and any(s["function"]["name"].startswith("browser_") for s in schemas):
+            msgs[0]["content"] += self.browser_note
         if schemas and self.router.lacks_tools() and needs_search(text) and isinstance(msgs[-1]["content"], str):
             # this model can't call tools: search for it, so it doesn't make up fresh facts
             args = json.dumps({"query": " ".join(text.split())[:200]}, ensure_ascii=False)
@@ -970,7 +977,7 @@ class Conversation:
             tools = w.schemas
             choice = ("none" if last else "required" if tools and w.rnd == 0 and not w.redo and must_use_tool(w.text)
                       else "auto")
-            for p in self.router.stream(w.msgs, need_vision=bool(w.images), tools=tools, tool_choice=choice,
+            for p in self.router.stream(w.msgs, need_vision=bool(w.images) or w.see, tools=tools, tool_choice=choice,
                                         prefer_cloud=w.cloud_first, careful=w.careful):
                 if isinstance(p, ToolCalls):
                     calls = p
@@ -1007,7 +1014,8 @@ class Conversation:
                 # read_page keeps the parts of a long page that fit the question and the searches made so far
                 self.toolbox.focus = " ".join([w.text, *(a for n, a in w.done if n == "web_search"), c.arguments])
                 self.toolbox.page_limit = limit - 200
-                if any(same_call(c.name, c.arguments, n, a) for n, a in seen):
+                # (not in Chrome: a page changes after a click, so the same look or the same key is a new step)
+                if not c.name.startswith("browser_") and any(same_call(c.name, c.arguments, n, a) for n, a in seen):
                     # the same (or nearly the same) call again: models repeat searches and burn the free limits
                     result = REPEAT_NOTE.format(name=c.name)
                 else:
@@ -1025,10 +1033,22 @@ class Conversation:
                 w.rounds = PLAN_ROUNDS              # a plan or project files: a big job gets its 12 rounds
             elif any(n.startswith("fix_") for n, _ in w.done) and w.rounds < FIX_ROUNDS:
                 w.rounds = FIX_ROUNDS               # finding why something doesn't work: look, search, read, fix
+            in_chrome = any(n.startswith("browser_") for n, _ in w.done)
+            if in_chrome and w.rounds < BROWSER_ROUNDS:
+                w.rounds = BROWSER_ROUNDS
             # models lose count of their tool rounds: near the end, tell them to stop searching and answer
             note = budget_note(w.rounds - w.rnd - 1, plan=planned or bool(self.plan_text))
             if note:
                 w.msgs[-1]["content"] += "\n\n" + note
+            w.see = False
+            if in_chrome:
+                from . import browser
+                browser.squeeze(w.msgs)             # older looks at pages and older screenshots get short
+                pics = browser.take_images()
+                if pics:                            # a screenshot: the picture goes to the model as a user turn
+                    w.see = True
+                    w.msgs.append({"role": "user", "content": user_content(
+                        browser.SHOT_MARK + " " + "; ".join(c for c, _ in pics), [u for _, u in pics])})
             w.rnd += 1
 
     def _fill_empty(self, w: _Work) -> Iterator[str | Switched]:

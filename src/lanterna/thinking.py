@@ -87,7 +87,25 @@ TOOL_TEXT = {
     "fix_windows": ("Preparing a fix in Windows", ""),
     "fix_system": ("Preparing a fix in the system", ""),
     "video_download": ("Downloading from {x}", "url"),
+    "browser_tabs": ("Looking at the tabs in Chrome", ""),
+    "browser_open": ("Opening {x} in Chrome", "url"),
+    "browser_go": ("Going to {x} in Chrome", "to"),
+    "browser_read": ("Looking at the page in Chrome", ""),
+    "browser_text": ("Reading the page in Chrome", ""),
+    "browser_find": ("Looking on the page for: {x}", "query"),
+    "browser_fill": ("Filling in the form in Chrome", ""),
+    "browser_screenshot": ("Taking a screenshot of the page", ""),
+    "browser_js": ("Running a script on the page", ""),
+    "browser_close": ("Closing a tab in Chrome", ""),
+    "browser_console": ("Reading the page's console", ""),
+    "browser_network": ("Looking at the page's requests", ""),
+    "browser_upload": ("Preparing a file for the page: {x}", "path"),
+    "browser_resize": ("Changing the size of Chrome's window", ""),
 }
+# browser_act: one line per action (the model's words, like "click", are English)
+ACT_TEXT = {"click": "Clicking in Chrome", "double_click": "Clicking in Chrome", "right_click": "Clicking in Chrome",
+            "hover": "Pointing at something on the page", "type": "Typing on the page", "key": "Pressing keys in Chrome",
+            "scroll": "Scrolling the page", "drag": "Dragging on the page", "wait": "Waiting for the page"}
 # fix_check's areas are English words for the model ("updates"): the line says them in the user's language
 AREA_WORDS = {"sound": "the sound", "internet": "the internet", "printer": "the printer", "updates": "the updates"}
 CYRILLIC = re.compile(r"[Ѐ-ӿ]")
@@ -115,9 +133,16 @@ def tool_step(name: str, arguments: str, lang: str = "en", why: bool = True) -> 
     if not isinstance(args, dict):
         args = {}
     text, key = TOOL_TEXT.get(name, ("Using {x}", ""))
+    if name == "browser_act":
+        text, key = ACT_TEXT.get(str(args.get("action") or ""), "Working in Chrome"), ""
     x = args.get(key, "") if key else name
-    if key == "url":
+    if key == "url" or name == "browser_go" and "://" in str(x):
         x = urlparse(str(x)).netloc or x
+    elif name == "browser_go":
+        x = t({"back": "the page before", "forward": "the next page", "reload": "the same page again"}.get(
+            str(x).strip().lower(), str(x)), lang)
+    elif name == "browser_upload":
+        x = str(x).replace("\\", "/").rsplit("/", 1)[-1]
     elif name == "fix_check" and str(x).strip().lower() in AREA_WORDS:
         x = t(AREA_WORDS[str(x).strip().lower()], lang)
     x = _short(x or "")

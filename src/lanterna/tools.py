@@ -461,6 +461,19 @@ GROUPS = {
                        r"\bgioc|videogioc|progett|programm|\bsito\b|\bspiel|projekt|webseite|juego|proyecto|"
                        r"programa|sitio web|\bjeux?\b|projet|\bgr(a|y|ę|ze)\b|\bgier\b|strona www|"
                        r"\bигр|программ", re.I),
+    # the user's Chrome (browser.py, only while Lanterna's extension is connected); "(browser)" = a message from
+    # Chrome's side panel
+    "browser": re.compile(r"\(browser\)|браузер|browser|\bchrome\b|\bхром|\bedge\b|вкладк|\btabs?\b|сторінк|"
+                          r"\bpages?\b|webpage|сайт|\bsites?\b|website|посиланн|\blinks?\b|https?://|www\.|натисн|"
+                          r"клікн|\bclick|кнопк|\bbutton|форм(у|и|і|а)\b|\bforms?\b|заповн|\bfill|gmail|youtube|"
+                          r"spaggiari|classeviva|registro elettronico|щоденник|електронн\w* журнал|github|facebook|"
+                          r"instagram|linkedin|reddit|amazon|\bolx|rozetka|wikipedia|вікіпед|scheda|pagina|\bsito\b|"
+                          r"clicca|compila|\bseite|klick|ausfüll|pestaña|página|\bsitio|haz clic|rellena|onglet|"
+                          r"clique|remplis|\bkarta|stron(a|ę|y|ie)\b|kliknij|wypełnij|вкладка|страниц|нажми|заполни",
+                          re.I),
+    "browserdev": re.compile(r"консол|console|\bnetwork\b|мереж\w* запит|\brequests?\b|javascript|\bjs\b|debug|"
+                             r"налагод|devtools|прикріп|attach|allega|anhäng|adjunt|joindre|załącz|прикрепи|"
+                             r"upload|вивантаж|resize|розмір вікна|window size", re.I),
 }
 
 

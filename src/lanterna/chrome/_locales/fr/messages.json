@@ -1,0 +1,47 @@
+{
+ "name": {
+  "message": "Lanterna"
+ },
+ "description": {
+  "message": "Lanterna, l'assistant gratuit de ton ordinateur, lit les pages et travaille dans ton navigateur : il clique, écrit et remplit les formulaires."
+ },
+ "open": {
+  "message": "Ouvrir Lanterna"
+ },
+ "ask_page": {
+  "message": "Demander à Lanterna à propos de cette page"
+ },
+ "ask_selection": {
+  "message": "Demander à Lanterna à propos de « %s »"
+ },
+ "ask_link": {
+  "message": "Demander à Lanterna à propos de ce lien"
+ },
+ "off_title": {
+  "message": "Lanterna n'est pas lancée"
+ },
+ "off_text": {
+  "message": "Lance Lanterna sur cet ordinateur : le panneau s'y connecte tout seul. Les discussions, les modèles et chaque décision restent dans Lanterna ; l'extension fait seulement dans le navigateur ce que Lanterna demande."
+ },
+ "retry": {
+  "message": "Réessayer"
+ },
+ "reset_title": {
+  "message": "Se connecter à cette Lanterna ?"
+ },
+ "reset_text": {
+  "message": "La Lanterna de cet ordinateur n'est pas celle à laquelle l'extension était connectée : elle a été réinstallée ou c'est une autre copie. Connecte-toi seulement si tu l'as lancée toi-même."
+ },
+ "connect": {
+  "message": "Connecter"
+ },
+ "what": {
+  "message": "Qu'est-ce que Lanterna ?"
+ },
+ "pair_title": {
+  "message": "Connecter ce Chrome"
+ },
+ "pair_text": {
+  "message": "Lanterna est connecté à une autre copie de cette extension. Dans Lanterna, ouvre Paramètres → Chrome et appuie sur « Connecter Chrome » : ce panneau se connecte ensuite tout seul."
+ }
+}

@@ -1,0 +1,47 @@
+{
+ "name": {
+  "message": "Lanterna"
+ },
+ "description": {
+  "message": "Lanterna, the free assistant on your computer, reads pages and works in your browser: clicks, types and fills forms."
+ },
+ "open": {
+  "message": "Open Lanterna"
+ },
+ "ask_page": {
+  "message": "Ask Lanterna about this page"
+ },
+ "ask_selection": {
+  "message": "Ask Lanterna about “%s”"
+ },
+ "ask_link": {
+  "message": "Ask Lanterna about this link"
+ },
+ "off_title": {
+  "message": "Lanterna isn't running"
+ },
+ "off_text": {
+  "message": "Start Lanterna on this computer: this panel connects to it by itself. The chats, the models and every decision stay in Lanterna; this extension only does in the browser what Lanterna asks."
+ },
+ "retry": {
+  "message": "Try again"
+ },
+ "reset_title": {
+  "message": "Connect to this Lanterna?"
+ },
+ "reset_text": {
+  "message": "The Lanterna running on this computer isn't the one this extension was connected to before: it was set up again, or it's another copy. Connect only if you started it yourself."
+ },
+ "connect": {
+  "message": "Connect"
+ },
+ "what": {
+  "message": "What is Lanterna?"
+ },
+ "pair_title": {
+  "message": "Let this Chrome in"
+ },
+ "pair_text": {
+  "message": "Lanterna is connected to another copy of this extension. In Lanterna, open Settings → Chrome and press «Connect Chrome»: this panel then connects by itself."
+ }
+}

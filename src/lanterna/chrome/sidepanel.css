@@ -1,0 +1,13 @@
+:root { --bg: #0B0E17; --fg: #F3EEE4; --muted: #A9A39A; --amber: #F5B544; --line: rgba(243,238,228,.12); color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root { --bg: #FBF8F2; --fg: #1B1A17; --muted: #5E5A53; --amber: #8F5600; --line: rgba(27,26,23,.14); color-scheme: light; } }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, "Segoe UI", sans-serif; }
+iframe { display: block; border: 0; width: 100%; height: 100vh; }
+main { box-sizing: border-box; min-height: 100vh; padding: 48px 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+main img { border-radius: 14px; }
+h1 { font-size: 18px; margin: 8px 0 0; font-weight: 600; }
+p { margin: 0; color: var(--muted); max-width: 34em; }
+button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--amber); background: transparent; color: var(--fg); cursor: pointer; }
+button:hover { background: color-mix(in srgb, var(--amber) 14%, transparent); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+a { color: var(--muted); font-size: 13px; }
+a:hover { color: var(--amber); }

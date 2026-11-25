@@ -1103,6 +1103,13 @@ class AboutScreen(ModalScreen[None]):
 
 SET_TABS = [("general", "General"), ("models", "Models"), ("memory", "Memory and reminders"), ("chats", "Chats"),
             ("voice", "Voice"), ("pc", "Computer and tools"), ("account", "Account")]
+# how much Lanterna asks before a change on this computer (the same words as Settings → Computer in the window)
+PC_MODES = (("ask", "Ask first"), ("semi", "Semi-automatic"), ("full", "Automatic"))
+PC_MODE_NOTE = {
+    "ask": "A card before every change: nothing happens until you confirm it.",
+    "semi": "Changes that can be undone (files and folders, the look and settings, installing from the catalog) happen at "
+            "once. Mail, GitHub, Google Drive, removing programs and other services still ask.",
+    "full": "No cards: Lanterna does the changes at once. Every change is in What Lanterna did."}
 # a restored backup: each count in its form; empty memory, reminders and tasks are left out (the same as the window)
 RESTORED = (("{n} chats", "chats"), ("{n} messages", "messages"), ("{n} memory facts", "facts"),
             ("{n} reminders", "reminders"), ("{n} regular tasks", "tasks"))
@@ -1215,7 +1222,7 @@ class SettingsScreen(ModalScreen[str]):
                         yield Button(t("Save", lang), id="instrsave")
                         yield Static(t("F6 changes the role of the open chat: Tutor, Translator, Proofreader or none.", lang), classes="muted")
                         yield Label(t("Working folder", lang), classes="h")
-                        yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there after you confirm each change. It never deletes anything and sees nothing outside this folder.", lang)
+                        yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there (with a card first or at once, as the mode in Settings → Computer says). It never deletes anything and sees nothing outside this folder.", lang)
                                      + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
                         yield Static("", id="wdinfo")
                         with Horizontal(classes="keyrow"):
@@ -1258,11 +1265,18 @@ class SettingsScreen(ModalScreen[str]):
                     with VerticalScroll(classes="setpane"):
                         yield Label(t("Computer", lang), classes="h")
                         yield Checkbox(t("Let Lanterna help with this computer", lang), self.app.api.settings.pc_access, id="pcaccess")
-                        yield Static(t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; every change — moving, the Recycle Bin, installing, a setting — waits for your Confirm. File names and the files it opens go to the model in use.", lang), classes="muted")
+                        yield Static(t("Your folders (Downloads, Desktop, Documents, Pictures, Videos, Music), programs and a few safe settings. Lanterna looks on its own; whether it asks before a change (moving, the Recycle Bin, installing, a setting) depends on the mode below. File names and the files it opens go to the model in use.", lang), classes="muted")
                         yield Checkbox(t("Weekly tidy-up of Downloads", lang), self.app.api.settings.tidy_weekly, id="tidyweekly")
                         yield Static(t("Once a week, if new files are lying loose in Downloads, Lanterna makes a chat with a card to sort them into folders. Nothing moves until you confirm.", lang), classes="muted")
                         yield Checkbox(t("Help free up disk space", lang), self.app.api.settings.space_help, id="spacehelp")
-                        yield Static(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin, after you confirm.", lang), classes="muted")
+                        yield Static(t("Lanterna can show what takes up space (big and old files, old installers, the Recycle Bin) and warns you when the disk is almost full. Removing goes only to the Recycle Bin.", lang), classes="muted")
+                        yield Label(t("How much Lanterna asks first", lang), classes="h")
+                        mode = self.app.api.settings.pc_mode
+                        with Horizontal(classes="modes"):
+                            for m, label in PC_MODES:
+                                yield Button(("● " if mode == m else "") + t(label, lang), id=f"pcmode-{m}")
+                        yield Static(t(PC_MODE_NOTE.get(mode, PC_MODE_NOTE["semi"]), lang), classes="muted")
+                        yield Static(t("Never, in any mode: passwords, card details, payments, new accounts.", lang), classes="muted")
                         yield Label(t("Connectors", lang), classes="h")
                         yield Button("🔌 " + t("Open Connectors", lang), id="openconn", variant="primary")
                         yield Static("", id="gdinfo", classes="muted")
@@ -1693,6 +1707,9 @@ class SettingsScreen(ModalScreen[str]):
             self._paint_voice()
         elif bid.startswith("tts-"):
             self.app.api.save_settings({"tts": bid[4:]})
+            self.dismiss("reopen")
+        elif bid.startswith("pcmode-"):
+            self.app.api.save_settings({"pc_mode": bid[7:]})
             self.dismiss("reopen")
         elif bid == "ttsget":
             self.app.api.tts_setup()

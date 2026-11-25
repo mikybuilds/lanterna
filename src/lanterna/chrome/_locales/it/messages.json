@@ -1,0 +1,47 @@
+{
+ "name": {
+  "message": "Lanterna"
+ },
+ "description": {
+  "message": "Lanterna, l'assistente gratuito sul tuo computer, legge le pagine e lavora nel browser: clicca, scrive e compila moduli."
+ },
+ "open": {
+  "message": "Apri Lanterna"
+ },
+ "ask_page": {
+  "message": "Chiedi a Lanterna di questa pagina"
+ },
+ "ask_selection": {
+  "message": "Chiedi a Lanterna di «%s»"
+ },
+ "ask_link": {
+  "message": "Chiedi a Lanterna di questo link"
+ },
+ "off_title": {
+  "message": "Lanterna non è aperta"
+ },
+ "off_text": {
+  "message": "Avvia Lanterna su questo computer: il pannello si collega da solo. Chat, modelli e ogni decisione restano in Lanterna; l'estensione fa nel browser solo ciò che Lanterna chiede."
+ },
+ "retry": {
+  "message": "Riprova"
+ },
+ "reset_title": {
+  "message": "Collegarsi a questa Lanterna?"
+ },
+ "reset_text": {
+  "message": "La Lanterna aperta su questo computer non è quella a cui l'estensione era collegata: è stata reinstallata o è un'altra copia. Collegati solo se l'hai avviata tu."
+ },
+ "connect": {
+  "message": "Collega"
+ },
+ "what": {
+  "message": "Cos'è Lanterna?"
+ },
+ "pair_title": {
+  "message": "Collega questo Chrome"
+ },
+ "pair_text": {
+  "message": "Lanterna è collegata a un'altra copia di questa estensione. In Lanterna apri Impostazioni → Chrome e premi «Collega Chrome»: poi questo pannello si collega da solo."
+ }
+}

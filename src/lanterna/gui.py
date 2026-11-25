@@ -35,7 +35,7 @@ METHODS = {"state", "connectors", "connectors_search", "connector_add", "connect
            "desktop_status", "quick_hide", "open_in_main", "screenshot",
            "task_list", "task_add", "task_delete", "task_pause", "task_run",
            "voice_status", "voice_start", "voice_stop", "voice_cancel", "voice_setup", "voice_setup_cancel",
-           "mcp_status", "mcp_enable", "mcp_add", "mcp_import", "mcp_update", "mcp_remove", "mcp_restart"}
+           "mcp_status", "mcp_enable", "mcp_add", "mcp_import", "mcp_update", "mcp_remove", "mcp_restart", "browser_status", "browser_folder", "browser_pair", "browser_site", "browser_record_start", "browser_record_stop", "browser_recorded_take", "action_confirm_site", "shortcuts", "shortcut_save", "shortcut_delete"}
 MAX_BODY = 64 * 1024 * 1024          # attachments travel in the request body
 
 
@@ -406,6 +406,7 @@ def run_window(start_hidden: bool = False) -> int:
         if shell.tell_running_copy():                       # Lanterna already runs: it shows its window instead
             return 0
     api = Api()
+    api.start_browser()                                     # Lanterna's Chrome extension connects to it (browser.py)
     extra, frame = _linux_window(webview, api.settings.theme) if linux else ({}, None)
     fresh_ui_cache(api.store.path.parent / "webview")
     page = WindowApi(api)
@@ -505,7 +506,9 @@ def make_server(api: Api, port: int = 0) -> tuple[ThreadingHTTPServer, str]:
 
 
 def run_browser(port: int, open_browser: bool) -> int:
-    srv, url = make_server(Api(), port)
+    api = Api()
+    api.start_browser()
+    srv, url = make_server(api, port)
     print(url, flush=True)
     if open_browser:
         from .quiet import open_url
@@ -527,6 +530,8 @@ def selfcheck(out: str) -> int:
         except Exception as e:                              # noqa: BLE001 - report anything
             report[name] = f"missing: {e}"
     report["ui"] = all((UI / f).is_file() for f in ("index.html", "app.js", "style.css", "logo.svg"))
+    report["chrome"] = all((UI.parent / "chrome" / f).is_file()               # Lanterna's Chrome extension
+                           for f in ("manifest.json", "background.js", "page.js", "sidepanel.html", "icons/128.png"))
     try:                                                    # sync encryption must work inside the build
         from . import sync
         salt, key = b"s" * 16, b"k" * 32
@@ -555,7 +560,7 @@ def selfcheck(out: str) -> int:
     except Exception as e:                                  # noqa: BLE001
         report["error"] = str(e)
     Path(out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
-    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx", "crypto", "backup", "pdfium")) and report["ui"] else 1
+    return 0 if all(v == "ok" for k, v in report.items() if k in ("pypdf", "PIL", "webview", "keyring", "httpx", "crypto", "backup", "pdfium")) and report["ui"] and report["chrome"] else 1
 
 
 def main(argv: list[str] | None = None) -> int:

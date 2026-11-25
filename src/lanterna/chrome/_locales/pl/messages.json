@@ -1,0 +1,47 @@
+{
+ "name": {
+  "message": "Lanterna"
+ },
+ "description": {
+  "message": "Lanterna, darmowy asystent na twoim komputerze, czyta strony i pracuje w przeglądarce: klika, pisze i wypełnia formularze."
+ },
+ "open": {
+  "message": "Otwórz Lanterna"
+ },
+ "ask_page": {
+  "message": "Zapytaj Lanterna o tę stronę"
+ },
+ "ask_selection": {
+  "message": "Zapytaj Lanterna o „%s”"
+ },
+ "ask_link": {
+  "message": "Zapytaj Lanterna o ten link"
+ },
+ "off_title": {
+  "message": "Lanterna nie jest uruchomiona"
+ },
+ "off_text": {
+  "message": "Uruchom Lanterna na tym komputerze: panel połączy się sam. Czaty, modele i wszystkie decyzje zostają w Lanterna; rozszerzenie robi w przeglądarce tylko to, o co prosi Lanterna."
+ },
+ "retry": {
+  "message": "Spróbuj ponownie"
+ },
+ "reset_title": {
+  "message": "Połączyć z tą Lanterna?"
+ },
+ "reset_text": {
+  "message": "Lanterna na tym komputerze to nie ta, z którą rozszerzenie było połączone: zainstalowano ją od nowa albo to inna kopia. Połącz tylko, jeśli uruchomiłeś ją sam."
+ },
+ "connect": {
+  "message": "Połącz"
+ },
+ "what": {
+  "message": "Czym jest Lanterna?"
+ },
+ "pair_title": {
+  "message": "Połącz tego Chrome"
+ },
+ "pair_text": {
+  "message": "Lanterna jest połączona z inną kopią tego rozszerzenia. W Lanternie otwórz Ustawienia → Chrome i naciśnij „Połącz Chrome”: potem ten panel połączy się sam."
+ }
+}

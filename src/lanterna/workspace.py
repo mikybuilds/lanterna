@@ -153,6 +153,11 @@ AUTO_KINDS = {"write_new", "write_append", "write_replace", "mkdir", "move",
               "fix_rename", "fix_setting", "fix_aside", "fix_cache", "fix_dns", "fix_proxy", "fix_printer",
               "fix_sound", "fix_unmute"}
 AUTO_MAX_MIN = 120
+# The mode the user chose for changes on this computer (Settings → Computer): "ask" = a card for every change
+# (unless they let Lanterna act on its own in a chat for a while), "semi" = the changes above happen without a card,
+# "full" = no cards at all. Cards that are the user's own choice (letting Lanterna act on its own) always show.
+PC_MODES = ("ask", "semi", "full")
+NEVER_AUTO = {"auto_on"}
 
 
 class Actions:
@@ -164,6 +169,7 @@ class Actions:
         self._lock = threading.Lock()
         self.auto: dict[int, float] = {}               # chat → until when Lanterna acts on its own there
         self.on_auto: Callable[[Action], dict] | None = None   # runs an allowed change at once (set by the app)
+        self.mode: Callable[[], str] = lambda: "ask"            # the user's mode for changes (set by the app)
 
     def auto_left(self, tid: int) -> int:
         """Seconds left of acting on its own in this chat (0 = off)."""
@@ -179,24 +185,38 @@ class Actions:
     def auto_stop(self, tid: int) -> None:
         self.auto.pop(int(tid or 0), None)
 
+    def runs_alone(self, kind: str, tid: int) -> str:
+        """Why this change may happen without a card now: "chat" (the user let Lanterna act on its own in this chat),
+        "mode" (the mode in Settings allows it) or "" (a card first). Changes in Chrome ask in their own way."""
+        if not tid or kind.startswith("browser_") or kind in NEVER_AUTO or not getattr(self._local, "alone", True):
+            return ""
+        mode = self.mode()
+        if kind in AUTO_KINDS and self.auto_left(tid):
+            return "chat"
+        if mode == "full" or mode == "semi" and kind in AUTO_KINDS:
+            return "mode"
+        return ""
+
     def take_auto(self) -> list[Action]:
         """The changes this thread just made on its own (the tool's answer says so instead of "waiting")."""
         ran = getattr(self._local, "auto_ran", [])
         self._local.auto_ran = []
         return ran
 
-    def bind(self, sink: list | None, tid: int = 0) -> None:
-        """Cards proposed in this thread go to `sink` (the reply being streamed)."""
-        self._local.sink, self._local.tid = sink, tid
+    def bind(self, sink: list | None, tid: int = 0, alone: bool = True) -> None:
+        """Cards proposed in this thread go to `sink` (the reply being streamed). alone=False: every change waits
+        for a card whatever the mode (Lanterna's own suggestions, like the weekly tidy-up, nobody asked for)."""
+        self._local.sink, self._local.tid, self._local.alone = sink, tid, alone
 
     def propose(self, kind: str, details: dict, run: Callable[[], str]) -> Action:
         a = Action(uuid.uuid4().hex[:12], kind, details, run, getattr(self._local, "tid", 0))
         with self._lock:
             self.items[a.id] = a
         extra = {}
-        if (self.on_auto and kind in AUTO_KINDS and a.tid and self.auto_left(a.tid)
-                and getattr(self._local, "sink", None) is not None):  # only inside a reply, never on Undo
+        why = self.runs_alone(kind, a.tid) if self.on_auto else ""
+        if why and getattr(self._local, "sink", None) is not None:     # only inside a reply, never on Undo
             a.details["auto"] = True
+            a.details["auto_by"] = why
             extra = self.on_auto(a) or {}
             self._local.auto_ran = getattr(self._local, "auto_ran", []) + [a]
         sink = getattr(self._local, "sink", None)

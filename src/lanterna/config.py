@@ -75,6 +75,16 @@ class Settings:
     morning_city: str = ""                 # the weather line; "" = no weather
     morning_last: str = ""                 # the day (YYYY-MM-DD) the last note was shown
     morning_thread: int = 0                # the chat the notes go to
+    # how much Lanterna asks first (workspace.PC_MODES): "ask" = a card before every change, "semi" = only before
+    # important ones (mail, GitHub, Drive, removing programs, outside tools; in Chrome: sending, deleting, downloads,
+    # giving access), "full" = no cards. Linked: one mode for the computer and Chrome (Settings → Chrome unlinks them).
+    pc_mode: str = "semi"
+    browser_mode: str = "semi"
+    modes_linked: bool = True
+    browser_on: bool = True                # Lanterna talks to its Chrome extension (Settings → Chrome)
+    browser_sites: dict = field(default_factory=dict)   # {"site": "allow"}: no cards for ordinary actions there (ask mode)
+    browser_never: list = field(default_factory=list)   # sites Lanterna never touches in Chrome
+    shortcuts: list = field(default_factory=list)       # [{"name": "news", "text": "…", "at": time}]: "/" in the chat box
     onboarded: bool = False
 
     @classmethod

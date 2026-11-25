@@ -385,8 +385,9 @@ body.busy .chip i { background: var(--flame); }
 .msg.bot .body { min-width: 0; flex: 1; display: flex; flex-wrap: wrap; align-items: center; }
 .msg.bot .body > * { flex: 0 0 100%; min-width: 0; }
 .msg.bot .body > .meta, .msg.bot .body > .say, .msg.bot .body > .copy-ans, .msg.bot .body > .last-act { flex: 0 0 auto; margin-top: 8px; }
+.msg.bot .body > .meta { flex-shrink: 1; }
 .msg.bot .body > details.sent, .msg.bot .body > .follow { order: 1; }
-.msg.bot .meta { margin-right: 8px; font: 400 .8em/1.4 var(--mono); color: var(--faint); }
+.msg.bot .meta { margin-right: 8px; font: 400 .8em/1.4 var(--mono); color: var(--faint); overflow-wrap: anywhere; }   /* a long model name wraps in Chrome's side panel */
 .msg.bot .say, .msg.bot .copy-ans { width: 28px; height: 28px; border-radius: var(--r1); display: inline-grid; place-items: center; color: var(--faint);
   transition: color var(--t-fast), background var(--t-fast); }
 .msg.bot .say:hover, .msg.bot .say.on, .msg.bot .copy-ans:hover { color: var(--text); background: var(--bg-2); }
@@ -669,6 +670,7 @@ body.busy .to-end.show { border-color: var(--amber); }
 .fm-err { margin: 4px 8px 2px; font-size: 13px; }
 .fm-err:empty { display: none; }
 @media (max-width: 900px) { .under { grid-template-columns: auto minmax(0, 1fr); } .hint { display: none; } }
+@media (max-width: 460px) { .under .lim { grid-column: 1 / -1; } }   /* Chrome's side panel: the limit gets a row of its own */
 body.quick .under { display: flex; }
 
 /* ---------------------------------------------------------------- dialogs */
@@ -1065,3 +1067,33 @@ body.private .newpriv { border-color: var(--text); color: var(--text); backgroun
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
     transition-duration: 1ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---------------------------------------------------------------- Chrome: the side panel, its cards, shortcuts, settings */
+.pbar { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 16px; border-bottom: 1px solid var(--line); }
+.tabchip { display: inline-flex; align-items: center; gap: 6px; flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.tabchip .i { width: 14px; height: 14px; flex: none; }
+.tabchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-mode { flex: none; width: auto; height: 28px; padding: 0 6px; font-size: 12.5px; }
+#p-rec.rec { color: var(--red); background: var(--surface-2); }
+body.panel .top #save-chat { display: none; }
+.sc-menu { max-width: 760px; margin: 0 auto 6px; display: grid; gap: 2px; padding: 4px; border-radius: var(--r2);
+  background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--pop); }
+.sc-menu button { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 6px 10px;
+  border-radius: var(--r1); text-align: left; font-size: 13px; }
+.sc-menu button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.sc-menu button.on, .sc-menu button:hover { background: var(--bg-2); }
+.sc-menu .i { width: 14px; height: 14px; }
+.sc-form { display: grid; gap: 6px; }
+.sc-form textarea { min-height: 120px; resize: vertical; font: inherit; }
+.mode-set { display: grid; justify-items: start; gap: 6px; margin-top: 14px; }
+.mode-set small { font-size: 13px; }
+.site-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.site { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 3px 0 10px; border-radius: var(--r1);
+  background: var(--surface); border: 1px solid var(--line-2); font-size: 13px; }
+.site button { display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--r1); color: var(--muted); }
+.site button:hover { color: var(--text); background: var(--bg-2); }
+.site .i { width: 12px; height: 12px; }
+.chrome-card { margin-top: 10px; padding: 4px 16px 12px; }
+.chrome-card .row { border-top: 0; }
+.chrome-card .steps { display: grid; gap: 4px; margin: 0; padding-left: 20px; font-size: 13px; color: var(--muted); }
+.browser-cc .cc-desc { margin: 6px 0 0; }

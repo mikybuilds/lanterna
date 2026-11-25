@@ -1,0 +1,47 @@
+{
+ "name": {
+  "message": "Lanterna"
+ },
+ "description": {
+  "message": "Lanterna, der kostenlose Assistent auf deinem Computer, liest Seiten und arbeitet im Browser: klickt, tippt und füllt Formulare aus."
+ },
+ "open": {
+  "message": "Lanterna öffnen"
+ },
+ "ask_page": {
+  "message": "Lanterna zu dieser Seite fragen"
+ },
+ "ask_selection": {
+  "message": "Lanterna zu „%s“ fragen"
+ },
+ "ask_link": {
+  "message": "Lanterna zu diesem Link fragen"
+ },
+ "off_title": {
+  "message": "Lanterna läuft nicht"
+ },
+ "off_text": {
+  "message": "Starte Lanterna auf diesem Computer: Das Feld verbindet sich von selbst. Chats, Modelle und alle Entscheidungen bleiben in Lanterna; die Erweiterung tut im Browser nur, worum Lanterna bittet."
+ },
+ "retry": {
+  "message": "Erneut versuchen"
+ },
+ "reset_title": {
+  "message": "Mit diesem Lanterna verbinden?"
+ },
+ "reset_text": {
+  "message": "Das Lanterna auf diesem Computer ist nicht das, mit dem die Erweiterung vorher verbunden war: Es wurde neu eingerichtet oder ist eine andere Kopie. Verbinde nur, wenn du es selbst gestartet hast."
+ },
+ "connect": {
+  "message": "Verbinden"
+ },
+ "what": {
+  "message": "Was ist Lanterna?"
+ },
+ "pair_title": {
+  "message": "Dieses Chrome verbinden"
+ },
+ "pair_text": {
+  "message": "Lanterna ist mit einer anderen Kopie dieser Erweiterung verbunden. Öffne in Lanterna Einstellungen → Chrome und drück «Chrome verbinden»: Dann verbindet sich dieses Feld von selbst."
+ }
+}

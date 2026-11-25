@@ -8,6 +8,7 @@ $py = if (Test-Path ".venv\Scripts\python.exe") { ".venv\Scripts\python.exe" } e
     --icon packaging\lanterna.ico `
     --add-data "src\lanterna\ui;lanterna\ui" `
     --add-data "src\lanterna\locale;lanterna\locale" `
+    --add-data "src\lanterna\chrome;lanterna\chrome" `
     --collect-submodules keyring `
     --collect-all webview `
     --collect-all pypdfium2 `
