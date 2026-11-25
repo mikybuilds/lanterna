@@ -130,7 +130,9 @@ flowchart TB
   card field, an address that looks like a scam, a script) and shows a card when the mode asks for one. Typing
   passwords or card details, buying, paying, making accounts and CAPTCHAs are refused in every mode. Only Lanterna's
   own extension (its ID comes from the key in `manifest.json`) may connect, only to 127.0.0.1, and both sides prove
-  they know a shared key before anything else. Page text goes to the model marked as data.
+  they know a shared key before anything else. Page text goes to the model marked as data. The tabs Lanterna opened
+  (`Tools.opened`) are the only ones that go to other addresses or close without a card: from one of the user's
+  tabs an address opens a new tab, so the user's pages stay (the orange group only shows where Lanterna works).
 - **Fixed lists instead of free commands.** The model never gets a shell. Settings it can change come from a fixed
   list, programs come only from the official catalogs, files only inside the user's standard folders or the folder
   the user picked, and files Windows would run (`.exe`, `.bat`, `.ps1`…) are never written.
