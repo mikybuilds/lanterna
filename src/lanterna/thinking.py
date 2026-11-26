@@ -87,6 +87,7 @@ TOOL_TEXT = {
     "fix_windows": ("Preparing a fix in Windows", ""),
     "fix_system": ("Preparing a fix in the system", ""),
     "video_download": ("Downloading from {x}", "url"),
+    "lanterna_help": ("Looking in Lanterna's own help", ""),
     "browser_tabs": ("Looking at the tabs in Chrome", ""),
     "browser_open": ("Opening {x} in Chrome", "url"),
     "browser_go": ("Going to {x} in Chrome", "to"),

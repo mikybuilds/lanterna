@@ -471,6 +471,17 @@ GROUPS = {
                           r"clicca|compila|\bseite|klick|ausfüll|pestaña|página|\bsitio|haz clic|rellena|onglet|"
                           r"clique|remplis|\bkarta|stron(a|ę|y|ie)\b|kliknij|wypełnij|вкладка|страниц|нажми|заполни",
                           re.I),
+    # Lanterna itself: what it is and can do, its settings and versions, installing or updating it, its Chrome
+    # extension (selfhelp.py, the lanterna_help tool): the web knows only older versions
+    "self": re.compile(r"lantern|лантерн|розширенн|\bextensions?\b|estension|erweiterung|extensi[oó]n|rozszerzen|"
+                       r"расширени|налаштуван|\bsettings?\b|impostazion|einstellung|\bajustes\b|configuraci[oó]n|"
+                       r"paramètres|réglages|ustawie[nń]|настройк|що (ти )?(вмієш|можеш)|what can you do|"
+                       r"what are you\b|cosa sai fare|was kannst du|qué puedes hacer|que sais-tu faire|co potrafisz|"
+                       r"что ты (умеешь|можешь)|(встанов|інсталю|онов|видал|установ|обнов|удал)\w* (тебе|тебя)\b|"
+                       r"(тебе|тебя) (встанов|інсталю|онов|видал|установ|обнов|удал)|"
+                       r"\b(install|update|uninstall|remove) you\b|верс\w* (для|lantern|тво)|\bversions? (for|of you)|"
+                       r"\bmac ?os\b|\bmacbook|\bmac\b|нов\w* версі|new version|nuova versione|neue version|"
+                       r"nueva versi[oó]n|nouvelle version|\bbeta\b|бета|тестов\w* верс", re.I),
     "browserdev": re.compile(r"консол|console|\bnetwork\b|мереж\w* запит|\brequests?\b|javascript|\bjs\b|debug|"
                              r"налагод|devtools|прикріп|attach|allega|anhäng|adjunt|joindre|załącz|прикрепи|"
                              r"upload|вивантаж|resize|розмір вікна|window size", re.I),
@@ -478,7 +489,8 @@ GROUPS = {
 
 
 _CHAT_FILE = re.compile(r"\[File: ([^\]\n]+)\]\n```.*?```", re.S)
-LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page", "scam_check")
+LOOKUP_TOOLS = ("calculate", "date_calc", "currency", "convert_units", "weather", "web_search", "read_page", "scam_check",
+                "lanterna_help")
 # Tools that only look: they change nothing, open nothing and propose no card. A reply that says it installs or sets
 # something up needs more than these (see chat.false_claim). A tool missing here counts as one that acts.
 READ_ONLY_TOOLS = frozenset((*LOOKUP_TOOLS, "list_reminders", "list_tasks", "search_chats", "read_chat",

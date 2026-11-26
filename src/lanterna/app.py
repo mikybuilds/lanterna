@@ -209,7 +209,7 @@ class Api:
                                extra=lambda: folder_tools(self.workspace) + gdrive.drive_tools(self.drive, self.workspace, self.actions)
                                + github.github_tools(self.github, self.workspace, self.actions) + self._pc_tools()
                                + mailbox.mail_tools(self.mail, self.actions) + [self._connector_tool()] + self.mcp.tools()
-                               + self._browser_tools() + make)
+                               + self._browser_tools() + self._help_tools() + make)
         self.actions.on_auto = self._auto_run                 # "do it on your own" in a chat (see _auto_tools)
         self.toolbox.after = self._auto_said
         self._router: Router | None = None
@@ -414,6 +414,23 @@ class Api:
                 tl.group = group
             out += tools
         return out
+
+    # ---------------------------------------------------------------- Lanterna itself (selfhelp.py)
+    def _help_tools(self) -> list:
+        from . import selfhelp
+        from .tools import Tool, _obj
+        return [Tool("lanterna_help", selfhelp.TOOL,
+                     _obj({"topic": {"type": "string", "enum": list(selfhelp.TOPICS), "description": selfhelp.TOPIC}},
+                          ["topic"]),
+                     lambda topic="lanterna": self.lanterna_help(topic), "❓", "self")]
+
+    def lanterna_help(self, topic: str = "lanterna") -> str:
+        """Lanterna's own help for the model, with this computer's state now (the extension: on, connected, mode)."""
+        from . import selfhelp
+        st = self.browser.status()
+        return selfhelp.help_text(topic, self.settings.lang, window=self._browser_wanted, on=self.settings.browser_on,
+                                  listening=bool(self.browser.server), connected=bool(st.get("connected")),
+                                  browser=st.get("browser") or "", mode=self._mode("browser"))
 
     # ---------------------------------------------------------------- Chrome: Lanterna's extension (browser.py)
     def _mode(self, where: str = "pc") -> str:

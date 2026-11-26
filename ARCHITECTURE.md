@@ -99,7 +99,7 @@ flowchart TB
 | Backend | `app.py` | `Api`: every action of every interface; returns plain JSON-friendly data and never raises into the UI |
 | Conversation | `chat.py`, `soul.py`, `roles.py`, `thinking.py`, `plans.py` | Prompt, history, tool rounds, the honesty check, the personality, the task list of a big job |
 | Models | `router.py`, `providers.py`, `discovery.py`, `health.py`, `limits.py`, `neurons.py`, `local.py` | Which model answers, the HTTP client, free-model search, models that hang, how much of each free limit is left (Cloudflare's daily neurons counted here), Ollama |
-| Tools | `tools.py`, `convert.py`, `scam.py`, `sources.py` | Weather, search, reading pages, exact maths and dates, currency, scam signs |
+| Tools | `tools.py`, `convert.py`, `scam.py`, `sources.py`, `selfhelp.py` | Weather, search, reading pages, exact maths and dates, currency, scam signs, Lanterna's own help |
 | Changes on the computer | `workspace.py`, `pcfiles.py`, `pcsys.py`, `pccontrol.py`, `apps.py`, `history.py` | Proposed changes, the user's folders, safe settings, programs through winget / Flatpak / dnf / apt, Undo |
 | Looking at the computer | `diskmap.py`, `diskuse.py`, `devtools.py`, `hardware.py` | What fills the whole disk (one walk on several threads), compilers and runtimes on PATH, what the PC can run locally |
 | Why something doesn't work | `fixit.py`, `fixlinux.py` | Finds a game or program, looks through its folders, logs and what the system noted (or sound, internet, printers, updates); fixes from a fixed list, one card each, with Undo where it can. Windows and Linux (Steam with Proton, Heroic, Lutris, Flatpak; PipeWire, NetworkManager, CUPS, dnf / apt / rpm-ostree) |
@@ -133,6 +133,11 @@ flowchart TB
   they know a shared key before anything else. Page text goes to the model marked as data. The tabs Lanterna opened
   (`Tools.opened`) are the only ones that go to other addresses or close without a card: from one of the user's
   tabs an address opens a new tab, so the user's pages stay (the orange group only shows where Lanterna works).
+- **Questions about Lanterna itself go to its own help.** The web knows only older versions (a beta's new parts
+  aren't on the project page yet), so when the talk is about Lanterna the model gets `lanterna_help`
+  (`selfhelp.py`): what it is, where it runs, installing, updating, the Settings tab by tab, and the Chrome
+  extension with its state on this computer. It names buttons with the window's own words (a test compares
+  them with `ui/app.js`), and never the user's folders.
 - **Fixed lists instead of free commands.** The model never gets a shell. Settings it can change come from a fixed
   list, programs come only from the official catalogs, files only inside the user's standard folders or the folder
   the user picked, and files Windows would run (`.exe`, `.bat`, `.ps1`…) are never written.

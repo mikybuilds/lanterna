@@ -2189,6 +2189,21 @@ _T.update({
     "Never, in any mode: passwords, card details, payments, new accounts.": {"uk": "Ніколи, в жодному режимі: паролі, дані карток, оплати, нові акаунти.", "it": "Mai, in nessuna modalità: password, dati delle carte, pagamenti, nuovi account."},
 })
 
+# The window's names that Lanterna's own help quotes (1.1.11b8, selfhelp.py): word for word as in ui/app.js
+_T.update({
+    "Services": {"uk": "Сервіси", "it": "Servizi"},
+    "Shortcuts": {"uk": "Швидкі команди", "it": "Scorciatoie"},
+    "Let Lanterna work in Chrome": {"uk": "Дозволити Lanterna працювати в Chrome", "it": "Lascia che Lanterna lavori in Chrome"},
+    "Looking in Lanterna's own help": {"uk": "Дивлюся довідку Lanterna", "it": "Guardo la guida di Lanterna"},
+    "Open the extension's folder": {"uk": "Відкрити папку розширення", "it": "Apri la cartella dell'estensione"},
+    "Connect Chrome": {"uk": "Підключити Chrome", "it": "Collega Chrome"},
+    "How much Lanterna asks first in Chrome": {"uk": "Як часто Lanterna питає перед дією в Chrome", "it": "Quanto chiede Lanterna prima di agire in Chrome"},
+    "Open chrome://extensions in Chrome and turn on Developer mode (top right).": {"uk": "Відкрий chrome://extensions у Chrome і ввімкни «Режим розробника» (угорі праворуч).", "it": "Apri chrome://extensions in Chrome e attiva Modalità sviluppatore (in alto a destra)."},
+    "Press «Load unpacked» and choose the folder the button below opens.": {"uk": "Натисни «Завантажити розпаковане розширення» й вибери папку, яку відкриває кнопка нижче.", "it": "Premi «Carica estensione non pacchettizzata» e scegli la cartella che apre il pulsante qui sotto."},
+    "Pin Lanterna on Chrome's toolbar: its button (or Alt+L) opens Lanterna next to the page.": {"uk": "Закріпи Lanterna на панелі Chrome: її кнопка (або Alt+L) відкриває Lanterna поруч зі сторінкою.", "it": "Fissa Lanterna nella barra di Chrome: il suo pulsante (o Alt+L) apre Lanterna accanto alla pagina."},
+    "Leave Developer mode on: without it Chrome turns off extensions loaded from a folder, Lanterna's too.": {"uk": "Не вимикай «Режим розробника»: без нього Chrome вимикає розширення, завантажені з папки, і Lanterna теж.", "it": "Lascia attiva Modalità sviluppatore: senza, Chrome disattiva le estensioni caricate da una cartella, anche quella di Lanterna."},
+})
+
 # English forms of the strings with a count: [one, other], the key is the other (i18n.t picks one)
 _EN: dict[str, list[str]] = {
     "Sort {count} files in {place}": ["Sort {count} file in {place}", "Sort {count} files in {place}"],
