@@ -3,7 +3,9 @@
 Two sources:
 - tool calls ("Searching the web: …", "Preparing the file hello.txt") — always in the app's language;
 - the model's own reasoning: Gemini sends short thought summaries with a **Heading** per step; other models
-  (<think> blocks, a `reasoning` field) send raw text, and the last line of it is shown while it lasts.
+  (<think> blocks, a `reasoning` field) send raw text, and the last line of it is shown while it lasts. Only what
+  is in the app's language: models mostly think in English (Gemini's headings are English in a Ukrainian or
+  Italian chat too), and then the window says "Thinking…" in the user's language instead.
 """
 from __future__ import annotations
 
@@ -118,10 +120,25 @@ def _short(text: str, n: int = 70) -> str:
     return text if len(text) <= n else text[:n - 1].rstrip() + "…"
 
 
+# An English line where the app speaks another language written in Latin letters (Italian, German, Spanish, French,
+# Polish): English-only small words, a first word in -ing ("Clarifying…", Gemini's way) or Every Word Capitalized
+_EN_WORDS = re.compile(r"\b(the|and|of|with|for|is|are|this|that|its|it's|users?|user's|request|response|answer|"
+                       r"about|into|from|how|what|why|which|when|then|needs?)\b", re.I)
+_EN_ING = re.compile(r"^\W*[A-Za-z]{2,}ing\b")
+_EN_TITLE = re.compile(r"^(?:[A-Z][a-z]+\s+)+[A-Z][a-z]+$")
+
+
+def looks_english(text: str) -> bool:
+    s = " ".join(str(text).split())
+    return bool(_EN_ING.search(s) or _EN_WORDS.search(s) or _EN_TITLE.match(s))
+
+
 def fits_lang(text: str, lang: str) -> bool:
-    """Whether a model's short note can be the user's language: models often write the "why" in English even in
-    a Ukrainian chat (and an English line in Cyrillic is just as wrong)."""
-    return bool(CYRILLIC.search(text)) == (lang in CYRILLIC_LANGS)
+    """Whether a model's short line can be in the user's language: models often think and write the "why" in
+    English even in a Ukrainian or Italian chat (and a Cyrillic line in an English window is just as wrong)."""
+    if bool(CYRILLIC.search(text)) != (lang in CYRILLIC_LANGS):
+        return False
+    return lang in CYRILLIC_LANGS or lang == "en" or not looks_english(text)
 
 
 def tool_step(name: str, arguments: str, lang: str = "en", why: bool = True) -> str:
@@ -182,12 +199,12 @@ class Steps:
             self.buf += text
         heads = HEAD.findall(self.buf)
         for h in heads[self.heads:]:
-            self._add("think", _short(h, 90))
+            if fits_lang(h, self.lang):                   # an English heading in a Ukrainian chat isn't a step
+                self._add("think", _short(h, 90))
         self.heads = len(heads)
-        if heads:
-            self.live = _short(heads[-1], 90)
-        else:
-            self.live = _last_line(self.buf) or self.live
+        line = _short(heads[-1], 90) if heads else _last_line(self.buf)
+        if line:                                          # thinking in another language: "" = the window's "Thinking…"
+            self.live = line if fits_lang(line, self.lang) else ""
 
     def tool(self, name: str, arguments: str) -> None:
         self.buf, self.heads, self.running = "", 0, name

@@ -150,7 +150,7 @@ def test_waiting_card_comes_back_when_the_chat_is_redrawn(tmp_path, monkeypatch)
     def h(req):
         n.append(1)
         if len(n) == 1:
-            think = {"choices": [{"delta": {"content": "<thought>**Planning the file**\n\nI will write it.</thought>"}}]}
+            think = {"choices": [{"delta": {"content": "<thought>**Планую файл**\n\nЗапишу його.</thought>"}}]}
             return httpx.Response(200, content=f"data: {json.dumps(think)}\n\n".encode() + _sse_tool("folder_write", {"path": "hello.txt", "text": "привіт"}))
         return httpx.Response(200, content=_sse("Press Confirm."))
 
@@ -165,8 +165,8 @@ def test_waiting_card_comes_back_when_the_chat_is_redrawn(tmp_path, monkeypatch)
         if p["done"]:
             break
         time.sleep(0.02)
-    assert p["final"] == "Press Confirm." and "Planning" not in p["final"]
-    assert p["steps"] == [{"kind": "think", "text": "Planning the file"}, {"kind": "tool", "text": "Готую файл hello.txt"}]
+    assert p["final"] == "Press Confirm." and "Планую" not in p["final"]
+    assert p["steps"] == [{"kind": "think", "text": "Планую файл"}, {"kind": "tool", "text": "Готую файл hello.txt"}]
     waiting = a.cards(tid)
     assert [c["kind"] for c in waiting] == ["write_new"] and a.cards(other) == []
     a.action_cancel(waiting[0]["id"])
