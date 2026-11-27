@@ -690,7 +690,7 @@ class Api:
 
         return [plans.plan_tool(get, put),
                 *projects.project_tools(self.projects, limit=lambda: self.toolbox.page_limit,
-                                        after=lambda out: out + plans.reminder(get()))]
+                                        after=lambda out: out + plans.reminder(get()), lang=lambda: self.settings.lang)]
 
     def plan(self, tid: int) -> dict:
         """The chat's task plan for the box over the message box ({} = none)."""

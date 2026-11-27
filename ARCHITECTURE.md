@@ -103,7 +103,7 @@ flowchart TB
 | Changes on the computer | `workspace.py`, `pcfiles.py`, `pcsys.py`, `pccontrol.py`, `apps.py`, `history.py` | Proposed changes, the user's folders, safe settings, programs through winget / Flatpak / dnf / apt, Undo |
 | Looking at the computer | `diskmap.py`, `diskuse.py`, `devtools.py`, `hardware.py` | What fills the whole disk (one walk on several threads), compilers and runtimes on PATH, what the PC can run locally |
 | Why something doesn't work | `fixit.py`, `fixlinux.py` | Finds a game or program, looks through its folders, logs and what the system noted (or sound, internet, printers, updates); fixes from a fixed list, one card each, with Undo where it can. Windows and Linux (Steam with Proton, Heroic, Lutris, Flatpak; PipeWire, NetworkManager, CUPS, dnf / apt / rpm-ostree) |
-| Things Lanterna makes | `projects.py`, `docmake.py` | Games, little programs and mods in its own folder; real .docx / .odt / .csv files |
+| Things Lanterna makes | `projects.py`, `godot.py`, `starters.py`, `docmake.py` | Games (Godot 4 too), little programs, mods and websites in its own folder, checked without running them, and starter files that already work; real .docx / .odt / .csv files |
 | Videos from a link | `video.py` | Runs yt-dlp (from winget or the system's packages, installed on a card) with fixed options only: one video or a playlist the user asked for, up to 1080p MP4 or MP3, only into Downloads; its progress for the line under the reply, its errors in plain words; Stop ends the whole process tree |
 | Chrome | `browser.py`, `chrome/` | A Manifest V3 extension (`chrome/`) that only carries out commands: `chrome.debugger` for real clicks, keys and pictures, a page script for reading the page and filling forms, the tab group and the line at the bottom. `browser.py` serves its side panel and a WebSocket on 127.0.0.1, checks the key both ways, judges every action (what a click, a key, an address or a script would do) and shows a card when the mode asks for one |
 | Connectors | `mcp.py`, `oauth.py`, `github.py`, `gdrive.py`, `mail.py` | MCP servers, sign-in pages, pushes to GitHub, files in Drive, IMAP / SMTP |
@@ -145,7 +145,7 @@ flowchart TB
   `Documents/Lanterna projects/<project>`, without a card for every file: a game can have dozens of files, and
   that folder belongs to Lanterna. Nothing outside it is touched, files that could run on a double click (on
   Windows, Linux or macOS) are not written at all, and Lanterna only checks the files it wrote; it never runs them.
-  Starting the program is the user's choice.
+  Starting the program is the user's choice. Godot's files are checked as text too (`godot.py`), without Godot.
 - **Web pages are data.** Text from pages, files, mail and MCP servers can contain instructions aimed at the model.
   The system prompt says to treat it as information only. Reading a page also refuses addresses on this computer or
   the local network (`_public_host` in `tools.py`), so a page can't make Lanterna probe the user's router.

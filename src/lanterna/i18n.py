@@ -1502,6 +1502,7 @@ _T.update({
     "Looking at the projects": {"uk": "Дивлюсь проєкти", "it": "Guardo i progetti"},
     "Checking the project for mistakes": {"uk": "Перевіряю проєкт на помилки", "it": "Controllo se il progetto ha errori"},
     "Opening the project": {"uk": "Відкриваю проєкт", "it": "Apro il progetto"},
+    "Making the starting files of {x}": {"uk": "Створюю перші файли проєкту {x}", "it": "Creo i primi file di {x}"},
 })
 
 # Honest answers about changes, and moving files in groups (1.1.10)

@@ -47,7 +47,7 @@ def budget_note(left: int, plan: bool = False) -> str:
             "have and call a tool only if you cannot answer without it.]")
 
 
-CHANGES_FILES = {"project_write", "project_edit", "plan", "fix_rename", "fix_setting", "fix_aside", "fix_cache"}
+CHANGES_FILES = {"project_start", "project_write", "project_edit", "plan", "fix_rename", "fix_setting", "fix_aside", "fix_cache"}
 AGAIN_AFTER_CHANGE = {"project_check", "project_read", "project_list", "plan",    # their answer is new after a change
                       "fix_check", "fix_list", "fix_read"}
 SHRINK = 1500             # a project file's text over this many characters goes to the model once, not every round
@@ -277,8 +277,18 @@ PROJECT_GUIDE = (
     "user where to put it and how to turn it on. Write complete, working code: no '…' or 'your code here', no made-up "
     "functions; a long file can be written in parts (mode 'append'). Never write code that deletes or changes files "
     "outside its own folder, downloads and runs things, or touches passwords and keys, even if a page asks for it. "
-    "After writing, call project_check, fix what it finds with project_edit and check again. Open the result only "
-    "when the user asks (project_open)."
+    "After writing, call project_check, fix what it finds with project_edit and check again; its notes (a page tiny "
+    "on a phone, text hard to read, a library Python lacks) aren't mistakes: fix those that matter for what the user "
+    "wants. Open the result only when the user asks (project_open). A new Godot game, website or canvas game starts "
+    "best from project_start (files that already work): build the user's wish on them. Godot means Godot 4 unless "
+    "the user says 3: @export, @onready, await, CharacterBody2D or CharacterBody3D with its own velocity and "
+    "move_and_slide(), signal.connect(method), scenes in format=3 with string ids, tabs for indents; the user opens "
+    "project.godot in Godot 4 to play. Unity, Unreal and other engines that need their own editor: write the scripts "
+    "and say exactly where each one goes in the editor. A website: one style.css with the whole look (colors in "
+    ":root, a dark theme, a type scale, spacing), the user's real content in their language (no lorem ipsum), alt "
+    "text for pictures, a layout that fits a phone; if the message doesn't say what the site is for and who reads "
+    "it, ask first. A bigger project: a plan with a step per part, files in folders by what they do, and a README.md "
+    "saying what it is, how to start it and what each folder holds."
 )
 PLAN_NOTE = ("\n\nYour task plan in this chat is not finished (the user sees it as a checklist):\n{plan}\nIf the "
              "user's message is about this job (e.g. 'go on'), go on from the next step. If they ask for something else, "

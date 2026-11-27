@@ -4,6 +4,8 @@ A game, a little program, a game mod, a website: the model writes its files here
 one (the user chose that: this folder is Lanterna's, and nothing outside it is touched or replaced). Lanterna only
 writes the files and checks them for mistakes (project_check reads them, it never runs them); starting a program it
 made is the user's choice. Files that Windows or Linux could run by a double click aren't written at all.
+Godot 4 games are checked by godot.py; a new game or site can start from files that already work (starters.py,
+project_start); and project_check also notes what isn't a mistake but matters (notes_for).
 """
 from __future__ import annotations
 
@@ -173,6 +175,26 @@ class Projects:
         line = body[:body.find(find)].count("\n") + 1
         return f"Changed {clean_name(project)}/{self.rel(project, p)} at line {line}."
 
+    # ------------------------------------------------------------------ a starter: files that already work
+    def start(self, project: str, kind: str, language: str = "") -> str:
+        """A new project from a starter (starters.py), written through write(): only into an empty project."""
+        from . import starters
+        kind = str(kind or "").strip().lower()
+        if kind not in starters.KITS:
+            raise WorkError(f"There is no starter '{kind}'. Starters: {', '.join(starters.KITS)}. For anything else "
+                            "write the files with project_write.")
+        name = clean_name(project)
+        if self._files(project):
+            raise WorkError(f"'{name}' already has files: a starter goes only into a new project. Build on what is "
+                            "there (project_list, project_read), or start under a new project name.")
+        made = starters.files(kind, name, language)
+        for path, text in made.items():
+            self.write(project, path, text)
+        folder = self.folder(project)
+        rows = "\n".join(f"• {p}" for p in made)
+        return (f"Started '{name}' in {folder} with {len(made)} file(s) that already work:\n{rows}\n"
+                f"It is {starters.KITS[kind].replace('{folder}', str(folder))}")
+
     # ------------------------------------------------------------------ reading
     def list(self, project: str = "") -> str:
         root = self.root()
@@ -219,7 +241,7 @@ class Projects:
         files = [self.path(project, path)] if str(path or "").strip() else self._files(project)
         if not files or not files[0].is_file():
             raise WorkError(f"There is no '{path}' in the project." if path else "The project has no files yet.")
-        rows, bad = [], 0
+        rows, bad, notes = [], 0, []
         for f in files[:MAX_FILES]:
             rel = self.rel(project, f)
             try:
@@ -238,10 +260,14 @@ class Projects:
                 rows.append(f"• {rel}: " + "; ".join(problems[:4]))
             elif f.suffix.lower() in CHECKED or f.name.lower().endswith(".js.txt"):
                 rows.append(f"• {rel}: OK")
+            notes += [f"• {rel}: {n}" for n in notes_for(f.name, body, base, f.parent)[:3]]
         head = (f"Checked {len(files)} file(s) of '{base.name}': " +
                 (f"{bad} with mistakes." if bad else "no mistakes found."))
         tail = ("\nFix them (project_edit for a small change, project_write for a whole file), then check again."
                 if bad else "\nThis checks how the files are written, not whether the program works: nothing was run.")
+        if notes:
+            tail = ("\nNot mistakes, but worth a look (fix those that matter for what the user wants):\n"
+                    + "\n".join(notes[:20]) + tail)
         return head + "\n" + "\n".join(rows[:60]) + tail
 
     # ------------------------------------------------------------------ opening (when the user asks)
@@ -282,8 +308,8 @@ def _open(p: Path) -> None:
 STYLES = {".js": "js", ".mjs": "js", ".ts": "js", ".jsx": "js", ".tsx": "js", ".css": "css", ".scss": "c", ".less": "c",
           ".java": "c", ".cs": "c", ".c": "c", ".h": "c", ".cpp": "c", ".hpp": "c", ".cc": "c", ".kt": "c", ".kts": "c",
           ".go": "c", ".swift": "c", ".dart": "c", ".glsl": "c", ".hlsl": "c", ".shader": "c", ".php": "c",
-          ".gd": "hash", ".rb": "hash", ".lua": "lua", ".luau": "lua"}
-CHECKED = {".py", ".pyw", ".json", ".mcmeta", ".xml", ".svg", ".html", ".htm", *STYLES}
+          ".gd": "hash", ".rb": "hash", ".lua": "lua", ".luau": "lua", ".gdshader": "c", ".gdshaderinc": "c"}
+CHECKED = {".py", ".pyw", ".json", ".mcmeta", ".xml", ".svg", ".html", ".htm", ".godot", ".tscn", ".tres", *STYLES}
 _VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 _OPTIONAL_END = {"p", "li", "dt", "dd", "tr", "td", "th", "thead", "tbody", "tfoot", "option", "optgroup", "colgroup",
                  "caption", "rb", "rt", "rp", "html", "head", "body"}
@@ -307,12 +333,24 @@ def check_text(name: str, body: str, folder: Path | None = None, here: Path | No
             return _xml(body)
         if ext in (".html", ".htm"):
             return _html(body, folder, here)
+        if ext in (".gd", ".godot", ".tscn", ".tres"):             # Godot 4 (godot.py): its words, ids and paths
+            return _godot(ext, body, folder, here)
         if ext in STYLES:
             problem = brackets(body, STYLES[ext])
             return [problem] if problem else []
     except RecursionError:
         return ["it is nested too deeply to check"]
     return []
+
+
+def _godot(ext: str, body: str, folder: Path | None, here: Path | None) -> list[str]:
+    from . import godot
+    if ext == ".gd":
+        problem = brackets(body, "hash")
+        return ([problem] if problem else []) + godot.gdscript(body, folder, here)
+    if ext == ".godot":
+        return godot.project_file(body, folder, here)
+    return godot.scene(body, "gd_scene" if ext == ".tscn" else "gd_resource", folder, here)
 
 
 def _quote(body: str, line: int) -> str:
@@ -643,10 +681,181 @@ def _regex_end(text: str, i: int) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------------------------------- notes
+# Not mistakes, but what a person notices: a page tiny on a phone, text hard to read, a program that needs something
+# Python doesn't have. project_check shows them after its findings; the model fixes what matters for the user's wish.
+_PIP = {"PIL": "pillow", "cv2": "opencv-python", "yaml": "pyyaml", "bs4": "beautifulsoup4", "sklearn": "scikit-learn",
+        "skimage": "scikit-image", "dateutil": "python-dateutil", "serial": "pyserial", "dotenv": "python-dotenv",
+        "Crypto": "pycryptodome", "docx": "python-docx", "pptx": "python-pptx", "fitz": "pymupdf",
+        "OpenGL": "PyOpenGL", "usb": "pyusb", "gi": "PyGObject", "jwt": "PyJWT", "win32api": "pywin32",
+        "win32con": "pywin32", "win32gui": "pywin32", "win32com": "pywin32", "pythoncom": "pywin32",
+        "telegram": "python-telegram-bot", "discord": "discord.py", "attr": "attrs", "magic": "python-magic"}
+
+
+def notes_for(name: str, body: str, folder: Path | None = None, here: Path | None = None) -> list[str]:
+    """What project_check notes besides mistakes (short sentences, [] = nothing)."""
+    ext = Path(name.lower()).suffix
+    try:
+        if ext in (".html", ".htm"):
+            return _page_notes(body)
+        if ext == ".css":
+            return _style_notes(body)
+        if ext in (".py", ".pyw") and folder is not None and here is not None:
+            return _python_notes(body, folder, here)
+    except (RecursionError, ValueError):
+        return []
+    return []
+
+
+def _page_notes(body: str) -> list[str]:
+    low = body.lower()
+    out = []
+    if "<html" in low or "<body" in low or "<!doctype" in low:          # a whole page, not a piece of one
+        if not re.search(r"<meta\b[^>]*\bname\s*=\s*[\"']?viewport", low):
+            out.append('no <meta name="viewport" content="width=device-width, initial-scale=1">: on a phone the '
+                       "page shows tiny")
+        if not re.search(r"<html\b[^>]*\blang\s*=", low):
+            out.append('no lang on <html> (e.g. <html lang="uk">): screen readers and translators guess the language')
+        if not re.search(r"<title>\s*[^<\s]", low):
+            out.append("no <title>: the browser tab has no name")
+    bare = [x for x in re.findall(r"<img\b[^>]*>", low) if not re.search(r"\balt\s*=", x)]
+    if bare:
+        out.append(f"{len(bare)} picture(s) without alt text (alt=\"what it shows\", alt=\"\" for decoration)")
+    if "lorem ipsum" in low:
+        out.append("placeholder text (lorem ipsum) is still there: write the real text")
+    h = _HtmlCheck()
+    h.feed(body)
+    h.close()
+    for kind, line, _attrs, text in h.parts:
+        if kind == "style":
+            out += _style_notes("".join(text), line)
+    return out
+
+
+def _rgb(value: str) -> tuple[int, int, int] | None:
+    v = value.strip().lower()
+    m = re.fullmatch(r"#([0-9a-f]{3}|[0-9a-f]{6})", v)
+    if m:
+        h = m.group(1) if len(m.group(1)) == 6 else "".join(c * 2 for c in m.group(1))
+        return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    m = re.fullmatch(r"rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(?:1|1\.0+)\s*)?\)", v)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    return {"white": (255, 255, 255), "black": (0, 0, 0)}.get(v)
+
+
+def contrast(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
+    """WCAG contrast of two colors: 1 (the same) to 21 (black on white); text needs 4.5 at least."""
+    def lum(rgb):
+        ch = [(c / 255) / 12.92 if c / 255 <= 0.04045 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in rgb]
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _rules(css: str) -> list[tuple[str, str, int]]:
+    """The rules outside @media and other @ blocks: (selector, body, the index where the selector starts)."""
+    out, i, n = [], 0, len(css)
+    while i < n:
+        j = css.find("{", i)
+        if j < 0:
+            break
+        sel = css[i:j].split(";")[-1]
+        depth, k = 1, j + 1
+        while k < n and depth:
+            depth += {"{": 1, "}": -1}.get(css[k], 0)
+            k += 1
+        if sel.strip() and not sel.strip().startswith("@"):
+            out.append((sel.strip(), css[j + 1:k - 1], j - len(sel) + (len(sel) - len(sel.lstrip()))))
+        i = k
+    return out
+
+
+def _style_notes(css: str, first: int = 1) -> list[str]:
+    import bisect
+    text = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), css, flags=re.S)
+    breaks = [m.start() for m in re.finditer("\n", text)]
+
+    def line(at: int) -> int:
+        return first + bisect.bisect_left(breaks, at)
+    out = []
+    rules = _rules(text)
+    names = {}
+    for _sel, body, _at in rules:
+        for k, v in re.findall(r"(--[\w-]+)\s*:\s*([^;]+)", body):
+            names[k] = v.strip()
+
+    def color(v: str):
+        for _ in range(4):
+            m = re.fullmatch(r"var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)", v.strip())
+            if not m:
+                break
+            v = names.get(m.group(1), m.group(2) or "")
+        return _rgb(v) if v else None
+    hard = 0
+    for sel, body, at in rules:
+        decl = {k.lower(): v.strip() for k, v in re.findall(r"(?<![\w-])([a-zA-Z-]+)\s*:\s*([^;]+)", body)}
+        fg, bg = decl.get("color"), decl.get("background-color") or decl.get("background")
+        a, b = (color(fg), color(bg)) if fg and bg else (None, None)
+        if a and b and contrast(a, b) < 4.5:
+            out.append(f"line {line(at)}: the text on its background is hard to read in {sel[:40]} (contrast "
+                       f"{contrast(a, b):.1f}:1, text needs 4.5:1)")
+            hard += 1
+            if hard >= 2:
+                break
+    for m in re.finditer(r"font-size\s*:\s*(\d+(?:\.\d+)?)px", text):
+        if float(m.group(1)) < 12:
+            out.append(f"line {line(m.start())}: text of {m.group(1)}px is hard to read (12px at least, 16px for "
+                       "body text)")
+            break
+    if "@media" not in text and "max-width" not in text:
+        for m in re.finditer(r"(?<![\w-])width\s*:\s*(\d{3,4})px", text):
+            if int(m.group(1)) >= 700:
+                out.append(f"line {line(m.start())}: a fixed width of {m.group(1)}px doesn't fit a phone (use "
+                           f"max-width: {m.group(1)}px with width: 100%)")
+                break
+    return out
+
+
+def _python_notes(body: str, folder: Path, here: Path) -> list[str]:
+    import ast
+    try:
+        tree = ast.parse(body)                              # only read: nothing runs
+    except SyntaxError:
+        return []
+    mods = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            mods |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+            mods.add(node.module.split(".")[0])
+
+    def own(m: str) -> bool:
+        return any((d / f"{m}.py").is_file() or (d / m).is_dir() for d in {here, folder})
+    outside = sorted(m for m in mods if m not in sys.stdlib_module_names and not own(m))
+    if not outside:
+        return []
+    listed = set()
+    for d in {here, folder}:
+        req = d / "requirements.txt"
+        if req.is_file():
+            for row in req.read_text(encoding="utf-8", errors="replace").splitlines():
+                row = row.split("#")[0].strip()
+                if row and not row.startswith("-"):
+                    listed.add(re.split(r"[<>=!~;\[\s@]", row, 1)[0].lower().replace("_", "-"))
+    need = [p for p in dict.fromkeys(_PIP.get(m, m) for m in outside) if p.lower().replace("_", "-") not in listed]
+    if not need:
+        return []
+    return [f"it needs {', '.join(need)}, which isn't part of Python: put {'it' if len(need) == 1 else 'them'} in "
+            f"requirements.txt and tell the user to run: pip install {' '.join(need)}"]
+
+
 # ---------------------------------------------------------------------------------------------------- tools
 def project_tools(pr: Projects, limit: Callable[[], int] = lambda: READ_LIMIT,
-                  after: Callable[[str], str] = lambda out: out) -> list:
-    """limit: characters of a tool result for the current model; after: adds the plan's next step to an answer."""
+                  after: Callable[[str], str] = lambda out: out, lang: Callable[[], str] = lambda: "") -> list:
+    """limit: characters of a tool result for the current model; after: adds the plan's next step to an answer;
+    lang: the app's language (a starter's words when the model names none)."""
+    from . import starters
     from .tools import Tool, _obj
     s = {"type": "string"}
     proj = {"type": "string", "description": "the project's short name (its folder in Lanterna projects), "
@@ -654,6 +863,16 @@ def project_tools(pr: Projects, limit: Callable[[], int] = lambda: READ_LIMIT,
     path = {"type": "string", "description": "the file inside the project, e.g. 'index.html' or 'data/pack.mcmeta'"}
     g = "make"
     return [
+        Tool("project_start", "Start a NEW project from Lanterna's starter files, which already work and pass "
+             "project_check, then build the user's wish on them: 'godot-2d' or 'godot-3d' (a Godot 4 game: "
+             "project.godot, a level, a player scene with its script), 'website' (index.html with style.css: a calm "
+             "design with colors, a dark theme, type sizes, spacing, cards, buttons, forms), 'web-game' (a canvas "
+             "game in one index.html). Only into a new, empty project; for anything else write the files with "
+             "project_write.",
+             _obj({"project": proj, "kind": {"type": "string", "enum": list(starters.KITS)},
+                   "language": {"type": "string", "description": "the language of the words in the files, e.g. 'uk' "
+                                                                  "or 'en' (the user's language)"}}, ["project", "kind"]),
+             lambda project, kind, language="": after(pr.start(project, kind, language or lang())), "🧩", g),
         Tool("project_write", "Write a file of a project the user asked you to make (a game, a little program, a mod, a "
              "website) into Lanterna's own folder Documents/Lanterna projects/<project>. It is written at once, no "
              "confirmation; nothing outside that folder is touched. mode 'replace' (default) writes the whole file "
@@ -673,9 +892,11 @@ def project_tools(pr: Projects, limit: Callable[[], int] = lambda: READ_LIMIT,
         Tool("project_list", "List the projects in Lanterna projects (no project given), or the files of one project.",
              _obj({"project": proj}), lambda project="": pr.list(project), "📁", g),
         Tool("project_check", "Look a project's files over for mistakes without running them: Python syntax, JSON, XML, "
-             "HTML tags and the script inside it, brackets and quotes in JavaScript, CSS, Java, C#, Lua and others, and "
-             "files the page uses but that are missing. Call it after writing the files, fix what it finds, and check "
-             "again.", _obj({"project": proj, "path": {"type": "string", "description": "one file (optional)"}},
+             "HTML tags and the script inside it, brackets and quotes in JavaScript, CSS, Java, C#, Lua and others, "
+             "Godot 4 (GDScript, project.godot, scenes: Godot 3 words, tabs and spaces, ids, missing files), and files "
+             "the page uses but that are missing. It also lists notes that aren't mistakes (a page tiny on a phone, "
+             "text hard to read, a library Python lacks). Call it after writing the files, fix what it finds, and "
+             "check again.", _obj({"project": proj, "path": {"type": "string", "description": "one file (optional)"}},
                             ["project"]),
              lambda project, path="": after(pr.check(project, path)), "🧪", g),
         Tool("project_open", "Open a project's folder for the user (no path), or one of its web pages, pictures or text "

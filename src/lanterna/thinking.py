@@ -72,6 +72,7 @@ TOOL_TEXT = {
     "pc_look_set": ("Preparing changes to the look", ""),
     "pc_theme": ("Preparing the theme", ""),
     "plan": ("Making a plan", ""),
+    "project_start": ("Making the starting files of {x}", "project"),
     "project_write": ("Writing {x}", "path"),
     "project_edit": ("Fixing {x}", "path"),
     "project_read": ("Reading {x}", "path"),
