@@ -122,16 +122,17 @@ class Router:
 
     def stream(self, messages: list[dict], need_vision: bool = False,
                tools: list[dict] | None = None, tool_choice: str = "auto",
-               prefer_cloud: bool = False, careful: bool = False) -> Iterator["str | Switched | ToolCalls"]:
+               prefer_cloud: bool = False, careful: bool = False, depth: str = "") -> Iterator["str | Switched | ToolCalls"]:
         """Best model first; on a limit, the next one. If every model is briefly rate-limited
         (the service says "try again in a few seconds"), wait once and try again.
         prefer_cloud: try online models before local ones (auto mode, hard question).
         careful: changes on the computer: a strong model's short limit is waited out before a weak model takes
-        over (Waiting), and a weak model that answers is announced (Weak)."""
+        over (Waiting), and a weak model that answers is announced (Weak).
+        depth: how long the model thinks ("quick" | "deep"; "" = as usual), in each service's own words."""
         self._short_wait = None
         self._prefer_cloud = prefer_cloud
         try:
-            yield from self._stream_once(messages, need_vision, tools, tool_choice, careful)
+            yield from self._stream_once(messages, need_vision, tools, tool_choice, careful, depth)
             return
         except AllFailed as e:
             wait = self._short_wait
@@ -142,7 +143,7 @@ class Router:
         for k, until in list(self._until.items()):
             if until - now <= COOLDOWN["rate"] + 1:          # forget the short rate cooldowns, keep the rest
                 del self._until[k]
-        yield from self._stream_once(messages, need_vision, tools, tool_choice, careful)
+        yield from self._stream_once(messages, need_vision, tools, tool_choice, careful, depth)
 
     def _worth_waiting(self, c: Candidate, e: ProviderError, rest: list[Candidate], need_vision: bool,
                        able: bool) -> bool:
@@ -153,7 +154,7 @@ class Router:
         return all(self.weak(o) for o in could)
 
     def _stream_once(self, messages: list[dict], need_vision: bool, tools: list[dict] | None,
-                     tool_choice: str, careful: bool = False) -> Iterator["str | Switched | ToolCalls"]:
+                     tool_choice: str, careful: bool = False, depth: str = "") -> Iterator["str | Switched | ToolCalls"]:
         if need_vision and not any(c.vision for c in self.candidates):
             raise ProviderError("vision", "No model that understands photos")
         last: ProviderError | None = None
@@ -190,7 +191,8 @@ class Router:
                         attempts.append((None, "auto"))               # and some models refuse tools at all
                     for i, (tl, choice) in enumerate(attempts):
                         try:
-                            for piece in client.stream_chat(c.model, messages, tools=tl, tool_choice=choice):
+                            kw = {"depth": depth} if depth else {}
+                            for piece in client.stream_chat(c.model, messages, tools=tl, tool_choice=choice, **kw):
                                 if not started and careful and self.weak(c):
                                     yield Weak(c)                     # it really answers: say so once, before it
                                 started = True

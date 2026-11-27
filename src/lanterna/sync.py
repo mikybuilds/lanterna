@@ -117,7 +117,11 @@ def merge(a: dict, b: dict) -> dict:
     for uid, row in list(out["threads"].items()):
         pin = max((ta.get(uid) or {}, tb.get(uid) or {}), key=lambda r: r.get("pinned_at") or 0)
         if (pin.get("pinned_at") or 0) > (row.get("pinned_at") or 0):
-            out["threads"][uid] = {**row, "pinned": pin.get("pinned") or 0, "pinned_at": pin["pinned_at"]}
+            out["threads"][uid] = row = {**row, "pinned": pin.get("pinned") or 0, "pinned_at": pin["pinned_at"]}
+        # …and so has its folder: moving it on one device and renaming it on the other keeps both
+        fold = max((ta.get(uid) or {}, tb.get(uid) or {}), key=lambda r: r.get("folder_at") or 0)
+        if (fold.get("folder_at") or 0) > (row.get("folder_at") or 0):
+            out["threads"][uid] = {**row, "folder": fold.get("folder") or "", "folder_at": fold["folder_at"]}
     out["messages"] = {u: m for u, m in out["messages"].items() if m.get("thread") in out["threads"]}
     for part in ("profile", "prefs"):
         pa, pb = a.get(part, {}), b.get(part, {})

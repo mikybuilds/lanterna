@@ -371,7 +371,6 @@ const STR = {
   "GitHub was disconnected. Connect it again.": { uk: "GitHub відключився. Підключи його знову.", it: "GitHub si è disconnesso. Collegalo di nuovo." },
   "Disconnect forgets the sign-in on this computer. To remove the access on GitHub too: GitHub → Settings → Applications.": { uk: "«Відключити» забуває вхід на цьому комп'ютері. Щоб забрати доступ і на GitHub: GitHub → Settings → Applications.", it: "Disconnetti dimentica l'accesso su questo computer. Per rimuoverlo anche su GitHub: GitHub → Settings → Applications." },
   "New chats start with this folder; each chat can change it under the message box.": { uk: "З цією папкою починають нові чати; кожен чат може змінити її під полем вводу.", it: "Le nuove chat iniziano con questa cartella; ogni chat può cambiarla sotto il campo del messaggio." },
-  "Folder of this chat": { uk: "Папка цього чату", it: "Cartella di questa chat" },
   "Lanterna can read and change files only in this folder.": { uk: "Lanterna читає і змінює файли тільки в цій папці.", it: "Lanterna legge e modifica file solo in questa cartella." },
   "Choose another folder…": { uk: "Вибрати іншу папку…", it: "Scegli un'altra cartella…" },
   "No folder for this chat": { uk: "Без папки для цього чату", it: "Nessuna cartella per questa chat" },
@@ -515,6 +514,37 @@ const STR = {
   "This isn't a site's address.": { uk: "Це не адреса сайту.", it: "Questo non è l'indirizzo di un sito." },
   "Connect Chrome": { uk: "Підключити Chrome", it: "Collega Chrome" },
   "Lanterna lets a new Chrome connect for the next 2 minutes: open Lanterna's panel in Chrome.": { uk: "Наступні 2 хвилини Lanterna прийме новий Chrome: відкрий панель Lanterna в Chrome.", it: "Per i prossimi 2 minuti Lanterna accetta un nuovo Chrome: apri il pannello di Lanterna in Chrome." },
+  // Settings → Local models → Hugging Face (1.1.11b11)
+  "More models from Hugging Face": { uk: "Більше моделей з Hugging Face", it: "Altri modelli da Hugging Face" },
+  "The models people use now, as on huggingface.co: a search, the size of each file and whether it runs on this computer. Ollama downloads the one you pick.": { uk: "Моделі, якими люди користуються зараз, як на huggingface.co: пошук, розмір кожного файлу і чи піде він на цьому комп'ютері. Вибраний файл завантажує Ollama.", it: "I modelli che si usano adesso, come su huggingface.co: una ricerca, la dimensione di ogni file e se gira su questo computer. Il file scelto lo scarica Ollama." },
+  "Search models, e.g. qwen, gemma, llama": { uk: "Пошук моделей, напр. qwen, gemma, llama", it: "Cerca modelli, ad es. qwen, gemma, llama" },
+  "Sort": { uk: "Сортування", it: "Ordina" },
+  "Trending": { uk: "У тренді", it: "Di tendenza" },
+  "Most downloaded": { uk: "Найбільше завантажень", it: "Più scaricati" },
+  "Most liked": { uk: "Найбільше вподобань", it: "Più apprezzati" },
+  "Recently updated": { uk: "Нещодавно оновлені", it: "Aggiornati di recente" },
+  "Only the ones that run on this computer": { uk: "Лише ті, що підуть на цьому комп'ютері", it: "Solo quelli che girano su questo computer" },
+  "Choose a size": { uk: "Вибрати розмір", it: "Scegli la dimensione" },
+  "Size": { uk: "Розмір", it: "Dimensione" },
+  "Fast: fits the graphics card": { uk: "Швидко: вміщається у відеокарту", it: "Veloce: entra nella scheda video" },
+  "Runs, but slower: uses the computer's memory": { uk: "Піде, але повільніше: через пам'ять комп'ютера", it: "Gira, ma più lentamente: usa la memoria del computer" },
+  "Too big for this computer": { uk: "Завелика для цього комп'ютера", it: "Troppo grande per questo computer" },
+  "fast": { uk: "швидко", it: "veloce" },
+  "slower": { uk: "повільніше", it: "più lento" },
+  "too big": { uk: "завелика", it: "troppo grande" },
+  "Photos too": { uk: "Розуміє й фото", it: "Capisce anche le foto" },
+  "Open on Hugging Face": { uk: "Відкрити на Hugging Face", it: "Apri su Hugging Face" },
+  "Likes": { uk: "Вподобання", it: "Mi piace" },
+  "Updated": { uk: "Оновлено", it: "Aggiornato" },
+  "Loading…": { uk: "Завантажую…", it: "Carico…" },
+  "Couldn't reach Hugging Face. Check the internet and try again.": { uk: "Не вдалося зв'язатися з Hugging Face. Перевір інтернет і спробуй ще раз.", it: "Impossibile raggiungere Hugging Face. Controlla internet e riprova." },
+  "Hugging Face asks to wait a little. Try again in a minute.": { uk: "Hugging Face просить трохи зачекати. Спробуй за хвилину.", it: "Hugging Face chiede di aspettare un po'. Riprova tra un minuto." },
+  "This model needs a Hugging Face account, so Lanterna can't download it.": { uk: "Ця модель потребує облікового запису Hugging Face, тож Lanterna не може її завантажити.", it: "Questo modello richiede un account Hugging Face, quindi Lanterna non può scaricarlo." },
+  "This model is no longer on Hugging Face.": { uk: "Цієї моделі вже немає на Hugging Face.", it: "Questo modello non è più su Hugging Face." },
+  "Couldn't load the list: {error}": { uk: "Не вдалося завантажити список: {error}", it: "Impossibile caricare l'elenco: {error}" },
+  "Some models are hidden because they don't fit this computer. Untick the box to see them.": { uk: "Деякі моделі приховано, бо вони не підуть на цьому комп'ютері. Зніми позначку, щоб їх побачити.", it: "Alcuni modelli sono nascosti perché non girano su questo computer. Togli la spunta per vederli." },
+  "No file of this model can be downloaded through Ollama.": { uk: "Жоден файл цієї моделі не можна завантажити через Ollama.", it: "Nessun file di questo modello si può scaricare con Ollama." },
+  "Start Ollama to download models.": { uk: "Щоб завантажувати моделі, запусти Ollama.", it: "Per scaricare i modelli, avvia Ollama." },
 };
 let LANG = "en";
 let S = null;          // backend state (declared before t(), which reads its strings)
@@ -1203,6 +1233,137 @@ async function localPanel(box, onChange) {
   paint(st.pulls || []);
 }
 
+// Settings → Local models: any GGUF model from Hugging Face (what people use now, a search, the size of each file and
+// whether it runs here); Ollama downloads the chosen file. Nothing is asked of Hugging Face until this is opened.
+const HF_SORTS = [["trending", "Trending"], ["downloads", "Most downloaded"], ["likes", "Most liked"], ["new", "Recently updated"]];
+const HF_FIT = { gpu: ["bolt", "Fast: fits the graphics card"], ram: ["chip", "Runs, but slower: uses the computer's memory"],
+  no: ["warn", "Too big for this computer"] };
+const HF_FIT_SHORT = { gpu: "fast", ram: "slower", no: "too big" };
+const HF_ERR = { net: "Couldn't reach Hugging Face. Check the internet and try again.", busy: "Hugging Face asks to wait a little. Try again in a minute.",
+  gated: "This model needs a Hugging Face account, so Lanterna can't download it.", gone: "This model is no longer on Hugging Face." };
+const hfErr = e => HF_ERR[e] ? t(HF_ERR[e]) : t("Couldn't load the list: {error}", { error: e || "?" });
+const compact = n => (+n || 0).toLocaleString(LANG, { notation: "compact", maximumFractionDigits: 1 });
+const hfView = { q: "", sort: "trending", fits: true };
+let hfTimer = 0;
+
+// hf.co/<user>/<repo>:<file>.gguf → "<repo> · <quant>" (the lists and the model line stay readable)
+function modelLabel(name) {
+  const m = /^(?:hf\.co|huggingface\.co)\/[^/]+\/([^:]+):(.+)$/i.exec(String(name || ""));
+  if (!m) return String(name || "");
+  const q = /((?:UD-)?(?:I?Q\d(?:_[A-Z0-9]+)*|TQ\d_\d|MXFP4|BF16|F16|F32))\.gguf$/i.exec(m[2]);
+  return m[1].replace(/-GGUF$/i, "") + (q ? " · " + q[1].toUpperCase() : "");
+}
+
+// facts in one line, each kept whole: a line breaks only between them, and the "·" of a fact that starts a line
+// is out of sight (style.css: .facts)
+const factLine = xs => `<span class="facts">${xs.filter(Boolean).map(x => `<span class="nw">${x}</span>`).join("")}</span>`;
+
+function hfRow(m) {
+  const fit = HF_FIT[m.fit];
+  const when = m.updated ? t("updated {date}", { date: new Date(m.updated).toLocaleDateString(LANG) }) : "";
+  const facts = factLine([m.params_b ? esc(t("{n}B parameters", { n: m.params_b.toLocaleString(LANG) })) : "",
+    `<span title="${esc(t("Downloads"))}">${icon("save")}${compact(m.downloads)}</span>`,
+    `<span title="${esc(t("Likes"))}">${icon("star")}${compact(m.likes)}</span>`,
+    hfView.sort === "new" ? esc(when) : ""]);
+  const fits = fit ? factLine([`${icon(fit[0])}${esc(t(fit[1]))}`, m.est_gb ? `~${gb(m.est_gb)}` : "",
+    m.photos ? `${icon("photo")}${esc(t("Photos too"))}` : ""]) : "";
+  return `<div class="lrow hf-row" data-id="${esc(m.id)}">
+    <div class="nm"><b${when ? ` title="${esc(when)}"` : ""}>${esc(m.id)}</b>
+      <small>${facts}</small>
+      ${fit ? `<small class="hf-fit">${fits}</small>` : ""}</div>
+    <div class="act">${m.installed ? `<span class="badge green">${icon("check")} ${t("Installed")}</span>` : ""}
+      <button class="btn ghost small" data-files>${t("Choose a size")}</button></div>
+    <button class="hf-open" data-open="${esc(m.url)}" title="${esc(t("Open on Hugging Face"))}" aria-label="${esc(t("Open on Hugging Face"))}">${icon("ext")}</button>
+  </div>`;
+}
+
+async function hfPanel(box, onChange) {
+  if (!box) return;
+  box.innerHTML = `<details class="hf"><summary>${icon("down", "i hf-caret")}<b>${t("More models from Hugging Face")}</b>
+      <small>${t("The models people use now, as on huggingface.co: a search, the size of each file and whether it runs on this computer. Ollama downloads the one you pick.")}</small></summary>
+    <div class="hf-tools">
+      <input class="field" id="hf-q" type="search" maxlength="80" spellcheck="false" placeholder="${esc(t("Search models, e.g. qwen, gemma, llama"))}"
+        aria-label="${esc(t("Search models, e.g. qwen, gemma, llama"))}" value="${esc(hfView.q)}">
+      <select class="field" id="hf-sort" aria-label="${esc(t("Sort"))}">${HF_SORTS.map(([v, l]) => `<option value="${v}" ${v === hfView.sort ? "selected" : ""}>${esc(t(l))}</option>`).join("")}</select>
+    </div>
+    <label class="check"><input type="checkbox" id="hf-fits" ${hfView.fits ? "checked" : ""}><span><b>${t("Only the ones that run on this computer")}</b></span></label>
+    <div class="lmodels" id="hf-list"></div>
+    <p class="faint small-note" id="hf-note" hidden></p>
+    <div class="row-btns" id="hf-more-row" hidden><button class="btn ghost small" id="hf-more">${t("Show more")}</button></div>
+  </details>`;
+  const det = box.querySelector("details"), list = box.querySelector("#hf-list"), note = box.querySelector("#hf-note");
+  const moreRow = box.querySelector("#hf-more-row"), q = box.querySelector("#hf-q");
+  let next = "", st = null, H = null, seq = 0;
+  const choose = async row => {
+    const act = row.querySelector(".act");
+    act.innerHTML = `<span class="status"><span class="spinner"></span>${t("Loading…")}</span>`;
+    const r = await api.hf_files(row.dataset.id);
+    if (!r.ok) { act.innerHTML = `<span class="status err">${icon("warn")} ${esc(hfErr(r.error))}</span>`; return; }
+    if (!r.files.length) { act.innerHTML = `<span class="faint">${t("No file of this model can be downloaded through Ollama.")}</span>`; return; }
+    act.innerHTML = `<select class="field hf-size" aria-label="${esc(t("Size"))}">${r.files.map((f, i) => `<option value="${i}" ${i === r.pick ? "selected" : ""}>${gb(f.size_gb)}${HF_FIT_SHORT[f.fit] ? " · " + esc(t(HF_FIT_SHORT[f.fit])) : ""} · ${esc(f.quant)}${i === r.pick ? " · " + esc(t("recommended")) : ""}</option>`).join("")}</select><span class="hf-go"></span>`;
+    const sel = act.querySelector("select"), go = act.querySelector(".hf-go");
+    let told = false;
+    const paint = pulls => {
+      const f = r.files[+sel.value], p = (pulls || []).find(x => x.name === f.name);
+      clearTimeout(row._poll);
+      if (p && p.status === "done") f.installed = true;
+      if (f.installed) {
+        go.innerHTML = `<span class="badge green">${icon("check")} ${t("Installed")}</span>`;
+        if (p && !told && onChange) { told = true; onChange(); }
+        return;
+      }
+      if (p && ["starting", "downloading", "verifying"].includes(p.status)) {
+        const label = p.status === "verifying" ? t("Checking files…") : p.status === "starting" ? t("Starting…")
+          : `${p.percent}% · ${gb(p.done_bytes / 1e9)} / ${gb(p.total_bytes / 1e9)}`;
+        go.innerHTML = `<div class="bar"><i style="width:${p.percent}%"></i></div><span class="faint">${label}</span>
+          <button class="btn ghost small" data-cancel>${t("Cancel")}</button>`;
+        go.querySelector("[data-cancel]").onclick = async () => paint(await api.cancel_pull(f.name));
+        row._poll = setTimeout(async () => { if (document.body.contains(row)) paint(await api.pulls()); }, 700);
+        return;
+      }
+      const noDisk = H.disk_free_gb && H.disk_free_gb < f.size_gb + 1, tooBig = f.fit === "no";
+      const err = p && p.status === "error" ? `<span class="status err">${esc(t("Download failed: {e}", { e: p.error }))}</span>` : "";
+      go.innerHTML = `${err}<button class="btn ghost small" data-pull ${!st.running || noDisk || tooBig ? "disabled" : ""}
+        ${st.running ? "" : `title="${esc(t("Start Ollama to download models."))}"`}>${noDisk ? t("Not enough disk space")
+        : tooBig ? t("Too big for this computer") : t("Download ({s})", { s: gb(f.size_gb) })}</button>`;
+      go.querySelector("[data-pull]").onclick = async () => {
+        const x = await api.pull_model(f.name);
+        if (!x.ok) toast(x.error === "ollama" ? t("Start Ollama to download models.") : t("Download failed: {e}", { e: x.error }));
+        paint(await api.pulls());
+      };
+    };
+    sel.onchange = () => paint([]);
+    paint(await api.pulls());
+  };
+  const load = async more => {
+    const my = ++seq;
+    if (!more) { next = ""; list.innerHTML = `<div class="status"><span class="spinner"></span>${t("Loading…")}</div>`; moreRow.hidden = true; }
+    if (!st) { const [hw, ls] = await Promise.all([api.hardware(), api.local_status()]); H = hw.hw; st = ls; }
+    const r = await api.hf_models(hfView.q, hfView.sort, more ? next : "", hfView.fits);
+    if (my !== seq) return;                                   // a newer search started meanwhile
+    if (!more) list.innerHTML = "";
+    if (!r.ok) {
+      list.insertAdjacentHTML("beforeend", `<div class="status err">${icon("warn")} ${esc(hfErr(r.error))}</div>`);
+      moreRow.hidden = true;
+      return;
+    }
+    list.insertAdjacentHTML("beforeend", r.models.map(hfRow).join(""));
+    if (!list.children.length) list.innerHTML = `<p class="faint small-note">${t("Nothing found.")}</p>`;
+    note.textContent = t("Some models are hidden because they don't fit this computer. Untick the box to see them.");
+    note.hidden = !(hfView.fits && r.hidden);
+    next = r.next || "";
+    moreRow.hidden = !next;
+    list.querySelectorAll("[data-open]").forEach(b => b.onclick = () => api.open_url(b.dataset.open));
+    list.querySelectorAll("[data-files]").forEach(b => b.onclick = () => choose(b.closest(".hf-row")));
+  };
+  q.oninput = () => { clearTimeout(hfTimer); hfTimer = setTimeout(() => { hfView.q = q.value.trim(); load(false); }, 450); };
+  q.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(hfTimer); hfView.q = q.value.trim(); load(false); } };
+  box.querySelector("#hf-sort").onchange = e => { hfView.sort = e.target.value; load(false); };
+  box.querySelector("#hf-fits").onchange = e => { hfView.fits = e.target.checked; load(false); };
+  box.querySelector("#hf-more").onclick = () => load(true);
+  det.ontoggle = () => { if (det.open && !list.children.length) load(false); };
+}
+
 function keyRow(id) {
   // a service may say what to paste (Cloudflare: its API token): the box's hint
   const hint = ((S && S.providers || []).find(x => x.id === id) || {}).key_hint || "Paste your key";
@@ -1273,7 +1434,7 @@ function renderMain() {
           <button class="mic" id="mic" title="${esc(t("Voice input (F2)"))}" aria-label="${esc(t("Voice input (F2)"))}">${icon("mic")}</button>
           <button class="send" id="send" disabled title="${esc(t("Send"))}" aria-label="${esc(t("Send"))}">${icon("send")}</button></div>
         <div class="under">
-          <div class="fold-wrap"><button class="fold" id="fold">${icon("folder")}<span></span>${icon("down", "i caret")}</button><button class="fold role-btn none" id="role-btn" title="${esc(t("Role of this chat"))}"><b class="role-ic">${icon("role")}</b><span></span>${icon("down", "i caret")}</button></div>
+          <div class="fold-wrap"><button class="fold" id="fold" aria-haspopup="menu" aria-expanded="false">${icon("folder")}<span></span>${icon("down", "i caret")}</button><button class="fold role-btn none" id="role-btn" title="${esc(t("Role of this chat"))}" aria-haspopup="menu" aria-expanded="false"><b class="role-ic">${icon("role")}</b><span></span>${icon("down", "i caret")}</button><button class="fold role-btn depth-btn none" id="depth-btn" title="${esc(t("How long to think"))}" aria-haspopup="menu" aria-expanded="false"><b class="role-ic">${icon("bulb")}</b><span></span>${icon("down", "i caret")}</button></div>
           <button class="lim" id="lim" hidden><span class="lim-track"><i></i></span><span class="lim-tx"></span></button>
           <span class="hint" title="${esc(care)}">${esc(careShort)}</span>
         </div>
@@ -1328,6 +1489,10 @@ function renderMain() {
   $("#lim").onclick = () => { openSettings(); setTimeout(() => { const l = $("#limits"); if (l) l.scrollIntoView({ block: "center" }); }, 300); };
   $("#fold").onclick = e => { e.stopPropagation(); folderMenu(); };
   $("#role-btn").onclick = e => { e.stopPropagation(); roleMenu(); };
+  $("#depth-btn").onclick = e => { e.stopPropagation(); depthMenu(); };
+  // 7: the hint's first sentence shows whole or not at all (its whole text is on hover)
+  const hint = $(".under .hint");
+  if (hint && window.ResizeObserver) new ResizeObserver(() => hint.classList.toggle("gone", hint.scrollWidth > hint.clientWidth + 1)).observe(hint);
   paintLimit();
   // redrawn (a new language, the settings closed…): the chat that was open stays open, a private or a new one too;
   // the first time, the newest chat opens
@@ -1700,29 +1865,69 @@ function showHit(q) {                       // the first message with the words:
 }
 
 async function refreshThreads() {
-  const list = await api.threads();
+  const [list, folders] = await Promise.all([api.threads(), api.folders()]);
   const q = findQuery();
   if (q.length >= 2) { showFound(q); return list; }
   if (chatMenuEl) { listStale = true; return list; }    // not under an open menu: it is drawn again when the menu closes
   // the list is drawn anew: the chat (or its "⋯") that had the keyboard keeps it
   const f = document.activeElement, box = $("#threads");
-  const keep = f && box.contains(f) ? (f.dataset.more ? `.th-more[data-more="${f.dataset.more}"]` : f.dataset.id ? `.th[data-id="${f.dataset.id}"]` : "") : "";
+  const keep = f && box.contains(f) ? (f.dataset.more ? `.th-more[data-more="${f.dataset.more}"]` : f.dataset.id ? `.th[data-id="${f.dataset.id}"]`
+    : f.dataset.fold !== undefined ? `.fl[data-fold="${CSS.escape(f.dataset.fold)}"]` : f.dataset.fmore !== undefined ? `.fl-more[data-fmore="${CSS.escape(f.dataset.fmore)}"]`
+    : f.classList.contains("fl-add") ? ".fl-add" : "") : "";
   const dayStart = new Date().setHours(0, 0, 0, 0) / 1000;
-  const pinned = list.filter(x => x.pinned), rest = list.filter(x => !x.pinned);
+  // a chat in a folder shows only there (its pin puts it first in the folder)
+  const pinned = list.filter(x => x.pinned && !x.folder), rest = list.filter(x => !x.pinned && !x.folder);
   const today = rest.filter(x => x.updated >= dayStart), older = rest.filter(x => x.updated < dayStart);
   // a chat is two buttons side by side: open it, and its "⋯" menu (a button inside a button can't be reached by Tab)
   const item = x => `<div class="th-row"><button class="th ${x.id === thread ? "on" : ""}" data-id="${x.id}"${x.id === thread ? ' aria-current="true"' : ""}><span>${esc(x.title || t("New chat"))}</span></button>`
     + `<button class="th-more" data-more="${x.id}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t("Chat options") + ": " + (x.title || t("New chat")))}" title="${esc(t("Chat options"))}">${icon("dots")}</button></div>`;
   const group = (name, xs) => xs.length ? `<h6>${name}</h6>${xs.map(item).join("")}` : "";
-  $("#threads").innerHTML = group(t("Pinned"), pinned) + group(t("Today"), today) + group(t("Earlier"), older);
+  // a folder: a row like a chat's (its caret on the left edge); folded with the open chat inside, it shows that chat's line
+  const folder = fo => {
+    const xs = list.filter(x => x.folder === fo.name), here = !fo.open && xs.some(x => x.id === thread);
+    return `<div class="th-row fl-row" data-drop="${esc(fo.name)}"><button class="fl${here ? " has-on" : ""}" data-fold="${esc(fo.name)}" aria-expanded="${fo.open}">${icon("down", "i fl-caret")}<span>${esc(fo.name)}</span><small>${xs.length}</small></button>`
+      + `<button class="th-more fl-more" data-fmore="${esc(fo.name)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t("Folder options") + ": " + fo.name)}" title="${esc(t("Folder options"))}">${icon("dots")}</button></div>`
+      + (!fo.open ? "" : xs.length ? `<div class="fl-list">${xs.map(item).join("")}</div>`
+        : `<p class="fl-empty" data-drop="${esc(fo.name)}">${esc(t("Drag a chat here to move it into this folder."))}</p>`);
+  };
+  const head = folders.length ? `<h6 class="fl-head"><span>${esc(t("Folders"))}</span><button class="fl-add" title="${esc(t("New folder"))}" aria-label="${esc(t("New folder"))}">${icon("plus")}</button></h6>` : "";
+  $("#threads").innerHTML = group(t("Pinned"), pinned) + head + folders.map(folder).join("") + group(t("Today"), today) + group(t("Earlier"), older);
   const byId = new Map(list.map(x => [x.id, x]));
-  $("#threads").querySelectorAll(".th-row").forEach(row => {
+  $("#threads").querySelectorAll(".th-row:not(.fl-row)").forEach(row => {
     const b = row.querySelector(".th"), more = row.querySelector(".th-more"), x = byId.get(+b.dataset.id);
     b.onclick = () => { openThread(x.id); $(".shell").classList.remove("open"); };
     more.onclick = e => { e.stopPropagation(); chatMenuEl && chatMenuEl.dataset.id === String(x.id) ? closeChatMenu() : chatMenu(x, more); };
     // right-click (or the Menu key / Shift+F10) opens the same menu where the pointer is
     b.oncontextmenu = e => { e.preventDefault(); chatMenu(x, more, e.clientX || e.clientY ? [e.clientX, e.clientY] : null); };
+    if (x.id > 0) {                       // dragged onto a folder, a chat goes into it
+      b.draggable = true;
+      b.ondragstart = e => { e.dataTransfer.setData("text/plain", `lanterna-chat:${x.id}`); e.dataTransfer.effectAllowed = "move"; row.classList.add("dragging"); };
+      b.ondragend = () => row.classList.remove("dragging");
+    }
   });
+  const foBy = new Map(folders.map(fo => [fo.name, fo]));
+  box.querySelectorAll(".fl-row").forEach(row => {
+    const b = row.querySelector(".fl"), more = row.querySelector(".fl-more"), fo = foBy.get(b.dataset.fold);
+    b.onclick = async () => { await api.fold_folder(fo.name, !fo.open); refreshThreads(); };
+    more.onclick = e => { e.stopPropagation(); chatMenuEl && chatMenuEl.dataset.folder === fo.name ? closeChatMenu() : groupMenu(fo, more); };
+    b.oncontextmenu = e => { e.preventDefault(); groupMenu(fo, more, e.clientX || e.clientY ? [e.clientX, e.clientY] : null); };
+    // a chat dropped on the folder (or on the line of an empty one) goes into it, and the folder opens to show it
+    const empty = row.nextElementSibling && row.nextElementSibling.classList.contains("fl-empty") ? row.nextElementSibling : null;
+    [row, empty].filter(Boolean).forEach(zone => {
+      zone.ondragover = e => { if ([...e.dataTransfer.types].includes("text/plain")) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; zone.classList.add("drop"); } };
+      zone.ondragleave = () => zone.classList.remove("drop");
+      zone.ondrop = async e => {
+        e.preventDefault(); zone.classList.remove("drop");
+        const m = /^lanterna-chat:(\d+)$/.exec(e.dataTransfer.getData("text/plain") || "");
+        if (!m) return;
+        await api.move_to_folder(+m[1], fo.name);
+        if (!fo.open) await api.fold_folder(fo.name, true);
+        refreshThreads();
+      };
+    });
+  });
+  const add = box.querySelector(".fl-add");
+  if (add) add.onclick = () => folderDialog(null);
   const back = keep && box.querySelector(keep);
   if (back) back.focus({ preventScroll: true });
   return list;
@@ -1750,7 +1955,103 @@ function chatMenu(x, anchor, at) {
   const m = h(`<div class="th-menu" role="menu" aria-label="${esc(t("Chat options"))}" data-id="${x.id}">
     <button role="menuitem" data-act="pin">${icon("pin")}<span>${esc(x.pinned ? t("Unpin") : t("Pin to top"))}</span></button>
     <button role="menuitem" data-act="rename">${icon("edit")}<span>${esc(t("Rename"))}</span></button>
+    ${x.id > 0 ? `<button role="menuitem" data-act="move">${icon("chats")}<span>${esc(t("Move to folder"))}</span></button>` : ""}
     <button role="menuitem" class="danger" data-act="del">${icon("trash")}<span>${esc(t("Delete"))}</span></button></div>`);
+  openMenu(m, anchor, at);
+  m.onclick = async e => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    closeChatMenu(!["rename", "move"].includes(b.dataset.act));
+    if (b.dataset.act === "pin") { await api.pin_thread(x.id, !x.pinned); refreshThreads(); }
+    else if (b.dataset.act === "rename") renameChat(x);
+    else if (b.dataset.act === "move") moveDialog(x);
+    else if (confirm(t("Delete this chat?"))) {
+      await api.delete_thread(x.id);
+      if (x.id === thread) thread = null;
+      refreshThreads().then(l => openThread(thread || (l[0] && l[0].id) || null));
+    }
+  };
+}
+
+// a chat folder's menu: rename it, or delete it (its chats stay in the list). Not folderMenu(): that one is the
+// working folder on disk under the message box, and two functions of one name are one function in this script
+function groupMenu(fo, anchor, at) {
+  closeChatMenu();
+  const m = h(`<div class="th-menu" role="menu" aria-label="${esc(t("Folder options"))}" data-folder="${esc(fo.name)}">
+    <button role="menuitem" data-act="rename">${icon("edit")}<span>${esc(t("Rename"))}</span></button>
+    <button role="menuitem" class="danger" data-act="del">${icon("trash")}<span>${esc(t("Delete folder"))}</span></button></div>`);
+  openMenu(m, anchor, at);
+  m.onclick = async e => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    closeChatMenu(b.dataset.act !== "rename");
+    if (b.dataset.act === "rename") folderDialog(fo);
+    else if (confirm(t("Delete the folder «{name}»? Its chats stay in the list.", { name: fo.name }))) {
+      await api.delete_folder(fo.name);
+      refreshThreads();
+    }
+  };
+}
+
+// a new folder, or a folder's new name
+function folderDialog(fo) {
+  let saved = fo ? fo.name : "";
+  const back = () => setTimeout(() => {
+    const b = saved && $(`#threads .fl[data-fold="${CSS.escape(saved)}"]`);
+    (b || $("#threads .fl-add") || $("#new")).focus();
+  }, 0);
+  const v = dialog(fo ? t("Rename folder") : t("New folder"), `<section class="mcp-risk">
+    <label class="cn-field"><b>${esc(t("Folder name"))}</b><input class="field" id="fd-name" maxlength="40" autocomplete="off" placeholder="${esc(t("For example: School"))}"></label>
+    <div class="dlg-btns"><button class="btn ghost small" id="fd-no">${esc(t("Cancel"))}</button><button class="btn primary small" id="fd-ok">${esc(fo ? t("Save") : t("Create"))}</button></div></section>`, back);
+  const input = $("#fd-name", v), ok = $("#fd-ok", v), close = () => v.querySelector("header button").click();
+  input.value = fo ? fo.name : "";
+  const check = () => { ok.disabled = !input.value.trim(); };
+  input.oninput = check;
+  check();
+  const save = async () => {
+    if (!input.value.trim()) return;
+    const r = fo ? await api.rename_folder(fo.name, input.value) : await api.add_folder(input.value);
+    if (r && r.name) saved = r.name;
+    await refreshThreads();
+    close();
+  };
+  ok.onclick = save;
+  $("#fd-no", v).onclick = close;
+  input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); save(); } };
+  input.focus();
+  input.select();
+}
+
+// a chat into a folder (or out of it), or into a new one
+async function moveDialog(x) {
+  const folders = await api.folders();
+  const back = () => setTimeout(() => { const b = $(`#threads .th[data-id="${x.id}"]`); if (b) b.focus(); }, 0);
+  const cur = x.folder || "";
+  const opt = (name, label, ic, n) => `<button class="mv-opt" data-name="${esc(name)}"${cur === name ? ' aria-current="true"' : ""}>${icon(ic)}<span>${esc(label)}</span>${n === undefined ? "" : `<small>${n}</small>`}${cur === name ? icon("check", "i mv-on") : ""}</button>`;
+  const v = dialog(t("Move to folder"), `<section class="mcp-risk mv">
+    <div class="mv-list">${opt("", t("Not in a folder"), "chat")}${folders.map(fo => opt(fo.name, fo.name, "chats", fo.n)).join("")}</div>
+    <label class="cn-field"><b>${esc(t("New folder"))}</b><span class="mv-new"><input class="field" id="mv-name" maxlength="40" autocomplete="off" placeholder="${esc(t("For example: School"))}"><button class="btn ghost small" id="mv-add">${esc(t("Create and move"))}</button></span></label></section>`, back);
+  v.querySelector(".dialog").classList.add("dlg-narrow");
+  const close = () => v.querySelector("header button").click();
+  // the list is drawn anew first: the chat gets the keyboard back where it is now, inside its (opened) folder
+  const go = async name => {
+    const r = await api.move_to_folder(x.id, name), fo = r && r.name && folders.find(f => f.name === r.name);
+    if (fo && !fo.open) await api.fold_folder(fo.name, true);
+    await refreshThreads();
+    close();
+  };
+  v.querySelectorAll(".mv-opt").forEach(b => b.onclick = () => go(b.dataset.name));
+  const input = $("#mv-name", v), add = $("#mv-add", v);
+  const check = () => { add.disabled = !input.value.trim(); };
+  input.oninput = check;
+  check();
+  add.onclick = () => { if (input.value.trim()) go(input.value); };
+  input.onkeydown = e => { if (e.key === "Enter" && input.value.trim()) { e.preventDefault(); go(input.value); } };
+  (v.querySelector('.mv-opt[aria-current="true"]') || input).focus();
+}
+
+// a menu under its "⋯" button (or at the pointer), with the keys a menu has
+function openMenu(m, anchor, at) {
   document.body.append(m);
   chatMenuEl = m;
   m._anchor = anchor;
@@ -1786,18 +2087,6 @@ function chatMenu(x, anchor, at) {
     else if (e.key === "Home" || e.key === "End") { e.preventDefault(); items[e.key === "Home" ? 0 : items.length - 1].focus(); }
     else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeChatMenu(true); }
     else if (e.key === "Tab") closeChatMenu();
-  };
-  m.onclick = async e => {
-    const b = e.target.closest("[data-act]");
-    if (!b) return;
-    closeChatMenu(b.dataset.act !== "rename");
-    if (b.dataset.act === "pin") { await api.pin_thread(x.id, !x.pinned); refreshThreads(); }
-    else if (b.dataset.act === "rename") renameChat(x);
-    else if (confirm(t("Delete this chat?"))) {
-      await api.delete_thread(x.id);
-      if (x.id === thread) thread = null;
-      refreshThreads().then(l => openThread(thread || (l[0] && l[0].id) || null));
-    }
   };
 }
 
@@ -1880,8 +2169,10 @@ async function openThread(id, priv) {
   if (sv) { sv.hidden = !id; sv.onclick = async () => { if (thread) savedToast(await api.export_chat(thread)); }; }
   newChatFolder = undefined;
   newChatRole = "";
+  newChatDepth = "";
   paintFolder();
   paintRole();
+  paintDepth();
   const msgs = $("#msgs");
   msgs.innerHTML = "";
   document.body.classList.toggle("private", privateNext || (id || 0) < 0);
@@ -2226,6 +2517,7 @@ async function send(retryText) {
     privateNext = false;
     if (newChatFolder !== undefined) { await api.set_chat_folder(thread, newChatFolder, false); newChatFolder = undefined; }
     if (newChatRole) { await api.set_chat_role(thread, newChatRole); newChatRole = ""; }
+    if (newChatDepth) { await api.set_chat_depth(thread, newChatDepth); newChatDepth = ""; }
   }
   if (!retry) {
     pending = []; inp.value = ""; paintFiles();
@@ -2544,7 +2836,7 @@ function openSettings() {
       ${S.settings.mode !== "local" ? `<label class="check"><input type="checkbox" id="warn-private" ${S.settings.warn_private !== false ? "checked" : ""}>
         <span><b>${t("Warn before private data goes online")}</b><small>${t("A card number, IBAN, password, PIN or key in your message: Lanterna asks first and can hide it. The check runs on this computer.")}</small></span></label>` : ""}
       ${S.settings.mode !== "cloud" ? `<h4 style="margin-top:22px">${t("Local models")}</h4>
-        <div id="picks"></div><div class="card local-card" id="local"></div>` : ""}
+        <div id="picks"></div><div class="card local-card" id="local"></div><div class="card local-card" id="hf"></div>` : ""}
       <h4 style="margin-top:22px">${t("Services")}</h4>
       <p class="muted" style="margin:0 0 6px;font-size:13px">${t("Add keys for more services: when one runs out of free limit, Lanterna switches to the next.")}</p>
       <div>${S.providers.filter(p => !p.local).map(p => `<div class="row" data-p="${p.id}">
@@ -2822,7 +3114,10 @@ function openSettings() {
     $("#lim-refresh", body).onclick = () => limitsPanel($("#limits", body));
     workdirPanel($("#workdir", body));
     connectorsPanel($("#connectors", body));
-    if ($("#local", body)) { paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); }); }
+    if ($("#local", body)) {
+      paintPicks(); localPanel($("#local", body), () => { paintPicks(); loadModels(false); });
+      hfPanel($("#hf", body), () => { paintPicks(); loadModels(false); });
+    }
     $("#refresh", body).onclick = () => loadModels(true);
     loadModels(false);
     paintFacts(); paintRems(); paintTasks();
@@ -2844,7 +3139,7 @@ function openSettings() {
     const st = await api.local_status(), box = $("#picks", body);
     if (!box || !st.running || !st.models.length) { if (box) box.innerHTML = ""; return; }
     const sel = (role, list, none) => `<select class="field" data-role="${role}">
-        <option value="">${t(none)}</option>${list.map(m => `<option ${st.picks[role] === m.name ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>`;
+        <option value="">${t(none)}</option>${list.map(m => `<option value="${esc(m.name)}" ${st.picks[role] === m.name ? "selected" : ""}>${esc(modelLabel(m.name))}</option>`).join("")}</select>`;
     box.innerHTML = `<div class="picks">
       <label><small>${t("Chat model")}</small>${sel("chat", st.models, "Automatic")}</label>
       <label><small>${t("Photo model")}</small>${sel("vision", st.models.filter(m => m.vision), "Automatic")}</label></div>`;
@@ -3339,7 +3634,8 @@ function openAbout() {
     ${heroLamp()}
     <div class="wordmark">Lanterna</div>
     <div class="byline">${t("Made by")} <b>${esc(S.author)}</b> · ${t("Version {v}", { v: esc(S.version) })}</div>
-    <p class="about-text">${t("Free and open source (MIT). No ads, no tracking — your chats stay on your computer.")}</p>
+    <p class="about-text">${t("Free and open source (MIT). No ads, no tracking — your chats stay on your computer.")}
+      ${t("Lanterna can make mistakes. Check important facts.")}</p>
     <div class="update" id="update"></div>
     <div class="about-acts">
       <button class="btn primary" data-o="1">${icon("star")} ${t("Star on GitHub")}</button>
@@ -3622,19 +3918,84 @@ async function paintRole() {
   b.querySelector("span").textContent = r[0] ? t(r[1]) : t("Role");
   b.classList.toggle("none", !r[0]);
 }
+// a menu over its chip under the message box (the working folder, the role, how long to think): it starts at the
+// chip's left edge and stays inside the column; the keyboard goes into it, arrows move, Escape and Tab close it
+function chipMenu(m, chip) {
+  const wrap = chip.parentElement;
+  wrap.append(m);
+  const col = wrap.closest(".under") || wrap.parentElement;
+  const room = col.getBoundingClientRect().right - wrap.getBoundingClientRect().left - m.offsetWidth;
+  m.style.left = Math.max(0, Math.min(chip.offsetLeft, room)) + "px";
+  chip.setAttribute("aria-expanded", "true");
+  const items = () => [...m.querySelectorAll("button[data-a]")];
+  const out = e => { if (!m.contains(e.target) && !chip.contains(e.target)) close(); };
+  const close = back => {
+    if (!m.isConnected) return;
+    m.remove();
+    document.removeEventListener("mousedown", out);
+    chip.setAttribute("aria-expanded", "false");
+    if (back) chip.focus();
+  };
+  m._close = close;
+  setTimeout(() => document.addEventListener("mousedown", out), 0);
+  m.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); return; }
+    if (e.target.tagName === "INPUT") return;
+    const xs = items(), i = xs.indexOf(document.activeElement);
+    if (!xs.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); xs[(i + 1) % xs.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); xs[i <= 0 ? xs.length - 1 : i - 1].focus(); }
+    else if (e.key === "Home" || e.key === "End") { e.preventDefault(); xs[e.key === "Home" ? 0 : xs.length - 1].focus(); }
+    else if (e.key === "Tab") close();
+  });
+  const first = m.querySelector('button[data-a][aria-checked="true"]') || items()[0];
+  if (first) first.focus({ preventScroll: true });
+  return close;
+}
+
+// one choice of a chip's menu: its icon, name and words; the current one has a check (and says so to a screen reader)
+const chipChoice = (a, ic, name, words, on) => `<button role="menuitemradio" aria-checked="${on}" data-a="${a}"><span class="r-ic">${icon(ic)}</span><span class="r-tx"><b>${esc(name)}</b><small>${esc(words)}</small></span>${on ? icon("check", "i r-on") : ""}</button>`;
+
 function roleMenu() {
   const old = $(".role-menu");
-  if (old) { old.remove(); return; }
+  if (old) { old._close(); return; }
   const b = $("#role-btn"), cur = b.dataset.role || "";
-  const m = h(`<div class="fold-menu role-menu" role="menu">
+  const m = h(`<div class="fold-menu role-menu" role="menu" aria-label="${esc(t("Role of this chat"))}">
     <div class="fm-head"><b>${esc(t("Role of this chat"))}</b><p>${esc(t("Your own instructions for every chat are in Settings → Chats."))}</p></div>
-    ${ROLES.map(r => `<button data-a="${r[0]}" class="${r[0] === cur ? "on" : ""}"><span class="r-ic">${icon(r[2])}</span><span><b>${esc(t(r[1]))}</b><small>${esc(t(r[3]))}</small></span></button>`).join("")}</div>`);
-  b.parentElement.append(m);
-  const close = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("mousedown", close); } };
-  setTimeout(() => document.addEventListener("mousedown", close), 0);
+    ${ROLES.map(r => chipChoice(r[0], r[2], t(r[1]), t(r[3]), r[0] === cur)).join("")}</div>`);
+  const close = chipMenu(m, b);
   m.querySelectorAll("button[data-a]").forEach(x => x.onclick = async () => {
     if (thread) await api.set_chat_role(thread, x.dataset.a); else newChatRole = x.dataset.a;
-    m.remove(); document.removeEventListener("mousedown", close); paintRole();
+    close(true); paintRole();
+  });
+}
+
+// how long the model thinks in one chat: Quick, Medium (as usual, nothing stored) or Long (1.1.11b11)
+const DEPTHS = [["quick", "Quick", "bolt", "Answers at once and briefly, without long thinking. For simple questions."],
+  ["", "Medium", "bulb", "As usual: the model thinks as much as it needs."],
+  ["deep", "Long thinking", "hourglass", "Thinks for a long time and checks itself. For hard tasks: math, code, plans. Slower."]];
+let newChatDepth = "";
+async function paintDepth() {
+  const b = $("#depth-btn");
+  if (!b) return;
+  const depth = thread ? (await api.chat_depth(thread)).depth : newChatDepth;
+  const d = DEPTHS.find(x => x[0] === depth) || DEPTHS[1];
+  b.dataset.depth = d[0];
+  b.querySelector(".role-ic").innerHTML = icon(d[2]);
+  b.querySelector("span").textContent = d[0] ? t(d[1]) : t("Thinking");
+  b.classList.toggle("none", !d[0]);
+}
+function depthMenu() {
+  const old = $(".depth-menu");
+  if (old) { old._close(); return; }
+  const b = $("#depth-btn"), cur = b.dataset.depth || "";
+  const m = h(`<div class="fold-menu depth-menu" role="menu" aria-label="${esc(t("How long to think in this chat"))}">
+    <div class="fm-head"><b>${esc(t("How long to think in this chat"))}</b></div>
+    ${DEPTHS.map(d => chipChoice(d[0], d[2], t(d[1]), t(d[3]), d[0] === cur)).join("")}</div>`);
+  const close = chipMenu(m, b);
+  m.querySelectorAll("button[data-a]").forEach(x => x.onclick = async () => {
+    if (thread) await api.set_chat_depth(thread, x.dataset.a); else newChatDepth = x.dataset.a;
+    close(true); paintDepth();
   });
 }
 
@@ -3647,28 +4008,27 @@ async function paintFolder() {
   b.querySelector("span").textContent = path ? (name || path) : t("No folder");
   b.classList.toggle("none", !path);
   b.classList.toggle("missing", newChatFolder === undefined && !!f.missing);   // !!: toggle(x, undefined) would flip it
-  b.title = path ? t("Folder of this chat") + ": " + path : t("Folder of this chat") + ": " + t("No folder");
+  b.title = t("Working folder") + ": " + (path || t("No folder"));
+  b.setAttribute("aria-label", b.title);
   b.dataset.path = path || "";
   b.dataset.def = f.default || "";
   b.dataset.own = newChatFolder !== undefined || f.own ? "1" : "";
 }
 
 function folderMenu() {
-  const old = $(".fold-menu");
-  if (old) { old.remove(); return; }
+  const old = $(".dir-menu");
+  if (old) { old._close(); return; }
   const b = $("#fold"), path = b.dataset.path, def = b.dataset.def;
   const defName = def ? def.split(/[\\/]/).filter(Boolean).pop() : "";
-  const m = h(`<div class="fold-menu" role="menu">
-    <div class="fm-head"><b>${esc(t("Folder of this chat"))}</b><small>${esc(path || t("No folder"))}</small>
+  const m = h(`<div class="fold-menu dir-menu" role="menu" aria-label="${esc(t("Working folder"))}">
+    <div class="fm-head"><b>${esc(t("Working folder"))}</b><small>${esc(path || t("No folder"))}</small>
       <p>${esc(t("Lanterna can read and change files only in this folder."))}</p></div>
-    <button data-a="pick">${icon("folder")} ${esc(t("Choose another folder…"))}</button>
-    ${path ? `<button data-a="none">${icon("x")} ${esc(t("No folder for this chat"))}</button>` : ""}
-    ${b.dataset.own && def !== path ? `<button data-a="def">${icon("refresh")} ${esc(def ? t("Same as in Settings: {name}", { name: defName }) : t("Same as in Settings (none)"))}</button>` : ""}
+    <button role="menuitem" data-a="pick">${icon("folder")} ${esc(t("Choose another folder…"))}</button>
+    ${path ? `<button role="menuitem" data-a="none">${icon("x")} ${esc(t("No folder for this chat"))}</button>` : ""}
+    ${b.dataset.own && def !== path ? `<button role="menuitem" data-a="def">${icon("refresh")} ${esc(def ? t("Same as in Settings: {name}", { name: defName }) : t("Same as in Settings (none)"))}</button>` : ""}
     <div class="fm-row" hidden><input class="field" placeholder="${esc(t("Folder path"))}"><button class="btn primary small">${t("Save")}</button></div>
     <p class="sync-err fm-err"></p></div>`);
-  b.parentElement.append(m);
-  const close = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("mousedown", close); } };
-  setTimeout(() => document.addEventListener("mousedown", close), 0);
+  const close = chipMenu(m, b);
   const errs = { not_found: t("There is no such folder."), too_broad: t("Choose a smaller folder: not a whole disk, your whole home folder or a system folder.") };
   const apply = async (p, followDefault) => {
     if (!thread) {                                       // no chat yet: remember it for the first message
@@ -3679,7 +4039,7 @@ function folderMenu() {
       const r = await api.set_chat_folder(thread, p, !!followDefault);
       if (!r.ok) { m.querySelector(".fm-err").textContent = errs[r.error] || r.error; return; }
     }
-    m.remove(); document.removeEventListener("mousedown", close); paintFolder();
+    close(true); paintFolder();
   };
   m.querySelectorAll("[data-a]").forEach(x => x.onclick = async () => {
     const a = x.dataset.a;

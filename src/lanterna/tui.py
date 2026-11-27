@@ -466,6 +466,15 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
+def _by_folder(threads: list[dict]) -> list[dict]:
+    """The chat list with its folders: chats without a folder first (pinned on top), then each folder under its
+    name ("head" rows can't be opened)."""
+    out = [th for th in threads if not th.get("folder")]
+    for name in sorted({th["folder"] for th in threads if th.get("folder")}, key=str.casefold):
+        out += [{"id": None, "head": f"▸ {name}"}, *(th for th in threads if th.get("folder") == name)]
+    return out
+
+
 class NameScreen(ModalScreen[str]):
     """A chat's new name: Enter or Save keeps it, Esc or Cancel leaves the old one."""
     BINDINGS = [Binding("escape", "no", show=False)]
@@ -496,6 +505,29 @@ class NameScreen(ModalScreen[str]):
     @on(Button.Pressed, "#no")
     def action_no(self) -> None:
         self.dismiss("")
+
+
+class FolderScreen(NameScreen):
+    """The open chat's folder: a name (a new one is made), empty = out of its folder; Esc or Cancel = as it was."""
+
+    def compose(self) -> ComposeResult:
+        lang = L(self.app)
+        with Vertical(classes="dialog"):
+            yield Label(self.heading, classes="h")
+            yield Input(self.value, placeholder=t("Folder name", lang), max_length=40, id="name")
+            yield Static(t("Leave it empty to take the chat out of its folder.", lang), classes="muted")
+            with Horizontal(classes="row"):
+                yield Button(t("Save", lang), id="yes", variant="primary")
+                yield Button(t("Cancel", lang), id="no")
+
+    @on(Input.Submitted, "#name")
+    @on(Button.Pressed, "#yes")
+    def _yes(self) -> None:
+        self.dismiss(self.query_one("#name", Input).value.strip())
+
+    @on(Button.Pressed, "#no")
+    def action_no(self) -> None:
+        self.dismiss(None)
 
 
 class UpdateScreen(ModalScreen[None]):
@@ -1221,6 +1253,7 @@ class SettingsScreen(ModalScreen[str]):
                         yield TextArea(self.app.api.settings.instructions, id="instructions")
                         yield Button(t("Save", lang), id="instrsave")
                         yield Static(t("F6 changes the role of the open chat: Tutor, Translator, Proofreader or none.", lang), classes="muted")
+                        yield Static(t("F5 changes how long Lanterna thinks in the open chat: Quick, Medium or Long thinking.", lang), classes="muted")
                         yield Label(t("Working folder", lang), classes="h")
                         yield Static(t("Lanterna can look at the files in one folder you choose, and create or change files there (with a card first or at once, as the mode in Settings → Computer says). It never deletes anything and sees nothing outside this folder.", lang)
                                      + " " + t("The files it opens are sent to the model in use (to the online service in Cloud mode).", lang), classes="muted")
@@ -2757,8 +2790,11 @@ class _ChatScreen(Screen):
         async with self._threads_lock:
             lv = self.query_one("#threads", ListView)
             await lv.clear()
-            await lv.extend([ListItem(Label(("📌 " if th.get("pinned") else "") + (th["title"] or t("New chat", L(self.app))),
-                                            markup=False), name=str(th["id"]) if th["id"] is not None else "")
+            threads = _by_folder(threads)                      # (the same order the list shows)
+            await lv.extend([ListItem(Label(th["head"], markup=False, classes="muted"), name="") if th.get("head") else
+                             ListItem(Label(("  " if th.get("folder") else "") + ("📌 " if th.get("pinned") else "")
+                                            + (th["title"] or t("New chat", L(self.app))), markup=False),
+                                      name=str(th["id"]) if th["id"] is not None else "")
                              for th in threads])
             for i, th in enumerate(threads):
                 if th["id"] == self.tid:
@@ -2891,6 +2927,19 @@ class _ChatScreen(Screen):
         self.app.notify(f"{ROLES[role][1]} {t(ROLES[role][0], lang)}" if role else t("No role", lang),
                         title=t("Role of this chat", lang), timeout=4)
 
+    def action_next_depth(self) -> None:
+        """F5: how long the open chat thinks goes round: Medium → Long → Quick → Medium."""
+        from .roles import DEPTHS
+        order = ["", "deep", "quick"]
+        lang = L(self.app)
+        if self.tid is None:
+            self._new_depth = order[(order.index(getattr(self, "_new_depth", "")) + 1) % len(order)]
+            depth = self._new_depth
+        else:
+            depth = order[(order.index(self.app.api.chat_depth(self.tid)["depth"]) + 1) % len(order)]
+            self.app.api.set_chat_depth(self.tid, depth)
+        self.app.notify(t(DEPTHS[depth][0] if depth else "Medium", lang), title=t("How long to think", lang), timeout=4)
+
     def action_second_opinion(self) -> None:
         """F4: the last question to another model; its answer comes under the first one."""
         if self.tid is None or self._stream:
@@ -3012,6 +3061,20 @@ class _ChatScreen(Screen):
 
         self.app.push_screen(NameScreen(t("Rename chat", L(self.app)), th["title"] or ""), done)
 
+    def action_move_to_folder(self) -> None:
+        th = self._saved_chat()
+        if not th:
+            return
+        tid = th["id"]
+        now = next((x.get("folder") or "" for x in self.app.api.threads() if x["id"] == tid), "")
+
+        def done(name: str | None) -> None:
+            if name is not None:
+                self.app.api.move_to_folder(tid, name)
+                self._fill_threads()
+
+        self.app.push_screen(FolderScreen(t("Move to folder", L(self.app)), now), done)
+
     def action_toggle_theme(self) -> None:
         """Light or dark, the same setting as the window's Settings → General → Theme (this computer)."""
         light = self.app.theme != "lanterna-light"
@@ -3073,6 +3136,9 @@ class _ChatScreen(Screen):
             if getattr(self, "_new_role", ""):
                 self.app.api.set_chat_role(self.tid, self._new_role)
                 self._new_role = ""
+            if getattr(self, "_new_depth", ""):
+                self.app.api.set_chat_depth(self.tid, self._new_depth)
+                self._new_depth = ""
             log.remove_children()
         log.query(".welcome").remove()
         files, self._files = self._files, []
@@ -3383,9 +3449,11 @@ CHAT_COMMANDS = [
     ("Edit", "edit_last", "Ctrl+E"),
     ("Second opinion", "second_opinion", "F4"),
     ("Role of this chat", "next_role", "F6"),
+    ("How long to think", "next_depth", "F5"),
     ("Save chat", "save_chat", "Ctrl+X"),
     ("Rename chat", "rename_chat", ""),
     ("Pin chat", "pin_chat", ""),
+    ("Move to folder", "move_to_folder", ""),
     ("Delete chat", "delete_chat", "Ctrl+D"),
     ("Stop the answer", "stop_answer", "Esc"),
     ("Voice input", "voice", "F2"),
@@ -3399,7 +3467,7 @@ CHAT_COMMANDS = [
 ]
 FOOTER_KEYS = {"new_chat", "app.command_palette", "settings", "models", "app.quit"}
 _KEYS = {"Ctrl+N": "ctrl+n", "Ctrl+P": "ctrl+p", "Ctrl+S": "ctrl+s", "Ctrl+O": "ctrl+o", "Ctrl+Q": "ctrl+q", "F7": "f7",
-         "Ctrl+F": "ctrl+f", "Ctrl+R": "ctrl+r", "Ctrl+E": "ctrl+e", "F4": "f4", "F6": "f6", "Ctrl+X": "ctrl+x",
+         "Ctrl+F": "ctrl+f", "Ctrl+R": "ctrl+r", "Ctrl+E": "ctrl+e", "F4": "f4", "F5": "f5", "F6": "f6", "Ctrl+X": "ctrl+x",
          "Ctrl+D": "ctrl+d", "F2": "f2", "F3": "f3", "F9": "f9", "Esc": "escape"}
 
 

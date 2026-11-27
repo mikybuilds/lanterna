@@ -91,6 +91,7 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: var(--r1); border: 3px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--faint); border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
 
 #app { height: 100%; }
 #app.loading { display: grid; place-items: center; }
@@ -338,7 +339,7 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 /* a chat's "⋯" button: it shows when the row is pointed at or reached by Tab, and stays while its menu is open */
 .th-row { position: relative; }
 .th-row .th { padding-right: 34px; }
-.th-more { position: absolute; right: 4px; top: 50%; margin-top: -12px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r1);
+.th-more { position: absolute; right: 0; top: 50%; margin-top: -16px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r1);
   color: var(--faint); opacity: 0; transition: opacity var(--t-fast), color var(--t-fast); }
 .th-row:hover .th-more, .th-row:focus-within .th-more, .th-row.menu-open .th-more { opacity: 1; }
 .th-more:hover, .th-row.menu-open .th-more { color: var(--text); }
@@ -606,6 +607,7 @@ body.busy .to-end.show { border-color: var(--amber); }
 .under .lim { grid-column: 2; }
 .under .hint { grid-column: 3; }
 .hint { text-align: right; font-size: 12px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hint.gone { visibility: hidden; }     /* its first sentence doesn't fit: nothing rather than half of it */
 /* today's limit: a meter in the lantern's light (red when little is left) and the number */
 .lim { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px; border-radius: var(--r1);
   min-width: 0; max-width: 100%; font: 400 12px/1 var(--mono); color: var(--muted); transition: background var(--t-fast); }
@@ -651,12 +653,14 @@ body.busy .to-end.show { border-color: var(--amber); }
 .fold .i { width: 14px; height: 14px; color: var(--muted); flex: none; }
 .fold .caret { width: 14px; height: 14px; color: var(--faint); }
 .fold span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fold.none { color: var(--faint); border-style: dashed; }
+.fold.none { color: var(--faint); border-color: transparent; }
+#fold.none span { display: none; }     /* no working folder: only its icon (the label says it), so the hint has room */
 .fold.none .i:first-child { color: var(--faint); }
 .fold.missing span { color: var(--red); text-decoration: line-through; }
-.fold-menu { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 40; width: 320px; padding: 4px;
+/* over its own chip: chipMenu() sets left from the chip's edge, kept inside the column */
+.fold-menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40; width: 320px; padding: 4px;
   border-radius: var(--r2); background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--pop); animation: menu-up var(--t-fast) var(--ease); }
-@keyframes menu-up { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes menu-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .fm-head { padding: 8px 8px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .fm-head b { display: block; font-size: 13px; font-weight: 600; }
 .fm-head small { display: block; font: 400 12px/1.4 var(--mono); color: var(--muted); margin-top: 4px; word-break: break-all; }
@@ -812,6 +816,35 @@ body.quick .under { display: flex; }
 .bar { width: 120px; height: 8px; background: var(--line); overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--flame); transition: width var(--t-slow) var(--ease); }
 .small-note { font-size: 13px; margin: 10px 0 0; }
+/* Settings → Local models → Hugging Face (1.1.11b11): folded until opened; then a search, a sort and the same rows */
+.hf { margin-top: 24px; border-top: 1px solid var(--line); }
+.hf > summary { cursor: pointer; list-style: none; display: grid; grid-template-columns: 16px 1fr; column-gap: 8px; padding: 12px 0 4px; }
+.hf > summary::-webkit-details-marker { display: none; }
+/* the same caret as a chat folder's: pointing right while folded */
+.hf > summary .hf-caret { grid-row: 1; align-self: center; width: 16px; height: 16px; color: var(--faint); transform: rotate(-90deg); transition: transform var(--t-fast); }
+.hf[open] > summary .hf-caret { transform: none; }
+.hf > summary b { font-weight: 500; }
+.hf > summary small { grid-column: 2; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.hf > summary:hover b { color: var(--text); }
+.hf-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin: 12px 0 4px; }
+.hf-tools select.field { width: auto; }
+#hf-list { margin-top: 8px; }
+.hf-row { flex-wrap: wrap; row-gap: 8px; align-items: flex-start; }
+.hf-row .nm { flex: 1 1 260px; }
+.hf-row .act { margin-left: auto; }
+.hf-row .nm small { display: block; overflow: hidden; }
+.facts { display: block; margin-left: -20px; }
+.facts .nw { display: inline-block; white-space: nowrap; }
+.facts .nw::before { content: "·"; display: inline-block; width: 20px; text-align: center; }
+.hf-row .nm small .i { width: 16px; height: 16px; vertical-align: -4px; margin-right: 4px; }
+.hf-row .nm small.hf-fit { color: var(--muted); font: 400 13px/1.45 var(--font); margin-top: 2px; }
+.hf-row .act select.field { width: auto; max-width: 100%; height: 30px; padding: 0 8px; font: 400 12px/1.4 var(--mono); }
+/* the model's page on huggingface.co: a quiet icon button, there in every state of the row */
+.hf-open { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r1); color: var(--faint);
+  transition: background var(--t-fast), color var(--t-fast); }
+.hf-open:hover { background: var(--surface-2); color: var(--text); }
+.hf-open .i { width: 16px; height: 16px; }
+.hf-go { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; cursor: pointer; }
 .check input { flex: none; margin: 2px 0 0; accent-color: var(--text); width: 16px; height: 16px; }
 .check b { font-weight: 500; }
@@ -958,12 +991,49 @@ details.srcs-s li { margin: 3px 0; overflow-wrap: anywhere; }
 
 /* the role of a chat: a chip next to the folder */
 .role-btn .role-ic { display: grid; place-items: center; }
-.role-menu button[data-a] { align-items: flex-start; }
-.role-menu button[data-a] .r-ic { flex: none; width: 18px; display: grid; place-items: center; color: var(--muted); }
-.role-menu button[data-a] .r-ic .i { width: 16px; height: 16px; }
-.role-menu button[data-a] small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
-.role-menu button[data-a].on { background: var(--surface-2); }
-.role-menu button[data-a].on .r-ic { color: var(--text); }
+/* folders for chats in the list on the left (1.1.11b11) */
+.fl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fl-add { display: grid; place-items: center; width: 32px; height: 32px; margin: -10px -8px -10px 0; border-radius: var(--r1); color: var(--faint);
+  transition: background var(--t-fast), color var(--t-fast); }
+.fl-add:hover { background: var(--side-2); color: var(--text); }
+.fl-add .i { width: 16px; height: 16px; }
+/* a folder is a row like a chat's: its caret on the left edge, the name where a chat's title starts inside it */
+.fl { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 34px 0 8px; border-radius: var(--r1);
+  color: var(--muted); text-align: left; transition: background var(--t-fast), color var(--t-fast); }
+.fl:hover, .fl-row.menu-open .fl { background: var(--side-2); color: var(--text); }
+.fl span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.fl small { flex: none; font: 400 12px/1 var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.fl .fl-caret { width: 16px; height: 16px; flex: none; color: var(--faint); transform: rotate(-90deg); transition: transform var(--t-fast); }
+.fl[aria-expanded="true"] .fl-caret { transform: none; }
+/* folded with the open chat inside: the chat's amber line shows on the folder */
+.fl.has-on { color: var(--text); }
+.fl.has-on::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; background: var(--amber); }
+.fl-list .th { padding-left: 32px; }
+.fl-empty { margin: 0; padding: 4px 8px 8px 32px; border-radius: var(--r1); font-size: 13px; line-height: 1.45; color: var(--faint); }
+/* a chat dragged over a folder: the window's own drop look */
+.fl-row.drop .fl, .fl-empty.drop { background: var(--side-2); outline: 1px dashed var(--edge); outline-offset: -1px; }
+.th-row.dragging { opacity: .5; }
+.mv-list { display: grid; gap: 2px; max-height: 240px; overflow: auto; margin-bottom: 16px; }
+.mv-opt { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 10px; border-radius: var(--r1); text-align: left; color: var(--text); }
+.mv-opt:hover { background: var(--surface-2); }
+.mv-opt .i { width: 16px; height: 16px; flex: none; color: var(--muted); }
+.mv-opt .i.mv-on { color: var(--text); }
+.mv-opt span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-opt small { font: 400 12px/1 var(--mono); color: var(--faint); }
+.mv-new { display: flex; flex-wrap: wrap; gap: 8px; }
+.mv-new .field { flex: 1 1 200px; min-width: 0; }
+.mv-new > .btn { height: 40px; margin-left: auto; }
+.dialog.dlg-narrow { max-width: 400px; }
+
+/* …and how long it thinks (1.1.11b11): the same menu */
+:is(.role-menu, .depth-menu) button[data-a] { align-items: flex-start; }
+:is(.role-menu, .depth-menu) button[data-a] .r-ic { flex: none; width: 18px; display: grid; place-items: center; color: var(--muted); }
+:is(.role-menu, .depth-menu) button[data-a] .r-ic .i { width: 16px; height: 16px; }
+:is(.role-menu, .depth-menu) button[data-a] .r-tx { flex: 1 1 auto; min-width: 0; }
+:is(.role-menu, .depth-menu) button[data-a] b { font-weight: 500; }
+:is(.role-menu, .depth-menu) button[data-a] small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+:is(.role-menu, .depth-menu) button[data-a] .r-on { width: 16px; height: 16px; margin-top: 2px; color: var(--text); }
+:is(.role-menu, .depth-menu) button[data-a][aria-checked="true"] .r-ic .i { color: var(--text); }
 #instructions { width: 100%; resize: vertical; min-height: 84px; padding: 10px 12px; font: inherit; line-height: 1.45; }
 
 /* a picture copied a moment ago, offered in the quick window */

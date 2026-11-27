@@ -31,7 +31,9 @@ from .tools import Toolbox
 from .workspace import Actions, Workspace, folder_tools, too_broad
 
 FIRST_CHOICES = ["groq", "gemini"]
-_MODEL_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)?(:[a-z0-9._-]+)?$", re.I)
+# an Ollama model: "qwen3:8b", "user/model:tag", or a file from Hugging Face "hf.co/<user>/<repo>:<file>.gguf"
+_MODEL_NAME = re.compile(r"^(?:(?:hf\.co|huggingface\.co)/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*"
+                         r"|[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)?)(:[a-z0-9._-]+)?$", re.I)
 
 
 def _rest_left(r: Router) -> list[float]:
@@ -229,6 +231,7 @@ class Api:
         self._alerts: list[dict] = []       # reminders that fired, waiting for the UI
         self._hw: hardware.Hardware | None = None
         self._downloads = local.Downloads()
+        self._hf = None                     # hfhub.Hub, made when the catalog is first opened
         from . import updates
         self.updater = updates.Updater()
         self._update_asset: dict | None = None
@@ -1135,7 +1138,7 @@ class Api:
     def set_local_model(self, role: str, name: str) -> dict:
         if role in ("chat", "vision"):
             if name:
-                self.settings.local_models[role] = str(name)[:80]
+                self.settings.local_models[role] = str(name)[:200]      # hf.co/<user>/<repo>:<file> is long
             else:
                 self.settings.local_models.pop(role, None)
             self.settings.save()
@@ -1163,6 +1166,37 @@ class Api:
         self._downloads.cancel(str(name))
         return self._downloads.state()
 
+    # Settings → Local models → Hugging Face: any GGUF model people use now, downloaded by Ollama itself
+    def _machine(self):
+        from . import hfhub
+        if self._hw is None:
+            self._hw = hardware.detect()
+        return hfhub.Machine(self._hw.vram_gb, self._hw.ram_gb)
+
+    def _hub(self):
+        from . import hfhub
+        if self._hf is None:
+            self._hf = hfhub.Hub()
+        return self._hf
+
+    def hf_models(self, query: str = "", sort: str = "trending", cursor: str = "", fits: bool = True) -> dict:
+        """One page of models: only when the user opens the catalog, searches or asks for more."""
+        out = self._hub().models(self._machine(), query, sort, cursor, bool(fits))
+        if out.get("ok"):
+            have = {m.name.lower() for m in local.installed()}
+            for m in out["models"]:
+                m["installed"] = any(n.startswith(f"hf.co/{m['id'].lower()}:") for n in have)
+        return out
+
+    def hf_files(self, repo: str) -> dict:
+        """The files of one model with their sizes, and which one runs best here."""
+        out = self._hub().files(repo, self._machine())
+        if out.get("ok"):
+            have = {m.name.lower() for m in local.installed()}
+            for f in out["files"]:
+                f["installed"] = f["name"].lower() in have
+        return out
+
     # ---------------------------------------------------------------- chats
     @staticmethod
     def _back_in(r: Router) -> int:
@@ -1172,6 +1206,73 @@ class Api:
 
     def threads(self) -> list[dict]:
         return self.store.threads()
+
+    # ---------------------------------------------------------------- folders for chats (the list on the left)
+    def _folder_name(self, name) -> str:
+        """One line, at most 40 characters; the same name as a folder that is already there (any case)."""
+        name = " ".join(str(name or "").split())[:40]
+        known = {n.casefold(): n for n in [*self.settings.chat_groups, *self.store.folders()]}
+        return known.get(name.casefold(), name)
+
+    def folders(self) -> list[dict]:
+        """[{"name", "n" (chats in it), "open"}] by name. A folder made here stays while it is empty."""
+        counts = self.store.folders()
+        names = {n.casefold(): n for n in self.settings.chat_groups if isinstance(n, str) and n}
+        for n in counts:
+            names.setdefault(n.casefold(), n)
+        closed = {str(n).casefold() for n in self.settings.groups_closed}
+        return [{"name": n, "n": counts.get(n, 0), "open": n.casefold() not in closed}
+                for n in sorted(names.values(), key=str.casefold)]
+
+    def add_folder(self, name: str) -> dict:
+        name = self._folder_name(name)
+        if not name:
+            return {"ok": False, "error": "empty"}
+        if name not in self.settings.chat_groups:
+            self.settings.chat_groups.append(name)
+            self.settings.save()
+        return {"ok": True, "name": name}
+
+    def move_to_folder(self, tid, name: str = "") -> dict:
+        """Puts a chat in a folder (made if it isn't there yet); "" takes it out of its folder."""
+        tid = int(tid or 0)
+        if tid <= 0 or not self.store.thread(tid):           # a private chat isn't kept, so it has no folder
+            return {"ok": False, "error": "no_chat"}
+        name = self._folder_name(name)
+        if name and name not in self.settings.chat_groups:
+            self.settings.chat_groups.append(name)
+            self.settings.save()
+        self.store.set_folder(tid, name)
+        return {"ok": True, "name": name}
+
+    def rename_folder(self, old: str, new: str) -> dict:
+        old = " ".join(str(old or "").split())
+        clean = " ".join(str(new or "").split())[:40]
+        new = clean if clean.casefold() == old.casefold() else self._folder_name(clean)   # (only its case changes)
+        if not old or not new:
+            return {"ok": False, "error": "empty"}
+        self.store.move_folder(old, new)
+        groups = [g for g in self.settings.chat_groups if g != old]
+        self.settings.chat_groups = groups if new in groups else [*groups, new]
+        self.settings.groups_closed = [new if g == old else g for g in self.settings.groups_closed]
+        self.settings.save()
+        return {"ok": True, "name": new}
+
+    def delete_folder(self, name: str) -> dict:
+        """The folder goes; its chats stay, back in the list as they were."""
+        name = " ".join(str(name or "").split())
+        n = self.store.move_folder(name, "") if name else 0
+        self.settings.chat_groups = [g for g in self.settings.chat_groups if g != name]
+        self.settings.groups_closed = [g for g in self.settings.groups_closed if g != name]
+        self.settings.save()
+        return {"ok": True, "chats": n}
+
+    def fold_folder(self, name: str, open: bool = True) -> dict:    # noqa: A002  (the window's word)
+        name = " ".join(str(name or "").split())
+        closed = [g for g in self.settings.groups_closed if g != name]
+        self.settings.groups_closed = closed if open else [*closed, name]
+        self.settings.save()
+        return {"ok": True}
 
     def search_chats(self, query: str) -> list[dict]:
         """The search box above the chat list: chats with these words in the name or in a message."""
@@ -1188,7 +1289,8 @@ class Api:
         for tid in self.store.forget_private(int(keep or 0)):
             a = self.settings.chat_dirs.pop(str(tid), None)
             b = self.settings.chat_roles.pop(str(tid), None)
-            changed = changed or a is not None or b is not None
+            c = self.settings.chat_depths.pop(str(tid), None)
+            changed = changed or a is not None or b is not None or c is not None
             self._follow.pop(tid, None)
             self._learned.pop(tid, None)
         if changed:
@@ -1272,9 +1374,9 @@ class Api:
         self._follow.pop(tid, None)
         side = router.quick_order()
         # follow-ups come after every answer: only from an online model that isn't Gemini (its limit is for
-        # answers), and not while a card waits for the user's Confirm
+        # answers), not while a card waits for the user's Confirm, and not in a chat set to quick answers
         if (self.settings.follow_ups and side and side[0].provider != "gemini" and not PROVIDERS[side[0].provider].local
-                and not st.cards and not st.questions):
+                and not st.cards and not st.questions and self.settings.chat_depths.get(str(tid)) != "quick"):
             ev, out = threading.Event(), []
             self._follow[tid] = (ev, out)
             st.suggesting = True
@@ -1326,7 +1428,8 @@ class Api:
         self.store.delete_thread(int(tid))
         a = self.settings.chat_dirs.pop(str(int(tid)), None)
         b = self.settings.chat_roles.pop(str(int(tid)), None)
-        if a is not None or b is not None:
+        c = self.settings.chat_depths.pop(str(int(tid)), None)
+        if a is not None or b is not None or c is not None:
             self.settings.save()
         return True
 
@@ -1346,6 +1449,23 @@ class Api:
             self.settings.chat_roles.pop(key, None)
         self.settings.save()
         return {"ok": True, "role": role}
+
+    # ---------------------------------------------------------------- how long the model thinks in one chat
+    def chat_depth(self, tid) -> dict:
+        return {"depth": self.settings.chat_depths.get(str(int(tid or 0)), "")}
+
+    def set_chat_depth(self, tid, depth: str = "") -> dict:
+        from .roles import clean_depth
+        key = str(int(tid or 0))
+        if key == "0" or not self.store.thread(int(key)):
+            return {"ok": False, "error": "no_chat"}
+        depth = clean_depth(depth)
+        if depth:
+            self.settings.chat_depths[key] = depth
+        else:
+            self.settings.chat_depths.pop(key, None)
+        self.settings.save()
+        return {"ok": True, "depth": depth}
 
     def _instructions(self, tid: int) -> str:
         from .roles import system_note
@@ -2044,7 +2164,8 @@ class Api:
                                 cards_waiting=bool(self.cards(tid)),
                                 browser_note=browser.system_note(self.browser, self._mode("browser"))
                                 if self._browser_tools() else "",
-                                context_note="(browser)" if st.panel else "")
+                                context_note="(browser)" if st.panel else "",
+                                depth=self.settings.chat_depths.get(str(tid), ""))
             gen = conv.ask(text, images or None)
             for p in gen:
                 if st.stop.is_set():

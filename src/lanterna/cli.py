@@ -296,6 +296,29 @@ def local_cmd(s: Settings, action: str, value: str | None) -> int:
             return 1
         console.print(f"[green]✓ {value}[/]")
         return 0
+    if action == "search":                                # Hugging Face: what people use now, what runs here
+        from . import hfhub
+        hw = hardware.detect()
+        with console.status(t("On Hugging Face now", lang), spinner="dots"):
+            r = hfhub.Hub().models(hfhub.Machine(hw.vram_gb, hw.ram_gb), value or "", "trending", fits_only=False)
+        if not r.get("ok"):
+            console.print("[red]" + t("Couldn't reach Hugging Face. Check the internet and try again.", lang) + "[/]")
+            return 1
+        if not r["models"]:
+            console.print(t("Nothing found.", lang))
+            return 0
+        tb = Table(box=None, header_style=f"bold {AMBER}", title=t("On Hugging Face now", lang))
+        for col in (t("Model", lang), "B", t("GB", lang), ""):
+            tb.add_column(col)
+        words = {"gpu": "[green]" + t("fast", lang) + "[/]", "ram": t("slower", lang), "no": "[dim]" + t("too big", lang) + "[/]"}
+        for m in r["models"][:20]:
+            tb.add_row(m["id"], f"{m['params_b']:g}" if m["params_b"] else "", f"~{m['est_gb']:.1f}" if m["est_gb"] else "",
+                       words.get(m["fit"], ""))
+        console.print(tb)
+        first = next((m for m in r["models"] if m["fit"] != "no"), None)
+        if first:                                         # how to take one: Ollama picks the usual size itself
+            console.print(f"[dim]lanterna local pull hf.co/{first['id']}[/]")
+        return 0
     hw = hardware.detect()
     adv = hardware.advise(hw)
     gpu = hw.gpu or t("No graphics card found", lang)
@@ -489,8 +512,9 @@ def main(argv: list[str] | None = None) -> int:
     mp = sub.add_parser("models")
     mp.add_argument("--refresh", action="store_true")
     lp = sub.add_parser("local", help="local models: what fits this computer, download with progress, pick the mode")
-    lp.add_argument("action", nargs="?", choices=["info", "pull", "mode"], default="info")
-    lp.add_argument("value", nargs="?", help="model name (pull) or cloud|local|auto (mode)")
+    lp.add_argument("action", nargs="?", choices=["info", "pull", "mode", "search"], default="info")
+    lp.add_argument("value", nargs="?", help="model name (pull, also hf.co/<user>/<repo>), cloud|local|auto (mode) "
+                                             "or words to look for on Hugging Face (search)")
     dp = sub.add_parser("desktop", help="add Lanterna to the app menu (Linux: GNOME, KDE…)")
     dp.add_argument("--remove", action="store_true")
     dp.add_argument("--terminal", action="store_true", help="open the full-screen app in the terminal, also where "

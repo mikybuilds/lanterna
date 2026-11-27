@@ -2204,6 +2204,55 @@ _T.update({
     "Leave Developer mode on: without it Chrome turns off extensions loaded from a folder, Lanterna's too.": {"uk": "Не вимикай «Режим розробника»: без нього Chrome вимикає розширення, завантажені з папки, і Lanterna теж.", "it": "Lascia attiva Modalità sviluppatore: senza, Chrome disattiva le estensioni caricate da una cartella, anche quella di Lanterna."},
 })
 
+# Local models from Hugging Face (1.1.11b11): the help quotes the window's name, the terminal lists them
+_T.update({
+    "More models from Hugging Face": {"uk": "Більше моделей з Hugging Face", "it": "Altri modelli da Hugging Face"},
+    "fast": {"uk": "швидко", "it": "veloce"},
+    "slower": {"uk": "повільніше", "it": "più lento"},
+    "too big": {"uk": "завелика", "it": "troppo grande"},
+    "Couldn't reach Hugging Face. Check the internet and try again.": {"uk": "Не вдалося зв'язатися з Hugging Face. Перевір інтернет і спробуй ще раз.", "it": "Impossibile raggiungere Hugging Face. Controlla internet e riprova."},
+    "On Hugging Face now": {"uk": "Зараз на Hugging Face", "it": "Ora su Hugging Face"},
+})
+
+# How long the model thinks in one chat (1.1.11b11): the «Thinking» button, F5 in the terminal
+_T.update({
+    "Thinking": {"uk": "Роздуми", "it": "Ragionamento"},
+    "How long to think": {"uk": "Скільки думати", "it": "Quanto pensare"},
+    "How long to think in this chat": {"uk": "Скільки думати в цьому чаті", "it": "Quanto pensare in questa chat"},
+    "Quick": {"uk": "Бліц", "it": "Lampo"},
+    "Medium": {"uk": "Середнє", "it": "Medio"},
+    "Long thinking": {"uk": "Довгі роздуми", "it": "Ragionamento lungo"},
+    "Answers at once and briefly, without long thinking. For simple questions.": {"uk": "Відповідає одразу й коротко, без довгих роздумів. Для простих питань.", "it": "Risponde subito e in breve, senza pensare a lungo. Per le domande semplici."},
+    "As usual: the model thinks as much as it needs.": {"uk": "Як зазвичай: модель думає стільки, скільки їй треба.", "it": "Come sempre: il modello pensa quanto gli serve."},
+    "Thinks for a long time and checks itself. For hard tasks: math, code, plans. Slower.": {"uk": "Довго думає й перевіряє себе. Для складних задач: математика, код, плани. Повільніше.", "it": "Pensa a lungo e si controlla. Per i compiti difficili: matematica, codice, piani. Più lento."},
+    "F5 changes how long Lanterna thinks in the open chat: Quick, Medium or Long thinking.": {"uk": "F5 змінює, скільки Lanterna думає у відкритому чаті: Бліц, Середнє чи Довгі роздуми.", "it": "F5 cambia quanto pensa Lanterna nella chat aperta: Lampo, Medio o Ragionamento lungo."},
+})
+
+# The Hugging Face rows in words (1.1.11b11, after the design review)
+_T.update({
+    "{n}B parameters": {"uk": "{n} млрд параметрів", "it": "{n} mld di parametri"},
+    "updated {date}": {"uk": "оновлено {date}", "it": "aggiornato il {date}"},
+    "recommended": {"uk": "рекомендовано", "it": "consigliato"},
+})
+
+# Folders for chats in the list on the left (1.1.11b11)
+_T.update({
+    "Folders": {"uk": "Папки", "it": "Cartelle"},
+    "New folder": {"uk": "Нова папка", "it": "Nuova cartella"},
+    "Folder options": {"uk": "Дії з папкою", "it": "Opzioni della cartella"},
+    "Move to folder": {"uk": "Перемістити в папку", "it": "Sposta in una cartella"},
+    "Not in a folder": {"uk": "Не в папці", "it": "Fuori dalle cartelle"},
+    "Create and move": {"uk": "Створити й перемістити", "it": "Crea e sposta"},
+    "Rename folder": {"uk": "Перейменувати папку", "it": "Rinomina cartella"},
+    "Folder name": {"uk": "Назва папки", "it": "Nome della cartella"},
+    "For example: School": {"uk": "Наприклад: Навчання", "it": "Per esempio: Scuola"},
+    "Create": {"uk": "Створити", "it": "Crea"},
+    "Delete folder": {"uk": "Видалити папку", "it": "Elimina cartella"},
+    "Delete the folder «{name}»? Its chats stay in the list.": {"uk": "Видалити папку «{name}»? Її чати залишаться в списку.", "it": "Eliminare la cartella «{name}»? Le sue chat restano nell'elenco."},
+    "Drag a chat here to move it into this folder.": {"uk": "Перетягни сюди чат, щоб перемістити його в цю папку.", "it": "Trascina qui una chat per spostarla in questa cartella."},
+    "Leave it empty to take the chat out of its folder.": {"uk": "Залиш порожнім, щоб забрати чат із папки.", "it": "Lascialo vuoto per togliere la chat dalla sua cartella."},
+})
+
 # English forms of the strings with a count: [one, other], the key is the other (i18n.t picks one)
 _EN: dict[str, list[str]] = {
     "Sort {count} files in {place}": ["Sort {count} file in {place}", "Sort {count} files in {place}"],

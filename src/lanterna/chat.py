@@ -9,6 +9,7 @@ from typing import Iterator
 
 from . import AUTHOR, HOMEPAGE, i18n, mathtext, soul
 from .providers import ToolCalls
+from .roles import DEPTHS
 from .router import Router, Switched, used_model
 from .tools import READ_ONLY_TOOLS
 
@@ -17,6 +18,7 @@ KEEP_RECENT = 20          # a long chat: the newest messages go to the model as 
 SUMMARY_EVERY = 10        # …and the older part is summarized again once this many more have piled up
 MAX_TOOL_ROUNDS = 4       # tool calls per answer, then the model must reply
 PLAN_ROUNDS = 12          # …while it works through a plan or makes project files (the user chose 12)
+DEEP_ROUNDS = 8           # …in a chat set to think long (the «Thinking» button): room to look things up and check
 FIX_ROUNDS = 8            # …while it finds why something doesn't work (look, search the web, read, fix)
 BROWSER_ROUNDS = 30       # …while it works in Chrome: every look and every click is a round of its own
 EMPTY_NUDGE = ("(Your last turn had no text for me. Answer my question above now, in plain words, using what you "
@@ -827,6 +829,7 @@ class Conversation:
     cards_waiting: bool = False            # a card of this chat waits for the user: "press Confirm" is right
     browser_note: str = ""                 # how to work in Chrome (browser.system_note), when its tools are offered
     context_note: str = ""                 # words that choose tool groups too, e.g. "(browser)" from Chrome's panel
+    depth: str = ""                        # how long it thinks in this chat: "quick" | "deep" | "" (medium, as usual)
 
     def _system(self, text: str) -> dict:
         cur = used_model(self.router)
@@ -844,6 +847,10 @@ class Conversation:
                                                            helps=helps)
                 + self._summary_note() + (PLAN_NOTE.format(plan=self.plan_text) if self.plan_text and plan else "")
                 + (f"\n\n{self.instructions}" if self.instructions else "")}
+
+    def _depth(self) -> dict:
+        """The chat's thinking level for the router (nothing when it is the usual one)."""
+        return {"depth": self.depth} if self.depth in DEPTHS else {}
 
     def _summary_note(self) -> str:
         return ("\n\nEarlier in this chat (a summary; those older messages are not shown to you):\n" + self.summary
@@ -925,11 +932,14 @@ class Conversation:
         msgs = self._messages(text, images)
         # photos are token-heavy on free tiers: answer them without the tool list
         schemas = self.toolbox.schemas(self._context(text)) if self.toolbox and not images else None
-        cloud_first = self.auto_cloud and is_hard(text)
+        # auto mode: hard questions (and every question of a chat set to think long) go to online models first
+        cloud_first = self.auto_cloud and (is_hard(text) or self.depth == "deep")
         if (schemas is not None and (self.ask_first and big_task(text) or wants_questions(text))
                 and not asked_just_now(self.history)):
             schemas = [*schemas, ASK_TOOL]
             msgs[0]["content"] += ASK_WANTED if wants_questions(text) else ASK_HINT
+        if self.depth in DEPTHS:
+            msgs[0]["content"] += "\n\n" + DEPTHS[self.depth][1]
         if not schemas or self.router.lacks_tools():
             msgs[0]["content"] += NO_TOOLS_NOTE
         elif self.browser_note and any(s["function"]["name"].startswith("browser_") for s in schemas):
@@ -942,7 +952,8 @@ class Conversation:
             msgs[-1]["content"] += ("\n\n[Lanterna searched the web for this message. Use these results if they help, "
                                     "name the sources, and say so if they don't answer it:]\n" + found)
         # 4 tool rounds, or 12 while it works through a plan or makes project files (the user's choice)
-        w = _Work(msgs, schemas, PLAN_ROUNDS if self.plan_text else MAX_TOOL_ROUNDS, text, images, cloud_first)
+        rounds = PLAN_ROUNDS if self.plan_text else DEEP_ROUNDS if self.depth == "deep" else MAX_TOOL_ROUNDS
+        w = _Work(msgs, schemas, rounds, text, images, cloud_first)
         w.careful = careful_turn([s["function"]["name"] for s in schemas or []], text, self.cards_waiting,
                                  self.history)
         yield from self._rounds(w)
@@ -985,7 +996,7 @@ class Conversation:
             choice = ("none" if last else "required" if tools and w.rnd == 0 and not w.redo and must_use_tool(w.text)
                       else "auto")
             for p in self.router.stream(w.msgs, need_vision=bool(w.images) or w.see, tools=tools, tool_choice=choice,
-                                        prefer_cloud=w.cloud_first, careful=w.careful):
+                                        prefer_cloud=w.cloud_first, careful=w.careful, **self._depth()):
                 if isinstance(p, ToolCalls):
                     calls = p
                 elif isinstance(p, str):
@@ -1066,7 +1077,7 @@ class Conversation:
         tail: list[str] = []
         for p in self.router.stream(w.msgs, need_vision=bool(w.images), tools=w.schemas,
                                     tool_choice="none" if w.schemas else "auto", prefer_cloud=w.cloud_first,
-                                    careful=w.careful):
+                                    careful=w.careful, **self._depth()):
             if isinstance(p, str):
                 tail.append(p)
                 yield p

@@ -223,10 +223,12 @@ Lanterna comes with a Chrome extension. With it Lanterna works in your Chrome, i
 - **Voice input**: the microphone next to the message box (or F2), off by default. Online with Groq Whisper, or on this computer with whisper.cpp (a one-time, checked download; nothing leaves your PC). Your words land in the box, so you can fix them before sending.
 - **Always at hand (Windows)**: Lanterna stays in the tray when you close the window. Ctrl+Shift+Space opens a small quick-question window anywhere; its camera button (or "Ask about my screen" in the tray menu) attaches a screenshot. Copied some text a moment ago? The quick window offers Translate, Explain and Fix mistakes. Start with Windows is off until you turn it on.
 - **Search your chats**: the box above the chat list finds words in any chat. Ask “what did you suggest last time about…?” and the model looks through your earlier chats itself.
+- **Folders for chats**: **Move to folder** in a chat's ⋯ menu, or drag the chat onto a folder in the list on the left. **New folder** is the + next to **Folders**; a folder folds with a click, and deleting it keeps its chats. Folders go to your other computers with the chats. In the terminal: **Move to folder** in the menu (Ctrl+P).
 - **Answers read aloud** (🔊, or every answer by itself): the voices Windows has, or Piper with natural voices in 7 languages (a separate program, downloaded on request).
 - **Morning summary** (off by default): the weather, today's reminders and regular tasks in one note at the time you pick.
 - **Second opinion**: the same question to another model, its answer right under the first one.
 - **Your own instructions and roles**: tell Lanterna once how to answer; give a chat a role (Tutor, Translator, Proofreader).
+- **How long it thinks**: the **Thinking** button under the message box sets it for one chat. **Quick** answers at once and briefly, **Medium** is as usual, **Long thinking** thinks longer and checks itself, for hard tasks like math, code or plans (slower). Lanterna tells each service in its own words (Gemini's thinking budget, Groq's and Ollama's reasoning effort, OpenRouter, Z.ai); a model that can't think simply answers as usual. In the terminal: F5.
 - **Ask about a snip (Windows)**: Win+Shift+S, then the quick-question hotkey: Explain, Translate or Ask about the picture.
 - **Private chat** (🕶, F7 in the terminal app): never written to disk, synced or backed up, no memory used, gone when you leave it.
 - **Encrypted weekly backups** (Settings → Chats → Backups): one AES-256 file a week in Documents\Lanterna backups, the last 4 kept; restore on any computer with the password.
@@ -250,6 +252,8 @@ If your PC has a graphics card, Lanterna can run models on it with [Ollama](http
 - **Auto**: the local model answers everyday questions; long questions, proofs, code and analysis go to a bigger online model (you can turn this off in Settings). Photos go to the local photo model.
 
 Downloads start only when you press **Download (X GB)**, with progress shown. In the terminal: `lanterna local` (what fits), `lanterna local pull qwen3:8b`, `lanterna local mode auto`.
+
+**Any model from Hugging Face.** Below the suggestions, **More models from Hugging Face** lists the GGUF models people use now, as on huggingface.co (trending, most downloaded, most liked, recently updated), with a search. Each model says whether it runs fast on the graphics card, slower in memory, or is too big for this computer; **Choose a size** shows its files with their sizes and picks the usual one (Q4_K_M) when it fits. Ollama downloads the file itself (`hf.co/<user>/<repo>:<file>`). Nothing is asked of Hugging Face until you open the list, and only your search words go there, without an account. In the terminal: `lanterna local search qwen`.
 
 <p align="center"><img src="docs/screen-local.png" width="640" alt="Local models: hardware check and recommended models"></p>
 <p align="center"><img src="docs/screen-modes.png" width="420" alt="Mode setting: Cloud, Local, Auto"> <img src="docs/screen-terminal-local.png" width="420" alt="Local models in the terminal app"></p>

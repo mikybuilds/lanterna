@@ -243,6 +243,40 @@ FIRST_WAIT = 30.0
 PING_WAIT = 25.0          # a tiny test request (model checks)
 
 
+# The «Thinking» button (1.1.11b11): what each service is told about how long to think, for "quick" and "deep".
+# Medium sends nothing: the service's own default. A model that refuses it is asked again without it, and isn't
+# told again (Client._no_depth). Gemini: a thinking budget (2.5) or level (3 and newer) inside its thinking_config,
+# never reasoning_effort, which can't go with a thinking_config. Ollama: "none" stops thinking (checked on 0.40).
+_GEMINI_25 = re.compile(r"gemini-2\.5", re.I)
+_GEMINI_NEW = re.compile(r"gemini-(?:[3-9]|\d\d)", re.I)
+
+
+def depth_params(pid: str, model: str, depth: str) -> tuple[dict, dict]:
+    """(fields for the request body, fields for Gemini's thinking_config) for a thinking level."""
+    if depth not in ("quick", "deep"):
+        return {}, {}
+    quick, m = depth == "quick", model.lower()
+    if pid == "gemini":
+        if _GEMINI_25.search(m):                     # a budget in tokens; Pro can't stop thinking (128 at least)
+            return {}, {"thinking_budget": (128 if "pro" in m else 0) if quick else 24576}
+        if _GEMINI_NEW.search(m):
+            return {}, {"thinking_level": "low" if quick else "high"}
+        return {}, {}                                # older ones don't think
+    if pid == "groq":
+        if "gpt-oss" in m:                           # it can't stop thinking: low is the least
+            return {"reasoning_effort": "low" if quick else "high"}, {}
+        if "qwen" in m:
+            return {"reasoning_effort": "none" if quick else "high"}, {}
+        return {}, {}
+    if pid == "openrouter":
+        return {"reasoning": {"effort": "low" if quick else "high"}}, {}
+    if pid == "zai":
+        return {"thinking": {"type": "disabled" if quick else "enabled"}}, {}
+    if pid == "ollama":
+        return {"reasoning_effort": "none" if quick else "high"}, {}
+    return {}, {}
+
+
 class Client:
     def __init__(self, provider: Provider, key: str | None = None, *, transport: httpx.BaseTransport | None = None,
                  timeout: float = 60.0):
@@ -259,6 +293,7 @@ class Client:
         self.provider = provider
         self.guessed = False                 # True when the model list came from Provider.known (the service has none)
         self._timeout = timeout
+        self._no_depth: set[str] = set()     # models that refused a thinking level: they think as usual
         self._http = httpx.Client(base_url=base, headers=headers, timeout=timeout, transport=transport)
 
     def close(self) -> None:
@@ -364,18 +399,45 @@ class Client:
         return chat[0]
 
     def stream_chat(self, model: str, messages: list[dict], temperature: float = 0.7,
-                    tools: list[dict] | None = None, tool_choice: str = "auto") -> Iterator["str | ToolCalls"]:
+                    tools: list[dict] | None = None, tool_choice: str = "auto",
+                    depth: str = "") -> Iterator["str | ToolCalls"]:
         """Yields text pieces as they arrive. Hidden reasoning (<think>…</think>) is dropped.
 
         With tools, the model may ask to call some: then the last item yielded is a ToolCalls.
+        depth: "quick" or "deep" (the chat's «Thinking»); "" = as the service usually does.
         """
+        extra, gem = ({}, {}) if model in self._no_depth else depth_params(self.provider.id, model, depth)
+        if not extra and not gem:
+            yield from self._stream(model, messages, temperature, tools, tool_choice)
+            return
+        try:
+            started = False
+            for piece in self._stream(model, messages, temperature, tools, tool_choice, extra, gem):
+                started = True
+                yield piece
+            return
+        except ProviderError as e:
+            if started or e.status not in (400, 422):
+                raise
+        # it doesn't take this level (a model that doesn't think, another version): as usual, and not again
+        told = False
+        for piece in self._stream(model, messages, temperature, tools, tool_choice):
+            if not told:
+                told = True
+                self._no_depth.add(model)
+            yield piece
+        self._no_depth.add(model)
+
+    def _stream(self, model: str, messages: list[dict], temperature: float, tools: list[dict] | None,
+                tool_choice: str, extra: dict | None = None, gem: dict | None = None) -> Iterator["str | ToolCalls"]:
         body = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
         # "none" = answer now. Gemini needs the tool list kept for that (without it, after tool calls, it sends
         # nothing); other services simply get no tools, as some (Ollama) ignore tool_choice
         if tools and (tool_choice != "none" or self.provider.id == "gemini"):
             body["tools"], body["tool_choice"] = tools, tool_choice
         if self.provider.id == "gemini":                # short thought summaries, shown while it thinks
-            body["extra_body"] = {"google": {"thinking_config": {"include_thoughts": True}}}
+            body["extra_body"] = {"google": {"thinking_config": {"include_thoughts": True, **(gem or {})}}}
+        body.update(extra or {})
         meter = self._meter(model, body)
         # for the meter: the token counts the service sends, the characters that came, and how the answer ended
         # ("broken" unless it ran to the end or was refused: a cut-off answer may have cost the most it can)

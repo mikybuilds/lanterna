@@ -366,7 +366,7 @@ class Play:
 # ---------------------------------------------------------------- the calls the window makes
 REAL = {"state", "threads", "messages", "new_thread", "rename_thread", "pin_thread", "delete_thread", "search_chats",
         "facts", "add_fact", "delete_fact", "reminders", "cancel_reminder", "snooze_reminder", "alerts", "cards",
-        "plan", "clear_plan", "chat_folder", "chat_role", "set_chat_role", "auto_status", "auto_stop",
+        "plan", "clear_plan", "chat_folder", "chat_role", "set_chat_role", "chat_depth", "set_chat_depth", "folders", "add_folder", "move_to_folder", "rename_folder", "delete_folder", "fold_folder", "auto_status", "auto_stop",
         "history_list", "history_clear", "limits", "limit_now", "task_list", "task_add", "task_delete", "task_pause",
         "check_private", "forget_private", "edit_last", "workdir", "backup_status", "sync_status", "github_status",
         "drive_status", "mail_status", "mcp_status", "mcp_presets", "connectors", "voice_status", "tts_status",
@@ -374,6 +374,13 @@ REAL = {"state", "threads", "messages", "new_thread", "rename_thread", "pin_thre
 DEMO_HW = Hardware(gpu="NVIDIA GeForce RTX 3060", vram_gb=12.0, vram_exact=True, ram_gb=32.0,
                    disk_free_gb=61.4, disk_total_gb=445.0, os="win32")     # the same disk as DISK_FIG
 DEMO_OLLAMA = [{"name": "qwen3:8b", "size_gb": 5.2, "vision": False, "tools": True, "chat": True}]
+# Settings → Local models → Hugging Face: made-up rows in the shape hfhub gives (nothing goes to Hugging Face)
+DEMO_HF = [("unsloth/Qwen3-8B-GGUF", 8.2, "qwen3", 2_445_633, 1486, "2026-11-23", False),
+           ("bartowski/gemma-4-12b-it-GGUF", 12.2, "gemma4", 1_204_118, 902, "2026-11-19", True),
+           ("unsloth/Qwen3.8-27B-GGUF", 27.3, "qwen35", 8_181_570, 7149, "2026-11-24", True),
+           ("mradermacher/Llama-3.3-70B-Instruct-i1-GGUF", 70.6, "llama", 412_906, 388, "2026-10-30", False),
+           ("Qwen/Qwen3-4B-GGUF", 4.0, "qwen3", 961_337, 640, "2026-09-02", False),
+           ("ibm-granite/granite-4.1-3b-GGUF", 3.4, "granite", 120_544, 211, "2026-11-12", False)]
 
 
 class Demo:
@@ -420,6 +427,33 @@ class Demo:
         s = self.api.settings
         return {"running": True, "version": "0.12.6", "models": DEMO_OLLAMA, "picks": s.local_models,
                 "download_page": ollama.DOWNLOAD_PAGE, "pulls": [], "fallback": s.local_fallback, "can_install": False}
+
+    def hf_models(self, query: str = "", sort: str = "trending", cursor: str = "", fits: bool = True) -> dict:
+        from lanterna import hfhub
+        m = hfhub.Machine(DEMO_HW.vram_gb, DEMO_HW.ram_gb)
+        rows = [{"id": i, "params_b": p, "arch": a, "context": 131072, "downloads": d, "likes": lk, "updated": u,
+                 "photos": ph, "est_gb": round(p * 0.606, 1), "fit": hfhub.fit(round(p * 0.606, 1), m),
+                 "url": "https://huggingface.co/" + i, "installed": False} for i, p, a, d, lk, u, ph in DEMO_HF]
+        q = str(query or "").lower()
+        rows = [r for r in rows if all(w in r["id"].lower() for w in q.split())]
+        key = {"downloads": "downloads", "likes": "likes", "new": "updated"}.get(sort)
+        if key:
+            rows.sort(key=lambda r: r[key], reverse=True)
+        shown = [r for r in rows if not fits or r["fit"] != "no"]
+        return {"ok": True, "models": shown, "next": "", "hidden": len(rows) - len(shown)}
+
+    def hf_files(self, repo: str) -> dict:
+        from lanterna import hfhub
+        row = next((r for r in DEMO_HF if r[0] == repo), None)
+        if not row:
+            return {"ok": False, "error": "gone"}
+        m = hfhub.Machine(DEMO_HW.vram_gb, DEMO_HW.ram_gb)
+        base = repo.split("/")[1].removesuffix("-GGUF")
+        files = [hfhub.File(f"{base}-{q}.gguf", q, round(row[1] * hfhub.BITS[q] / 8, 2),
+                            hfhub.fit(round(row[1] * hfhub.BITS[q] / 8, 2), m), hfhub.ollama_name(repo, f"{base}-{q}.gguf"))
+                 for q in ("Q3_K_M", "IQ4_XS", "Q4_K_M", "Q5_K_M", "Q6_K", "Q8_0")]
+        out = [dict(f.to_dict(), installed=False) for f in files]
+        return {"ok": True, "files": out, "pick": hfhub._pick(files), "url": "https://huggingface.co/" + repo}
 
     def check_update(self) -> dict:
         return {"newer": False, "latest": __version__}

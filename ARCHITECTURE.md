@@ -98,7 +98,7 @@ flowchart TB
 | Interfaces | `gui.py`, `ui/`, `tui.py`, `cli.py` | Window (pywebview, Edge WebView2 on Windows), terminal app (Textual), line chat and commands |
 | Backend | `app.py` | `Api`: every action of every interface; returns plain JSON-friendly data and never raises into the UI |
 | Conversation | `chat.py`, `soul.py`, `roles.py`, `thinking.py`, `plans.py` | Prompt, history, tool rounds, the honesty check, the personality, the task list of a big job |
-| Models | `router.py`, `providers.py`, `discovery.py`, `health.py`, `limits.py`, `neurons.py`, `local.py` | Which model answers, the HTTP client, free-model search, models that hang, how much of each free limit is left (Cloudflare's daily neurons counted here), Ollama |
+| Models | `router.py`, `providers.py`, `discovery.py`, `health.py`, `limits.py`, `neurons.py`, `local.py`, `hfhub.py` | Which model answers, the HTTP client, free-model search, models that hang, how much of each free limit is left (Cloudflare's daily neurons counted here), Ollama and the Hugging Face catalog of models for it |
 | Tools | `tools.py`, `convert.py`, `scam.py`, `sources.py`, `selfhelp.py` | Weather, search, reading pages, exact maths and dates, currency, scam signs, Lanterna's own help |
 | Changes on the computer | `workspace.py`, `pcfiles.py`, `pcsys.py`, `pccontrol.py`, `apps.py`, `history.py` | Proposed changes, the user's folders, safe settings, programs through winget / Flatpak / dnf / apt, Undo |
 | Looking at the computer | `diskmap.py`, `diskuse.py`, `devtools.py`, `hardware.py` | What fills the whole disk (one walk on several threads), compilers and runtimes on PATH, what the PC can run locally |

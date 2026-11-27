@@ -55,6 +55,9 @@ class Settings:
     work_dir: str = ""                     # the working folder the assistant may use ("" = none); new chats start with it
     chat_dirs: dict = field(default_factory=dict)   # {"thread id": folder} for chats with their own ("" = none)
     chat_roles: dict = field(default_factory=dict)  # {"thread id": "tutor" | "translator" | "proofreader"}
+    chat_depths: dict = field(default_factory=dict)  # {"thread id": "quick" | "deep"}: how long it thinks (none = medium)
+    chat_groups: list = field(default_factory=list)  # folders for chats made here, empty ones too (chats carry theirs)
+    groups_closed: list = field(default_factory=list)  # folders folded in the list on the left
     instructions: str = ""                 # the user's own instructions for every chat (Settings → Chats)
     backup_dir: str = ""                   # where the weekly encrypted backup goes ("" = Documents\Lanterna backups)
     backup_last: float = 0                 # when the last automatic backup was made

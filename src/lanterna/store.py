@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, text TEXT NOT NULL, ev
 # columns added for sync (older databases get them on open)
 _ADDED = {"threads": ["uid TEXT", "title_at REAL NOT NULL DEFAULT 0", "summary TEXT NOT NULL DEFAULT ''",
                       "summary_upto INTEGER NOT NULL DEFAULT 0", "pinned INTEGER NOT NULL DEFAULT 0",
-                      "pinned_at REAL NOT NULL DEFAULT 0", "plan TEXT NOT NULL DEFAULT ''"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''",
+                      "pinned_at REAL NOT NULL DEFAULT 0", "plan TEXT NOT NULL DEFAULT ''",
+                      "folder TEXT NOT NULL DEFAULT ''", "folder_at REAL NOT NULL DEFAULT 0"], "messages": ["uid TEXT", "sent TEXT NOT NULL DEFAULT ''",
                                                                  "sources TEXT NOT NULL DEFAULT ''"],
           "facts": ["uid TEXT"], "reminders": ["uid TEXT", "changed REAL NOT NULL DEFAULT 0",
                                                    "repeat TEXT NOT NULL DEFAULT ''"]}
@@ -135,8 +136,8 @@ class Store:
                                     (new_uid(), title, now if title else 0, now, now)).lastrowid
 
     def threads(self) -> list[dict]:
-        """The chat list: pinned chats first, then the newest."""
-        return self._q("SELECT id, title, updated, pinned FROM threads ORDER BY pinned DESC, updated DESC")
+        """The chat list: pinned chats first, then the newest; each with its folder ("" = none)."""
+        return self._q("SELECT id, title, updated, pinned, folder FROM threads ORDER BY pinned DESC, updated DESC")
 
     def thread(self, tid: int) -> dict | None:
         if tid < 0:
@@ -156,6 +157,24 @@ class Store:
         """Keeps a chat at the top of the list (synced; the newer pin or unpin wins). Private chats aren't kept."""
         if tid > 0:
             self._q("UPDATE threads SET pinned=?, pinned_at=? WHERE id=?", (1 if on else 0, time.time(), tid))
+
+    # ---------------------------------------------------------------- folders for chats (the list on the left)
+    def set_folder(self, tid: int, folder: str) -> None:
+        """Puts a chat in a folder ("" = none). Synced: the newer move wins. Private chats aren't kept."""
+        if tid > 0:
+            self._q("UPDATE threads SET folder=?, folder_at=? WHERE id=?", (folder, time.time(), tid))
+
+    def folders(self) -> dict[str, int]:
+        """Folder name -> how many chats are in it."""
+        return {r["folder"]: r["n"] for r in
+                self._q("SELECT folder, count(*) AS n FROM threads WHERE folder!='' GROUP BY folder")}
+
+    def move_folder(self, old: str, new: str) -> int:
+        """Every chat of one folder goes to another ("" = out of folders): a folder renamed or deleted."""
+        with self._lock, self._db:
+            self.changes += 1
+            return self._db.execute("UPDATE threads SET folder=?, folder_at=? WHERE folder=?",
+                                    (new, time.time(), old)).rowcount
 
     def summary(self, tid: int) -> tuple[str, int]:
         """A long chat's summary of its older part and how many of its first messages it covers."""
@@ -407,8 +426,10 @@ class Store:
             tuid = {r["id"]: r["uid"] for r in q("SELECT id, uid FROM threads")}
             return {
                 "threads": {r["uid"]: {"title": r["title"], "title_at": r["title_at"], "created": r["created"],
-                                       **({"pinned": r["pinned"], "pinned_at": r["pinned_at"]} if r["pinned_at"] else {})}
-                            for r in q("SELECT uid, title, title_at, created, pinned, pinned_at FROM threads")},
+                                       **({"pinned": r["pinned"], "pinned_at": r["pinned_at"]} if r["pinned_at"] else {}),
+                                       **({"folder": r["folder"], "folder_at": r["folder_at"]} if r["folder_at"] else {})}
+                            for r in q("SELECT uid, title, title_at, created, pinned, pinned_at, folder, folder_at "
+                                       "FROM threads")},
                 "messages": {r["uid"]: {"thread": tuid[r["thread"]], "role": r["role"], "content": r["content"],
                                         "model": r["model"], "at": r["at"]}
                              for r in q("SELECT uid, thread, role, content, model, at FROM messages") if r["thread"] in tuid},
@@ -436,16 +457,21 @@ class Store:
             ids = {r[0]: r[1] for r in db.execute("SELECT uid, id FROM threads")}
             for uid, t in snap.get("threads", {}).items():
                 pin, pin_at = 1 if t.get("pinned") else 0, t.get("pinned_at") or 0
+                folder, folder_at = str(t.get("folder") or "")[:40], t.get("folder_at") or 0
                 if uid in ids:
                     n += db.execute("UPDATE threads SET title=?, title_at=? WHERE uid=? AND title_at<?",
                                     (t["title"], t["title_at"], uid, t["title_at"])).rowcount
                     if pin_at:
                         n += db.execute("UPDATE threads SET pinned=?, pinned_at=? WHERE uid=? AND pinned_at<?",
                                         (pin, pin_at, uid, pin_at)).rowcount
+                    if folder_at:
+                        n += db.execute("UPDATE threads SET folder=?, folder_at=? WHERE uid=? AND folder_at<?",
+                                        (folder, folder_at, uid, folder_at)).rowcount
                 elif uid not in gone:
-                    ids[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated, pinned, pinned_at)"
-                                          " VALUES (?,?,?,?,?,?,?)", (uid, t["title"], t["title_at"], t["created"],
-                                                                      t["created"], pin, pin_at)).lastrowid
+                    ids[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated, pinned, pinned_at,"
+                                          " folder, folder_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                                          (uid, t["title"], t["title_at"], t["created"], t["created"], pin, pin_at,
+                                           folder, folder_at)).lastrowid
                     n += 1
             have = {r[0] for r in db.execute("SELECT uid FROM messages")}
             for uid, m in sorted(snap.get("messages", {}).items(), key=lambda kv: kv[1]["at"] or 0):
@@ -498,11 +524,11 @@ class Store:
                     ids[uid] = ids[alias(uid)]
                     continue
                 created = t.get("created") or now
-                back[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated, pinned, pinned_at)"
-                                       " VALUES (?,?,?,?,?,?,?)", (alias(uid), str(t.get("title") or ""),
-                                                                   t.get("title_at") or 0, created, created,
-                                                                   1 if t.get("pinned") else 0,
-                                                                   t.get("pinned_at") or 0)).lastrowid
+                back[uid] = db.execute("INSERT INTO threads(uid, title, title_at, created, updated, pinned, pinned_at,"
+                                       " folder, folder_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                                       (alias(uid), str(t.get("title") or ""), t.get("title_at") or 0, created,
+                                        created, 1 if t.get("pinned") else 0, t.get("pinned_at") or 0,
+                                        str(t.get("folder") or "")[:40], t.get("folder_at") or 0)).lastrowid
                 out["chats"] += 1
             have = {r[0] for r in db.execute("SELECT uid FROM messages")}
             for uid, m in sorted((data.get("messages") or {}).items(), key=lambda kv: kv[1].get("at") or 0):

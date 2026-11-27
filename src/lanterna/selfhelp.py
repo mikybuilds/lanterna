@@ -81,6 +81,17 @@ def about(lang: str = "en", window: bool = True, platform: str = sys.platform, v
         f"{q('Check for a new version when Lanterna starts')}); "
         f"{q('Update now')} in that notice installs it, and the chats, settings and keys stay. On Linux it runs "
         "`pipx upgrade lanterna`.",
+        f"- Local models: {q('Settings')} → {q('General')} → {q('Local models')} (when the mode isn't Cloud) "
+        f"suggests the ones that fit this computer, and {q('More models from Hugging Face')} lists any GGUF model "
+        "people use now, as on huggingface.co, with a search, each file's size and whether it runs here; Ollama "
+        "downloads the chosen file. In the terminal: `lanterna local search <words>`.",
+        f"- Folders for chats: in the list on the left, {q('Move to folder')} in a chat's ⋯ menu (or drag the chat "
+        f"onto a folder); {q('New folder')} is the + next to {q('Folders')}. Deleting a folder keeps its chats. "
+        "Folders go to the user's other computers with the chats. In the terminal: the same command in the menu "
+        "(Ctrl+P).",
+        f"- How long it thinks: the {q('Thinking')} button under the message box, for one chat: {q('Quick')} "
+        f"answers at once and briefly, {q('Medium')} is as usual, {q('Long thinking')} thinks longer and checks itself, for "
+        "hard tasks (slower). In the terminal: F5.",
         f"- This computer: {here}.",
         f"- {q('Settings')}, tab by tab: {settings_map(lang)}.",
     ])

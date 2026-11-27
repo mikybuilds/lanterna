@@ -33,6 +33,24 @@ def clean_role(role) -> str:
     return role if role in ROLES else ""
 
 
+# How long the model thinks in one chat (the «Thinking» button under the message box, F5 in the terminal):
+# id -> (name shown in the app, what the model is told). "Medium" is the usual and isn't stored: each service thinks
+# as much as it does by itself. The services' own settings for it are in providers.depth_params.
+DEPTHS = {
+    "quick": ("Quick",
+              "The person chose quick answers in this chat: answer at once, short and plain. Don't think at length "
+              "and don't make long plans; still use a tool when the answer needs one (fresh facts, this computer)."),
+    "deep": ("Long thinking",
+             "The person chose long thinking in this chat, for hard tasks. Think the task through before you answer: "
+             "step by step and from more than one side; check every number, step and fact (with the tools when they "
+             "help). Then give a clear, complete answer, and say plainly what you aren't sure of."),
+}
+
+
+def clean_depth(depth) -> str:
+    return depth if depth in DEPTHS else ""
+
+
 def system_note(instructions: str, role: str, lang: str = "en") -> str:
     """What goes at the end of the system prompt ("" = nothing)."""
     out = []
